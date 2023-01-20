@@ -16,15 +16,15 @@ on:
       buildType:
         description: CMake build type (config)
         required: true
-        default: 'Release'
+        default: 'Debug'
         type: choice
         options:
         - Release
         - Debug
 
 env:
-  # if the build is not manually dispatched we will default to 'Release' build
-  BUILD_TYPE: ${{ inputs.buildType || 'Release' }}
+  # if the build is not manually dispatched we will default to 'Debug' build
+  BUILD_TYPE: ${{ inputs.buildType || 'Debug' }}
 
 jobs:
   build:
