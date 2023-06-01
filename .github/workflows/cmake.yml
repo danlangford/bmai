@@ -22,6 +22,9 @@ on:
         - Release
         - Debug
 
+  schedule:
+    - cron: '30 2 * * 7' # run at 02:30 UTC Sundays
+
 env:
   # if the build is not manually dispatched we will default to 'Release' build
   BUILD_TYPE: ${{ inputs.buildType || 'Release' }}
@@ -29,6 +32,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     # The CMake configure and build commands are platform agnostic
@@ -74,17 +78,46 @@ jobs:
       # Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C $BUILD_TYPE
-    
-    - name: Upload *NIX Binary
-      uses: actions/upload-artifact@v3
-      if: matrix.os != 'windows-latest'
-      with:
-          name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
-          path: ./build/bmai
 
-    - name: Upload WINDOWS Binary
+    - name: Attach WINDOWS Binary
       uses: actions/upload-artifact@v3
-      if: matrix.os == 'windows-latest'
+      if: ${{ matrix.os == 'windows-latest' }}
       with:
           name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
           path: ${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe
+
+    - name: Update WINDOWS Weekly Release
+      uses: andelf/nightly-release@main
+      if: ${{ matrix.os == 'windows-latest' && (github.event_name=='schedule' || github.event_name=='workflow_dispatch') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: weekly
+        name: 'bmai-${{ runner.os }}-${{ env.BUILD_TYPE }} Weekly Build $$'
+        prerelease: true
+        body: 'TODO: Add weekly release notes'
+        files: |
+          ${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe
+# TODO: add other files maybe like test results
+
+    - name: Attach *NIX Binary
+      uses: actions/upload-artifact@v3
+      if: ${{ matrix.os != 'windows-latest' }}
+      with:
+        name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
+        path: ./build/bmai
+
+    - name: Update *NIX Weekly Release
+      uses: andelf/nightly-release@main
+      if: ${{ matrix.os != 'windows-latest' && (github.event_name=='schedule' || github.event_name=='workflow_dispatch') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: weekly
+        name: 'bmai-${{ runner.os }}-${{ env.BUILD_TYPE }} Weekly Build $$'
+        prerelease: true
+        body: 'TODO: Add weekly release notes'
+        files: |
+          ./build/bmai
+# TODO: add other files maybe like test results
+
