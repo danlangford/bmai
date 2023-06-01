@@ -43,12 +43,12 @@ jobs:
     - name: Sets env vars for WINDOWS
       run: |
         echo "BMAI_BIN=${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
-      if: startsWith(matrix.os, 'Windows')
+      if: ${{ startsWith(matrix.os, 'Windows') }}
 
     - name: Sets env vars for *NIX
       run: |
         echo "BMAI_BIN=${{ github.workspace }}/build/bmai" >> $GITHUB_ENV
-      if: !startsWith(matrix.os, 'Windows')
+      if: ${{ !startsWith(matrix.os, 'Windows') }}
 
     - uses: actions/checkout@v3
       with:
@@ -97,7 +97,7 @@ jobs:
 
     - name: Update Weekly Release
       uses: andelf/nightly-release@main
-      if: 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name
+      if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
