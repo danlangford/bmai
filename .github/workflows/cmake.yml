@@ -23,7 +23,7 @@ on:
         - Debug
 
   schedule:
-    - cron: '30 2 * * 7' # run at 02:30 UTC Sundays
+    - cron: '30 2 * * SUN' # run at 02:30 UTC Sundays
 
 env:
   # if the build is not manually dispatched we will default to 'Release' build
