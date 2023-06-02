@@ -50,7 +50,8 @@ jobs:
     # so i am executing it out here and passing it on the command line
     - name: git-describe for version string
       shell: bash
-      run: echo $GIT_DESCRIBE="$(git describe --dirty --always --tags --match='v[0-9]*')" >> $GITHUB_ENV
+      run: |
+        echo $GIT_DESCRIBE="$(git describe --dirty --always --tags --match='v[0-9]*')" >> $GITHUB_ENV
 
     - name: CMake Configure
       # Use a bash shell so we can use the same syntax for environment variable
