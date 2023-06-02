@@ -82,24 +82,24 @@ jobs:
 
     - name: look around
       run: |
-        echo pwd
+        echo _ _ pwd _ _
         pwd
         ls 
-        echo workspace
+        echo _ _ workspace _ _
         ls ${{ github.workspace }}
-        echo build
+        echo _ _ build _ _
         ls ${{ github.workspace }}/build
-        echo build/${{ env.BUILD_TYPE }}
+        echo _ _ build/${{ env.BUILD_TYPE }} _ _
         ls ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}
 
     - name: Sets env vars for WINDOWS
       run: |
-        echo "BMAI_BIN=${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
+        echo BMAI_BIN=".\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
       if: ${{ startsWith(matrix.os, 'Windows') }}
 
     - name: Sets env vars for *NIX
       run: |
-        echo "BMAI_BIN=${{ github.workspace }}/build/bmai" >> $GITHUB_ENV
+        echo BMAI_BIN="./build/bmai" >> $GITHUB_ENV
       if: ${{ !startsWith(matrix.os, 'Windows') }}
 
     - name: Update Weekly Release
