@@ -80,6 +80,7 @@ jobs:
     - uses: actions/upload-artifact@v3
       with:
         name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
+        if-no-files-found: error
         path: |
           ./build/bmai*
 
