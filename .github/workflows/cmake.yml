@@ -94,7 +94,7 @@ jobs:
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
         echo DATE="$(date)" >> $GITHUB_ENV
-        echo SINCE_TAG="$(git describe --tags --abbrev=0 --match="v[0-9]*")" >> $GITHUB_ENV
+        echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
         echo COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)" >> $GITHUB_ENV
 
     - name: auto-release tag and upload
