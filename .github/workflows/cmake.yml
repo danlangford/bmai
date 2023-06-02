@@ -93,7 +93,7 @@ jobs:
       shell: bash
 #      if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
-        echo DATE="$(date)" >> $GITHUB_ENV
+        echo DATE="$(date -u)" >> $GITHUB_ENV
         echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
         TEMP_COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)"
         echo COMMIT_LOG="${TEMP_COMMIT_LOG//$'\n'/<br />}" >> $GITHUB_ENV
@@ -111,7 +111,7 @@ jobs:
           Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
-          <details><summary>Changes since [${{ env.SINCE_TAG }}](https://github.com/danlangford/bmai/releases/tag/${{ env.SINCE_TAG }})</summary>${{ env.COMMIT_LOG }}</details>
+          <details><summary>Changes since ${{ env.SINCE_TAG }}</summary>${{ env.COMMIT_LOG }}</details>
         files: |
           ./build/bmai*
       # TODO: add other files maybe like test results
