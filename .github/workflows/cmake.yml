@@ -47,12 +47,14 @@ jobs:
     - uses: lukka/get-cmake@latest
 
     - name: Sets env vars for WINDOWS
+      shell: bash
       run: |
-        echo BMAI_BIN=".\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
+        echo BMAI_BIN=".\build\$BUILD_TYPE\bmai.exe" >> $GITHUB_ENV
         echo CMAKE_GEN="NMake Makefiles" >> $GITHUB_ENV
       if: ${{ startsWith(matrix.os, 'Windows') }}
 
     - name: Sets env vars for *NIX
+      shell: bash
       run: |
         echo BMAI_BIN="./build/bmai" >> $GITHUB_ENV
         echo CMAKE_GEN="Unix Makefiles" >> $GITHUB_ENV
@@ -65,12 +67,12 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G ${{ env.CMAKE_GEN }}
+      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE -G "$CMAKE_GEN"
 
     - name: CMake Build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build build --config ${{ env.BUILD_TYPE }}
+      run: cmake --build build --config $BUILD_TYPE
 
 
 
