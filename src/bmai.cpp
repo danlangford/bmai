@@ -95,6 +95,8 @@
 //				  This was a big problem and explains the 42.4% with "Legend of the Five Rings" or
 //				  46.7% with Yoyodyne, 
 // dbl051823	- added P-Swing, Q-Swing support
+// dbl053123	- moved TestRNG and SetupTestGame to a `./test/` dir and testing framework
+// dbl053123	- added ability to disallow surrenders
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 // TOP TODO
@@ -372,7 +374,6 @@ const char *g_debug_name[BME_DEBUG_MAX] =
 
 // globals
 BMC_RNG		g_rng;
-BMC_Man		g_testman1, g_testman2;
 BMC_BMAI3	g_ai;	// the main AI used
 BMC_Game	g_game(false);
 BMC_Parser	g_parser;
@@ -436,7 +437,7 @@ void BMC_Logger::Log(BME_DEBUG _cat, char *_fmt, ... )
 
 bool BMC_Logger::SetLogging(const char *_catname, bool _log)
 {
-	// case insensitive compares are not easy to come by in a cross-platform way
+	// case-insensitive compares are not easy to come by in a cross-platform way
 	// so lets uppercase the input and do a normal std::strcmp below
 	std::string _cn(_catname);
 	std::transform(_cn.begin(), _cn.end(), _cn.begin(), ::toupper);
@@ -531,7 +532,7 @@ void BMC_DieIndexStack::SetBits(BMC_BitArray<BMD_MAX_DICE> & _bits)
 
 // DESC: add the next die to the stack.  If we can't, then remove the top die in the stack 
 //       and replace it with the next available die 
-// PARAM: _add_die: if specificed, then force cycling the top die 
+// PARAM: _add_die: if specified, then force cycling the top die
 // RETURNS: if finished (couldn't cycle)
 bool BMC_DieIndexStack::Cycle(bool _add_die)
 {
@@ -1279,6 +1280,7 @@ BMC_Game::BMC_Game(bool _simulation)
 	m_target_wins = BMD_DEFAULT_WINS;
 	m_simulation = _simulation;
 	m_last_action = BME_ACTION_MAX;
+	m_surrender_allowed = true;
 }
 
 BMC_Game::BMC_Game(const BMC_Game & _game)
@@ -3208,7 +3210,7 @@ void BMC_Parser::ParseDie(INT _p, INT _die)
 		U8 ch = line[pos++];
 		#define	DEFINE_PROPERTY(_s, _v)	case _s: d->m_properties |= _v; break;
 
-		// WARNING: don't use SWING dice here (RSTUVWXYZ)
+		// WARNING: don't use SWING dice here (PQRSTUVWXYZ)
 		switch (ch)
 		{
 			DEFINE_PROPERTY('z', BME_PROPERTY_SPEED)
@@ -3862,6 +3864,7 @@ maxbranch %1		maximum number of total simulations to run at a ply (valid moves *
 debug %1 %2			adjust logging settings (e.g. "debug SIMULATION 0")
 debugply %1
 ai %1 %2			set player %1 (0-1) to AI type %2 (0 = BMAI, 1 = QAI, 2 = BMAI v2)
+surrender %1        set if AI is allowed to surrender. If off then AI will continue to play loosing positions. [default is on]
 
 ACTIONS
 playgame %1			play %1 games and output results 
@@ -3995,6 +3998,10 @@ void BMC_Parser::Parse()
 			g_rng.SRand(param);
 			printf("Seeding with %d\n", param);
 		}
+        else if (sscanf(line, "surrender %32s", &sparam)==1)
+        {
+            g_game.SetSurrenderAllowed(std::string(sparam)=="on");
+        }
 		else if (!std::strcmp(line, "quit"))
 		{
 			return;
@@ -4014,90 +4021,8 @@ void BMC_Parser::Parse()
 // main
 ///////////////////////////////////////////////////////////////////////////////////////////
 
-void BMC_Parser::SetupTestGame()
+int bmai_main(int argc, char *argv[])
 {
-	BMC_DieData *die;
-
-	die = g_testman1.GetDieData(0);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 12;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman1.GetDieData(1);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 8;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman1.GetDieData(2);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 4;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman1.GetDieData(3);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 10;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman2.GetDieData(0);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 8;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman2.GetDieData(1);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 20;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	die = g_testman2.GetDieData(2);
-	die->m_properties = BME_PROPERTY_VALID;
-	die->m_sides[0] = 6;
-	die->m_swing_type[0] = BME_SWING_NOT;
-
-	g_game.SetAI(0, &g_ai);
-	g_game.SetAI(1, &g_ai);
-	g_game.PlayGame(&g_testman1, &g_testman2);
-}
-
-void TestRNG()
-{
-	const int ranges = 10;
-	const float range_size = 1.0f / ranges;
-	const int sims = 1000000;
-	int i,r;
-	float f;
-	int range[ranges] = {0,};
-
-	// sampling
-	for (i=0; i<sims; i++)
-	{
-		f = g_rng.GetFRand();
-		BM_ASSERT(f>=0.0f && f<1.0f);
-		r = (int)(f / range_size);
-		range[r]++;
-	}
-
-	// analysis
-	// var = tot2 / avg2
-	double max_error = 0;
-	double total = 0, total2 = 0;
-	for (i=0; i<ranges; i++)
-	{
-		double dist = (double)range[i] / (double)sims;
-		double error = fabs(dist - range_size);
-		total += error;
-		total2 += error*error;
-		max_error = std::max(max_error,error);
-		printf ("range %d dist %lf error %lf\n", i, dist, error);
-	}
-	double avg = total / ranges;
-	double var = total2 / (avg*avg);
-	printf("max error %lf var %lf stddev %lf\n", max_error/range_size, var, sqrt(var));
-}
-
-
-int main(int argc, char *argv[])
-{
-	//TestRNG();
 	g_stats.OnAppStarted();
 
 	// set up logging
@@ -4116,7 +4041,6 @@ int main(int argc, char *argv[])
 	// banner
 	printf("BMAI: the Button Men AI\nCopyright (c) 2001-2023, Denis Papp.\nFor information, contact Denis Papp, denis@accessdenied.net\nVersion: %s\n", GIT_DESCRIBE);
 
-	//g_parser.SetupTestGame();
 	if (argc>1)
 	{
 		FILE *fp = fopen(argv[1],"r");

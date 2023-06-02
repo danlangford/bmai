@@ -1,12 +1,14 @@
 name: CMake
 
-# if you are doing development on another branch and want GHActions to auto build the branch
-# then add the branch name to the `push` section below
+# when developing on another branch 
+# if you want GHActions to auto build the branch
+# add the branch name to the `push` section below
 # you only need to make that change ON THE BRANCH to be built
-# I like to remove it when merging into `main`
+# please remove it when merging into `main`
 on:
   push:
-    branches: [ main ]
+    # TODO remove the extra branch before merging into main
+    branches: [ main, no_surrender ]
   pull_request:
     branches: [ main ]
 
@@ -35,8 +37,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-    # The CMake configure and build commands are platform agnostic
-    # and should work equally well on Windows or Mac.
+    # The CMake configure and build commands are platform-agnostic
+    # and _should_ work equally well on Windows/Mac/Linux.
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -44,7 +46,15 @@ jobs:
       with:
         fetch-depth: 0
     - uses: lukka/get-cmake@latest
+      with:
+        cmakeVersion: "~3.11.0"
+        # forcing a specific version to maintain compatibility with VS2017
 
+## later versions of cmake wont need msbuild setup with an action 
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.3.1
+      if: matrix.os == 'windows-latest'
+      
     # for some reason the git describe done inside of CMake
     # isnt producing the desired results anymore
     # so i am executing it out here and passing it on the command line
@@ -53,42 +63,29 @@ jobs:
       run: |
         echo GIT_DESCRIBE="$(git describe --always --tags --match='v[0-9]*' ${{'pull_request'==github.event_name && 'HEAD^2)-PR' || '--dirty)'}}" >> $GITHUB_ENV
 
+## on later versions of cmake we can use the -S -B syntax
+#    - name: CMake Configure
+#      shell: bash
+#      run: cmake -S . -B build -DGIT_DESCRIBE="$GIT_DESCRIBE" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
+
     - name: CMake Configure
-      # Use a bash shell so we can use the same syntax for environment variable
-      # access regardless of the host operating system
       shell: bash
-      # Note the current convention is to use the -S and -B options here to specify source 
-      # and build directories, but this is only available with CMake 3.13 and higher.  
-      # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake -S . -B build -DGIT_DESCRIBE="$GIT_DESCRIBE" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
+      run: mkdir -p build && cd build && cmake .. -DGIT_DESCRIBE="$GIT_DESCRIBE" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
       # Unix Makefiles allow the build to behave similarly cross-platform
       # if we want to ensure that the project can build under a certain build type (like VS2017)
       # we should consider a very specific GHAction Workflow for that case
+## later versions of cmake auto-create the build folder
 
     - name: CMake Build
       shell: bash
-      # Execute the build.  You can specify a specific target with "--target <NAME>"
+ ## In later versions of cmake we can specify targets with "--target NAMEa NAMEb"
       run: cmake --build build --config $BUILD_TYPE
 
-
-
-    # NOTICE current error is 
-
-    #    Run ctest -C $BUILD_TYPE
-    #    env:
-    #      BUILD_TYPE: Release
-    #    Test project /home/runner/work/bmai/bmai/build
-    #    No tests were found!!!
-
-    # maybe we havent written tests and I just put this in here to follow some template?
-    # TODO add some tests, or fix the problem running them
-
-    - name: Test
+    - name: CTest
       working-directory: build
       shell: bash
-      # Execute tests defined by the CMake configuration.  
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE
+      run: ctest -C $BUILD_TYPE --no-tests=error --output-junit ctest-results.xml
+  # someday I want to try again to display the test results
 
     - uses: actions/upload-artifact@v3
       with:
