@@ -53,6 +53,9 @@ jobs:
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
       run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
+      # Unix Makefiles allow the build to behave similarly cross-platform
+      # if we want to ensure that the project can build under a certain build type (like VS2017)
+      # we should consider a very specific GHAction Workflow for that case
 
     - name: CMake Build
       shell: bash
@@ -86,10 +89,13 @@ jobs:
         path: |
           ./build/bmai*
 
-    - name: get date
+    - name: get data for release body
       shell: bash
+      if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
-        echo "DATE=$(date)" >> $GITHUB_ENV
+        echo DATE="$(date)" >> $GITHUB_ENV
+        echo SINCE_TAG=$(git describe --tags --abbrev=0 --match="v[0-9]*") >> $GITHUB_ENV
+        echo COMMIT_LOG=$(git log $(git describe --tags --abbrev=0 --match="v[0-9]*")..HEAD --oneline) >> $GITHUB_ENV
 
     - name: auto-release tag and upload
       uses: andelf/nightly-release@main
@@ -101,9 +107,11 @@ jobs:
         name: '[auto] BMAI-${{ runner.os }}'
         prerelease: true
         body: |
+          Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
-          > TODO: add auto release notes
+          Changes since ${{ env.SINCE_TAGE }}:
+          > ${{ env.COMMIT_LOG }}
         files: |
           ./build/bmai*
       # TODO: add other files maybe like test results
