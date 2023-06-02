@@ -50,7 +50,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
 
     - name: CMake Build
       shell: bash
@@ -82,7 +82,6 @@ jobs:
         name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
         path: |
           ./build/bmai*
-          ./build/${{ env.BUILD_TYPE }}/bmai*
 
     - name: Update Auto Release
       uses: andelf/nightly-release@main
@@ -96,5 +95,4 @@ jobs:
         body: 'TODO: add auto release notes'
         files: |
           ./build/bmai*
-          ./build/${{ env.BUILD_TYPE }}/bmai*
       # TODO: add other files maybe like test results
