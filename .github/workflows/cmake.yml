@@ -46,6 +46,18 @@ jobs:
         fetch-depth: 0
     - uses: lukka/get-cmake@latest
 
+    - name: Sets env vars for WINDOWS
+      run: |
+        echo BMAI_BIN=".\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
+        echo CMAKE_GEN="NMake Makefiles" >> $GITHUB_ENV
+      if: ${{ startsWith(matrix.os, 'Windows') }}
+
+    - name: Sets env vars for *NIX
+      run: |
+        echo BMAI_BIN="./build/bmai" >> $GITHUB_ENV
+        echo CMAKE_GEN="Unix Makefiles" >> $GITHUB_ENV
+      if: ${{ !startsWith(matrix.os, 'Windows') }}
+
     - name: CMake Configure
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -53,12 +65,12 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE
+      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -G ${{ env.CMAKE_GEN }}
 
     - name: CMake Build
       shell: bash
       # Execute the build.  You can specify a specific target with "--target <NAME>"
-      run: cmake --build build --config $BUILD_TYPE
+      run: cmake --build build --config ${{ env.BUILD_TYPE }}
 
 
 
@@ -78,29 +90,7 @@ jobs:
       shell: bash
       # Execute tests defined by the CMake configuration.  
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C $BUILD_TYPE
-
-    - name: look around
-      run: |
-        echo _ _ pwd _ _
-        pwd
-        ls 
-        echo _ _ workspace _ _
-        ls ${{ github.workspace }}
-        echo _ _ build _ _
-        ls ${{ github.workspace }}/build
-        echo _ _ build/${{ env.BUILD_TYPE }} _ _
-        ls ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}
-
-    - name: Sets env vars for WINDOWS
-      run: |
-        echo BMAI_BIN=".\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
-      if: ${{ startsWith(matrix.os, 'Windows') }}
-
-    - name: Sets env vars for *NIX
-      run: |
-        echo BMAI_BIN="./build/bmai" >> $GITHUB_ENV
-      if: ${{ !startsWith(matrix.os, 'Windows') }}
+      run: ctest -C ${{ env.BUILD_TYPE }}
 
     - name: Update Weekly Release
       uses: andelf/nightly-release@main
