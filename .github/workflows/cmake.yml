@@ -95,7 +95,7 @@ jobs:
       run: |
         echo DATE="$(date)" >> $GITHUB_ENV
         echo SINCE_TAG=$(git describe --tags --abbrev=0 --match="v[0-9]*") >> $GITHUB_ENV
-        echo COMMIT_LOG=$(git log $(git describe --tags --abbrev=0 --match="v[0-9]*")..HEAD --oneline) >> $GITHUB_ENV
+        echo COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match="v[0-9]*")..HEAD --oneline)" >> $GITHUB_ENV
 
     - name: auto-release tag and upload
       uses: andelf/nightly-release@main
@@ -110,7 +110,7 @@ jobs:
           Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
-          Changes since ${{ env.SINCE_TAGE }}:
+          Changes since [${{ env.SINCE_TAG }}](https://github.com/danlangford/bmai/releases/tag/${{ env.SINCE_TAG }}):
           > ${{ env.COMMIT_LOG }}
         files: |
           ./build/bmai*
