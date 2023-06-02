@@ -50,7 +50,7 @@ jobs:
     # so i am executing it out here and passing it on the command line
     - name: git-describe for version string
       shell: bash
-      run: echo GIT_DESCRIBE="$(git describe --dirty --always --tags --match='v[0-9]*')" >> $GITHUB_ENV
+      run: echo GIT_DESCRIBE="$(git describe --always --tags --match='v[0-9]*') ${{ if 'pull_request' == github.event_name && 'HEAD^' || 'HEAD' }} " >> $GITHUB_ENV
 
     - name: CMake Configure
       # Use a bash shell so we can use the same syntax for environment variable
@@ -100,10 +100,11 @@ jobs:
       shell: bash
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
-        echo DATE="$(date -u)" >> $GITHUB_ENV
-        echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
-        TEMP_COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)"
+        SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')"
+        TEMP_COMMIT_LOG="$(git log $SINCE_TAG..HEAD --oneline)"
+        echo SINCE_TAG="$SINCE_TAG" >> $GITHUB_ENV
         echo COMMIT_LOG="${TEMP_COMMIT_LOG//$'\n'/<br />}" >> $GITHUB_ENV
+        echo DATE="$(date -u)" >> $GITHUB_ENV
 
     - name: auto-release tag and upload
       uses: andelf/nightly-release@main
