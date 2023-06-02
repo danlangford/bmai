@@ -91,9 +91,11 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: auto-release-${{ runner.os }}
-        name: 'bmai-${{ runner.os }}-${{ env.BUILD_TYPE }} auto $$'
+        name: '[auto] BMAI-${{ runner.os }}-${{ env.BUILD_TYPE }}'
         prerelease: true
-        body: 'TODO: add auto release notes'
+        body: |
+          # $$
+          > TODO: add auto release notes
         files: |
           ./build/bmai*
       # TODO: add other files maybe like test results
