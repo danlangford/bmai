@@ -95,7 +95,7 @@ jobs:
       run: |
         echo DATE="$(date)" >> $GITHUB_ENV
         echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
-        echo COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)" >> $GITHUB_ENV
+        echo COMMIT_LOG=$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline) >> $GITHUB_ENV
 
     - name: auto-release tag and upload
       uses: andelf/nightly-release@main
