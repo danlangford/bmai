@@ -46,18 +46,6 @@ jobs:
         fetch-depth: 0
     - uses: lukka/get-cmake@latest
 
-    - name: Sets env vars for WINDOWS
-      shell: bash
-      run: |
-        echo BMAI_BIN=".\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
-      if: ${{ startsWith(matrix.os, 'Windows') }}
-
-    - name: Sets env vars for *NIX
-      shell: bash
-      run: |
-        echo BMAI_BIN="./build/bmai" >> $GITHUB_ENV
-      if: ${{ !startsWith(matrix.os, 'Windows') }}
-
     - name: CMake Configure
       shell: bash
       # Note the current convention is to use the -S and -B options here to specify source 
@@ -108,4 +96,6 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
           name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
-          path: ${{ env.BMAI_BIN }}
+          path: |
+            ./build/bmai*
+            ./build/${{ env.BUILD_TYPE }}/bmai*
