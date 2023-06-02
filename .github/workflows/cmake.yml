@@ -40,15 +40,6 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Sets env vars for WINDOWS
-      run: |
-        echo "BMAI_BIN=${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
-      if: ${{ startsWith(matrix.os, 'Windows') }}
-
-    - name: Sets env vars for *NIX
-      run: |
-        echo "BMAI_BIN=${{ github.workspace }}/build/bmai" >> $GITHUB_ENV
-      if: ${{ !startsWith(matrix.os, 'Windows') }}
 
     - uses: actions/checkout@v3
       with:
@@ -89,11 +80,27 @@ jobs:
       # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
       run: ctest -C $BUILD_TYPE
 
-    - name: Attach Binary
-      uses: actions/upload-artifact@v3
-      with:
-          name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
-          path: ${{env.BMAI_BIN}}
+    - name: look around
+      run: |
+        echo pwd
+        pwd
+        ls -la
+        echo workspace
+        ls -la ${{ github.workspace }}
+        echo build
+        ls -la ${{ github.workspace }}/build
+        echo build/${{ $BUILD_TYPE }}
+        ls -la ${{ github.workspace }}/build/${{ $BUILD_TYPE }}
+
+    - name: Sets env vars for WINDOWS
+      run: |
+        echo "BMAI_BIN=${{ github.workspace }}\build\${{ env.BUILD_TYPE }}\bmai.exe" >> $GITHUB_ENV
+      if: ${{ startsWith(matrix.os, 'Windows') }}
+
+    - name: Sets env vars for *NIX
+      run: |
+        echo "BMAI_BIN=${{ github.workspace }}/build/bmai" >> $GITHUB_ENV
+      if: ${{ !startsWith(matrix.os, 'Windows') }}
 
     - name: Update Weekly Release
       uses: andelf/nightly-release@main
@@ -106,5 +113,11 @@ jobs:
         prerelease: true
         body: 'TODO: Add weekly release notes'
         files: |
-          ${{env.BMAI_BIN}}
-# TODO: add other files maybe like test results
+          ${{ env.BMAI_BIN }}
+      # TODO: add other files maybe like test results
+
+    - name: Attach Binary
+      uses: actions/upload-artifact@v3
+      with:
+          name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
+          path: ${{ env.BMAI_BIN }}
