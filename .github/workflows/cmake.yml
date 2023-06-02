@@ -83,13 +83,13 @@ jobs:
         path: |
           ./build/bmai*
 
-    - name: Update Auto Release
+    - name: auto-release tag and upload
       uses: andelf/nightly-release@main
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: auto-release-${{ matrix.os }}
+        tag_name: auto-release-${{ runner.os }}
         name: 'bmai-${{ runner.os }}-${{ env.BUILD_TYPE }} auto $$'
         prerelease: true
         body: 'TODO: add auto release notes'
