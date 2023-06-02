@@ -50,7 +50,7 @@ jobs:
       shell: bash
       run: |
         echo BMAI_BIN=".\build\$BUILD_TYPE\bmai.exe" >> $GITHUB_ENV
-        echo CMAKE_GEN="NMake Makefiles" >> $GITHUB_ENV
+        echo CMAKE_GEN="Unix Makefiles" >> $GITHUB_ENV
       if: ${{ startsWith(matrix.os, 'Windows') }}
 
     - name: Sets env vars for *NIX
