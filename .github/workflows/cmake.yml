@@ -84,6 +84,11 @@ jobs:
         path: |
           ./build/bmai*
 
+    - name: get date
+      shell: bash
+      run: |
+        echo "DATE=$(date)" >> $GITHUB_ENV
+
     - name: auto-release tag and upload
       uses: andelf/nightly-release@main
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
@@ -94,8 +99,8 @@ jobs:
         name: '[auto] BMAI-${{ runner.os }}'
         prerelease: true
         body: |
-          Repo Updated At: ${{ github.event.repository.updated_at}}
           Build Type: ${{ env.BUILD_TYPE }}
+          Run At: ${{ env.DATE }}
           > TODO: add auto release notes
         files: |
           ./build/bmai*
