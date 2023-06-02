@@ -51,7 +51,7 @@ jobs:
     - name: git-describe for version string
       shell: bash
       run: |
-        echo GIT_DESCRIBE="$(git describe --always --tags --match='v[0-9]*' ${{'pull_request'==github.event_name && 'HEAD^)(PR)' || 'HEAD)'}}" >> $GITHUB_ENV
+        echo GIT_DESCRIBE="$(git describe --always --tags --match='v[0-9]*' ${{'pull_request'==github.event_name && 'HEAD^2)-PR' || 'HEAD)'}}" >> $GITHUB_ENV
 
     - name: CMake Configure
       # Use a bash shell so we can use the same syntax for environment variable
