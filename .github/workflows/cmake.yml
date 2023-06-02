@@ -119,7 +119,7 @@ jobs:
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
           Trigger: ${{ github.event_name }}
-          Binary Version: ${{ env.$GIT_DESCRIBE }} 
+          Binary Version: ${{ env.GIT_DESCRIBE }} 
           <details><summary>Changes since ${{ env.SINCE_TAG }}</summary>${{ env.COMMIT_LOG }}</details>
         files: |
           ./build/bmai*
