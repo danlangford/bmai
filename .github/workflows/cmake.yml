@@ -45,6 +45,13 @@ jobs:
         fetch-depth: 0
     - uses: lukka/get-cmake@latest
 
+    # for some reason the git describe done inside of CMake
+    # isnt producing the desired results anymore
+    # so i am executing it out here and passing it on the command line
+    - name: git-describe for version string
+      shell: bash
+      run: echo $GIT_DESCRIBE="$(git describe --dirty --always --tags --match='v[0-9]*')" >> $GITHUB_ENV
+
     - name: CMake Configure
       # Use a bash shell so we can use the same syntax for environment variable
       # access regardless of the host operating system
@@ -52,7 +59,7 @@ jobs:
       # Note the current convention is to use the -S and -B options here to specify source 
       # and build directories, but this is only available with CMake 3.13 and higher.  
       # The CMake binaries on the Github Actions machines are (as of this writing) 3.12
-      run: cmake -S . -B build -D CMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
+      run: cmake -S . -B build -DGIT_DESCRIBE=$GIT_DESCRIBE -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
       # Unix Makefiles allow the build to behave similarly cross-platform
       # if we want to ensure that the project can build under a certain build type (like VS2017)
       # we should consider a very specific GHAction Workflow for that case
@@ -94,7 +101,6 @@ jobs:
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
         echo DATE="$(date -u)" >> $GITHUB_ENV
-        echo CUR_VER="$(git describe --dirty --always --tags --match='v[0-9]*')" >> $GITHUB_ENV
         echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
         TEMP_COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)"
         echo COMMIT_LOG="${TEMP_COMMIT_LOG//$'\n'/<br />}" >> $GITHUB_ENV
@@ -113,7 +119,7 @@ jobs:
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
           Trigger: ${{ github.event_name }}
-          Binary Version: ${{ env.CUR_VER }} 
+          Binary Version: ${{ env.$GIT_DESCRIBE }} 
           <details><summary>Changes since ${{ env.SINCE_TAG }}</summary>${{ env.COMMIT_LOG }}</details>
         files: |
           ./build/bmai*
