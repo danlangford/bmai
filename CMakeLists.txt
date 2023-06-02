@@ -11,7 +11,7 @@ project(bmai)
 
 # Get the latest git tag and short commit hash
 execute_process(
-    COMMAND git describe --dirty --always --tags
+    COMMAND git describe --dirty --always --tags --match="v[0-9]*"
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
     OUTPUT_VARIABLE GIT_DESCRIBE
     OUTPUT_STRIP_TRAILING_WHITESPACE
