@@ -94,6 +94,7 @@ jobs:
       if: ${{ 'schedule' == github.event_name || 'workflow_dispatch' == github.event_name }}
       run: |
         echo DATE="$(date -u)" >> $GITHUB_ENV
+        echo CUR_VER="git describe --dirty --always --tags --match='v[0-9]*'" >> $GITHUB_ENV
         echo SINCE_TAG="$(git describe --tags --abbrev=0 --match='v[0-9]*')" >> $GITHUB_ENV
         TEMP_COMMIT_LOG="$(git log $(git describe --tags --abbrev=0 --match='v[0-9]*')..HEAD --oneline)"
         echo COMMIT_LOG="${TEMP_COMMIT_LOG//$'\n'/<br />}" >> $GITHUB_ENV
@@ -112,6 +113,7 @@ jobs:
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
           Trigger: ${{ github.event_name }}
+          Binary Version: ${{ env.CUR_VER }} 
           <details><summary>Changes since ${{ env.SINCE_TAG }}</summary>${{ env.COMMIT_LOG }}</details>
         files: |
           ./build/bmai*
