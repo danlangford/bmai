@@ -111,6 +111,7 @@ jobs:
           Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
           Build Type: ${{ env.BUILD_TYPE }}
           Run At: ${{ env.DATE }}
+          Trigger: ${{ github.event_name }}
           <details><summary>Changes since ${{ env.SINCE_TAG }}</summary>${{ env.COMMIT_LOG }}</details>
         files: |
           ./build/bmai*
