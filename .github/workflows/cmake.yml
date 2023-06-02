@@ -89,8 +89,10 @@ jobs:
         ls -la ${{ github.workspace }}
         echo build
         ls -la ${{ github.workspace }}/build
-        echo build/${{ $BUILD_TYPE }}
-        ls -la ${{ github.workspace }}/build/${{ $BUILD_TYPE }}
+        echo build/$BUILD_TYPE
+        ls -la ${{ github.workspace }}/build/$BUILD_TYPE
+        echo build/${{ env.BUILD_TYPE }}
+        ls -la ${{ github.workspace }}/build/${{ env.BUILD_TYPE }}
 
     - name: Sets env vars for WINDOWS
       run: |
