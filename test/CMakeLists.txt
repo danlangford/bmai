@@ -43,4 +43,4 @@ target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib gtest_main)
 ##
 
 include(GoogleTest)
-gtest_discover_tests(${NAME}_tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(${NAME}_tests) # DISCOVERY_MODE PRE_TEST
