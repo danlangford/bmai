@@ -17,7 +17,7 @@ on:
       buildType:
         description: CMake build type (config)
         required: true
-        default: 'Release'
+        default: 'Debug'
         type: choice
         options:
         - Release
@@ -27,8 +27,8 @@ on:
     - cron: '30 2 * * SUN' # run at 02:30 UTC Sundays
 
 env:
-  # if the build is not manually dispatched we will default to 'Release' build
-  BUILD_TYPE: ${{ inputs.buildType || 'Release' }}
+  # if the build is not manually dispatched we will default to 'Debug' build
+  BUILD_TYPE: ${{ inputs.buildType || 'Debug' }}
 
 jobs:
   build:
