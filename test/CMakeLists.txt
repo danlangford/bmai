@@ -26,8 +26,15 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(googletest)
 
-# TODO: get rid of glob, bad practice apparently
-file(GLOB TEST_SOURCES *.cpp *.h)
+# Explicitly list the test source files
+set(TEST_SOURCES
+        BMAI3Tests.cpp
+        LegacyFunctions.cpp
+        PlayerTest.cpp
+        SkillTest.cpp
+        testutils.h
+        DemoTest.cpp
+)
 add_executable(${NAME}_tests ${TEST_SOURCES})
 target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib gtest_main)
 
