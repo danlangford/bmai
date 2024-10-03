@@ -22,7 +22,7 @@ FetchContent_Declare(
         GIT_TAG main
 )
 # For VS/Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(gtest_force_shared_crt OFF CACHE BOOL "" FORCE) # TODO investigate impact of changing it from ON to OFF
 
 FetchContent_MakeAvailable(googletest)
 
