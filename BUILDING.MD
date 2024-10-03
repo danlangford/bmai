@@ -15,11 +15,9 @@ Consider using a pattern like the one below for your builds should you want to b
 
 We are coding to the lowest common denominator of the contributors. This is currently:
 
-* Visual Studio (15) 2017 (which supports up to CMake 3.12)
-* C++ 14
-* CMake 3.11
-
-There are lots of nice features added in later versions of CMake (3.14+) and C++ (17+) that we will work to progress towards. 
+* Visual Studio (17) 2022 (which supports up to CMake 3.19 and beyond)
+* C++ 17
+* CMake 3.19
 
 ## COMPILING 
 
