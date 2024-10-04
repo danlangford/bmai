@@ -39,7 +39,11 @@ set(HEADERS ./src/bmai.h ./src/bmai_ai.h ./src/stats.h ./src/logger.h ./src/pars
 add_library(${NAME}_lib ${SOURCE} ${HEADERS})
 add_executable(${NAME} ./src/main.cpp)
 
-target_link_libraries(${NAME} PRIVATE ${NAME}_lib)
+if(WIN32)
+    target_link_libraries(${NAME} PRIVATE ${NAME}_lib -static)
+else()
+    target_link_libraries(${NAME} PRIVATE ${NAME}_lib)
+endif()
 
 # to be able to reference header files
 target_include_directories(${NAME} PRIVATE ./src)
