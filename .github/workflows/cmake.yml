@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -70,18 +70,12 @@ jobs:
       run: ctest -C $BUILD_TYPE --no-tests=error --output-junit ctest-results.xml
   # someday I want to try again to display the test results
 
-    - name: give the bin a versioned filename
-      shell: bash
-      run: cp ./build/bmai ./build/bmai-$(echo "$GIT_DESCRIBE" | tr '.' '-')
-
-# TODO remove runner.arch?
-
     - uses: actions/upload-artifact@v4
       with:
-        name: bmai-${{ runner.os }}-${{ runner.arch }}-${{ env.BUILD_TYPE }}
+        name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
         if-no-files-found: error
         path: |
-          ./build/bmai-v*
+          ./build/bmai
 
     - name: get data for release body
       shell: bash
@@ -99,8 +93,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: auto-release-${{ runner.os }}-${{ runner.arch }}
-        name: '[auto] BMAI-${{ runner.os }}-${{ runner.arch }}'
+        tag_name: auto-release-${{ runner.os }}
+        name: '[auto] BMAI-${{ runner.os }}'
         prerelease: true
         body: |
           Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
