@@ -36,7 +36,12 @@ set(TEST_SOURCES
         DemoTest.cpp
 )
 add_executable(${NAME}_tests ${TEST_SOURCES})
-target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main -static)
+
+if(WIN32 OR (UNIX AND NOT APPLE))
+    target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main -static)
+else()
+    target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main)
+endif()
 
 ##
 # Auto-Discover Tests
