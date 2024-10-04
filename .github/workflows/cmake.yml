@@ -74,6 +74,8 @@ jobs:
       shell: bash
       run: cp ./build/bmai ./build/bmai-$(echo "$GIT_DESCRIBE" | tr '.' '-')
 
+# TODO remove runner.arch?
+
     - uses: actions/upload-artifact@v4
       with:
         name: bmai-${{ runner.os }}-${{ runner.arch }}-${{ env.BUILD_TYPE }}

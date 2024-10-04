@@ -37,10 +37,10 @@ set(TEST_SOURCES
 )
 add_executable(${NAME}_tests ${TEST_SOURCES})
 
-if(WIN32 OR (UNIX AND NOT APPLE))
-    target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main -static)
-else()
+if(APPLE)
     target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main)
+else()
+    target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib GTest::gtest_main -static)
 endif()
 
 ##
