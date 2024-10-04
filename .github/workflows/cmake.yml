@@ -69,9 +69,9 @@ jobs:
       run: ctest -C $BUILD_TYPE --no-tests=error --output-junit ctest-results.xml
       # someday I want to try again to display the test results
 
-    - name: copy sample battles
+    - name: prep archive
       shell: bash
-      run: cp ./test/sample*.txt ./build/
+      run: mkdir archive && cp ./build/bmai* ./archive/ && cp ./test/sample*.txt ./archive/
 
     # if all the files for the archive are in same dir
     # then the archive won't have a lit of different dirs in it
@@ -81,9 +81,7 @@ jobs:
       with:
         name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
         if-no-files-found: error
-        path: |
-          ./build/bmai*
-          ./build/sample*.txt
+        path: ./archive/*
 
     - name: get data for release body
       shell: bash
