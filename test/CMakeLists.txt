@@ -36,7 +36,7 @@ set(TEST_SOURCES
         DemoTest.cpp
 )
 add_executable(${NAME}_tests ${TEST_SOURCES})
-target_link_libraries(${NAME}_tests PRIVATE ${NAME}_lib gtest_main)
+target_link_libraries(${NAME}_tests PUBLIC ${NAME}_lib gtest_main)
 
 ##
 # Auto-Discover Tests

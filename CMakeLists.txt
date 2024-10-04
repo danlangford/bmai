@@ -36,7 +36,7 @@ add_library(${NAME}_lib ${SOURCE} ${HEADERS})
 add_executable(${NAME} ./src/main.cpp)
 
 if(UNIX AND NOT APPLE)
-   target_link_libraries(${NAME} PRIVATE ${NAME}_lib -static)
+    target_link_libraries(${NAME} PRIVATE ${NAME}_lib -static)
 else()
     target_link_libraries(${NAME} PRIVATE ${NAME}_lib)
 endif()
