@@ -47,11 +47,6 @@ jobs:
         cmakeVersion: "~3.19.0"
         # forcing a specific version to maintain compatibility with VS2022
 
-    ## later versions of cmake wont need msbuild setup with an action?
-    - name: Add msbuild to PATH
-      uses: microsoft/setup-msbuild@v2.0.0
-      if: matrix.os == 'windows-latest'
-
       # cmake runs its own git describe
       # executing it out here in case its needed for other things in the pipeline
       # considering renaming the executable so it has the version number in the name
