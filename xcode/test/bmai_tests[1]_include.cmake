@@ -1,0 +1,5 @@
+if(EXISTS "/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake")
+  include("/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake")
+else()
+  add_test(bmai_tests_NOT_BUILT bmai_tests_NOT_BUILT)
+endif()

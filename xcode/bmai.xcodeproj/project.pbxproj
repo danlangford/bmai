@@ -1,0 +1,2185 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXAggregateTarget section */
+		917E5CBA61079F1C604D54BC /* ALL_BUILD */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 409D7065FBF04D27807D2189 /* Build configuration list for PBXAggregateTarget "ALL_BUILD" */;
+			buildPhases = (
+				82B6EC1A1F3CFE34923F14DC /* Generate CMakeFiles/ALL_BUILD */,
+			);
+			dependencies = (
+				59C63A6BF86F47E7834D8049 /* PBXTargetDependency */,
+				4F551810DA8340CB9304553E /* PBXTargetDependency */,
+				0CDA7AF2187D4377B5D38A66 /* PBXTargetDependency */,
+				7EEF7CAFBFFC4FE6AC70D849 /* PBXTargetDependency */,
+				9FC1262D9CA04DD0A7EA9702 /* PBXTargetDependency */,
+				4B9CFC7AF02A4A84840BB473 /* PBXTargetDependency */,
+				C5FB03EAE281446E8EE654C0 /* PBXTargetDependency */,
+			);
+			name = ALL_BUILD;
+			productName = ALL_BUILD;
+		};
+		E12CB17E7703C97C6B134C46 /* RUN_TESTS */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 3040E28A5BC54E08AA12FB6A /* Build configuration list for PBXAggregateTarget "RUN_TESTS" */;
+			buildPhases = (
+				003C8D08B0008F35F218E126 /* CMake PostBuild Rules */,
+			);
+			dependencies = (
+			);
+			name = RUN_TESTS;
+			productName = RUN_TESTS;
+		};
+		F5D781B89F82A5C5BBA54175 /* install */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = AC0CC812A7874CCA94E63505 /* Build configuration list for PBXAggregateTarget "install" */;
+			buildPhases = (
+				93426DA6A4AC2C2AC9CE883C /* CMake PostBuild Rules */,
+			);
+			dependencies = (
+				EEB14265869449A396327748 /* PBXTargetDependency */,
+			);
+			name = install;
+			productName = install;
+		};
+/* End PBXAggregateTarget section */
+
+/* Begin PBXBuildFile section */
+		1E95038BF6604BC6BB6CB105 /* /Users/danlangford/code/danlangford/bmai/src/player.h */ = {isa = PBXBuildFile; fileRef = DA030277CAF94F7D9E3A14CF /* /Users/danlangford/code/danlangford/bmai/src/player.h */; };
+		1FBCF8A7A05F450FA60BFC5D /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest_main.cc */ = {isa = PBXBuildFile; fileRef = 4A1AF899C1304B2988E7CA6E /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest_main.cc */; };
+		2540828A21BC4450AFA7EFDD /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = 16E98F612DA84281B27DFF66 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */; };
+		33722BD73763435AA5E943E3 /* /Users/danlangford/code/danlangford/bmai/test/testutils.h */ = {isa = PBXBuildFile; fileRef = CF4D38CF72EA4D0CAAAF9E3E /* /Users/danlangford/code/danlangford/bmai/test/testutils.h */; };
+		37A5B7A12E524B11AB512B87 /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.cpp */ = {isa = PBXBuildFile; fileRef = 3B70D140AF1D4E16BBF672A9 /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.cpp */; };
+		3F4779D2AB8E4FF0BDEAEDCE /* /Users/danlangford/code/danlangford/bmai/test/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = DB65EC52FA8643488419E6BE /* /Users/danlangford/code/danlangford/bmai/test/CMakeLists.txt */; };
+		4F405DEE22434C339E0B2FB6 /* /Users/danlangford/code/danlangford/bmai/src/logger.h */ = {isa = PBXBuildFile; fileRef = 42480C015BA74C22B5430BE7 /* /Users/danlangford/code/danlangford/bmai/src/logger.h */; };
+		5258591629B04BC086D77933 /* /Users/danlangford/code/danlangford/bmai/test/DemoTest.cpp */ = {isa = PBXBuildFile; fileRef = 7F90A31E78FC4864B04698B6 /* /Users/danlangford/code/danlangford/bmai/test/DemoTest.cpp */; };
+		533DA3E29ACD40D0A1ADF446 /* /Users/danlangford/code/danlangford/bmai/src/stats.h */ = {isa = PBXBuildFile; fileRef = CCB19D8013D54B69B9E70346 /* /Users/danlangford/code/danlangford/bmai/src/stats.h */; };
+		5912092DD94044A9AB21C7D3 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = 8FC7448825FB4B5694CAD585 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */; };
+		59225BC1B5474B319E7B993F /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = D3725B5BC7D24D32A492BED7 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */; };
+		6001524744664C2D92DB96FA /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = 2F8027FA45034DA088AD7D99 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */; };
+		67A456922A8E48B58CE73C9C /* /Users/danlangford/code/danlangford/bmai/src/parser.h */ = {isa = PBXBuildFile; fileRef = A19DA89E5535405691419260 /* /Users/danlangford/code/danlangford/bmai/src/parser.h */; };
+		7545A1F42C9E4639AF5027ED /* /Users/danlangford/code/danlangford/bmai/src/bmai.cpp */ = {isa = PBXBuildFile; fileRef = F107C90E5D7F425B8983A669 /* /Users/danlangford/code/danlangford/bmai/src/bmai.cpp */; };
+		8D3C703F777B4DD88EE82A18 /* /Users/danlangford/code/danlangford/bmai/test/BMAI3Tests.cpp */ = {isa = PBXBuildFile; fileRef = 9D03720274E442389252F6FF /* /Users/danlangford/code/danlangford/bmai/test/BMAI3Tests.cpp */; };
+		9006BAFE4DD54DFB96035731 /* /Users/danlangford/code/danlangford/bmai/src/die.h */ = {isa = PBXBuildFile; fileRef = FDB25F00879A4A5287DFFA51 /* /Users/danlangford/code/danlangford/bmai/src/die.h */; };
+		9C35D197A30849D492A5FFB4 /* /Users/danlangford/code/danlangford/bmai/src/bmai.h */ = {isa = PBXBuildFile; fileRef = 39D6D947C6D44183B9D5DBC1 /* /Users/danlangford/code/danlangford/bmai/src/bmai.h */; };
+		9DE44D27933D4B01ADF09FA2 /* /Users/danlangford/code/danlangford/bmai/src/player.cpp */ = {isa = PBXBuildFile; fileRef = 98B7CDE2DDD14C9397B25A14 /* /Users/danlangford/code/danlangford/bmai/src/player.cpp */; };
+		9F36B4BD64B9452B89B6E3F0 /* /Users/danlangford/code/danlangford/bmai/test/PlayerTest.cpp */ = {isa = PBXBuildFile; fileRef = 0EAB9615300B43B197C5CDFA /* /Users/danlangford/code/danlangford/bmai/test/PlayerTest.cpp */; };
+		A170BB41CDF4404B96BE10CB /* /Users/danlangford/code/danlangford/bmai/test/SkillTest.cpp */ = {isa = PBXBuildFile; fileRef = C7CD87698529409CBDFA606E /* /Users/danlangford/code/danlangford/bmai/test/SkillTest.cpp */; };
+		AFA37BA46AF441059A6F16B4 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = 52783F88C5004B3A973A8960 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */; };
+		B880DE47BB784640BB3E16E1 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock-all.cc */ = {isa = PBXBuildFile; fileRef = 5D99395D73FF47F6AAD8E923 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock-all.cc */; };
+		BADF58325C314162A934801D /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.h */ = {isa = PBXBuildFile; fileRef = EE7EC12B323441518273998D /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.h */; };
+		BF7B412E68AB43ACB54ED95C /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */ = {isa = PBXBuildFile; fileRef = 2CFAC236D8904797A3EFB7AD /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */; };
+		CC3198878F274A3AB119A823 /* /Users/danlangford/code/danlangford/bmai/src/stats.cpp */ = {isa = PBXBuildFile; fileRef = 32548B99CFCF4E01B223BB95 /* /Users/danlangford/code/danlangford/bmai/src/stats.cpp */; };
+		D611633EECB2494F97CF6A2A /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest-all.cc */ = {isa = PBXBuildFile; fileRef = 4EB873394A304081BC069C1C /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest-all.cc */; };
+		E643D684CC944B91BA412104 /* /Users/danlangford/code/danlangford/bmai/src/main.cpp */ = {isa = PBXBuildFile; fileRef = 526EE9636DF14C0E94A0E068 /* /Users/danlangford/code/danlangford/bmai/src/main.cpp */; };
+		E7AC65AA304E4395B6DEF813 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock_main.cc */ = {isa = PBXBuildFile; fileRef = AC808719E6274AF7B589E595 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock_main.cc */; };
+		EA848E9E1EA545349F8F6394 /* /Users/danlangford/code/danlangford/bmai/src/dieindexstack.h */ = {isa = PBXBuildFile; fileRef = F7AA69B1B7DB479391EF8E63 /* /Users/danlangford/code/danlangford/bmai/src/dieindexstack.h */; };
+		EF76FC44FA534EEEAA2AACEB /* /Users/danlangford/code/danlangford/bmai/test/LegacyFunctions.cpp */ = {isa = PBXBuildFile; fileRef = 0B90DDC2C27E46BD89878B8B /* /Users/danlangford/code/danlangford/bmai/test/LegacyFunctions.cpp */; };
+		F67A16AA0AAF44DF97A83B58 /* /Users/danlangford/code/danlangford/bmai/src/game.h */ = {isa = PBXBuildFile; fileRef = D68FC5F7B9CD4E6FA2F8B768 /* /Users/danlangford/code/danlangford/bmai/src/game.h */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXBuildStyle section */
+		0E22174B43DC479D9C31274D /* RelWithDebInfo */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = RelWithDebInfo;
+		};
+		41D97DA317C84431B6494990 /* MinSizeRel */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = MinSizeRel;
+		};
+		6692DD3921AD42DAB8F9E473 /* Release */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = Release;
+		};
+		920E7501CBD04CA5B2079E7D /* Debug */ = {
+			isa = PBXBuildStyle;
+			buildSettings = {
+				COPY_PHASE_STRIP = NO;
+			};
+			name = Debug;
+		};
+/* End PBXBuildStyle section */
+
+/* Begin PBXContainerItemProxy section */
+		08483619F01A458A88516EB1 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F4666664AB91A72E9BF43AB;
+			remoteInfo = gmock;
+		};
+		15314B50A3514786839F5E45 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92B6A9B76EF5CF562A7C88F8;
+			remoteInfo = gtest_main;
+		};
+		1FFA7CD89CE34D6089A131D6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE2E2F19E756FD66DA65BE8A;
+			remoteInfo = gtest;
+		};
+		557731052CB94E1D8B4A0AE2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A3A5AFB96A1CBD6D383C681C;
+			remoteInfo = bmai;
+		};
+		5B6EE9B8D97E4EF89CFA4B0E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 6F4666664AB91A72E9BF43AB;
+			remoteInfo = gmock;
+		};
+		6A18C5C1D6324F459E1651FE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE2E2F19E756FD66DA65BE8A;
+			remoteInfo = gtest;
+		};
+		6B0790810A214A84B4E16DC2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE2E2F19E756FD66DA65BE8A;
+			remoteInfo = gtest;
+		};
+		6E7D67B2FD0D4704A5A8DA71 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1B62911FB5F3341CB0863295;
+			remoteInfo = bmai_lib;
+		};
+		7D5878072B544E4986AAFD72 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE2E2F19E756FD66DA65BE8A;
+			remoteInfo = gtest;
+		};
+		961072785C8D4085AFFEE27A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92B6A9B76EF5CF562A7C88F8;
+			remoteInfo = gtest_main;
+		};
+		9F8650CC1AD8497B975D6D5B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1B62911FB5F3341CB0863295;
+			remoteInfo = bmai_lib;
+		};
+		A7F0F6A4084647E48618C64A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FE2E2F19E756FD66DA65BE8A;
+			remoteInfo = gtest;
+		};
+		B063AB8280234E4BAC3D37A6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 917E5CBA61079F1C604D54BC;
+			remoteInfo = ALL_BUILD;
+		};
+		D6F90425580A482C97DFFDEB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C17D88D3D2D33B4D7E773440;
+			remoteInfo = bmai_tests;
+		};
+		D8FE5B8B3166454DB3CE3BF4 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8860C13D0FB24D4B7011E870;
+			remoteInfo = gmock_main;
+		};
+		EFA9D765B8114E808C172A47 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1B62911FB5F3341CB0863295;
+			remoteInfo = bmai_lib;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		075CDCD466F34BD284ACECCC /* bmai */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = bmai; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B90DDC2C27E46BD89878B8B /* /Users/danlangford/code/danlangford/bmai/test/LegacyFunctions.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = LegacyFunctions.cpp; path = test/LegacyFunctions.cpp; sourceTree = SOURCE_ROOT; };
+		0EAB9615300B43B197C5CDFA /* /Users/danlangford/code/danlangford/bmai/test/PlayerTest.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = PlayerTest.cpp; path = test/PlayerTest.cpp; sourceTree = SOURCE_ROOT; };
+		11E9CCD8B2994560B4C16800 /* gtest_main */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libgtest_main.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		14D904D5939141C290722297 /* bmai_tests */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; path = bmai_tests; sourceTree = BUILT_PRODUCTS_DIR; };
+		16E98F612DA84281B27DFF66 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = "xcode/_deps/googletest-src/googlemock/CMakeLists.txt"; sourceTree = SOURCE_ROOT; };
+		1ECF7273374C4519916DD774 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+		2CFAC236D8904797A3EFB7AD /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+		2F8027FA45034DA088AD7D99 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = "xcode/_deps/googletest-src/googlemock/CMakeLists.txt"; sourceTree = SOURCE_ROOT; };
+		32548B99CFCF4E01B223BB95 /* /Users/danlangford/code/danlangford/bmai/src/stats.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = stats.cpp; path = src/stats.cpp; sourceTree = SOURCE_ROOT; };
+		37085B4961F74985B3A8D7EB /* bmai_lib */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libbmai_lib.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		39D6D947C6D44183B9D5DBC1 /* /Users/danlangford/code/danlangford/bmai/src/bmai.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = bmai.h; path = src/bmai.h; sourceTree = SOURCE_ROOT; };
+		3B70D140AF1D4E16BBF672A9 /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bmai_ai.cpp; path = src/bmai_ai.cpp; sourceTree = SOURCE_ROOT; };
+		42480C015BA74C22B5430BE7 /* /Users/danlangford/code/danlangford/bmai/src/logger.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = logger.h; path = src/logger.h; sourceTree = SOURCE_ROOT; };
+		4A1AF899C1304B2988E7CA6E /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest_main.cc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gtest_main.cc; path = "xcode/_deps/googletest-src/googletest/src/gtest_main.cc"; sourceTree = SOURCE_ROOT; };
+		4EB873394A304081BC069C1C /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest-all.cc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = "gtest-all.cc"; path = "xcode/_deps/googletest-src/googletest/src/gtest-all.cc"; sourceTree = SOURCE_ROOT; };
+		526EE9636DF14C0E94A0E068 /* /Users/danlangford/code/danlangford/bmai/src/main.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = main.cpp; path = src/main.cpp; sourceTree = SOURCE_ROOT; };
+		52783F88C5004B3A973A8960 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+		5D99395D73FF47F6AAD8E923 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock-all.cc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = "gmock-all.cc"; path = "xcode/_deps/googletest-src/googlemock/src/gmock-all.cc"; sourceTree = SOURCE_ROOT; };
+		6D0B0007151C4ADAAD673CE2 /* gtest */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libgtest.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		7F90A31E78FC4864B04698B6 /* /Users/danlangford/code/danlangford/bmai/test/DemoTest.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = DemoTest.cpp; path = test/DemoTest.cpp; sourceTree = SOURCE_ROOT; };
+		84315281E82F4CDA9D55DB06 /* gmock */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libgmock.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		8FC7448825FB4B5694CAD585 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = "xcode/_deps/googletest-src/googletest/CMakeLists.txt"; sourceTree = SOURCE_ROOT; };
+		98B7CDE2DDD14C9397B25A14 /* /Users/danlangford/code/danlangford/bmai/src/player.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = player.cpp; path = src/player.cpp; sourceTree = SOURCE_ROOT; };
+		9D03720274E442389252F6FF /* /Users/danlangford/code/danlangford/bmai/test/BMAI3Tests.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = BMAI3Tests.cpp; path = test/BMAI3Tests.cpp; sourceTree = SOURCE_ROOT; };
+		A19DA89E5535405691419260 /* /Users/danlangford/code/danlangford/bmai/src/parser.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = parser.h; path = src/parser.h; sourceTree = SOURCE_ROOT; };
+		AC808719E6274AF7B589E595 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock_main.cc */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = gmock_main.cc; path = "xcode/_deps/googletest-src/googlemock/src/gmock_main.cc"; sourceTree = SOURCE_ROOT; };
+		C7CD87698529409CBDFA606E /* /Users/danlangford/code/danlangford/bmai/test/SkillTest.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = SkillTest.cpp; path = test/SkillTest.cpp; sourceTree = SOURCE_ROOT; };
+		CCB19D8013D54B69B9E70346 /* /Users/danlangford/code/danlangford/bmai/src/stats.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = stats.h; path = src/stats.h; sourceTree = SOURCE_ROOT; };
+		CF4D38CF72EA4D0CAAAF9E3E /* /Users/danlangford/code/danlangford/bmai/test/testutils.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = testutils.h; path = test/testutils.h; sourceTree = SOURCE_ROOT; };
+		D3725B5BC7D24D32A492BED7 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = "xcode/_deps/googletest-src/googletest/CMakeLists.txt"; sourceTree = SOURCE_ROOT; };
+		D68FC5F7B9CD4E6FA2F8B768 /* /Users/danlangford/code/danlangford/bmai/src/game.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = game.h; path = src/game.h; sourceTree = SOURCE_ROOT; };
+		DA030277CAF94F7D9E3A14CF /* /Users/danlangford/code/danlangford/bmai/src/player.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = player.h; path = src/player.h; sourceTree = SOURCE_ROOT; };
+		DB65EC52FA8643488419E6BE /* /Users/danlangford/code/danlangford/bmai/test/CMakeLists.txt */ = {isa = PBXFileReference; explicitFileType = sourcecode.text; fileEncoding = 4; name = CMakeLists.txt; path = test/CMakeLists.txt; sourceTree = SOURCE_ROOT; };
+		EE7EC12B323441518273998D /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = bmai_ai.h; path = src/bmai_ai.h; sourceTree = SOURCE_ROOT; };
+		F107C90E5D7F425B8983A669 /* /Users/danlangford/code/danlangford/bmai/src/bmai.cpp */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.cpp; fileEncoding = 4; name = bmai.cpp; path = src/bmai.cpp; sourceTree = SOURCE_ROOT; };
+		F7AA69B1B7DB479391EF8E63 /* /Users/danlangford/code/danlangford/bmai/src/dieindexstack.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = dieindexstack.h; path = src/dieindexstack.h; sourceTree = SOURCE_ROOT; };
+		F9B4A689C232484AB8636E3B /* gmock_main */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libgmock_main.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		FDB25F00879A4A5287DFFA51 /* /Users/danlangford/code/danlangford/bmai/src/die.h */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.h; fileEncoding = 4; name = die.h; path = src/die.h; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0A298E5080C04FADA244772A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		202C04043C974F73B564D4D5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3AF143E890A24A059B8F240D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		728AF0D9174840219C62A779 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		867204D538DE44E58C4B7EA0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDA3424D7AE74176959C25BD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EA153DD044C0461D8A70217A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0427CBB87B974F06A037BF9F /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				AC808719E6274AF7B589E595 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock_main.cc */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		09077605F0F04CDF8E312376 /* Header Files */ = {
+			isa = PBXGroup;
+			children = (
+				CF4D38CF72EA4D0CAAAF9E3E /* /Users/danlangford/code/danlangford/bmai/test/testutils.h */,
+			);
+			name = "Header Files";
+			sourceTree = "<group>";
+		};
+		0CDB809D43194A6FA13A7C88 /* ALL_BUILD */ = {
+			isa = PBXGroup;
+			children = (
+				9550402E4B034D098D35F4D4 /* CMake Rules */,
+				1ECF7273374C4519916DD774 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */,
+			);
+			name = ALL_BUILD;
+			sourceTree = "<group>";
+		};
+		18312CC125A2402C8CC694F1 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				9D03720274E442389252F6FF /* /Users/danlangford/code/danlangford/bmai/test/BMAI3Tests.cpp */,
+				7F90A31E78FC4864B04698B6 /* /Users/danlangford/code/danlangford/bmai/test/DemoTest.cpp */,
+				0B90DDC2C27E46BD89878B8B /* /Users/danlangford/code/danlangford/bmai/test/LegacyFunctions.cpp */,
+				0EAB9615300B43B197C5CDFA /* /Users/danlangford/code/danlangford/bmai/test/PlayerTest.cpp */,
+				C7CD87698529409CBDFA606E /* /Users/danlangford/code/danlangford/bmai/test/SkillTest.cpp */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		184C22643DA44F29802D700C /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		1ECB6202ADD94B59ACDDB20A /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				4A1AF899C1304B2988E7CA6E /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest_main.cc */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		20D495188E014B5DAAE1423D /* bmai */ = {
+			isa = PBXGroup;
+			children = (
+				ED75D0C7F58540EF85159858 /* Source Files */,
+				2CFAC236D8904797A3EFB7AD /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */,
+			);
+			name = bmai;
+			sourceTree = "<group>";
+		};
+		39E1CF8E0503411EAC5E8B3F /* Header Files */ = {
+			isa = PBXGroup;
+			children = (
+				39D6D947C6D44183B9D5DBC1 /* /Users/danlangford/code/danlangford/bmai/src/bmai.h */,
+				EE7EC12B323441518273998D /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.h */,
+				FDB25F00879A4A5287DFFA51 /* /Users/danlangford/code/danlangford/bmai/src/die.h */,
+				F7AA69B1B7DB479391EF8E63 /* /Users/danlangford/code/danlangford/bmai/src/dieindexstack.h */,
+				D68FC5F7B9CD4E6FA2F8B768 /* /Users/danlangford/code/danlangford/bmai/src/game.h */,
+				42480C015BA74C22B5430BE7 /* /Users/danlangford/code/danlangford/bmai/src/logger.h */,
+				A19DA89E5535405691419260 /* /Users/danlangford/code/danlangford/bmai/src/parser.h */,
+				DA030277CAF94F7D9E3A14CF /* /Users/danlangford/code/danlangford/bmai/src/player.h */,
+				CCB19D8013D54B69B9E70346 /* /Users/danlangford/code/danlangford/bmai/src/stats.h */,
+			);
+			name = "Header Files";
+			sourceTree = "<group>";
+		};
+		4AB0FFA0E0F84E36BF937F1F /* bmai_tests */ = {
+			isa = PBXGroup;
+			children = (
+				18312CC125A2402C8CC694F1 /* Source Files */,
+				09077605F0F04CDF8E312376 /* Header Files */,
+				DB65EC52FA8643488419E6BE /* /Users/danlangford/code/danlangford/bmai/test/CMakeLists.txt */,
+			);
+			name = bmai_tests;
+			sourceTree = "<group>";
+		};
+		51CC319DF3534DC3909A3CB9 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				F107C90E5D7F425B8983A669 /* /Users/danlangford/code/danlangford/bmai/src/bmai.cpp */,
+				3B70D140AF1D4E16BBF672A9 /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.cpp */,
+				98B7CDE2DDD14C9397B25A14 /* /Users/danlangford/code/danlangford/bmai/src/player.cpp */,
+				32548B99CFCF4E01B223BB95 /* /Users/danlangford/code/danlangford/bmai/src/stats.cpp */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		5364321E8C4B4302B4D8CDBD /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		6EF5A87F40F94DD281FF7F6F /* gtest */ = {
+			isa = PBXGroup;
+			children = (
+				880255DE39844CDE94B68873 /* Source Files */,
+				D3725B5BC7D24D32A492BED7 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */,
+			);
+			name = gtest;
+			sourceTree = "<group>";
+		};
+		8190A2EE8174469C81539F17 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				5D99395D73FF47F6AAD8E923 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock-all.cc */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		84E3B93CC5D448938C7F53ED /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				075CDCD466F34BD284ACECCC /* bmai */,
+				37085B4961F74985B3A8D7EB /* bmai_lib */,
+				14D904D5939141C290722297 /* bmai_tests */,
+				84315281E82F4CDA9D55DB06 /* gmock */,
+				F9B4A689C232484AB8636E3B /* gmock_main */,
+				6D0B0007151C4ADAAD673CE2 /* gtest */,
+				11E9CCD8B2994560B4C16800 /* gtest_main */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		880255DE39844CDE94B68873 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				4EB873394A304081BC069C1C /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest-all.cc */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		9550402E4B034D098D35F4D4 /* CMake Rules */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = "CMake Rules";
+			sourceTree = "<group>";
+		};
+		B7995834E93843EB9AFDE4D0 = {
+			isa = PBXGroup;
+			children = (
+				F767CA630A7041828D196618 /* bmai_lib */,
+				20D495188E014B5DAAE1423D /* bmai */,
+				0CDB809D43194A6FA13A7C88 /* ALL_BUILD */,
+				4AB0FFA0E0F84E36BF937F1F /* bmai_tests */,
+				F3D8F1A33E63486B8506830C /* gmock */,
+				DA9441A5D14B4259A9007EEF /* gmock_main */,
+				6EF5A87F40F94DD281FF7F6F /* gtest */,
+				E0112B7541DE4DF5B718B2C2 /* gtest_main */,
+				84E3B93CC5D448938C7F53ED /* Products */,
+				5364321E8C4B4302B4D8CDBD /* Frameworks */,
+				184C22643DA44F29802D700C /* Resources */,
+			);
+			sourceTree = "<group>";
+		};
+		DA9441A5D14B4259A9007EEF /* gmock_main */ = {
+			isa = PBXGroup;
+			children = (
+				0427CBB87B974F06A037BF9F /* Source Files */,
+				16E98F612DA84281B27DFF66 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */,
+			);
+			name = gmock_main;
+			sourceTree = "<group>";
+		};
+		E0112B7541DE4DF5B718B2C2 /* gtest_main */ = {
+			isa = PBXGroup;
+			children = (
+				1ECB6202ADD94B59ACDDB20A /* Source Files */,
+				8FC7448825FB4B5694CAD585 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/CMakeLists.txt */,
+			);
+			name = gtest_main;
+			sourceTree = "<group>";
+		};
+		ED75D0C7F58540EF85159858 /* Source Files */ = {
+			isa = PBXGroup;
+			children = (
+				526EE9636DF14C0E94A0E068 /* /Users/danlangford/code/danlangford/bmai/src/main.cpp */,
+			);
+			name = "Source Files";
+			sourceTree = "<group>";
+		};
+		F3D8F1A33E63486B8506830C /* gmock */ = {
+			isa = PBXGroup;
+			children = (
+				8190A2EE8174469C81539F17 /* Source Files */,
+				2F8027FA45034DA088AD7D99 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/CMakeLists.txt */,
+			);
+			name = gmock;
+			sourceTree = "<group>";
+		};
+		F767CA630A7041828D196618 /* bmai_lib */ = {
+			isa = PBXGroup;
+			children = (
+				51CC319DF3534DC3909A3CB9 /* Source Files */,
+				39E1CF8E0503411EAC5E8B3F /* Header Files */,
+				52783F88C5004B3A973A8960 /* /Users/danlangford/code/danlangford/bmai/CMakeLists.txt */,
+			);
+			name = bmai_lib;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1B62911FB5F3341CB0863295 /* bmai_lib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 25A2636EF3894DD097B675A7 /* Build configuration list for PBXNativeTarget "bmai_lib" */;
+			buildPhases = (
+				AC79129A95AF42C6AB1E05B5 /* Sources */,
+				728AF0D9174840219C62A779 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = bmai_lib;
+			productName = bmai_lib;
+			productReference = 37085B4961F74985B3A8D7EB /* bmai_lib */;
+			productType = "com.apple.product-type.library.static";
+		};
+		6F4666664AB91A72E9BF43AB /* gmock */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0D280D65EF49490CBA0A189F /* Build configuration list for PBXNativeTarget "gmock" */;
+			buildPhases = (
+				E535FA6E274B4DE1A9CAF0C8 /* Sources */,
+				3AF143E890A24A059B8F240D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A1F330CFD1FF4143B2DE1EED /* PBXTargetDependency */,
+			);
+			name = gmock;
+			productName = gmock;
+			productReference = 84315281E82F4CDA9D55DB06 /* gmock */;
+			productType = "com.apple.product-type.library.static";
+		};
+		8860C13D0FB24D4B7011E870 /* gmock_main */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7FEB172FAF334670A7B2359A /* Build configuration list for PBXNativeTarget "gmock_main" */;
+			buildPhases = (
+				36FC0A30D0F740678EF17142 /* Sources */,
+				BDA3424D7AE74176959C25BD /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B441CF1A7E91487D92F954F0 /* PBXTargetDependency */,
+				A55B6864E63B4576B591658C /* PBXTargetDependency */,
+			);
+			name = gmock_main;
+			productName = gmock_main;
+			productReference = F9B4A689C232484AB8636E3B /* gmock_main */;
+			productType = "com.apple.product-type.library.static";
+		};
+		92B6A9B76EF5CF562A7C88F8 /* gtest_main */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 74DAB5D3E3374C58B7C2D2A9 /* Build configuration list for PBXNativeTarget "gtest_main" */;
+			buildPhases = (
+				44E02B06D32048B59D297DCF /* Sources */,
+				867204D538DE44E58C4B7EA0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				77FA401318674BBD82D4CCC1 /* PBXTargetDependency */,
+			);
+			name = gtest_main;
+			productName = gtest_main;
+			productReference = 11E9CCD8B2994560B4C16800 /* gtest_main */;
+			productType = "com.apple.product-type.library.static";
+		};
+		A3A5AFB96A1CBD6D383C681C /* bmai */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B5573EAF21084BDBAC1D29B1 /* Build configuration list for PBXNativeTarget "bmai" */;
+			buildPhases = (
+				EAC66394DA2C4987B800B6A2 /* Sources */,
+				202C04043C974F73B564D4D5 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				E4B87C510AD74DFE9E3C1175 /* PBXTargetDependency */,
+			);
+			name = bmai;
+			productName = bmai;
+			productReference = 075CDCD466F34BD284ACECCC /* bmai */;
+			productType = "com.apple.product-type.tool";
+		};
+		C17D88D3D2D33B4D7E773440 /* bmai_tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9859D6B7B59E41539921C0CD /* Build configuration list for PBXNativeTarget "bmai_tests" */;
+			buildPhases = (
+				48460DB9A4204C058B6F35A2 /* Sources */,
+				0A298E5080C04FADA244772A /* Frameworks */,
+				8E1B6EAA96DAED2C243C3C6E /* CMake PostBuild Rules */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				BD55B679FA5E49F8BABCB359 /* PBXTargetDependency */,
+				D3D23616D9894D80A9D55300 /* PBXTargetDependency */,
+				32DA6F9DC56D4C2DBB324E2A /* PBXTargetDependency */,
+			);
+			name = bmai_tests;
+			productName = bmai_tests;
+			productReference = 14D904D5939141C290722297 /* bmai_tests */;
+			productType = "com.apple.product-type.tool";
+		};
+		FE2E2F19E756FD66DA65BE8A /* gtest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E4972C2936AD4B0D82C5DD12 /* Build configuration list for PBXNativeTarget "gtest" */;
+			buildPhases = (
+				A1C9BA59BC914937A776CE99 /* Sources */,
+				EA153DD044C0461D8A70217A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = gtest;
+			productName = gtest;
+			productReference = 6D0B0007151C4ADAAD673CE2 /* gtest */;
+			productType = "com.apple.product-type.library.static";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		33ACC7A3841B4608A3F79CD7 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1540;
+			};
+			buildConfigurationList = 97A441B324DC4C0FA59B8669 /* Build configuration list for PBXProject "bmai" */;
+			buildSettings = {
+			};
+			buildStyles = (
+				920E7501CBD04CA5B2079E7D /* Debug */,
+				6692DD3921AD42DAB8F9E473 /* Release */,
+				41D97DA317C84431B6494990 /* MinSizeRel */,
+				0E22174B43DC479D9C31274D /* RelWithDebInfo */,
+			);
+			compatibilityVersion = "Xcode 3.2";
+			hasScannedForEncodings = 0;
+			mainGroup = B7995834E93843EB9AFDE4D0;
+			projectDirPath = /Users/danlangford/code/danlangford/bmai;
+			projectRoot = "";
+			targets = (
+				917E5CBA61079F1C604D54BC /* ALL_BUILD */,
+				E12CB17E7703C97C6B134C46 /* RUN_TESTS */,
+				A3A5AFB96A1CBD6D383C681C /* bmai */,
+				1B62911FB5F3341CB0863295 /* bmai_lib */,
+				C17D88D3D2D33B4D7E773440 /* bmai_tests */,
+				6F4666664AB91A72E9BF43AB /* gmock */,
+				8860C13D0FB24D4B7011E870 /* gmock_main */,
+				FE2E2F19E756FD66DA65BE8A /* gtest */,
+				92B6A9B76EF5CF562A7C88F8 /* gtest_main */,
+				F5D781B89F82A5C5BBA54175 /* install */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		003C8D08B0008F35F218E126 /* CMake PostBuild Rules */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			name = "CMake PostBuild Rules";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/ctest --force-new-ctest-process -C $CONFIGURATION$EFFECTIVE_PLATFORM_NAME
+fi
+if test \"$CONFIGURATION\" = \"Release\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/ctest --force-new-ctest-process -C $CONFIGURATION$EFFECTIVE_PLATFORM_NAME
+fi
+if test \"$CONFIGURATION\" = \"MinSizeRel\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/ctest --force-new-ctest-process -C $CONFIGURATION$EFFECTIVE_PLATFORM_NAME
+fi
+if test \"$CONFIGURATION\" = \"RelWithDebInfo\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/ctest --force-new-ctest-process -C $CONFIGURATION$EFFECTIVE_PLATFORM_NAME
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		82B6EC1A1F3CFE34923F14DC /* Generate CMakeFiles/ALL_BUILD */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate CMakeFiles/ALL_BUILD";
+			outputPaths = (
+/Users/danlangford/code/danlangford/bmai/xcode/CMakeFiles/ALL_BUILD			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  echo Build\\ all\\ projects
+fi
+if test \"$CONFIGURATION\" = \"Release\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  echo Build\\ all\\ projects
+fi
+if test \"$CONFIGURATION\" = \"MinSizeRel\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  echo Build\\ all\\ projects
+fi
+if test \"$CONFIGURATION\" = \"RelWithDebInfo\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  echo Build\\ all\\ projects
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		87AF4882E018677E2624B544 = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+		8E1B6EAA96DAED2C243C3C6E /* CMake PostBuild Rules */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			name = "CMake PostBuild Rules";
+			outputPaths = (
+"/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake"			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode/test
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -D TEST_TARGET=bmai_tests -D TEST_EXECUTABLE=/Users/danlangford/code/danlangford/bmai/xcode/test/Debug/bmai_tests -D TEST_EXECUTOR= -D TEST_WORKING_DIR=/Users/danlangford/code/danlangford/bmai/xcode/test -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES= -D TEST_PREFIX= -D TEST_SUFFIX= -D TEST_FILTER= -D NO_PRETTY_TYPES=FALSE -D NO_PRETTY_VALUES=FALSE -D TEST_LIST=bmai_tests_TESTS -D CTEST_FILE=/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake -D TEST_DISCOVERY_TIMEOUT=5 -D TEST_XML_OUTPUT_DIR= -P /usr/local/Cellar/cmake/3.30.3/share/cmake/Modules/GoogleTestAddTests.cmake
+fi
+if test \"$CONFIGURATION\" = \"Release\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode/test
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -D TEST_TARGET=bmai_tests -D TEST_EXECUTABLE=/Users/danlangford/code/danlangford/bmai/xcode/test/Release/bmai_tests -D TEST_EXECUTOR= -D TEST_WORKING_DIR=/Users/danlangford/code/danlangford/bmai/xcode/test -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES= -D TEST_PREFIX= -D TEST_SUFFIX= -D TEST_FILTER= -D NO_PRETTY_TYPES=FALSE -D NO_PRETTY_VALUES=FALSE -D TEST_LIST=bmai_tests_TESTS -D CTEST_FILE=/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake -D TEST_DISCOVERY_TIMEOUT=5 -D TEST_XML_OUTPUT_DIR= -P /usr/local/Cellar/cmake/3.30.3/share/cmake/Modules/GoogleTestAddTests.cmake
+fi
+if test \"$CONFIGURATION\" = \"MinSizeRel\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode/test
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -D TEST_TARGET=bmai_tests -D TEST_EXECUTABLE=/Users/danlangford/code/danlangford/bmai/xcode/test/MinSizeRel/bmai_tests -D TEST_EXECUTOR= -D TEST_WORKING_DIR=/Users/danlangford/code/danlangford/bmai/xcode/test -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES= -D TEST_PREFIX= -D TEST_SUFFIX= -D TEST_FILTER= -D NO_PRETTY_TYPES=FALSE -D NO_PRETTY_VALUES=FALSE -D TEST_LIST=bmai_tests_TESTS -D CTEST_FILE=/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake -D TEST_DISCOVERY_TIMEOUT=5 -D TEST_XML_OUTPUT_DIR= -P /usr/local/Cellar/cmake/3.30.3/share/cmake/Modules/GoogleTestAddTests.cmake
+fi
+if test \"$CONFIGURATION\" = \"RelWithDebInfo\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode/test
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -D TEST_TARGET=bmai_tests -D TEST_EXECUTABLE=/Users/danlangford/code/danlangford/bmai/xcode/test/RelWithDebInfo/bmai_tests -D TEST_EXECUTOR= -D TEST_WORKING_DIR=/Users/danlangford/code/danlangford/bmai/xcode/test -D TEST_EXTRA_ARGS= -D TEST_PROPERTIES= -D TEST_PREFIX= -D TEST_SUFFIX= -D TEST_FILTER= -D NO_PRETTY_TYPES=FALSE -D NO_PRETTY_VALUES=FALSE -D TEST_LIST=bmai_tests_TESTS -D CTEST_FILE=/Users/danlangford/code/danlangford/bmai/xcode/test/bmai_tests[1]_tests.cmake -D TEST_DISCOVERY_TIMEOUT=5 -D TEST_XML_OUTPUT_DIR= -P /usr/local/Cellar/cmake/3.30.3/share/cmake/Modules/GoogleTestAddTests.cmake
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		910A41151295C5F9742C25BD = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+		93426DA6A4AC2C2AC9CE883C /* CMake PostBuild Rules */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			name = "CMake PostBuild Rules";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -e
+if test \"$CONFIGURATION\" = \"Debug\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -DBUILD_TYPE=$CONFIGURATION$EFFECTIVE_PLATFORM_NAME -P cmake_install.cmake
+fi
+if test \"$CONFIGURATION\" = \"Release\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -DBUILD_TYPE=$CONFIGURATION$EFFECTIVE_PLATFORM_NAME -P cmake_install.cmake
+fi
+if test \"$CONFIGURATION\" = \"MinSizeRel\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -DBUILD_TYPE=$CONFIGURATION$EFFECTIVE_PLATFORM_NAME -P cmake_install.cmake
+fi
+if test \"$CONFIGURATION\" = \"RelWithDebInfo\"; then :
+  cd /Users/danlangford/code/danlangford/bmai/xcode
+  /usr/local/Cellar/cmake/3.30.3/bin/cmake -DBUILD_TYPE=$CONFIGURATION$EFFECTIVE_PLATFORM_NAME -P cmake_install.cmake
+fi
+";
+			showEnvVarsInLog = 0;
+		};
+		9B50530E35CC49C82C2FACCF = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# shell script goes here
+exit 0";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		36FC0A30D0F740678EF17142 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E7AC65AA304E4395B6DEF813 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock_main.cc */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		44E02B06D32048B59D297DCF /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1FBCF8A7A05F450FA60BFC5D /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest_main.cc */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		48460DB9A4204C058B6F35A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8D3C703F777B4DD88EE82A18 /* /Users/danlangford/code/danlangford/bmai/test/BMAI3Tests.cpp */,
+				5258591629B04BC086D77933 /* /Users/danlangford/code/danlangford/bmai/test/DemoTest.cpp */,
+				EF76FC44FA534EEEAA2AACEB /* /Users/danlangford/code/danlangford/bmai/test/LegacyFunctions.cpp */,
+				9F36B4BD64B9452B89B6E3F0 /* /Users/danlangford/code/danlangford/bmai/test/PlayerTest.cpp */,
+				A170BB41CDF4404B96BE10CB /* /Users/danlangford/code/danlangford/bmai/test/SkillTest.cpp */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A1C9BA59BC914937A776CE99 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D611633EECB2494F97CF6A2A /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/src/gtest-all.cc */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AC79129A95AF42C6AB1E05B5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7545A1F42C9E4639AF5027ED /* /Users/danlangford/code/danlangford/bmai/src/bmai.cpp */,
+				37A5B7A12E524B11AB512B87 /* /Users/danlangford/code/danlangford/bmai/src/bmai_ai.cpp */,
+				9DE44D27933D4B01ADF09FA2 /* /Users/danlangford/code/danlangford/bmai/src/player.cpp */,
+				CC3198878F274A3AB119A823 /* /Users/danlangford/code/danlangford/bmai/src/stats.cpp */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E535FA6E274B4DE1A9CAF0C8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B880DE47BB784640BB3E16E1 /* /Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/src/gmock-all.cc */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EAC66394DA2C4987B800B6A2 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E643D684CC944B91BA412104 /* /Users/danlangford/code/danlangford/bmai/src/main.cpp */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		0CDA7AF2187D4377B5D38A66 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C17D88D3D2D33B4D7E773440 /* bmai_tests */;
+			targetProxy = D6F90425580A482C97DFFDEB /* PBXContainerItemProxy */;
+		};
+		32DA6F9DC56D4C2DBB324E2A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92B6A9B76EF5CF562A7C88F8 /* gtest_main */;
+			targetProxy = 15314B50A3514786839F5E45 /* PBXContainerItemProxy */;
+		};
+		4B9CFC7AF02A4A84840BB473 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE2E2F19E756FD66DA65BE8A /* gtest */;
+			targetProxy = 6B0790810A214A84B4E16DC2 /* PBXContainerItemProxy */;
+		};
+		4F551810DA8340CB9304553E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A3A5AFB96A1CBD6D383C681C /* bmai */;
+			targetProxy = 557731052CB94E1D8B4A0AE2 /* PBXContainerItemProxy */;
+		};
+		59C63A6BF86F47E7834D8049 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1B62911FB5F3341CB0863295 /* bmai_lib */;
+			targetProxy = 6E7D67B2FD0D4704A5A8DA71 /* PBXContainerItemProxy */;
+		};
+		77FA401318674BBD82D4CCC1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE2E2F19E756FD66DA65BE8A /* gtest */;
+			targetProxy = 7D5878072B544E4986AAFD72 /* PBXContainerItemProxy */;
+		};
+		7EEF7CAFBFFC4FE6AC70D849 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F4666664AB91A72E9BF43AB /* gmock */;
+			targetProxy = 08483619F01A458A88516EB1 /* PBXContainerItemProxy */;
+		};
+		9FC1262D9CA04DD0A7EA9702 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8860C13D0FB24D4B7011E870 /* gmock_main */;
+			targetProxy = D8FE5B8B3166454DB3CE3BF4 /* PBXContainerItemProxy */;
+		};
+		A1F330CFD1FF4143B2DE1EED /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE2E2F19E756FD66DA65BE8A /* gtest */;
+			targetProxy = 6A18C5C1D6324F459E1651FE /* PBXContainerItemProxy */;
+		};
+		A55B6864E63B4576B591658C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE2E2F19E756FD66DA65BE8A /* gtest */;
+			targetProxy = A7F0F6A4084647E48618C64A /* PBXContainerItemProxy */;
+		};
+		B441CF1A7E91487D92F954F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 6F4666664AB91A72E9BF43AB /* gmock */;
+			targetProxy = 5B6EE9B8D97E4EF89CFA4B0E /* PBXContainerItemProxy */;
+		};
+		BD55B679FA5E49F8BABCB359 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1B62911FB5F3341CB0863295 /* bmai_lib */;
+			targetProxy = EFA9D765B8114E808C172A47 /* PBXContainerItemProxy */;
+		};
+		C5FB03EAE281446E8EE654C0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92B6A9B76EF5CF562A7C88F8 /* gtest_main */;
+			targetProxy = 961072785C8D4085AFFEE27A /* PBXContainerItemProxy */;
+		};
+		D3D23616D9894D80A9D55300 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FE2E2F19E756FD66DA65BE8A /* gtest */;
+			targetProxy = 1FFA7CD89CE34D6089A131D6 /* PBXContainerItemProxy */;
+		};
+		E4B87C510AD74DFE9E3C1175 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1B62911FB5F3341CB0863295 /* bmai_lib */;
+			targetProxy = 9F8650CC1AD8497B975D6D5B /* PBXContainerItemProxy */;
+		};
+		EEB14265869449A396327748 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 917E5CBA61079F1C604D54BC /* ALL_BUILD */;
+			targetProxy = B063AB8280234E4BAC3D37A6 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		03A8228C64054097989FB28E /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ALL_BUILD;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		0E3F2FED0CA64D83918E4E01 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Debug;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		14149460CDE04EE3B5B83DBE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Debug;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		1C5A2C91D40B47BCB03EBE0E /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = install;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		23F346A07446439B8AABE686 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ALL_BUILD;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		2BD7425753DD4D3EB6F4CE3E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/Debug;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = (/Users/danlangford/code/danlangford/bmai/./src,"$(inherited)");
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/Debug/libbmai_lib.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		300702C640C84DBB86592068 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		349547469A3A4BD685185676 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/Release;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_lib;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_lib.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		3603249ABB704E5FA670BA95 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/test/MinSizeRel;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/MinSizeRel/libbmai_lib.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel/libgtest_main.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel/libgtest.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_tests;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_tests.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		3833876B37C14089B3BB62FE /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = RUN_TESTS;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		482442EC327842CAA00908C4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = RUN_TESTS;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		6452824C5AD44C5A8400A0AC /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		6C1BCEE82D2840549BFA6934 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		72444CD6B99B4940BD2312C9 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/RelWithDebInfo;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = (/Users/danlangford/code/danlangford/bmai/./src,"$(inherited)");
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/RelWithDebInfo/libbmai_lib.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		750823A99B8B4D379B1EF361 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/test/Release;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/Release/libbmai_lib.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/Release/libgtest_main.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/Release/libgtest.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_tests;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_tests.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		921009DB308F4B22A77297DE /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = install;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		95FBDC5B023947F69DA43E99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Release;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		9F2FF463CB1449FA9676E460 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/Debug;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17' ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_lib;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_lib.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		A3B2B9FA337F482EB84E0BF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SYMROOT = /Users/danlangford/code/danlangford/bmai/xcode/build;
+			};
+			name = Release;
+		};
+		AB40D1CFF59E4DD68270E9F3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ALL_BUILD;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		B4E5F8449FCB407583718058 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Debug;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		B52E78CB5F444FCEBC4142BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = install;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		B92E4C3781F449ED852D3124 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = RUN_TESTS;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		BA59FE4A00144163BA59BC21 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = RUN_TESTS;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		BB9F783248664A65B255FD91 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = ALL_BUILD;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		BF72D42BD51545CA885D59F2 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SYMROOT = /Users/danlangford/code/danlangford/bmai/xcode/build;
+			};
+			name = MinSizeRel;
+		};
+		C2BC07701DDF4364994022C5 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/MinSizeRel;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = (/Users/danlangford/code/danlangford/bmai/./src,"$(inherited)");
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/MinSizeRel/libbmai_lib.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		C7A87EAF27BB4EDEBD1FAFCC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk;
+				SYMROOT = /Users/danlangford/code/danlangford/bmai/xcode/build;
+			};
+			name = Debug;
+		};
+		C9C0E1CC807843E3BD026675 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Release;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		CA8DF5781B714DB6BFD1EE68 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Release;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		CBA1469F67F1436DA74A0AE2 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		CEDB8EC123224C1996A03670 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		D288CF4D72F940B3B5646DFA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/Release;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = (/Users/danlangford/code/danlangford/bmai/./src,"$(inherited)");
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/Release/libbmai_lib.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		D579E0B0DD8643EDAC8BFAEF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_LDFLAGS = ("","$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = install;
+				SECTORDER_FLAGS = "";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		D71303E68472446AA2367B10 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		D791848A86ED4262AB23C492 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/MinSizeRel;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17' ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_lib;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_lib.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		D8D508B0DB7B498E9EC26FE4 /* MinSizeRel */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/MinSizeRel;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = s;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gmock_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googlemock","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gmock_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = MinSizeRel;
+		};
+		DAF92AB0092F4802A7C718D4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Release;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = NO;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 3;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "    -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Release;
+		};
+		DB64DC4990EE452FAAB991EB /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/test/RelWithDebInfo;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/RelWithDebInfo/libbmai_lib.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo/libgtest_main.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo/libgtest.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_tests;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_tests.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		F1A1A48179D54C269E3F9326 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = "$(NATIVE_ARCH_ACTUAL)";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX14.5.sdk;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SYMROOT = /Users/danlangford/code/danlangford/bmai/xcode/build;
+			};
+			name = RelWithDebInfo;
+		};
+		F3830ABD75CE43EC9A1927D8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/Debug;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		F5A54ABFAE914DB781FF5C0E /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/lib/RelWithDebInfo;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17'  -DGTEST_HAS_PTHREAD=1   ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = gtest_main;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/gtest_main.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+		F5EC5067F0044261B7F16558 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/test/Debug;
+				EXECUTABLE_PREFIX = "";
+				EXECUTABLE_SUFFIX = "";
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				OTHER_CPLUSPLUSFLAGS = "   '-std=c++17' ";
+				OTHER_LDFLAGS = (" -Wl,-search_paths_first -Wl,-headerpad_max_install_names",/Users/danlangford/code/danlangford/bmai/xcode/Debug/libbmai_lib.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/Debug/libgtest_main.a,/Users/danlangford/code/danlangford/bmai/xcode/lib/Debug/libgtest.a,"$(inherited)");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_tests;
+				SECTORDER_FLAGS = "";
+				SYSTEM_HEADER_SEARCH_PATHS = ("/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest/include","/Users/danlangford/code/danlangford/bmai/xcode/_deps/googletest-src/googletest","$(inherited)");
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_tests.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = Debug;
+		};
+		F8F98F978C6C4C8C906E8AF4 /* RelWithDebInfo */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				COMBINE_HIDPI_IMAGES = YES;
+				CONFIGURATION_BUILD_DIR = /Users/danlangford/code/danlangford/bmai/xcode/RelWithDebInfo;
+				EXECUTABLE_PREFIX = lib;
+				EXECUTABLE_SUFFIX = .a;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GCC_INLINES_ARE_PRIVATE_EXTERN = NO;
+				GCC_OPTIMIZATION_LEVEL = 2;
+				GCC_PREPROCESSOR_DEFINITIONS = ("'CMAKE_INTDIR=\"$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)\"'","'GIT_DESCRIBE=\"v3.0-44-ga31969d\"'","$(inherited)");
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				INSTALL_PATH = "";
+				LIBRARY_STYLE = STATIC;
+				OTHER_CPLUSPLUSFLAGS = "       -DNDEBUG '-std=c++17' ";
+				OTHER_LIBTOOLFLAGS = ("");
+				OTHER_REZFLAGS = "";
+				PRODUCT_NAME = bmai_lib;
+				SECTORDER_FLAGS = "";
+				TARGET_TEMP_DIR = "/Users/danlangford/code/danlangford/bmai/xcode/build/bmai_lib.build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)";
+				USE_HEADERMAP = NO;
+				WARNING_CFLAGS = ("$(inherited)");
+			};
+			name = RelWithDebInfo;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		0D280D65EF49490CBA0A189F /* Build configuration list for PBXNativeTarget "gmock" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				14149460CDE04EE3B5B83DBE /* Debug */,
+				CA8DF5781B714DB6BFD1EE68 /* Release */,
+				CEDB8EC123224C1996A03670 /* MinSizeRel */,
+				6452824C5AD44C5A8400A0AC /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		25A2636EF3894DD097B675A7 /* Build configuration list for PBXNativeTarget "bmai_lib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9F2FF463CB1449FA9676E460 /* Debug */,
+				349547469A3A4BD685185676 /* Release */,
+				D791848A86ED4262AB23C492 /* MinSizeRel */,
+				F8F98F978C6C4C8C906E8AF4 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3040E28A5BC54E08AA12FB6A /* Build configuration list for PBXAggregateTarget "RUN_TESTS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				482442EC327842CAA00908C4 /* Debug */,
+				B92E4C3781F449ED852D3124 /* Release */,
+				BA59FE4A00144163BA59BC21 /* MinSizeRel */,
+				3833876B37C14089B3BB62FE /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		409D7065FBF04D27807D2189 /* Build configuration list for PBXAggregateTarget "ALL_BUILD" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AB40D1CFF59E4DD68270E9F3 /* Debug */,
+				23F346A07446439B8AABE686 /* Release */,
+				BB9F783248664A65B255FD91 /* MinSizeRel */,
+				03A8228C64054097989FB28E /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		74DAB5D3E3374C58B7C2D2A9 /* Build configuration list for PBXNativeTarget "gtest_main" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0E3F2FED0CA64D83918E4E01 /* Debug */,
+				C9C0E1CC807843E3BD026675 /* Release */,
+				300702C640C84DBB86592068 /* MinSizeRel */,
+				F5A54ABFAE914DB781FF5C0E /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7FEB172FAF334670A7B2359A /* Build configuration list for PBXNativeTarget "gmock_main" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B4E5F8449FCB407583718058 /* Debug */,
+				95FBDC5B023947F69DA43E99 /* Release */,
+				D8D508B0DB7B498E9EC26FE4 /* MinSizeRel */,
+				CBA1469F67F1436DA74A0AE2 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		97A441B324DC4C0FA59B8669 /* Build configuration list for PBXProject "bmai" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C7A87EAF27BB4EDEBD1FAFCC /* Debug */,
+				A3B2B9FA337F482EB84E0BF9 /* Release */,
+				BF72D42BD51545CA885D59F2 /* MinSizeRel */,
+				F1A1A48179D54C269E3F9326 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9859D6B7B59E41539921C0CD /* Build configuration list for PBXNativeTarget "bmai_tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F5EC5067F0044261B7F16558 /* Debug */,
+				750823A99B8B4D379B1EF361 /* Release */,
+				3603249ABB704E5FA670BA95 /* MinSizeRel */,
+				DB64DC4990EE452FAAB991EB /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		AC0CC812A7874CCA94E63505 /* Build configuration list for PBXAggregateTarget "install" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B52E78CB5F444FCEBC4142BE /* Debug */,
+				D579E0B0DD8643EDAC8BFAEF /* Release */,
+				1C5A2C91D40B47BCB03EBE0E /* MinSizeRel */,
+				921009DB308F4B22A77297DE /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B5573EAF21084BDBAC1D29B1 /* Build configuration list for PBXNativeTarget "bmai" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2BD7425753DD4D3EB6F4CE3E /* Debug */,
+				D288CF4D72F940B3B5646DFA /* Release */,
+				C2BC07701DDF4364994022C5 /* MinSizeRel */,
+				72444CD6B99B4940BD2312C9 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E4972C2936AD4B0D82C5DD12 /* Build configuration list for PBXNativeTarget "gtest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F3830ABD75CE43EC9A1927D8 /* Debug */,
+				DAF92AB0092F4802A7C718D4 /* Release */,
+				D71303E68472446AA2367B10 /* MinSizeRel */,
+				6C1BCEE82D2840549BFA6934 /* RelWithDebInfo */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 33ACC7A3841B4608A3F79CD7 /* Project object */;
+}

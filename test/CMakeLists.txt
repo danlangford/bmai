@@ -38,15 +38,6 @@ set(TEST_SOURCES
 add_executable(${NAME}_tests ${TEST_SOURCES})
 target_link_libraries(${NAME}_tests PUBLIC ${NAME}_lib GTest::gtest_main)
 
-
-if (WIN32)
-    add_custom_command(
-        TARGET ${NAME}
-        POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:${NAME}_tests> $<TARGET_FILE_DIR:${NAME}_tests>
-        COMMAND_EXPAND_LISTS
-    )
-endif ()
 ##
 # Auto-Discover Tests
 ##

@@ -67,7 +67,7 @@ jobs:
 
     - name: CMake Build
       shell: bash
-      run: cmake --build build --config $BUILD_TYPE --target bmai bmai_lib bmai_tests
+      run: cmake --build build --config $BUILD_TYPE # --target bmai bmai_lib bmai_tests
 
     - name: CTest
       working-directory: build
