@@ -29,7 +29,7 @@ inline std::string resolvePath(const std::string &relPath)
 // lets us collect what is being sent to Send for inspection during tests
 class TEST_Parser : public BMC_Parser {
 public:
-    void Send(const char *_fmt, ...) {
+    void Send(const char *_fmt, ...) override {
         char buff[BMD_MAX_STRING];
         va_list ap;
         va_start (ap, _fmt);
@@ -56,7 +56,7 @@ protected:
 };
 
 // I wanted to test the smaller objects and methods. 
-// For example i could build an AI object and just execute the method GetAttackAction()
+// For example, I could build an AI object and just execute the method GetAttackAction()
 // to inspect the behavior around surrender
 // however the code is not currently built in a way that is friendly to unit testing
 // so the current pattern is to run full simulations and to monitor the output

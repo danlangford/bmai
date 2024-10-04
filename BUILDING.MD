@@ -46,7 +46,7 @@ At this point, you can also load the solution into the IDE and build from there 
 
 ------
 
-UPDATE: I have learned about a more modern approach to using CMake. There are 2 patterns that are becoming common. However some of these commands may only work on later versions of cmake. 
+UPDATE: I have learned about a more modern approach to using CMake. There are 2 patterns that are becoming common. However, some of these commands may only work on later versions of cmake. 
 
 For command line only builds
 ```sh

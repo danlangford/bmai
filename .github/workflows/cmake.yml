@@ -47,7 +47,7 @@ jobs:
         cmakeVersion: "~3.19.0"
         # forcing a specific version to maintain compatibility with VS2022
 
-    # cmake can its own git describe
+    # cmake can its own git describe,
     # but it gets complex around PRs and to make sure its consistent
     # we can generate a git-describe out here and pass it in
     - name: git-describe for version string
