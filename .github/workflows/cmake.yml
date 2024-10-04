@@ -70,7 +70,6 @@ jobs:
       # someday I want to try again to display the test results
 
     - name: copy sample battles
-      working-directory: build
       shell: bash
       run: cp ./test/sample*.txt ./build/
 
