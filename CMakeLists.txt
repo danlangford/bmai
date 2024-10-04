@@ -3,14 +3,13 @@
 # dbl053123 - cmake 3.11 adds FetchContent and is supported/available with VS2017
 # dbl100324 - cmake 3.19 and c++17 targeting VS2022
 
-
 cmake_minimum_required (VERSION 3.19)
 
 set(NAME bmai)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE) # Universal binary
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE) # MacOS Universal binary
 
 project(${NAME} VERSION 3.1)
 
