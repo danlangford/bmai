@@ -75,6 +75,7 @@ jobs:
         if-no-files-found: error
         path: |
           ./build/bmai*
+          ./test/sample*.txt
 
     - name: get data for release body
       shell: bash
