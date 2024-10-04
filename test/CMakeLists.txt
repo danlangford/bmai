@@ -43,5 +43,4 @@ target_link_libraries(${NAME}_tests PUBLIC ${NAME}_lib GTest::gtest_main)
 ##
 
 include(GoogleTest)
-set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 gtest_discover_tests(${NAME}_tests) # DISCOVERY_MODE PRE_TEST
