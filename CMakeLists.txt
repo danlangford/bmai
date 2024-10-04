@@ -38,7 +38,7 @@ add_executable(${NAME} ./src/main.cpp)
 if(UNIX AND NOT APPLE)
     target_link_libraries(${NAME} PRIVATE ${NAME}_lib -static)
 else()
-    target_link_libraries(${NAME} PRIVATE ${NAME}_lib -static)
+    target_link_libraries(${NAME} PRIVATE ${NAME}_lib)
 endif()
 
 # to be able to reference header files
