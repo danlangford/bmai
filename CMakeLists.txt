@@ -13,11 +13,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 project(${NAME} VERSION 3.1)
 
-execute_process(
-    COMMAND git describe --dirty --always --tags --match=v[0-9]*
-    OUTPUT_VARIABLE GIT_DESCRIBE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+if(NOT DEFINED GIT_DESCRIBE)
+    execute_process(
+        COMMAND git describe --dirty --always --tags --match=v[0-9]*
+        OUTPUT_VARIABLE GIT_DESCRIBE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+endif()
+
 add_definitions("-DGIT_DESCRIBE=\"${GIT_DESCRIBE}\"")
 
 enable_testing()

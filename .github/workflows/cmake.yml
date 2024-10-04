@@ -58,11 +58,11 @@ jobs:
 # on later versions of cmake we can use the -S -B syntax
     - name: CMake Configure
       shell: bash
-      run: cmake -S . -B build -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
+      run: cmake -S . -B build -DGIT_DESCRIBE="$GIT_DESCRIBE" -DCMAKE_BUILD_TYPE=$BUILD_TYPE -G"Unix Makefiles"
 
     - name: CMake Build
       shell: bash
-      run: cmake --build build --config $BUILD_TYPE # --target bmai bmai_lib bmai_tests
+      run: cmake --build build --config $BUILD_TYPE --target bmai bmai_lib bmai_tests
 
     - name: CTest
       working-directory: build
@@ -97,8 +97,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: auto-release-${{ runner.os }}
-        name: '[auto] BMAI-${{ runner.os }}'
+        tag_name: auto-release-${{ runner.os }}-${{ runner.arch }}
+        name: '[auto] BMAI-${{ runner.os }}-${{ runner.arch }}'
         prerelease: true
         body: |
           Branch: ${{ github.head_ref || github.ref_name || github.ref }} 
