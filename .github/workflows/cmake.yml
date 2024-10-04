@@ -35,7 +35,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-13]
+        os: [ubuntu-latest, windows-latest, macos-latest, macos-13]
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -72,7 +72,7 @@ jobs:
 
     - uses: actions/upload-artifact@v4
       with:
-        name: bmai-${{ runner.os }}-${{ env.BUILD_TYPE }}
+        name: bmai-${{ runner.os }}-${{ runner.arch }}-${{ env.BUILD_TYPE }}
         if-no-files-found: error
         path: |
           ./build/bmai*
