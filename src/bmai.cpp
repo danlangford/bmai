@@ -275,14 +275,14 @@ int main(int argc, char *argv[])
 	g_stats.OnAppStarted();
 
 	// set up logging
-	// - disable in release build (for ZOM)
-	// drp051401 - reenabled in RELEASE since using for BMAI
-#ifndef _DEBUG	
-	//g_logger.SetLogging(BME_DEBUG_SIMULATION, false);
-	g_logger.SetLogging(BME_DEBUG_BMAI, false);
-#endif
-	g_logger.SetLogging(BME_DEBUG_ROUND, false);
-	g_logger.SetLogging(BME_DEBUG_QAI, false);
+	g_logger.SetLogging(BME_DEBUG_SIMULATION, true);
+	g_logger.SetLogging(BME_DEBUG_BMAI, true);
+	g_logger.SetLogging(BME_DEBUG_ROUND, true);
+	g_logger.SetLogging(BME_DEBUG_QAI, true);
+	g_logger.SetLogging(BME_DEBUG_GAME, true);
+	g_logger.SetLogging(BME_DEBUG_PARSER, true);
+	g_logger.SetLogging(BME_DEBUG_WARNING, true);
+	g_logger.SetLogging(BME_DEBUG_ALWAYS, true);
 
 	//g_ai_mode1b.SetP(0.5);
 	//g_ai.SetQAI(&g_ai_mode0);
