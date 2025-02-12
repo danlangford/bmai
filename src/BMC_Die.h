@@ -7,6 +7,7 @@
 // REVISION HISTORY:
 // drp030321 - partial split out to individual headers
 // dbl100524 - further split out of individual headers
+// dbl021125 - CanDoAttack()/CanBeAttacked() now take a BME_ATTACK
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once

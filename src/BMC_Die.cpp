@@ -7,6 +7,7 @@
 // REVISION HISTORY:
 // drp030321 - partial split out to individual headers
 // dbl100524 - broke this logic out into its own class file
+// dbl021125 - stealth dice can only interface with skill attacks
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 #include "BMC_Die.h"

@@ -8,6 +8,7 @@
 //
 // REVISION HISTORY:
 // dbl100524 - broke this logic out into its own class file
+// dbl021125 - adjust to new Die::CanDoAttack()/Die::CanBeAttacked() signatures
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 #include "BMC_Game.h"

@@ -6,6 +6,7 @@
 //
 // REVISION HISTORY:
 // dbl100524 - further split out of individual headers
+// dbl021125 - extern c_action_name, makes unit tests more readable
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 #pragma once
