@@ -8,6 +8,7 @@
 // REVISION HISTORY:
 // drp030321 - partial split out to individual headers
 // dbl100524 - broke this logic out into its own class file
+// dbl021125 - stealth dice can only interface with skill attacks
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 #include "BMC_Die.h"
@@ -88,9 +89,12 @@ void BMC_Die::RecomputeAttacks()
 	}
 
 	// stealth dice
+	// - can only ATTACK with (multi-die) skill attack
+	// - can only BE ATTACKED BY (multi-die) skill attacked
 	if (HasProperty(BME_PROPERTY_STEALTH))
 	{
-		m_attacks.Clear(BME_ATTACK_POWER);
+		m_attacks.Clear();
+		m_attacks.Set(BME_ATTACK_SKILL);
 		m_vulnerabilities.Clear();
 		m_vulnerabilities.Set(BME_ATTACK_SKILL);
 	}

@@ -140,6 +140,7 @@ public:
         BMC_Die die;
         die.SetDie(&die_data);
         die.SetState(BME_STATE_NOTSET);
+        die.Roll(); // populates Score and triggers a Recompute of Attacks and Vulns
         return die;
     }
 

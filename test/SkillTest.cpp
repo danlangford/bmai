@@ -24,7 +24,6 @@ TEST(SkillTests, NoSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 7);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_VALID);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), 30);
     EXPECT_EQ(die.GetScore(true), 15);
 }
@@ -46,8 +45,6 @@ TEST(SkillTests, MaximumSkill) {
 	// test other behavior
     // Arrange: Given a 6 sided Maximum die
     BMC_Die die = TEST_Util::createTestDie(6, BME_PROPERTY_MAXIMUM);
-
-    EXPECT_EQ(die.GetValueTotal(), 0);
 
     for (int i = 0; i < 10; ++i) {
         // Act: When the die is rolled 10 times
@@ -75,15 +72,9 @@ TEST(SkillTests, InsultSkill) {
 	// test other behavior
     // Arrange: Given a 6 sided Maximum die
     BMC_Die die = TEST_Util::createTestDie(6, BME_PROPERTY_INSULT);
-    die.Roll(); // triggers a Recompute
 
-    BMC_Move power = BMC_Move();
-    power.m_attack = BME_ATTACK_POWER;
-    EXPECT_TRUE(die.CanBeAttacked(power));
-
-    BMC_Move skill = BMC_Move();
-    skill.m_attack = BME_ATTACK_SKILL;
-    EXPECT_FALSE(die.CanBeAttacked(skill));
+    EXPECT_TRUE(die.CanBeAttacked(BME_ATTACK_POWER));
+    EXPECT_FALSE(die.CanBeAttacked(BME_ATTACK_SKILL));
 
 }
 
@@ -102,7 +93,6 @@ TEST(SkillTests, NullSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 0);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_NULL);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), 0);
     EXPECT_EQ(die.GetScore(true), 0);
 
@@ -123,7 +113,6 @@ TEST(SkillTests, ValueSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 6);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_VALUE);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), die.GetValueTotal());
     EXPECT_EQ(die.GetScore(true), die.GetValueTotal()/2.0f);
 }
@@ -143,7 +132,6 @@ TEST(SkillTests, NullValueSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 0);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_NULL|BME_PROPERTY_VALUE);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), 0);
     EXPECT_EQ(die.GetScore(true), 0);
 }
@@ -180,7 +168,6 @@ TEST(SkillTests, MorphingSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 7);
 
 	BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_MORPHING);
-	die.Roll(); // triggers a Recompute
 	EXPECT_EQ(die.GetScore(false), 30);
 	EXPECT_EQ(die.GetScore(true), 15);
 
@@ -267,7 +254,6 @@ TEST(SkillTests, PoisonSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), -3.5);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_POISON);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), -15);
     EXPECT_EQ(die.GetScore(true), -30);
 }
@@ -287,7 +273,6 @@ TEST(SkillTests, PoisonValueSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), -3);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_POISON|BME_PROPERTY_VALUE);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), die.GetValueTotal()*-1/2.0f);
     EXPECT_EQ(die.GetScore(true), die.GetValueTotal()*-1);
 }
@@ -307,7 +292,21 @@ TEST(SkillTests, PoisonNullSkill) {
 	EXPECT_EQ(t_dice[0]->GetScore(false), 0);
 
     BMC_Die die = TEST_Util::createTestDie(30, BME_PROPERTY_POISON|BME_PROPERTY_NULL);
-    die.Roll(); // triggers a Recompute
     EXPECT_EQ(die.GetScore(false), 0);
     EXPECT_EQ(die.GetScore(true), 0);
+}
+
+TEST(SkillTests, StealthTrip) {
+	BMC_Die dice = TEST_Util::createTestDie(6, BME_PROPERTY_STEALTH | BME_PROPERTY_TRIP);
+	EXPECT_TRUE(dice.CanDoAttack(BME_ATTACK_SKILL));
+	EXPECT_FALSE(dice.CanDoAttack(BME_ATTACK_TRIP));
+	EXPECT_FALSE(dice.CanDoAttack(BME_ATTACK_POWER));
+
+	TEST_Util test;
+	BMC_Move _move;
+	EXPECT_NO_THROW({
+		_move = test.ParseFightGetAttack("dt10:8","20:9");
+	});
+	EXPECT_THAT(_move, IsAction(BME_ACTION_PASS));
+
 }
