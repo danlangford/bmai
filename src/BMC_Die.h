@@ -35,8 +35,8 @@ public:
 	void		SetFocus(INT _v);
 
 	// accessors
-	bool		CanDoAttack(BMC_MoveAttack &_move) { return m_attacks.IsSet(_move.m_attack); }
-	bool		CanBeAttacked(BMC_MoveAttack &_move) { return m_vulnerabilities.IsSet(_move.m_attack); }
+	bool		CanDoAttack(BME_ATTACK _attack) { return m_attacks.IsSet(_attack); }
+	bool		CanBeAttacked(BME_ATTACK _attack) { return m_vulnerabilities.IsSet(_attack); }
 	INT			GetValueTotal() { return m_value_total; }
 	INT			GetSidesMax() { return m_sides_max; }
 	bool		IsAvailable() { return m_state == BME_STATE_READY || m_state == BME_STATE_DIZZY; }

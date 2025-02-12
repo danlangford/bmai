@@ -305,11 +305,11 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 		{
 			// is the attack type legal based on the given dice
 			att_die = attacker->GetDie(_move.m_attacker);
-			if (!att_die->CanDoAttack(_move))
+			if (!att_die->CanDoAttack(_move.m_attack))
 				return false;
 
 			tgt_die = target->GetDie(_move.m_target);
-			if (!tgt_die->CanBeAttacked(_move))
+			if (!tgt_die->CanBeAttacked(_move.m_attack))
 				return false;
 
 			// for POWER - check value >=
@@ -339,7 +339,7 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 		{
 			// is the attack type legal based on the given dice
 			att_die = attacker->GetDie(_move.m_attacker);
-			if (!att_die->CanDoAttack(_move))
+			if (!att_die->CanDoAttack(_move.m_attack))
 				return false;
 
 			// iterate over target dice
@@ -353,7 +353,7 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 					dice++;
 					// can the target die be attacked?
 					tgt_die = target->GetDie(i);
-					if (!tgt_die->CanBeAttacked(_move))
+					if (!tgt_die->CanBeAttacked(_move.m_attack))
 						return false;
 					// count value of target die, and check if gone past limit
 					tgt_value_total += tgt_die->GetValueTotal();
@@ -389,7 +389,7 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 
 			// can the target die be attacked?
 			tgt_die = target->GetDie(_move.m_target);
-			if (!tgt_die->CanBeAttacked(_move))
+			if (!tgt_die->CanBeAttacked(_move.m_attack))
 				return false;
 
 			// iterate over attack dice
@@ -406,7 +406,7 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 					dice++;
 					// is the attack type legal based on the given dice
 					att_die = attacker->GetDie(i);
-					if (!att_die->CanDoAttack(_move))
+					if (!att_die->CanDoAttack(_move.m_attack))
 						return false;
 
 					// count value of att die, and check if gone past limit
@@ -967,7 +967,7 @@ void BMC_Game::GenerateValidAttacks(BMC_MoveList & _movelist)
 		for (a=BME_ATTACK_FIRST; a<BME_ATTACK_MAX; a++)
 		{
 			move.m_attack = (BME_ATTACK)a;
-			if (!att_die->CanDoAttack(move))
+			if (!att_die->CanDoAttack(move.m_attack))
 				continue;
 
 			move.m_turbo_option = -1;
@@ -989,7 +989,7 @@ void BMC_Game::GenerateValidAttacks(BMC_MoveList & _movelist)
 						else if (move.m_attack==BME_ATTACK_POWER && tgt_die->GetValueTotal()>att_die->GetValueTotal())
 							break;
 
-						if (!tgt_die->CanBeAttacked(move))
+						if (!tgt_die->CanBeAttacked(move.m_attack))
 							continue;
 
 						// is the move valid?

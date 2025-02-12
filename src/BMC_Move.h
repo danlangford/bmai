@@ -78,6 +78,8 @@ public:
 	};
 };
 
+extern const char *c_action_name[];
+
 #define	BMC_MoveAttack	BMC_Move
 
 typedef std::vector<BMC_Move>	BMC_MoveVector;

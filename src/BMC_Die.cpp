@@ -87,9 +87,12 @@ void BMC_Die::RecomputeAttacks()
 	}
 
 	// stealth dice
+	// - can only ATTACK with (multi-die) skill attack
+	// - can only BE ATTACKED BY (multi-die) skill attacked
 	if (HasProperty(BME_PROPERTY_STEALTH))
 	{
-		m_attacks.Clear(BME_ATTACK_POWER);
+		m_attacks.Clear();
+		m_attacks.Set(BME_ATTACK_SKILL);
 		m_vulnerabilities.Clear();
 		m_vulnerabilities.Set(BME_ATTACK_SKILL);
 	}
