@@ -55,6 +55,7 @@ public:
 	void		OnDieSidesChanged(BMC_Die *_die);
 	BMC_Die *	OnDieLost(INT _d);
 	void		OnDieCaptured(BMC_Die *_die);
+	void		OnRageDieCaptured(BMC_Die *_captured_rage_die);
 	void		OnRoundLost();
 	void		OnSurrendered();
 	//void		OnSwingDiceSet() { m_swing_set = true; }

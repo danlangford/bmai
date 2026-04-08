@@ -95,10 +95,10 @@ INT BMC_Game::CheckInitiative()
 
 	while (1)
 	{
-		// TRIP or SLOW or STINGER dice don't count for initiative
-		while (m_player[0].GetDie(i)->HasProperty(BME_PROPERTY_TRIP|BME_PROPERTY_SLOW|BME_PROPERTY_STINGER) && i>=0)
+		// TRIP or SLOW or STINGER or RAGE dice don't count for initiative
+		while (m_player[0].GetDie(i)->HasProperty(BME_PROPERTY_TRIP|BME_PROPERTY_SLOW|BME_PROPERTY_STINGER|BME_PROPERTY_RAGE) && i>=0)
 			i--;
-		while (m_player[1].GetDie(j)->HasProperty(BME_PROPERTY_TRIP|BME_PROPERTY_SLOW|BME_PROPERTY_STINGER) && j>=0)
+		while (m_player[1].GetDie(j)->HasProperty(BME_PROPERTY_TRIP|BME_PROPERTY_SLOW|BME_PROPERTY_STINGER|BME_PROPERTY_RAGE) && j>=0)
 			j--;
 
 		// if no dice remaining - is a tie
@@ -382,6 +382,50 @@ bool BMC_Game::ValidAttack(BMC_MoveAttack &_move)
 			*/
 
 			// if match - success
+			if (tgt_value_total == att_die->GetValueTotal())
+				return true;
+
+			return false;
+		}
+
+	case BME_ATTACK_RUSH:	// 1 -> N (but exactly 2 target dice)
+		{
+			att_die = attacker->GetDie(_move.m_attacker);
+
+			// Any die can perform Rush Attack if target dice include at least one Rush die.
+			// Otherwise, only Rush dice can perform Rush Attack.
+			bool att_has_rush = att_die->HasProperty(BME_PROPERTY_RUSH);
+			bool tgt_has_rush = false;
+
+			// iterate over target dice to check if any have Rush and validate all can be attacked
+			INT	tgt_value_total = 0;
+			INT i;
+			INT dice = 0;
+			for (i=0; i<BMD_MAX_DICE; i++)
+			{
+				if (_move.m_targets.IsSet(i))
+				{
+					dice++;
+					tgt_die = target->GetDie(i);
+					if (!tgt_die->CanBeAttacked(_move.m_attack))
+						return false;
+					if (tgt_die->HasProperty(BME_PROPERTY_RUSH))
+						tgt_has_rush = true;
+					tgt_value_total += tgt_die->GetValueTotal();
+				}
+			}
+
+			// Must capture exactly 2 dice
+			if (dice != 2)
+				return false;
+
+			// Check if attacker is allowed to do Rush Attack:
+			// - If target has Rush, any die can do it
+			// - If target doesn't have Rush, only Rush die can do it
+			if (!tgt_has_rush && !att_has_rush)
+				return false;
+
+			// Target dice must sum exactly to attacker value
 			if (tgt_value_total == att_die->GetValueTotal())
 				return true;
 
@@ -1040,7 +1084,15 @@ void BMC_Game::GenerateValidAttacks(BMC_MoveList & _movelist)
 		for (a=BME_ATTACK_FIRST; a<BME_ATTACK_MAX; a++)
 		{
 			move.m_attack = (BME_ATTACK)a;
-			if (!att_die->CanDoAttack(move.m_attack))
+
+			// RUSH: Any die can perform Rush Attack if target has Rush dice,
+			// so we allow generation even if attacker doesn't have Rush skill.
+			// ValidAttack() will enforce the actual rules.
+			bool skip_can_do_check = false;
+			if (move.m_attack == BME_ATTACK_RUSH && target->HasDieWithProperty((INT)BME_PROPERTY_RUSH))
+				skip_can_do_check = true;
+
+			if (!skip_can_do_check && !att_die->CanDoAttack(move.m_attack))
 				continue;
 
 			move.m_turbo_option = -1;
@@ -1191,38 +1243,68 @@ void BMC_Game::GenerateValidAttacks(BMC_MoveList & _movelist)
 
 			case BME_ATTACK_TYPE_1_N:
 				{
-					BMC_DieIndexStack	die_stack(target);
-					INT att_total = att_die->GetValueTotal();
-					bool finished = false;
-
-					// add the first die
-					die_stack.Push(0);
-
-					while (!finished)
+					// RUSH: special handling - must capture exactly 2 target dice
+					if (move.m_attack == BME_ATTACK_RUSH)
 					{
-						// check move if at target value
-						if (att_total == die_stack.GetValueTotal())
+						INT att_total = att_die->GetValueTotal();
+						INT num_targets = target->GetAvailableDice();
+
+						// Generate all pairs of target dice
+						for (INT i = 0; i < num_targets; i++)
 						{
-							// build m_targets to check move validity
-							die_stack.SetBits(move.m_targets);
-							if (ValidAttack(move))
-								_movelist.Add(move);
+							for (INT j = i + 1; j < num_targets; j++)
+							{
+								move.m_targets.Clear();
+								move.m_targets.Set(i);
+								move.m_targets.Set(j);
+
+								INT pair_total = target->GetDie(i)->GetValueTotal() + target->GetDie(j)->GetValueTotal();
+
+								// Only check if values sum to attacker total
+								if (pair_total == att_total)
+								{
+									if (ValidAttack(move))
+										_movelist.Add(move);
+								}
+							}
 						}
+					}
+					else
+					{
+						// SPEED/BERSERK: original multi-die attack generation logic
+						BMC_DieIndexStack	die_stack(target);
+						INT att_total = att_die->GetValueTotal();
+						bool finished = false;
 
-						// step
+						// add the first die
+						die_stack.Push(0);
 
-						// if full (using all target dice) and tgt tot value is <= att value, give up since won't be able to do any other matches
-						if (die_stack.ContainsAllDice() && att_total >= die_stack.GetValueTotal())
-							break;
+						while (!finished)
+						{
+							// check move if at target value
+							if (att_total == die_stack.GetValueTotal())
+							{
+								// build m_targets to check move validity
+								die_stack.SetBits(move.m_targets);
+								if (ValidAttack(move))
+									_movelist.Add(move);
+							}
 
-						// if tgt_total matches or exceeds att_total, don't add a die (no sense continuing on this line)
-						// Otherwise do a standard cycle
-						if (att_total <= die_stack.GetValueTotal())
-							finished = die_stack.Cycle(false);
-						else
-							finished = die_stack.Cycle();
+							// step
 
-					} // end while(!finished)
+							// if full (using all target dice) and tgt tot value is <= att value, give up since won't be able to do any other matches
+							if (die_stack.ContainsAllDice() && att_total >= die_stack.GetValueTotal())
+								break;
+
+							// if tgt_total matches or exceeds att_total, don't add a die (no sense continuing on this line)
+							// Otherwise do a standard cycle
+							if (att_total <= die_stack.GetValueTotal())
+								finished = die_stack.Cycle(false);
+							else
+								finished = die_stack.Cycle();
+
+						} // end while(!finished)
+					}
 
 					break;
 				}
@@ -1701,6 +1783,12 @@ void BMC_Game::ApplyAttackNaturePost(BMC_Move &_move, bool &_extra_turn)
 				tgt_die->SetState(BME_STATE_CAPTURED);
 				attacker->OnDieCaptured(tgt_die);
 
+				// RAGE: if the captured die has RAGE, spawn a new die for the target
+				if (tgt_die->HasProperty(BME_PROPERTY_RAGE))
+				{
+					target->OnRageDieCaptured(tgt_die);
+				}
+
 				break;
 			}
 		case BME_ATTACK_TYPE_1_N:
@@ -1721,6 +1809,11 @@ void BMC_Game::ApplyAttackNaturePost(BMC_Move &_move, bool &_extra_turn)
 					tgt_die->SetState(BME_STATE_CAPTURED);
 					attacker->OnDieCaptured(tgt_die);
 
+					// RAGE: if the captured die has RAGE, spawn a new die for the target
+					if (tgt_die->HasProperty(BME_PROPERTY_RAGE))
+					{
+						target->OnRageDieCaptured(tgt_die);
+					}
 				}
 				break;
 			}

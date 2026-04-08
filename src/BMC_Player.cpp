@@ -304,6 +304,44 @@ void BMC_Player::OnDieCaptured(BMC_Die *_die)
 	m_score += _die->GetScore(false);
 }
 
+// DESC: called when this player's opponent captures one of this player's RAGE dice
+// POST: a new die identical to the captured rage die (but without Rage) is added to this player's pool
+void BMC_Player::OnRageDieCaptured(BMC_Die *_captured_rage_die)
+{
+	BM_ASSERT(_captured_rage_die->HasProperty(BME_PROPERTY_RAGE));
+
+	// Find an available (NOTUSED) slot in the die array
+	INT slot = -1;
+	for (INT i = 0; i < BMD_MAX_DICE; i++)
+	{
+		if (!m_die[i].IsUsed())
+		{
+			slot = i;
+			break;
+		}
+	}
+
+	// If no slots available, we can't add the die (shouldn't happen in normal play)
+	if (slot < 0)
+		return;
+
+	// Create a new die identical to the captured rage die (cast to base class BMC_DieData),
+	// but without the RAGE property. BMC_Die inherits from BMC_DieData so the cast is safe.
+	BMC_DieData new_die_data = static_cast<const BMC_DieData &>(*_captured_rage_die);
+	new_die_data.RemoveProperty(BME_PROPERTY_RAGE);
+
+	// Set up the new die in the available slot
+	m_die[slot].SetDie(&new_die_data);
+	for (INT j = 0; j < m_die[slot].Dice(); j++)
+		m_swing_dice[m_die[slot].GetSwingType(j)]++;
+
+	// Add the score of the new die
+	m_score += m_die[slot].GetScore(true);
+
+	// Optimize dice to put the new die in the right position
+	OptimizeDice();
+}
+
 // POST: swing dice have been reset
 void BMC_Player::OnRoundLost()
 {
