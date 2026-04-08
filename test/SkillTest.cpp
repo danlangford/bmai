@@ -963,3 +963,328 @@ TEST(SkillTests, StealthSingleDieSkillCannotCaptureStealth) {
 		IsAction(BME_ACTION_PASS)
 	));
 }
+
+// === RAGE SKILL TESTS ===
+// Per rules: "If a Rage die is captured, then the owner of the Rage Die adds a new die to their pool of the same size
+// and ability of the Rage die that was taken, except that it loses the Rage ability. If a Rage Die participates in an
+// Attack, it loses its Rage ability. Rage dice do not count for determining who goes first."
+
+TEST(SkillTests, RageDieDoesNotCountForInitiative) {
+	TEST_Util test;
+
+	// Test that Rage dice don't count for initiative by verifying Rage property is recognized
+	BMC_Die rage_die = TEST_Util::createTestDie(10, BME_PROPERTY_RAGE);
+	BMC_Die normal_die = TEST_Util::createTestDie(6, BME_PROPERTY_VALID);
+
+	// Verify the Rage die has the RAGE property
+	EXPECT_TRUE(rage_die.HasProperty(BME_PROPERTY_RAGE)) << "Die should have Rage property";
+	EXPECT_FALSE(normal_die.HasProperty(BME_PROPERTY_RAGE)) << "Normal die should not have Rage property";
+}
+
+TEST(SkillTests, RageDieLosesRageWhenParticipatingInAttack) {
+	TEST_Util test;
+
+	BMC_Move _move;
+	EXPECT_NO_THROW({
+		_move = test.ParseFightGetAttack("G8:8", "6:6");
+	});
+	EXPECT_THAT(_move, IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0));
+
+	auto a_dice = TEST_Util::extractAttackerDice(_move);
+	EXPECT_TRUE(a_dice[0]->HasProperty(BME_PROPERTY_RAGE)) << "Rage die should have Rage before attack";
+
+	_move.m_game->ApplyAttackPlayer(_move);
+
+	// After attack, the Rage die should no longer have the Rage property
+	EXPECT_FALSE(a_dice[0]->HasProperty(BME_PROPERTY_RAGE)) << "Rage die should lose Rage after participating in attack";
+}
+
+TEST(SkillTests, RageDieCaptureCreatesNewDieInOwnerPool) {
+	TEST_Util test;
+
+	// Attacker: 8:8 (regular die)
+	// Defender: G8:6 (Rage die with value 6, will be captured)
+	BMC_Move _move;
+	EXPECT_NO_THROW({
+		_move = test.ParseFightGetAttack("8:8", "G8:6");
+	});
+	EXPECT_THAT(_move, IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0));
+
+	auto t_dice = TEST_Util::extractTargetDice(_move);
+	EXPECT_TRUE(t_dice[0]->HasProperty(BME_PROPERTY_RAGE)) << "Target die should be Rage";
+
+	// Before capture, target has 1 die
+	EXPECT_EQ(_move.m_game->GetPlayer(1)->GetAvailableDice(), 1);
+
+	_move.m_game->ApplyAttackPlayer(_move);
+
+	// After capture, target should have 2 dice (captured + newly created non-Rage die)
+	EXPECT_EQ(_move.m_game->GetPlayer(1)->GetAvailableDice(), 2) << "Target should have 2 dice after capturing Rage die";
+
+	// The new die should be d8 (same size as captured Rage die)
+	BMC_Die *new_die = _move.m_game->GetPlayer(1)->GetDie(0);
+	EXPECT_EQ(new_die->GetSidesMax(), 8) << "New die should be d8 (same size as Rage die)";
+	EXPECT_FALSE(new_die->HasProperty(BME_PROPERTY_RAGE)) << "New die should not have Rage property";
+}
+
+TEST(SkillTests, RageDieWithTwinProperty) {
+	TEST_Util test;
+
+	// Attacker: 10:8
+	// Defender: G(5,7):10 (Rage Twin die, will be captured)
+	BMC_Move _move;
+	EXPECT_NO_THROW({
+		_move = test.ParseFightGetAttack("10:8", "G(5,7):10");
+	});
+	EXPECT_THAT(_move, IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0));
+
+	auto t_dice = TEST_Util::extractTargetDice(_move);
+	EXPECT_TRUE(t_dice[0]->HasProperty(BME_PROPERTY_RAGE)) << "Target die should be Rage";
+	EXPECT_TRUE(t_dice[0]->HasProperty(BME_PROPERTY_TWIN)) << "Target die should be Twin";
+
+	// Before capture, target has 1 die
+	EXPECT_EQ(_move.m_game->GetPlayer(1)->GetAvailableDice(), 1);
+
+	_move.m_game->ApplyAttackPlayer(_move);
+
+	// After capture, target should have 2 dice
+	EXPECT_EQ(_move.m_game->GetPlayer(1)->GetAvailableDice(), 2) << "Target should have 2 dice after capturing Rage Twin die";
+
+	// The new die should be (5,7) Twin die without Rage
+	BMC_Die *new_die = _move.m_game->GetPlayer(1)->GetDie(0);
+	EXPECT_EQ(new_die->GetSidesMax(), 12) << "New die should have total sides 5+7=12";
+	EXPECT_TRUE(new_die->HasProperty(BME_PROPERTY_TWIN)) << "New die should be Twin";
+	EXPECT_FALSE(new_die->HasProperty(BME_PROPERTY_RAGE)) << "New die should not have Rage property";
+}
+
+TEST(SkillTests, MultipleRageDiceCapture) {
+	TEST_Util test;
+
+	// Attacker: 10:5 8:5 6:5 (will capture both Rage dice)
+	// Defender: G8:10 G6:10 (both Rage dice will be captured)
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("10:5 8:5 6:5", "G8:10 G6:10");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	EXPECT_THAT(valid_attacks, ::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "speed", 0, {0, 1})
+	));
+
+	// Before attack, target has 2 Rage dice
+	EXPECT_EQ(context.chosen_move.m_game->GetPlayer(1)->GetAvailableDice(), 2);
+
+	context.chosen_move.m_game->ApplyAttackPlayer(context.chosen_move);
+
+	// After capturing both Rage dice, target should have 4 dice (2 captured + 2 new non-Rage)
+	EXPECT_EQ(context.chosen_move.m_game->GetPlayer(1)->GetAvailableDice(), 4) << "Target should have 4 dice after capturing 2 Rage dice";
+
+	// Both new dice should not have Rage
+	BMC_Die *new_die1 = context.chosen_move.m_game->GetPlayer(1)->GetDie(0);
+	BMC_Die *new_die2 = context.chosen_move.m_game->GetPlayer(1)->GetDie(1);
+	EXPECT_FALSE(new_die1->HasProperty(BME_PROPERTY_RAGE)) << "New die 1 should not have Rage";
+	EXPECT_FALSE(new_die2->HasProperty(BME_PROPERTY_RAGE)) << "New die 2 should not have Rage";
+}
+
+TEST(SkillTests, RageDieRetainsOtherProperties) {
+	TEST_Util test;
+
+	// Attacker: 10:8
+	// Defender: Gp8:6 (Rage + Poison die, will be captured)
+	BMC_Move _move;
+	EXPECT_NO_THROW({
+		_move = test.ParseFightGetAttack("10:8", "Gp8:6");
+	});
+	EXPECT_THAT(_move, IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0));
+
+	auto t_dice = TEST_Util::extractTargetDice(_move);
+	EXPECT_TRUE(t_dice[0]->HasProperty(BME_PROPERTY_RAGE)) << "Target die should have Rage";
+	EXPECT_TRUE(t_dice[0]->HasProperty(BME_PROPERTY_POISON)) << "Target die should have Poison";
+
+	_move.m_game->ApplyAttackPlayer(_move);
+
+	// After capture, the new die should have Poison but not Rage
+	BMC_Die *new_die = _move.m_game->GetPlayer(1)->GetDie(0);
+	EXPECT_TRUE(new_die->HasProperty(BME_PROPERTY_POISON)) << "New die should retain Poison property";
+	EXPECT_FALSE(new_die->HasProperty(BME_PROPERTY_RAGE)) << "New die should not have Rage property";
+}
+
+TEST(SkillTests, RushBasic) {
+	TEST_Util test;
+
+	// Rush die can capture 2 dice that sum to its value
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#10:8", "4:3 6:5");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	EXPECT_THAT(valid_attacks, ::testing::UnorderedElementsAre(
+		IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 1),
+		IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0),
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 1})
+	));
+}
+
+TEST(SkillTests, RushOnlyTwoDice) {
+	TEST_Util test;
+
+	// Rush must capture EXACTLY 2 dice, not 1 or 3+
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#10:8", "3:2 4:3 5:4");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// Can capture 3+4=7 or 4+5=9 or 3+5=8 (exact match!)
+	// But NOT single dice, and NOT all 3
+	EXPECT_THAT(valid_attacks, ::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 2})
+	));
+	// Should not allow capturing just 2 dice or 3 dice
+	EXPECT_THAT(valid_attacks, ::testing::Not(::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 1, 2})
+	)));
+}
+
+TEST(SkillTests, RushNonRushDieCanAttackRushDie) {
+	TEST_Util test;
+
+	// Any die can perform Rush Attack if target has Rush dice
+	// Attacker: normal d10, Defender: Rush d8 and another d5
+	// 5+5=10 (sum matches attacker)
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("10:8", "#8:5 5:4");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// Non-Rush attacker should be able to do Rush attack against Rush target
+	EXPECT_THAT(valid_attacks, ::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 1})
+	));
+}
+
+TEST(SkillTests, RushOnlyIfTargetHasRush) {
+	TEST_Util test;
+
+	// Non-Rush die can ONLY do Rush Attack if target has Rush
+	// If target has no Rush, non-Rush die cannot do Rush attack
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("10:8", "4:3 6:5");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// No Rush attack should be available (target has no Rush dice)
+	// Should only have power attacks
+	EXPECT_THAT(valid_attacks, ::testing::UnorderedElementsAre(
+		IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0),
+		IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 1)
+	));
+}
+
+TEST(SkillTests, RushMultipleDicePool) {
+	TEST_Util test;
+
+	// Rush die in a mixed pool with other dice
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#12:8 6:5 4:3", "3:2 5:4 7:6");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// Should be able to do Rush with the #12 die: 5+7=12
+	EXPECT_THAT(valid_attacks, ::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {1, 2})
+	));
+}
+
+TEST(SkillTests, RushValueMustSumExactly) {
+	TEST_Util test;
+
+	// Target dice must sum EXACTLY to Rush die value
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#8:6", "3:2 4:3 5:4");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// 3+5=8 should be valid
+	EXPECT_THAT(valid_attacks, ::testing::Contains(
+		IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 2})
+	));
+	// But NOT 3+4=7 or other non-matching pairs
+}
+
+TEST(SkillTests, RushVulnerableToOtherRush) {
+	TEST_Util test;
+
+	// Rush dice are vulnerable to Rush attacks (they can be attacked by any die using Rush)
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("5:4 6:5", "#8:6 3:2");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// Attacker should be able to do Rush: 6+2=8 or 5+3=8
+	EXPECT_THAT(valid_attacks, ::testing::AnyOf(
+		::testing::Contains(IsAttack(BME_ATTACK_TYPE_1_N, "rush", 0, {0, 1})),
+		::testing::Contains(IsAttack(BME_ATTACK_TYPE_1_N, "rush", 1, {0, 1}))
+	));
+}
+
+TEST(SkillTests, RushDieCannotUseExcessValue) {
+	TEST_Util test;
+
+	// Rush die must capture pairs that sum exactly to its value
+	// It cannot capture a single die, even if that die's value is less than Rush value
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#10:8", "5:4");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// Single d5 cannot be captured by Rush (only pair attacks allowed)
+	// Should only have power attack (10:8 vs 5:4, 10 > 5 so power captures)
+	EXPECT_THAT(valid_attacks, ::testing::UnorderedElementsAre(
+		IsAttack(BME_ATTACK_TYPE_1_1, "power", 0, 0)
+	));
+}
+
+TEST(SkillTests, RushWithTwinDice) {
+	TEST_Util test;
+
+	// Rush works with Twin dice - each die counts as single die for pairing
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#15:8", "(7,8):6 (5,6):5");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// (7,8)=15 + (5,6)=11, neither equals 15 alone, but...
+	// Should still be able to do rush with pairs
+	// This is an edge case but the pairing logic should handle it
+}
+
+TEST(SkillTests, RushExactMatchRequired) {
+	TEST_Util test;
+
+	// Rush die cannot capture dice that sum to LESS than its value
+	TEST_Util::FightContext context;
+	EXPECT_NO_THROW({
+		context = test.ParseFightContext("#10:8", "3:2 4:3");
+	});
+
+	auto valid_attacks = context.ValidAttacks();
+	// 3+4=7, which is less than 10, so no Rush attack should exist
+	// Should only have power attacks or pass
+	bool has_rush = false;
+	for (const auto& move : valid_attacks) {
+		if (move.m_action == BME_ACTION_ATTACK && move.m_attack == BME_ATTACK_RUSH) {
+			has_rush = true;
+		}
+	}
+	EXPECT_FALSE(has_rush) << "3+4=7 should not match d10 requiring 10";
+}

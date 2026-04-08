@@ -64,6 +64,10 @@ void BMC_Die::RecomputeAttacks()
 	if (HasProperty(BME_PROPERTY_SPEED))
 		m_attacks.Set(BME_ATTACK_SPEED);
 
+	// RUSH
+	if (HasProperty(BME_PROPERTY_RUSH))
+		m_attacks.Set(BME_ATTACK_RUSH);
+
 	// TRIP
 	if (HasProperty(BME_PROPERTY_TRIP))
 		m_attacks.Set(BME_ATTACK_TRIP);
@@ -363,6 +367,14 @@ void BMC_Die::OnApplyAttackPlayer(BMC_Move &_move, BMC_Player *_owner, bool _act
 		m_properties &= ~BME_PROPERTY_WARRIOR;
 		if (HasProperty(BME_PROPERTY_KONSTANT))
 			RecomputeAttacks();
+		_owner->OnDiePropertiesChanged(this);
+	}
+
+	// RAGE: loses property when it participates in an attack
+	if (HasProperty(BME_PROPERTY_RAGE))
+	{
+		_owner->OnDiePropertiesChanging(this);
+		m_properties &= ~BME_PROPERTY_RAGE;
 		_owner->OnDiePropertiesChanged(this);
 	}
 }
