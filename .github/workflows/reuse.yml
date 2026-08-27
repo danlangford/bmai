@@ -5,7 +5,10 @@ name: REUSE Compliance Check
 
 on:
   push:
+    branches: [rust]
   pull_request:
+    branches: [rust]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,6 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: REUSE Compliance Check
         uses: fsfe/reuse-action@v6

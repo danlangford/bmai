@@ -5,30 +5,89 @@ name: Rust CI
 
 on:
   push:
+    branches: [rust]
   pull_request:
+    branches: [rust]
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: Cargo build profile
+        required: true
+        default: Release
+        type: choice
+        options:
+          - Release
+          - Debug
+  workflow_call:
+    inputs:
+      build_type:
+        description: Cargo build profile
+        required: false
+        default: Release
+        type: string
+      source_ref:
+        description: Git ref containing the Rust source
+        required: false
+        default: ""
+        type: string
 
 permissions:
   contents: read
 
 env:
   CARGO_TERM_COLOR: always
+  BUILD_TYPE: ${{ inputs.build_type || 'Release' }}
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  build-and-test:
+    name: ${{ matrix.os }} / ${{ inputs.build_type || 'Release' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
       - name: Install pinned Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.97.1
           components: clippy,rustfmt
+      - name: Select Cargo profile
+        shell: bash
+        run: |
+          if [[ "$BUILD_TYPE" == "Release" ]]; then
+            echo "CARGO_PROFILE=release" >> "$GITHUB_ENV"
+            echo "CARGO_OUTPUT_DIR=release" >> "$GITHUB_ENV"
+          else
+            echo "CARGO_PROFILE=dev" >> "$GITHUB_ENV"
+            echo "CARGO_OUTPUT_DIR=debug" >> "$GITHUB_ENV"
+          fi
       - name: Check formatting
+        if: runner.os == 'Linux'
         run: cargo fmt --check
       - name: Lint
+        if: runner.os == 'Linux'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - name: Test
-        run: cargo test --locked --all-targets --all-features
-      - name: Build release binary
-        run: cargo build --release --locked
+        run: cargo test --profile "$CARGO_PROFILE" --locked --all-targets --all-features
+        shell: bash
+      - name: Run expensive self-contained fixture tests
+        if: runner.os == 'Linux'
+        run: cargo test --profile release --locked --lib -- --ignored
+      - name: Build binary
+        run: cargo build --profile "$CARGO_PROFILE" --locked --all-targets --all-features
+        shell: bash
+      - name: Upload binary
+        uses: actions/upload-artifact@v6
+        with:
+          name: bmair-${{ runner.os }}-${{ env.BUILD_TYPE }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            target/${{ env.CARGO_OUTPUT_DIR }}/bmair
+            target/${{ env.CARGO_OUTPUT_DIR }}/bmair.exe
