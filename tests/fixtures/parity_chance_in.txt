@@ -1,0 +1,14 @@
+game 1
+chance
+player 0 2 0
+c6:1
+k6:6
+player 1 1 0
+6:4
+seed 17
+ply 1
+max_sims 2
+min_sims 1
+maxbranch 10
+getaction
+quit

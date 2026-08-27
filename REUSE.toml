@@ -1,12 +1,54 @@
 version = 1
 
-# force the .cpp and .h files have their own license/copyright expressed in the files
-# the below config is to blanket license/copyright other files in the project
 [[annotations]]
 path = [
-    "*",
-    "test/*.txt",
-    "web/*",
+    "Cargo.lock",
+    "Cargo.toml",
+    "mise.toml",
 ]
 SPDX-License-Identifier = "MIT"
-SPDX-FileCopyrightText = "Copyright © Denis Papp <denis@accessdenied.net>"
+SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"
+
+[[annotations]]
+path = [
+    "HISTORY.TXT",
+    "tests/fixtures/Insult_in.txt",
+    "tests/fixtures/SurrenderDefault-Pass-in.txt",
+    "tests/fixtures/SurrenderOff-Attack-in.txt",
+    "tests/fixtures/SurrenderOff-Pass-in.txt",
+    "tests/fixtures/SurrenderOn-Attack-in.txt",
+    "tests/fixtures/SurrenderOn-Pass-in.txt",
+    "tests/fixtures/Value1_in.txt",
+    "tests/fixtures/Value2_in.txt",
+    "tests/fixtures/bmai_in.txt",
+    "tests/fixtures/bmsim_in.txt",
+    "tests/fixtures/bmsim_out.txt",
+    "tests/fixtures/bug11_in.txt",
+    "tests/fixtures/bug16_in.txt",
+    "tests/fixtures/bug55_a_in.txt",
+    "tests/fixtures/bug55_b_in.txt",
+    "tests/fixtures/sample-jellybean-vs-strik.txt",
+    "tests/fixtures/sample-tanya-vs-tony.txt",
+    "tests/fixtures/test_in.txt",
+    "tests/fixtures/test_out.txt",
+]
+SPDX-License-Identifier = "MIT"
+SPDX-FileCopyrightText = "Copyright 2001 Denis Papp"
+
+[[annotations]]
+path = [
+    "tests/fixtures/parity_*",
+]
+SPDX-License-Identifier = "MIT"
+SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"
+
+[[annotations]]
+path = [
+    ".github/*",
+    ".gitignore",
+    "AGENTS.md",
+    "BENCHMARKS.md",
+    "PARITY.md",
+]
+SPDX-License-Identifier = "MIT"
+SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"

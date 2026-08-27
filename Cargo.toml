@@ -1,0 +1,17 @@
+[package]
+name = "bmair"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+authors = ["Dan Langford <721364+danlangford@users.noreply.github.com>"]
+license = "MIT"
+description = "BMAIR: the Button Men AI in Rust"
+
+[dependencies]
+
+[profile.release]
+# Preserve Rust's normal arithmetic semantics while allowing whole-program
+# inlining and optimization across the small port. One codegen unit gives LLVM
+# the same complete view without enabling fast-math or changing RNG ordering.
+lto = "thin"
+codegen-units = 1

@@ -1,0 +1,11 @@
+game 1
+preround
+player 0 2 0
+P
+uQ
+player 1 1 0
+6
+ai 0 1
+seed 17
+getaction
+quit

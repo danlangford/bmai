@@ -1,0 +1,15 @@
+game 1
+preround
+player 0 2 0
+f20
+6
+player 1 2 0
+c20
+6
+seed 111
+ply 1
+max_sims 2
+min_sims 1
+maxbranch 20
+playgame 3
+quit

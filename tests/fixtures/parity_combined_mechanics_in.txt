@@ -1,0 +1,15 @@
+game 1
+preround
+player 0 3 0
+^qg10
+oHhX?-10
+nv6
+player 1 3 0
+Id8
+p6
+m(4,6)
+ai 0 1
+ai 1 1
+seed 71
+playgame 5
+quit
