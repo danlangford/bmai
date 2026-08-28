@@ -1299,6 +1299,34 @@ Seeding with 17\n"
     }
 
     #[test]
+    fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
+        let zero = BMC_Parser::default()
+            .ParseString("workers 0\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(zero.to_string(), "native worker count must be at least 1");
+
+        let malformed = BMC_Parser::default()
+            .ParseString("workers many\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(malformed.to_string(), "invalid integer: many");
+
+        let fixture = include_str!("../tests/native-fixtures/fight.txt")
+            .replace("mode native", "mode legacy");
+        let run = |workers: usize| {
+            let input = fixture.replace("workers 3", &format!("workers {workers}"));
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(&input, &mut output)
+                .unwrap();
+            String::from_utf8(output).unwrap().replace(
+                &format!("Setting native workers to {workers}"),
+                "Setting native workers to N",
+            )
+        };
+        assert_eq!(run(1), run(64));
+    }
+
+    #[test]
     fn native_wire_fixtures_are_deterministic() {
         let cases = [
             (
