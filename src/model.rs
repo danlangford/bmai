@@ -91,7 +91,7 @@ impl BME_ATTACK {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct BMC_Die {
     pub m_properties: u64,
     pub m_sides: [u8; 2],
@@ -314,6 +314,17 @@ impl From<&[usize]> for BMC_DieIndexSet {
     }
 }
 
+impl FromIterator<usize> for BMC_DieIndexSet {
+    fn from_iter<T: IntoIterator<Item = usize>>(indices: T) -> Self {
+        let mut bits = 0u16;
+        for index in indices {
+            assert!(index < BMD_MAX_DICE);
+            bits |= 1 << index;
+        }
+        Self(bits)
+    }
+}
+
 impl PartialEq<Vec<usize>> for BMC_DieIndexSet {
     fn eq(&self, other: &Vec<usize>) -> bool {
         self.iter().eq(other.iter().copied())
@@ -330,6 +341,59 @@ pub struct BMC_Game {
 }
 
 const BMD_MAX_DICE: usize = 10;
+
+struct BMC_AvailableDice<'a> {
+    dice: [Option<(usize, &'a BMC_Die)>; BMD_MAX_DICE],
+    len: usize,
+}
+
+impl<'a> BMC_AvailableDice<'a> {
+    fn new(player: &'a BMC_Player) -> Self {
+        let mut available = Self {
+            dice: [None; BMD_MAX_DICE],
+            len: 0,
+        };
+        for (index, die) in player.m_die.iter().enumerate() {
+            if die.IsAvailable() {
+                available.dice[available.len] = Some((index, die));
+                available.len += 1;
+            }
+        }
+        available
+    }
+
+    fn iter(&self) -> impl DoubleEndedIterator<Item = &(usize, &'a BMC_Die)> {
+        self.dice[..self.len]
+            .iter()
+            .map(|entry| entry.as_ref().expect("initialized available die"))
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    fn first(&self) -> Option<&(usize, &'a BMC_Die)> {
+        self.dice[..self.len].first().and_then(Option::as_ref)
+    }
+
+    fn last(&self) -> Option<&(usize, &'a BMC_Die)> {
+        self.dice[..self.len].last().and_then(Option::as_ref)
+    }
+}
+
+impl<'a> std::ops::Index<usize> for BMC_AvailableDice<'a> {
+    type Output = (usize, &'a BMC_Die);
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.dice[index]
+            .as_ref()
+            .expect("initialized available die")
+    }
+}
 
 #[derive(Clone, Copy)]
 struct BMC_DieIndexStack {
@@ -351,20 +415,20 @@ impl BMC_DieIndexStack {
         &self.indices[..self.len]
     }
 
-    fn push(&mut self, index: usize, dice: &[(usize, &BMC_Die)]) {
+    fn push(&mut self, index: usize, dice: &BMC_AvailableDice<'_>) {
         self.indices[self.len] = index;
         self.len += 1;
         self.value_total += dice[index].1.GetValueTotal();
     }
 
-    fn pop(&mut self, dice: &[(usize, &BMC_Die)]) {
+    fn pop(&mut self, dice: &BMC_AvailableDice<'_>) {
         self.value_total -= dice[self.indices[self.len - 1]].1.GetValueTotal();
         self.len -= 1;
     }
 
     /// Direct port of `BMC_DieIndexStack::Cycle` over positions in the
     /// optimized available-dice sequence.
-    fn cycle(&mut self, mut add_die: bool, dice: &[(usize, &BMC_Die)]) -> bool {
+    fn cycle(&mut self, mut add_die: bool, dice: &BMC_AvailableDice<'_>) -> bool {
         if self.indices[self.len - 1] == dice.len() - 1 {
             self.pop(dice);
             if self.len == 0 {
@@ -603,25 +667,14 @@ impl BMC_Game {
     fn GenerateValidAttackCandidatesInCppOrder(&self) -> Vec<BMC_Move> {
         let attacker = &self.m_player[0];
         let target = &self.m_player[1];
-        let available = attacker
-            .m_die
-            .iter()
-            .enumerate()
-            .filter(|(_, die)| die.IsAvailable())
-            .collect::<Vec<_>>();
-        let targets = target
-            .m_die
-            .iter()
-            .enumerate()
-            .filter(|(_, die)| die.IsAvailable())
-            .collect::<Vec<_>>();
+        let available = BMC_AvailableDice::new(attacker);
+        let targets = BMC_AvailableDice::new(target);
         let target_max = targets.first().map_or(0, |(_, die)| die.GetValueTotal());
         let target_min = targets.last().map_or(0, |(_, die)| die.GetValueTotal());
         let has_stinger = available
             .iter()
             .any(|(_, die)| die.HasProperty(property::STINGER));
         let mut moves = Vec::with_capacity(32);
-
         for attacker_position in 0..available.len() {
             let (attacker_index, attacker_die) = available[attacker_position];
             for attack in [
@@ -672,8 +725,8 @@ impl BMC_Game {
                             };
                             moves.push(BMC_Move::attack(
                                 attack,
-                                vec![attacker_index],
-                                vec![*target_index],
+                                [attacker_index],
+                                [*target_index],
                                 score,
                             ));
                         }
@@ -712,7 +765,7 @@ impl BMC_Game {
                                         }
                                     })
                                     .sum::<u16>();
-                                for (target_index, target_die) in &targets {
+                                for (target_index, target_die) in targets.iter() {
                                     if target_die.GetValueTotal() < minimum {
                                         break;
                                     }
@@ -730,8 +783,8 @@ impl BMC_Game {
                                                 .values()
                                                 .iter()
                                                 .map(|position| available[*position].0)
-                                                .collect::<Vec<_>>(),
-                                            vec![*target_index],
+                                                .collect::<BMC_DieIndexSet>(),
+                                            [*target_index],
                                             target_die.GetScore(false),
                                         ));
                                     }
@@ -767,7 +820,7 @@ impl BMC_Game {
                                     .values()
                                     .iter()
                                     .map(|position| targets[*position].0)
-                                    .collect::<Vec<_>>();
+                                    .collect::<BMC_DieIndexSet>();
                                 let score = stack
                                     .values()
                                     .iter()
@@ -775,7 +828,7 @@ impl BMC_Game {
                                     .sum();
                                 moves.push(BMC_Move::attack(
                                     attack,
-                                    vec![attacker_index],
+                                    [attacker_index],
                                     target_indices,
                                     score,
                                 ));
@@ -1095,14 +1148,14 @@ mod tests {
         let mut konstant = die(property::KONSTANT);
         konstant.m_value_total = Some(8);
         konstant_game.m_player[0].m_die = vec![konstant];
-        konstant_game.m_player[1].m_die = vec![target.clone()];
+        konstant_game.m_player[1].m_die = vec![target];
         assert!(konstant_game.GenerateValidAttacks().is_empty());
 
         let mut stealth_game = BMC_Game::default();
         let mut stealth = die(property::STEALTH);
         stealth.m_value_total = Some(7);
-        stealth_game.m_player[0].m_die = vec![stealth.clone()];
-        stealth_game.m_player[1].m_die = vec![target.clone()];
+        stealth_game.m_player[0].m_die = vec![stealth];
+        stealth_game.m_player[1].m_die = vec![target];
         assert!(stealth_game.GenerateValidAttacks().is_empty());
 
         let mut ordinary = die(0);
@@ -1129,7 +1182,7 @@ mod tests {
         let mut five = die(0);
         five.m_sides[0] = 6;
         five.m_value_total = Some(5);
-        let mut one = five.clone();
+        let mut one = five;
         one.m_value_total = Some(1);
         one.m_original_index = 1;
         let mut twenty = die(0);
@@ -1182,11 +1235,11 @@ mod tests {
         let mut stealth_target = die(property::STEALTH);
         stealth_target.m_value_total = Some(6);
         assert!(
-            game_with(vec![ordinary.clone()], vec![stealth_target.clone()])
+            game_with(vec![ordinary], vec![stealth_target])
                 .GenerateValidAttacks()
                 .is_empty()
         );
-        let mut second = ordinary.clone();
+        let mut second = ordinary;
         second.m_original_index = 1;
         second.m_value_total = Some(1);
         ordinary.m_value_total = Some(5);

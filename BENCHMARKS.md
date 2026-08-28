@@ -30,7 +30,18 @@ matched rollout boundaries, move counts, culling results, candidate scores, and
 terminal RNG seeds. In the largest reserve search (`bug16_in.txt`), all five
 candidates matched individually across 8,449,351 simulations.
 
-The Rust port is currently about 3.4–4.2x slower on search-heavy fixtures.
-Correctness and source-level parity were prioritized over representation-level
-optimization; game clones and move/die vectors remain the clearest future
-optimization targets.
+Those absolute Rust measurements predate the structural optimization work and
+are retained as the original baseline. A same-machine paired study on
+2026-08-27 measured the individual retained changes using user CPU time:
+
+| Change | `bmai_in` | `bmsim_in` | `bug11_in` | `bug16_in` |
+|---|---:|---:|---:|---:|
+| stack-backed temporary die indices | about 21–22% faster | 13.6% faster | 17.2% faster | 30.8% faster |
+| direct same-length simulation restoration | 9.1% faster | 3.2% faster | 3.4% faster | 10.0% faster |
+| fat LTO versus Thin LTO | 7.1% faster | 0.5% slower | 0.6% slower | 19.2% faster |
+
+Candidate-list reuse was tested and rejected because it regressed `bug16_in`
+user CPU by about 18%. PGO improved its three training fixtures by roughly
+5–9% but was also rejected because the untrained `bug16_in` case regressed by
+about 1.4%. Exact all-fixture material output and RNG fingerprints passed after
+the retained changes; see `PARITY.md` for the gate evidence.

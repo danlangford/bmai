@@ -1599,9 +1599,13 @@ fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
     for player in 0..simulation.m_player.len() {
         simulation.m_player[player].m_id = source.m_player[player].m_id;
         simulation.m_player[player].m_score = source.m_player[player].m_score;
-        simulation.m_player[player]
-            .m_die
-            .clone_from(&source.m_player[player].m_die);
+        let simulation_dice = &mut simulation.m_player[player].m_die;
+        let source_dice = &source.m_player[player].m_die;
+        if simulation_dice.len() == source_dice.len() {
+            simulation_dice.copy_from_slice(source_dice);
+        } else {
+            simulation_dice.clone_from(source_dice);
+        }
         simulation.m_player[player].m_swing_set = source.m_player[player].m_swing_set;
     }
     simulation.m_phase = source.m_phase;
@@ -1745,7 +1749,7 @@ fn ApplyAttackPlayerEffects(
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
     {
         let target = action.m_targets.first().expect("Morphing target");
-        let target_die = game.m_player[target_player].m_die[target].clone();
+        let target_die = game.m_player[target_player].m_die[target];
         let die = &mut game.m_player[attacker_player].m_die[attacker];
         let old_score = die.GetScore(true);
         if target_die.HasProperty(property::TWIN) {

@@ -215,24 +215,26 @@ raw pointers, or literal byte copying.
   fixture differential, representative raw RNG comparison, and exhaustive RNG
   fingerprints for changes capable of affecting enumeration or search. Final
   structural tree: 49 Rust tests (46 passed, three expected expensive ignores),
-  clippy and release build pass; all material fixtures match in 564.25 seconds;
-  representative raw RNG streams match in 201.34 seconds; every fixture RNG
-  count/fingerprint matches in 535.94 seconds (2026-08-27).
+  clippy and debug/release all-target tests pass; after the final performance
+  changes all material fixtures match in 537.04 seconds and every fixture RNG
+  count/fingerprint matches in 440.54 seconds (2026-08-27).
 
 ### Compiler/linker optimization
 
-- [x] Release builds use Thin LTO and one codegen unit. This preserves normal
-  Rust arithmetic/RNG semantics and improved a controlled same-source
-  `bmai_in` comparison from 22.52 to 20.01 seconds (about 11%) with identical
-  output.
+- [x] Release builds use fat LTO and one codegen unit. This preserves normal
+  Rust arithmetic/RNG semantics. Against Thin LTO, fat LTO was neutral on
+  `bmsim_in` and `bug11_in`, reduced `bmai_in` user CPU by about 7%, and reduced
+  `bug16_in` user CPU from 231.06 to 186.78 seconds in paired runs. PGO was
+  evaluated last and deliberately not retained: it improved its three training
+  fixtures but slightly regressed the untrained `bug16_in` case.
 
 ### Structural state and control-flow audit
 
 | C++ state/path | Rust-native equivalent | Decision |
 |---|---|---|
-| fixed `BMC_Game` assignment into one `sim` | `RestoreSimulation` into one scratch game per evaluator | aligned; `Vec::clone_from` retains dice capacity |
+| fixed `BMC_Game` assignment into one `sim` | `RestoreSimulation` into one scratch game per evaluator | aligned; same-length dice use direct slice copying, with allocation-retaining `Vec::clone_from` for shape changes |
 | `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u16)` | aligned; no per-move participant allocation |
-| `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `BMC_DieIndexStack` and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access |
+| `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `BMC_DieIndexStack`, stack-backed available-dice views, and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access and transient index vectors are eliminated |
 | cached `m_sides_max` | sum of at most two `u8` sides in `GetSidesMax` | intentionally computed; cheaper invariant surface than synchronizing another field |
 | cached attack/vulnerability bits | property branches in `CanDoAttack`/`CanBeAttacked` | intentionally computed; preserves Stealth's skill-dice-count rule explicitly and avoids stale masks after property mutation |
 | cached available/min/max player values | bounded scans or first/last values after exact `OptimizeDice` ordering | intentionally computed over at most ten dice; capture/Trip/Chance/Focus already invoke the corresponding optimize points |
