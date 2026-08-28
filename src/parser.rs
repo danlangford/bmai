@@ -218,6 +218,7 @@ impl BMC_Parser {
                         &mut self.m_rng,
                         &policies,
                         self.m_native_root_seed,
+                        self.m_native_workers,
                         &mut self.m_native_decision_index,
                     )
                 } else {
@@ -257,6 +258,7 @@ impl BMC_Parser {
                         &mut self.m_rng,
                         &policies,
                         self.m_native_root_seed,
+                        self.m_native_workers,
                         &mut self.m_native_decision_index,
                     )
                 } else {
@@ -296,6 +298,7 @@ impl BMC_Parser {
                         &mut self.m_rng,
                         &policies,
                         self.m_native_root_seed,
+                        self.m_native_workers,
                         &mut self.m_native_decision_index,
                     )
                 } else {

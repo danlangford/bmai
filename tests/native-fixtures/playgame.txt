@@ -1,5 +1,6 @@
 mode native
 rng legacy
+workers 1
 seed 17
 ply 1
 max_sims 1
@@ -12,6 +13,7 @@ player 0 1 0
 player 1 1 0
 6
 playgame 1
+workers 3
 seed 17
 playgame 1
 quit

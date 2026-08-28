@@ -11,11 +11,13 @@ use crate::{BMC_BMAI3, BMC_RNG, BME_ROLLOUT_POLICY};
 struct NativeEvaluation {
     algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
+    workers: usize,
 }
 
 struct NativeReplaySequence<'a> {
     algorithm: crate::BME_RNG_ALGORITHM,
     root_seed: u64,
+    workers: usize,
     decision_index: &'a mut u64,
 }
 
@@ -30,6 +32,7 @@ impl NativeReplaySequence<'_> {
         NativeEvaluation {
             algorithm: self.algorithm,
             replay,
+            workers: self.workers,
         }
     }
 }
@@ -167,11 +170,13 @@ pub(crate) fn PlayGamesWithPoliciesNative(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
     root_seed: u64,
+    workers: usize,
     decision_index: &mut u64,
 ) -> [usize; 2] {
     let mut native = NativeReplaySequence {
         algorithm: rng.Algorithm(),
         root_seed,
+        workers,
         decision_index,
     };
     PlayGamesWithPoliciesInternal(template, games, rng, policies, Some(&mut native))
@@ -234,11 +239,13 @@ pub(crate) fn PlayFairGamesNative(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
     root_seed: u64,
+    workers: usize,
     decision_index: &mut u64,
 ) -> [[usize; 2]; 2] {
     let mut native = NativeReplaySequence {
         algorithm: rng.Algorithm(),
         root_seed,
+        workers,
         decision_index,
     };
     PlayFairGamesInternal(template, games, rng, policies, Some(&mut native))
@@ -345,7 +352,13 @@ fn PlayRoundWithPolicies(
         let action = match &policies[phase_player] {
             BMC_AI_POLICY::BMAI(ai) => {
                 if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
-                    SelectNativeBMAIAction(&oriented, context.algorithm, context.replay, 1, ai)
+                    SelectNativeBMAIAction(
+                        &oriented,
+                        context.algorithm,
+                        context.replay,
+                        context.workers,
+                        ai,
+                    )
                 } else {
                     SelectBMAIAction(&oriented, rng, ai)
                 }
@@ -614,6 +627,7 @@ pub(crate) fn SelectNativeBMAISetSwingAction(
         Some(NativeEvaluation {
             algorithm: rng_algorithm,
             replay,
+            workers: 1,
         }),
     )
     .0
@@ -1050,6 +1064,7 @@ pub(crate) fn SelectNativeBMAIChanceAction(
         Some(NativeEvaluation {
             algorithm: rng_algorithm,
             replay,
+            workers: 1,
         }),
     )
     .0
@@ -1257,6 +1272,7 @@ pub(crate) fn SelectNativeBMAIFocusAction(
         Some(NativeEvaluation {
             algorithm: rng_algorithm,
             replay,
+            workers: 1,
         }),
     )
     .0

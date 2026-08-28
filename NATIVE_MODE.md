@@ -46,10 +46,12 @@ and completion order are therefore absent from the result.
    through a complete `playgame` command.
 3. **In progress:** Introduce bounded scoped standard-library workers without a
    dependency. The ordered task coordinator and native fight-search integration
-   are implemented; other action phases remain outstanding.
+   are implemented for direct actions and complete matches; other action phases
+   remain outstanding.
 4. **In progress:** Prove identical native results with 1, 2, and available-CPU
-   worker counts. Fight search has direct equivalence coverage, and the generic
-   coordinator has test-only scheduling perturbation coverage.
+   worker counts. Fight search has direct and complete-match equivalence
+   coverage, and the generic coordinator has test-only scheduling perturbation
+   coverage.
 5. Benchmark the four representative fixtures and record CPU time, wall time,
    peak memory, worker count, version, and complete replay key.
 6. Run paired native-versus-legacy matches with swapped player positions and
