@@ -506,6 +506,48 @@ pub(crate) fn SelectBMAIReserveAction(
     best
 }
 
+pub(crate) fn SelectNativeBMAIReserveAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    ai: &BMC_BMAI3,
+) -> Option<usize> {
+    let reserve_indices = game.m_player[0]
+        .m_die
+        .iter()
+        .enumerate()
+        .filter_map(|(index, die)| die.m_in_reserve.then_some(index))
+        .collect::<Vec<_>>();
+    let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
+    let mut best_score = -1.0f32;
+    let mut best = None;
+    let mut simulation = game.clone();
+
+    for (candidate_index, candidate) in reserve_indices
+        .into_iter()
+        .map(Some)
+        .chain([None])
+        .enumerate()
+    {
+        let mut score = 0.0f32;
+        for simulation_index in 0..sims {
+            RestoreSimulation(&mut simulation, game);
+            if let Some(index) = candidate {
+                ApplyUseReserve(&mut simulation.m_player[0].m_die[index]);
+            }
+            let mut simulation_rng =
+                NativeSimulationRng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            let fight_level = PlayPreround(&mut simulation, &mut simulation_rng, ai, 2);
+            score += PlaySimulatedRound(&mut simulation, &mut simulation_rng, ai, fight_level, 0);
+        }
+        if score > best_score {
+            best_score = score;
+            best = candidate;
+        }
+    }
+    best
+}
+
 pub(crate) fn SelectQAIReserveAction(game: &BMC_Game) -> Option<usize> {
     game.m_player[0]
         .m_die
@@ -1290,14 +1332,13 @@ fn SelectBMAIActionAtLevelNative(
     let mut simulation = game.clone();
     let selected = evaluator.EvaluateMoves(moves, 1, |candidate, coordinate| {
         RestoreSimulation(&mut simulation, game);
-        let stream_seed = crate::native::NativeSimulationKey {
+        let mut simulation_rng = NativeSimulationRng(
+            rng_algorithm,
             replay,
-            candidate_index: coordinate.candidate_index as u64,
-            batch_index: coordinate.batch_index as u64,
-            simulation_index: coordinate.simulation_index as u64,
-        }
-        .derive_stream_seed();
-        let mut simulation_rng = BMC_RNG::FromNativeStream(rng_algorithm, stream_seed);
+            coordinate.candidate_index,
+            coordinate.batch_index,
+            coordinate.simulation_index,
+        );
         EvaluateMove(
             &mut simulation,
             candidate,
@@ -1322,6 +1363,23 @@ fn SelectBMAIActionAtLevelNative(
         selected
     };
     (selected, probability)
+}
+
+fn NativeSimulationRng(
+    algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    candidate_index: usize,
+    batch_index: usize,
+    simulation_index: usize,
+) -> BMC_RNG {
+    let stream_seed = crate::native::NativeSimulationKey {
+        replay,
+        candidate_index: candidate_index as u64,
+        batch_index: batch_index as u64,
+        simulation_index: simulation_index as u64,
+    }
+    .derive_stream_seed();
+    BMC_RNG::FromNativeStream(algorithm, stream_seed)
 }
 
 fn SelectBMAIActionAtLevel(

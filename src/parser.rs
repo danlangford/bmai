@@ -11,8 +11,8 @@ use crate::model::{
 use crate::simulation::{
     BMC_AI_POLICY, PlayFairGames, PlayGamesWithPolicies, SelectBMAIAction, SelectBMAIChanceAction,
     SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
-    SelectNativeBMAIAction, SelectQAIAction, SelectQAIReserveAction, SelectQAISetSwingAction,
-    SwingMove,
+    SelectNativeBMAIAction, SelectNativeBMAIReserveAction, SelectQAIAction, SelectQAIReserveAction,
+    SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -493,6 +493,13 @@ impl BMC_Parser {
             BME_PHASE::RESERVE => {
                 let reserve = if self.m_ai_type[0] == 1 {
                     SelectQAIReserveAction(&self.m_game)
+                } else if let Some(replay) = native_replay {
+                    SelectNativeBMAIReserveAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        &self.m_player_ai[0],
+                    )
                 } else {
                     SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
@@ -1233,6 +1240,30 @@ Seeding with 17\n"
              power\n\
              0\n\
              0\n";
+
+        for _ in 0..2 {
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(input, &mut output)
+                .unwrap();
+            assert_eq!(String::from_utf8(output).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn native_reserve_wire_fixture_is_deterministic() {
+        let input = include_str!("../tests/native-fixtures/reserve.txt");
+        let expected = "Setting execution mode to native\n\
+             Setting RNG to legacy (bmai-park-miller-16807-v1)\n\
+             Seeding with 17\n\
+             Setting max # simulations to 2\n\
+             Setting min # simulations to 2\n\
+             Setting max branch to 10\n\
+             p0 s0.0 Dice \n\
+             p1 s0.0 Dice \n\
+             stats 1/2-2/10/0.50\n\
+             action\n\
+             reserve 0\n";
 
         for _ in 0..2 {
             let mut output = Vec::new();
