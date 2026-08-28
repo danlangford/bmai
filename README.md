@@ -26,6 +26,26 @@ notices are retained under the MIT license.
 The parity record in [`PARITY.md`](PARITY.md) maps the C++ implementation and
 tests to their Rust equivalents.
 
+## Performance snapshot
+
+Release-build wall times on the same Intel Mac are shown below. The C++ and
+Rust 0.1.0 columns use the preview-release artifacts; the parallel column uses
+the current deterministic native search with eight workers. Lower is better.
+
+| Fixture | C++ Release | Rust 0.1.0 legacy | Current native, 8 workers | Native vs. C++ | Native vs. Rust 0.1.0 |
+|---|---:|---:|---:|---:|---:|
+| `bmai_in.txt` | 6.23s | 7.30s | 1.81s | 3.44x faster | 4.03x faster |
+| `bmsim_in.txt` | 18.19s | 19.16s | 10.59s | 1.72x faster | 1.81x faster |
+| `bug11_in.txt` | 43.94s | 46.13s | 12.01s | 3.66x faster | 3.84x faster |
+| `bug16_in.txt` | 139.95s | 226.90s | 78.75s | 1.78x faster | 2.88x faster |
+| **Four-fixture total** | **208.31s** | **299.49s** | **103.16s** | **2.02x faster** | **2.90x faster** |
+
+Native parallel search is opt-in and deterministic across worker counts, but it
+does not promise legacy search decisions or RNG consumption. Eight workers also
+raise peak memory substantially for `bug16_in.txt` (about 497MB to 1.86GB), so
+the default remains one worker. [`BENCHMARKS.md`](BENCHMARKS.md) records commit
+identities, build details, CPU time, memory, output checks, and methodology.
+
 ## Versioning
 
 BMAIR preserves BMAI's source and rules lineage but starts its own semantic
@@ -89,8 +109,8 @@ The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 
 `mode legacy` selects the exact C++ compatibility contract and remains the
 default. `mode parity` is an alias. `mode native` selects the explicit
-Rust-native evolution point; it currently uses the same implementation so that
-introducing the boundary does not change any established result.
+Rust-native evolution point and currently enables deterministic per-simulation
+RNG streams plus bounded parallel candidate evaluation.
 
 `rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
 16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`
