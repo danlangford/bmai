@@ -498,17 +498,6 @@ impl BMC_Parser {
     }
 
     fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
-        let native_replay = if self.m_execution_mode == ExecutionMode::Native {
-            let replay = crate::native::NativeReplayKey {
-                stream_version: crate::native::NativeStreamVersion::V1,
-                root_seed: self.m_native_root_seed,
-                decision_index: self.m_native_decision_index,
-            };
-            self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
-            Some(replay)
-        } else {
-            None
-        };
         match self.m_game.m_phase {
             BME_PHASE::FIGHT => {
                 let moves = self.m_game.GenerateValidAttacks();
@@ -523,7 +512,8 @@ impl BMC_Parser {
                 }
                 let action = if self.m_ai_type[0] == 1 {
                     SelectQAIAction(&self.m_game, &mut self.m_rng)
-                } else if let Some(replay) = native_replay {
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
                     SelectNativeBMAIAction(
                         &self.m_game,
                         self.m_rng.Algorithm(),
@@ -541,7 +531,8 @@ impl BMC_Parser {
             BME_PHASE::RESERVE => {
                 let reserve = if self.m_ai_type[0] == 1 {
                     SelectQAIReserveAction(&self.m_game)
-                } else if let Some(replay) = native_replay {
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
                     SelectNativeBMAIReserveAction(
                         &self.m_game,
                         self.m_rng.Algorithm(),
@@ -568,7 +559,8 @@ impl BMC_Parser {
             BME_PHASE::PREROUND => {
                 let action = if self.m_ai_type[0] == 1 {
                     SelectQAISetSwingAction(&self.m_game)
-                } else if let Some(replay) = native_replay {
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
                     SelectNativeBMAISetSwingAction(
                         &self.m_game,
                         self.m_rng.Algorithm(),
@@ -589,7 +581,8 @@ impl BMC_Parser {
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action = if let Some(replay) = native_replay {
+                let action = if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
                     SelectNativeBMAIChanceAction(
                         &self.m_game,
                         self.m_rng.Algorithm(),
@@ -622,7 +615,8 @@ impl BMC_Parser {
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action = if let Some(replay) = native_replay {
+                let action = if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
                     SelectNativeBMAIFocusAction(
                         &self.m_game,
                         self.m_rng.Algorithm(),
@@ -651,6 +645,17 @@ impl BMC_Parser {
             }
             _ => Err(ParseError("GetAction(): Unrecognized phase".into())),
         }
+    }
+
+    fn NextNativeReplay(&mut self) -> crate::native::NativeReplayKey {
+        debug_assert_eq!(self.m_execution_mode, ExecutionMode::Native);
+        let replay = crate::native::NativeReplayKey {
+            stream_version: crate::native::NativeStreamVersion::V1,
+            root_seed: self.m_native_root_seed,
+            decision_index: self.m_native_decision_index,
+        };
+        self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
+        replay
     }
 
     fn SendStats<W: Write>(&self, output: &mut W) -> Result<(), ParseError> {
@@ -1324,6 +1329,23 @@ Seeding with 17\n"
             )
         };
         assert_eq!(run(1), run(64));
+    }
+
+    #[test]
+    fn native_replay_index_advances_only_for_native_bmai_searches() {
+        let fixture = include_str!("../tests/native-fixtures/fight.txt");
+
+        let mut qai = BMC_Parser::default();
+        qai.ParseString(
+            &fixture.replace("getaction", "ai 0 1\ngetaction"),
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(qai.m_native_decision_index, 0);
+
+        let mut bmai = BMC_Parser::default();
+        bmai.ParseString(fixture, &mut Vec::new()).unwrap();
+        assert_eq!(bmai.m_native_decision_index, 1);
     }
 
     #[test]
