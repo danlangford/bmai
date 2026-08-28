@@ -209,12 +209,23 @@ fn PlayGamesWithPoliciesInternal(
 ) -> [usize; 2] {
     let mut matches = [0, 0];
     for _ in 0..games {
-        let (winner, wins, _) =
-            PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
-        matches[winner] += 1;
-        println!("game over {} - {} - 0", wins[0], wins[1]);
+        let result = PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
+        matches[result.winner] += 1;
+        println!(
+            "game over {} - {} - {}",
+            result.wins[0], result.wins[1], result.ties
+        );
     }
     matches
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct MatchResult {
+    winner: usize,
+    wins: [u8; 2],
+    ties: usize,
+    initiative_winner: usize,
+    reserves_used: usize,
 }
 
 fn PlayMatchWithPolicies(
@@ -222,13 +233,18 @@ fn PlayMatchWithPolicies(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
     mut native: Option<&mut NativeReplaySequence<'_>>,
-) -> (usize, [u8; 2], usize) {
+) -> MatchResult {
     let mut game = template.clone();
     let mut wins = [0u8, 0u8];
+    let mut ties = 0usize;
     let mut initiative = 0;
+    let mut reserves_used = 0;
     while wins[0] < template.m_target_wins && wins[1] < template.m_target_wins {
         let round = PlayRoundWithPolicies(&mut game, rng, policies, native.as_deref_mut());
-        let winner = round.0;
+        let Some(winner) = round.0 else {
+            ties += 1;
+            continue;
+        };
         initiative = round.1;
         wins[winner] += 1;
         let loser = 1 - winner;
@@ -238,8 +254,48 @@ fn PlayMatchWithPolicies(
                 die.m_notset = true;
             }
         }
+        if wins[0] < template.m_target_wins
+            && wins[1] < template.m_target_wins
+            && game.m_player[loser]
+                .m_die
+                .iter()
+                .any(|die| die.m_in_reserve)
+        {
+            let mut oriented = game.clone();
+            if loser == 1 {
+                oriented.m_player.swap(0, 1);
+            }
+            let selected = match &policies[loser] {
+                BMC_AI_POLICY::BMAI(ai) => {
+                    if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
+                        SelectNativeBMAIReserveAction(
+                            &oriented,
+                            context.algorithm,
+                            context.replay,
+                            context.workers,
+                            ai,
+                        )
+                    } else {
+                        SelectBMAIReserveAction(&oriented, rng, ai)
+                    }
+                }
+                BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
+                    SelectQAIReserveAction(&oriented)
+                }
+            };
+            if let Some(index) = selected {
+                ApplyUseReserve(&mut game.m_player[loser].m_die[index]);
+                reserves_used += 1;
+            }
+        }
     }
-    (usize::from(wins[1] > wins[0]), wins, initiative)
+    MatchResult {
+        winner: usize::from(wins[1] > wins[0]),
+        wins,
+        ties,
+        initiative_winner: initiative,
+        reserves_used,
+    }
 }
 
 pub(crate) fn PlayFairGames(
@@ -278,9 +334,8 @@ fn PlayFairGamesInternal(
 ) -> [[usize; 2]; 2] {
     let mut wins = [[0usize; 2]; 2];
     for _ in 0..games {
-        let (winner, _, initiative) =
-            PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
-        wins[initiative][winner] += 1;
+        let result = PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
+        wins[result.initiative_winner][result.winner] += 1;
     }
     wins
 }
@@ -290,7 +345,7 @@ fn PlayRoundWithPolicies(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
     mut native: Option<&mut NativeReplaySequence<'_>>,
-) -> (usize, usize) {
+) -> (Option<usize>, usize) {
     PlayPreroundWithPolicies(game, rng, policies, native.as_deref_mut());
     for player in &mut game.m_player {
         player.m_score = 0.0;
@@ -405,10 +460,19 @@ fn PlayRoundWithPolicies(
         }
         phase_player = 1 - phase_player;
     }
-    (
-        usize::from(game.m_player[1].m_score > game.m_player[0].m_score),
-        initiative_winner,
-    )
+    (RoundWinner(game), initiative_winner)
+}
+
+fn RoundWinner(game: &BMC_Game) -> Option<usize> {
+    match game.m_player[1]
+        .m_score
+        .partial_cmp(&game.m_player[0].m_score)
+    {
+        Some(std::cmp::Ordering::Greater) => Some(1),
+        Some(std::cmp::Ordering::Less) => Some(0),
+        Some(std::cmp::Ordering::Equal) => None,
+        None => panic!("round score is NaN"),
+    }
 }
 
 fn PlayPreroundWithPolicies(
@@ -2635,8 +2699,54 @@ mod tests {
         assert_eq!(focus[2], focus[0]);
     }
 
+    #[test]
+    fn complete_native_match_uses_reserve_after_a_round_loss() {
+        let input = "mode native\nseed 17\ngame 2\npreround\n\
+            player 0 2 0\nM1\nr30\nplayer 1 1 0\nM30\n";
+        let game = native_fixture_game(input);
+        let ai = BMC_BMAI3 {
+            m_min_sims: 1,
+            m_max_sims: 1,
+            m_max_branch: 10,
+            ..Default::default()
+        };
+        let policies = [
+            BMC_AI_POLICY::BMAI(Box::new(ai.clone())),
+            BMC_AI_POLICY::BMAI(Box::new(ai)),
+        ];
+        let run = |workers| {
+            let mut rng = BMC_RNG::default();
+            rng.SRand(17);
+            let mut decision_index = 0;
+            let mut native = NativeReplaySequence {
+                algorithm: rng.Algorithm(),
+                root_seed: 17,
+                workers,
+                decision_index: &mut decision_index,
+            };
+            let result = PlayMatchWithPolicies(&game, &mut rng, &policies, Some(&mut native));
+            (result, decision_index)
+        };
+
+        let one = run(1);
+        let two = run(2);
+        assert_eq!(one, two);
+        assert!(
+            one.0.reserves_used > 0,
+            "the losing player never used its reserve"
+        );
+    }
+
+    #[test]
+    fn tied_round_has_no_loser() {
+        let mut game = BMC_Game::default();
+        game.m_player[0].m_score = 12.0;
+        game.m_player[1].m_score = 12.0;
+        assert_eq!(RoundWinner(&game), None);
+    }
+
     fn native_fixture_game(input: &str) -> BMC_Game {
-        let setup = input.split_once("getaction").unwrap().0;
+        let setup = input.split_once("getaction").map_or(input, |parts| parts.0);
         let mut parser = crate::BMC_Parser::default();
         parser.ParseString(setup, &mut Vec::new()).unwrap();
         parser.m_game

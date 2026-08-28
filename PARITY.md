@@ -155,10 +155,10 @@ case named in the final column.
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
-| reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction` | exact bug16 candidate/simulation/RNG trace | covered |
+| reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | policy dispatch, `SelectRandomAction`, `SelectMaximizeAction`, `SelectQAIAction`, fixed/culling evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `EvaluateMove`, `PlayFightQAI`, `BMC_BMAI3::EvaluateMoves`/`CullMoves` | exact ply-2 and full bug16 traces, evaluator tests | covered |
-| round/match standings, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture and four playfair mode comparisons | covered |
+| round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Parsing-only parity is intentional for `AUXILIARY`, `DOPPLEGANGER`,

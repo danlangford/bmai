@@ -49,9 +49,9 @@ and completion order are therefore absent from the result.
    preround/swing, Chance, and Focus evaluations. Match-driven native searches
    use the same worker count.
 4. **Implemented:** Prove identical native results with 1, 2, and available-CPU
-   worker counts. Every direct phase has protocol-output equivalence coverage,
-   fight has direct score and complete-match coverage, and the coordinator has
-   test-only scheduling perturbation coverage.
+   worker counts. Every direct phase has protocol-output equivalence coverage;
+   fight and the post-round reserve path have complete-match coverage; and the
+   coordinator has test-only scheduling perturbation coverage.
 5. **Implemented:** Benchmark the four representative fixtures and record CPU
    time, wall time, peak memory, worker count, version, and complete replay key.
    See `BENCHMARKS.md`; eight workers improve wall time by 1.73x to 3.59x, with
@@ -68,6 +68,12 @@ differential, the 487.65-second all-fixture material differential, the
 153.57-second representative raw RNG stream differential, and the 470.82-second
 exhaustive RNG count/fingerprint differential. The C++ oracle was PR #82 commit
 `4813530bca328231535c2c0853a7b239be064794`.
+
+After adding complete-match reserve dispatch and explicit tied-round standings,
+the affected gates were repeated: 72 default Rust tests passed (three
+intentional long-running ignores), the all-fixture material differential passed
+in 459.81 seconds, and the exhaustive RNG fingerprint differential passed in
+521.08 seconds against the same oracle.
 
 Worker closures never print diagnostics. The coordinator marks scoped worker
 threads, and trace settings resolve to a quiet configuration there. Candidate
