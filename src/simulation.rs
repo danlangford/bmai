@@ -1289,7 +1289,7 @@ fn SelectBMAIActionAtLevel(
     let mut evaluator = settings.clone();
     let policy = settings.clone();
     let mut simulation = game.clone();
-    let selected = evaluator.EvaluateMoves(moves, level, |candidate, _| {
+    let selected = evaluator.EvaluateMoves(moves, level, |candidate, _coordinate| {
         RestoreSimulation(&mut simulation, game);
         EvaluateMove(
             &mut simulation,

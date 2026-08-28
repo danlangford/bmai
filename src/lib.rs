@@ -12,7 +12,7 @@ mod parser;
 mod rng;
 mod simulation;
 
-pub use ai::{BMC_BMAI3, BMC_Stats, BME_ROLLOUT_POLICY};
+pub use ai::{BMC_BMAI3, BMC_Stats, BME_ROLLOUT_POLICY, EvaluationCoordinate};
 pub use engine::ExecutionMode;
 pub use model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMC_Player, BME_ACTION, BME_ATTACK, BME_PHASE,
