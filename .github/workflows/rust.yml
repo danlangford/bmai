@@ -40,12 +40,36 @@ env:
 
 jobs:
   build-and-test:
-    name: ${{ matrix.os }} / ${{ inputs.build_type || 'Release' }}
+    name: ${{ matrix.platform }} ${{ matrix.arch }} / ${{ inputs.build_type || 'Release' }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - runner: ubuntu-24.04
+            platform: Linux
+            arch: x86_64
+            primary: false
+          - runner: ubuntu-24.04-arm
+            platform: Linux
+            arch: arm64
+            primary: true
+          - runner: windows-2025
+            platform: Windows
+            arch: x86_64
+            primary: false
+          - runner: windows-11-arm
+            platform: Windows
+            arch: arm64
+            primary: false
+          - runner: macos-15-intel
+            platform: macOS
+            arch: x86_64
+            primary: false
+          - runner: macos-15
+            platform: macOS
+            arch: arm64
+            primary: false
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
     steps:
       - name: Check out source
@@ -56,7 +80,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.97.1
-          components: clippy,rustfmt
+          components: ${{ matrix.primary && 'clippy,rustfmt' || '' }}
       - name: Select Cargo profile
         shell: bash
         run: |
@@ -68,16 +92,16 @@ jobs:
             echo "CARGO_OUTPUT_DIR=debug" >> "$GITHUB_ENV"
           fi
       - name: Check formatting
-        if: runner.os == 'Linux'
+        if: matrix.primary
         run: cargo fmt --check
       - name: Lint
-        if: runner.os == 'Linux'
+        if: matrix.primary
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - name: Test
         run: cargo test --profile "$CARGO_PROFILE" --locked --all-targets --all-features
         shell: bash
       - name: Run expensive self-contained fixture tests
-        if: runner.os == 'Linux'
+        if: matrix.primary
         run: cargo test --profile release --locked --lib -- --ignored
       - name: Build binary
         run: cargo build --profile "$CARGO_PROFILE" --locked --all-targets --all-features
@@ -85,7 +109,7 @@ jobs:
       - name: Upload binary
         uses: actions/upload-artifact@v6
         with:
-          name: bmair-${{ runner.os }}-${{ env.BUILD_TYPE }}
+          name: bmair-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.BUILD_TYPE }}
           if-no-files-found: error
           retention-days: 7
           path: |

@@ -47,6 +47,11 @@ root and the Rust sources follow the standard Cargo layout under `src/`.
 Existing protocol samples are retained under `tests/fixtures/` for parity and
 differential tests against the C++ implementation.
 
+The Rust CI workflow builds and tests native `x86_64` and ARM64 binaries for
+Linux, Windows, and macOS. Each platform/architecture pair is uploaded as a
+separate workflow artifact; macOS Intel and Apple Silicon builds are not
+combined into a universal binary.
+
 ## Running BMAIR
 
 Pass a protocol file to the release executable:
