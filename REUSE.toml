@@ -38,6 +38,7 @@ SPDX-FileCopyrightText = "Copyright 2001 Denis Papp"
 [[annotations]]
 path = [
     "tests/fixtures/parity_*",
+    "tests/fixtures/bug105372_in.txt",
 ]
 SPDX-License-Identifier = "MIT"
 SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"
@@ -48,6 +49,7 @@ path = [
     ".gitignore",
     "AGENTS.md",
     "BENCHMARKS.md",
+    "MODES.md",
     "PARITY.md",
 ]
 SPDX-License-Identifier = "MIT"
