@@ -1266,6 +1266,64 @@ pub(crate) fn SelectBMAIAction(
     SelectBMAIActionAtLevel(game, rng, settings, 1, false).0
 }
 
+pub(crate) fn SelectNativeBMAIAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    settings: &BMC_BMAI3,
+) -> BMC_Move {
+    SelectBMAIActionAtLevelNative(game, rng_algorithm, replay, settings).0
+}
+
+fn SelectBMAIActionAtLevelNative(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    settings: &BMC_BMAI3,
+) -> (BMC_Move, f32) {
+    let mut moves = game.GenerateValidAttacksInCppOrder();
+    if moves.is_empty() {
+        moves.push(PassMove());
+    }
+    let mut evaluator = settings.clone();
+    let policy = settings.clone();
+    let mut simulation = game.clone();
+    let selected = evaluator.EvaluateMoves(moves, 1, |candidate, coordinate| {
+        RestoreSimulation(&mut simulation, game);
+        let stream_seed = crate::native::NativeSimulationKey {
+            replay,
+            candidate_index: coordinate.candidate_index as u64,
+            batch_index: coordinate.batch_index as u64,
+            simulation_index: coordinate.simulation_index as u64,
+        }
+        .derive_stream_seed();
+        let mut simulation_rng = BMC_RNG::FromNativeStream(rng_algorithm, stream_seed);
+        EvaluateMove(
+            &mut simulation,
+            candidate,
+            &mut simulation_rng,
+            &policy,
+            1,
+            false,
+            false,
+        )
+    });
+    let probability = evaluator.m_last_probability_win;
+    let selected = if probability == 0.0 && game.m_surrender_allowed {
+        BMC_Move {
+            m_action: BME_ACTION::SURRENDER,
+            m_attack: None,
+            m_attackers: Vec::new().into(),
+            m_targets: Vec::new().into(),
+            m_score: 0.0,
+            m_turbo_option: -1,
+        }
+    } else {
+        selected
+    };
+    (selected, probability)
+}
+
 fn SelectBMAIActionAtLevel(
     game: &BMC_Game,
     rng: &mut BMC_RNG,
@@ -1971,6 +2029,38 @@ fn SwingRange(swing: char) -> (u8, u8) {
 mod tests {
     use super::*;
     use crate::model::{BMC_Die, BMC_DieIndexSet, BMC_Player};
+
+    #[test]
+    fn native_fight_score_summary_is_stable() {
+        let input = include_str!("../tests/native-fixtures/fight.txt");
+        let setup = input.split_once("getaction").unwrap().0;
+        let mut parser = crate::BMC_Parser::default();
+        parser.ParseString(setup, &mut Vec::new()).unwrap();
+        let settings = BMC_BMAI3 {
+            m_min_sims: 20,
+            m_max_sims: 20,
+            m_max_branch: 100,
+            ..Default::default()
+        };
+        let replay = crate::native::NativeReplayKey {
+            stream_version: crate::native::NativeStreamVersion::V1,
+            root_seed: 17,
+            decision_index: 0,
+        };
+
+        let (action, probability) = SelectBMAIActionAtLevelNative(
+            &parser.m_game,
+            crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            replay,
+            &settings,
+        );
+
+        assert_eq!(action.m_action, BME_ACTION::ATTACK);
+        assert_eq!(action.m_attack, Some(BME_ATTACK::POWER));
+        assert_eq!(action.m_attackers, vec![0]);
+        assert_eq!(action.m_targets, vec![1]);
+        assert_eq!(probability, 0.0);
+    }
 
     fn swing_die(swing: char, properties: u64, original_index: usize) -> BMC_Die {
         BMC_Die {

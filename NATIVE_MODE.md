@@ -40,8 +40,10 @@ and completion order are therefore absent from the result.
    with known-answer tests. No threads or legacy-search changes were added. See
    `src/native.rs`; its versioned `bmair-native-stream-v1` contract deliberately
    excludes worker identity.
-2. Run native search sequentially with one independent stream per simulation.
-   Record the expected deterministic actions and score summaries.
+2. **In progress:** Run native search sequentially with one independent stream
+   per simulation. The fight action path and its first deterministic wire
+   fixture are implemented; preround, Chance, Focus, reserve, and match-driving
+   paths remain on legacy search.
 3. Introduce a bounded worker pool using scoped standard-library threads. Avoid
    a dependency until measurements demonstrate a need for one.
 4. Prove identical native results with 1, 2, and available-CPU worker counts,

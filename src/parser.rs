@@ -10,8 +10,9 @@ use crate::model::{
 };
 use crate::simulation::{
     BMC_AI_POLICY, PlayFairGames, PlayGamesWithPolicies, SelectBMAIAction, SelectBMAIChanceAction,
-    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectQAIAction,
-    SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
+    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
+    SelectNativeBMAIAction, SelectQAIAction, SelectQAIReserveAction, SelectQAISetSwingAction,
+    SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -33,6 +34,8 @@ pub struct BMC_Parser {
     m_max_sims: usize,
     m_max_branch: usize,
     m_execution_mode: ExecutionMode,
+    m_native_root_seed: u64,
+    m_native_decision_index: u64,
     m_rng: BMC_RNG,
     m_ai: BMC_BMAI3,
     m_player_ai: [BMC_BMAI3; 2],
@@ -51,6 +54,8 @@ impl Default for BMC_Parser {
             m_max_sims: 500,
             m_max_branch: 5000,
             m_execution_mode: ExecutionMode::default(),
+            m_native_root_seed: 78_904_497,
+            m_native_decision_index: 0,
             m_rng: BMC_RNG::default(),
             m_ai: BMC_BMAI3::default(),
             m_player_ai: std::array::from_fn(|_| BMC_BMAI3::default()),
@@ -266,6 +271,8 @@ impl BMC_Parser {
                     seed as u32
                 };
                 self.m_rng.SRand(resolved);
+                self.m_native_root_seed = u64::from(resolved);
+                self.m_native_decision_index = 0;
                 writeln!(output, "Seeding with {seed}").map_err(io_error)?;
             } else if let Some(value) = argument(line, "debugply") {
                 self.m_debug_ply = value?;
@@ -444,6 +451,17 @@ impl BMC_Parser {
     }
 
     fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
+        let native_replay = if self.m_execution_mode == ExecutionMode::Native {
+            let replay = crate::native::NativeReplayKey {
+                stream_version: crate::native::NativeStreamVersion::V1,
+                root_seed: self.m_native_root_seed,
+                decision_index: self.m_native_decision_index,
+            };
+            self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
+            Some(replay)
+        } else {
+            None
+        };
         match self.m_game.m_phase {
             BME_PHASE::FIGHT => {
                 let moves = self.m_game.GenerateValidAttacks();
@@ -458,6 +476,13 @@ impl BMC_Parser {
                 }
                 let action = if self.m_ai_type[0] == 1 {
                     SelectQAIAction(&self.m_game, &mut self.m_rng)
+                } else if let Some(replay) = native_replay {
+                    SelectNativeBMAIAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        &self.m_player_ai[0],
+                    )
                 } else {
                     SelectBMAIAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
@@ -1189,6 +1214,33 @@ Seeding with 17\n"
             rng.to_string(),
             "invalid RNG algorithm: xoshiro (expected legacy or park-miller)"
         );
+    }
+
+    #[test]
+    fn native_fight_wire_fixture_is_deterministic() {
+        let input = include_str!("../tests/native-fixtures/fight.txt");
+        let expected = "Setting execution mode to native\n\
+             Setting RNG to legacy (bmai-park-miller-16807-v1)\n\
+             Seeding with 17\n\
+             Setting max # simulations to 20\n\
+             Setting min # simulations to 20\n\
+             Setting max branch to 100\n\
+             p0 s1.0 Dice (0)1:1 \n\
+             p1 s30.0 Dice (2000)(30,30):60 (0)1:1 \n\
+             l1 p0 Valid Moves 2 Sims 20\n\
+             stats 1/20-20/100/0.50\n\
+             action\n\
+             power\n\
+             0\n\
+             0\n";
+
+        for _ in 0..2 {
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(input, &mut output)
+                .unwrap();
+            assert_eq!(String::from_utf8(output).unwrap(), expected);
+        }
     }
 
     #[test]

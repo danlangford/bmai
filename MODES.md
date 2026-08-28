@@ -7,9 +7,11 @@ Execution mode and RNG algorithm are independent configuration axes.
 - `mode legacy` (alias `parity`) is the executable C++ compatibility contract.
   Candidate enumeration, search decisions, state transitions, and RNG
   consumption must continue to satisfy `PARITY.md`.
-- `mode native` is the opt-in Rust-native evolution contract. It currently
-  delegates to the legacy implementation. Future changes may alter search,
-  pruning, scheduling, or parallelism only behind this mode and their own tests.
+- `mode native` is the opt-in Rust-native evolution contract. Fight searches
+  give each top-level candidate simulation an independent, deterministically
+  derived RNG stream. Other phases still delegate to the legacy implementation.
+  Future changes may alter search, pruning, scheduling, or parallelism only
+  behind this mode and their own tests.
 - `rng legacy` selects `bmai-park-miller-16807-v1`. It is available to either
   execution mode and remains mandatory for exact C++ replay.
 
@@ -43,6 +45,10 @@ Native behavior does not need byte-for-byte C++ output, but each divergence
 must be opt-in, deterministic for a complete replay key, mechanically legal,
 and covered by focused tests plus statistical evaluation where exact expected
 actions are inappropriate. Legacy gates remain mandatory and unchanged.
+
+Executable native wire-protocol examples live in `tests/native-fixtures/`.
+They are separate from `tests/fixtures/*in*.txt` because that legacy fixture set
+must remain valid input to both the C++ and Rust binaries.
 
 ## Legacy stability policy
 

@@ -57,6 +57,19 @@ pub struct NativeStreamSeed {
     pub stream: u64,
 }
 
+impl NativeStreamSeed {
+    /// Folds both native seed words into a valid Park-Miller state.
+    ///
+    /// Native mode currently reuses the proven legacy generator inside each
+    /// independently partitioned simulation. The range excludes zero and the
+    /// modulus, which are invalid Park-Miller states.
+    #[must_use]
+    pub const fn legacy_park_miller_state(self) -> u32 {
+        const MAX_STATE: u64 = 2_147_483_646;
+        ((self.state ^ self.stream.rotate_left(29)) % MAX_STATE + 1) as u32
+    }
+}
+
 impl NativeSimulationKey {
     /// Derives stable, domain-separated seed words from this simulation key.
     ///
@@ -172,5 +185,20 @@ mod tests {
         for variant in variants {
             assert_ne!(variant.derive_stream_seed(), baseline);
         }
+    }
+
+    #[test]
+    fn legacy_state_uses_both_words_and_is_in_range() {
+        let seed = EXAMPLE_KEY.derive_stream_seed();
+        assert_eq!(seed.legacy_park_miller_state(), 2_042_917_870);
+        assert!((1..2_147_483_647).contains(&seed.legacy_park_miller_state()));
+        assert_ne!(
+            seed.legacy_park_miller_state(),
+            NativeStreamSeed {
+                stream: seed.stream + 1,
+                ..seed
+            }
+            .legacy_park_miller_state()
+        );
     }
 }
