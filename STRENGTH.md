@@ -33,3 +33,19 @@ reported as inconclusive or weaker, never rounded into a pass.
 This measures performance against one fixed opponent and matchup. Passing does
 not establish universal playing-strength equivalence.
 
+## Result
+
+Run on 2026-08-28 from `7463e34` using the release profile. Every cell produced
+the preregistered 200 games:
+
+| Mode | Original position | Swapped position | Total |
+|---|---:|---:|---:|
+| Legacy BMAI wins | 151/200 | 149/200 | 300/400 |
+| Native BMAI wins | 150/200 | 145/200 | 295/400 |
+
+The paired native-minus-legacy difference was -0.0125. Its preregistered 95%
+interval was [-0.0732, 0.0482]. The lower bound exceeds -0.10, so this experiment
+declares native mode noninferior for this fixed matchup and QAI opponent. The
+point estimate is not evidence that native is stronger; it was 1.25 percentage
+points lower. Broader matchup coverage is follow-up work rather than a claim
+supported by this result.
