@@ -13,7 +13,7 @@ use crate::simulation::{
     SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectQAIAction,
     SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
 };
-use crate::{BMC_BMAI3, BMC_RNG, BME_ROLLOUT_POLICY};
+use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
@@ -32,6 +32,7 @@ pub struct BMC_Parser {
     m_min_sims: usize,
     m_max_sims: usize,
     m_max_branch: usize,
+    m_execution_mode: ExecutionMode,
     m_rng: BMC_RNG,
     m_ai: BMC_BMAI3,
     m_player_ai: [BMC_BMAI3; 2],
@@ -49,6 +50,7 @@ impl Default for BMC_Parser {
             m_min_sims: 10,
             m_max_sims: 500,
             m_max_branch: 5000,
+            m_execution_mode: ExecutionMode::default(),
             m_rng: BMC_RNG::default(),
             m_ai: BMC_BMAI3::default(),
             m_player_ai: std::array::from_fn(|_| BMC_BMAI3::default()),
@@ -61,6 +63,18 @@ impl Default for BMC_Parser {
 }
 
 impl BMC_Parser {
+    pub const fn execution_mode(&self) -> ExecutionMode {
+        self.m_execution_mode
+    }
+
+    pub const fn rng_algorithm(&self) -> BME_RNG_ALGORITHM {
+        self.m_rng.Algorithm()
+    }
+
+    pub const fn rng_replay_id(&self) -> &'static str {
+        self.m_rng.ReplayId()
+    }
+
     pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
         let lines: Vec<_> = data.lines().collect();
         let mut pos = 0;
@@ -70,7 +84,28 @@ impl BMC_Parser {
             if line.is_empty() {
                 continue;
             }
-            if line.starts_with("game") {
+            if let Some(value) = line.strip_prefix("mode ") {
+                self.m_execution_mode = ExecutionMode::parse(value).ok_or_else(|| {
+                    ParseError(format!(
+                        "invalid execution mode: {value} (expected legacy or native)"
+                    ))
+                })?;
+                writeln!(
+                    output,
+                    "Setting execution mode to {}",
+                    self.m_execution_mode.as_str()
+                )
+                .map_err(io_error)?;
+            } else if let Some(value) = line.strip_prefix("rng ") {
+                let algorithm = BME_RNG_ALGORITHM::Parse(value).ok_or_else(|| {
+                    ParseError(format!(
+                        "invalid RNG algorithm: {value} (expected legacy or park-miller)"
+                    ))
+                })?;
+                self.m_rng.SetAlgorithm(algorithm);
+                writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
+                    .map_err(io_error)?;
+            } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
                     self.m_game.m_target_wins = parse_usize(wins)? as u8;
                     writeln!(output, "target wins set to {}", self.m_game.m_target_wins)
@@ -1107,6 +1142,53 @@ Seeding with 17\n"
             .ParseString(input, &mut Vec::new())
             .unwrap_err();
         assert_eq!(error.to_string(), "unrecognized command: sims 150");
+    }
+
+    #[test]
+    fn rust_execution_and_rng_modes_are_independent_and_versioned() {
+        let mut parser = BMC_Parser::default();
+        assert_eq!(parser.execution_mode(), ExecutionMode::Legacy);
+        assert_eq!(
+            parser.rng_algorithm(),
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1
+        );
+
+        let mut output = Vec::new();
+        parser
+            .ParseString(
+                "mode native\nrng park-miller\nseed 17\nmode parity\nrng legacy\nquit\n",
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(parser.execution_mode(), ExecutionMode::Legacy);
+        assert_eq!(parser.rng_replay_id(), "bmai-park-miller-16807-v1");
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Setting execution mode to native\n\
+             Setting RNG to legacy (bmai-park-miller-16807-v1)\n\
+             Seeding with 17\n\
+             Setting execution mode to legacy\n\
+             Setting RNG to legacy (bmai-park-miller-16807-v1)\n"
+        );
+    }
+
+    #[test]
+    fn rust_execution_and_rng_modes_reject_unknown_values() {
+        let engine = BMC_Parser::default()
+            .ParseString("mode experimental\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(
+            engine.to_string(),
+            "invalid execution mode: experimental (expected legacy or native)"
+        );
+
+        let rng = BMC_Parser::default()
+            .ParseString("rng xoshiro\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(
+            rng.to_string(),
+            "invalid RNG algorithm: xoshiro (expected legacy or park-miller)"
+        );
     }
 
     #[test]

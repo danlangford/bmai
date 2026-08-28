@@ -2,11 +2,41 @@
 // SPDX-FileCopyrightText: Copyright 2001 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-/// The original BMAI generator. Keeping its integer operations exact is required
-/// for seeded rollout parity with the C++ engine.
+/// Stable identifier for a replayable RNG implementation.
+#[allow(non_camel_case_types, non_snake_case)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BME_RNG_ALGORITHM {
+    /// BMAI's Park-Miller minimal-standard LCG plus its custom seed expansion.
+    LEGACY_PARK_MILLER_V1,
+}
+
+impl BME_RNG_ALGORITHM {
+    pub const fn ReplayId(self) -> &'static str {
+        match self {
+            Self::LEGACY_PARK_MILLER_V1 => "bmai-park-miller-16807-v1",
+        }
+    }
+
+    pub fn Parse(value: &str) -> Option<Self> {
+        match value {
+            "legacy" | "park-miller" | "bmai-park-miller-16807-v1" => {
+                Some(Self::LEGACY_PARK_MILLER_V1)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// Versioned RNG dispatcher. The closed enum keeps dispatch statically
+/// optimizable in hot search loops while leaving a deliberate seam for native
+/// generators with different state and stream-splitting behavior.
+///
+/// The initial implementation is the original BMAI Park-Miller generator.
+/// Keeping its integer operations exact is required for seeded C++ parity.
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Clone, Debug)]
 pub struct BMC_RNG {
+    m_algorithm: BME_RNG_ALGORITHM,
     m_seed: u32,
     m_trace_raw: bool,
     m_trace_hash: bool,
@@ -17,6 +47,7 @@ pub struct BMC_RNG {
 impl Default for BMC_RNG {
     fn default() -> Self {
         Self {
+            m_algorithm: BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
             m_seed: 78_904_497,
             m_trace_raw: std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
             m_trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
@@ -27,6 +58,18 @@ impl Default for BMC_RNG {
 }
 
 impl BMC_RNG {
+    pub const fn Algorithm(&self) -> BME_RNG_ALGORITHM {
+        self.m_algorithm
+    }
+
+    pub const fn ReplayId(&self) -> &'static str {
+        self.m_algorithm.ReplayId()
+    }
+
+    pub fn SetAlgorithm(&mut self, algorithm: BME_RNG_ALGORITHM) {
+        self.m_algorithm = algorithm;
+    }
+
     pub(crate) fn DebugSeed(&self) -> u32 {
         self.m_seed
     }
@@ -42,6 +85,12 @@ impl BMC_RNG {
     }
 
     pub fn GetRand(&mut self) -> u32 {
+        match self.m_algorithm {
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
+        }
+    }
+
+    fn GetLegacyParkMillerRand(&mut self) -> u32 {
         let mut lo = i64::from(self.m_seed & 0xffff) * 16_807;
         let mut hi = i64::from(self.m_seed >> 16) * 16_807 + (lo >> 16);
         lo = (lo & 0xffff) + (hi >> 15);
@@ -87,9 +136,34 @@ mod tests {
     #[test]
     fn default_sequence_is_stable() {
         let mut rng = BMC_RNG::default();
+        assert_eq!(rng.Algorithm(), BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1);
+        assert_eq!(rng.ReplayId(), "bmai-park-miller-16807-v1");
         assert_eq!(rng.GetRand(), 1_150_470_880);
         assert_eq!(rng.GetRand(), 21_322_572);
         assert_eq!(rng.GetRand(), 1_886_182_202);
+    }
+
+    #[test]
+    fn legacy_rng_names_select_the_same_versioned_stream_without_reseeding() {
+        for name in ["legacy", "park-miller", "bmai-park-miller-16807-v1"] {
+            assert_eq!(
+                BME_RNG_ALGORITHM::Parse(name),
+                Some(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1)
+            );
+        }
+        assert_eq!(BME_RNG_ALGORITHM::Parse("unknown"), None);
+
+        let mut rng = BMC_RNG::default();
+        rng.SRand(17);
+        let first = rng.GetRand();
+        rng.SetAlgorithm(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1);
+        let second = rng.GetRand();
+        let mut uninterrupted = BMC_RNG::default();
+        uninterrupted.SRand(17);
+        assert_eq!(
+            (first, second),
+            (uninterrupted.GetRand(), uninterrupted.GetRand())
+        );
     }
 
     /// Port of LegacyMembers.TestRNG. The C++ test is statistical rather than

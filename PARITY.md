@@ -88,6 +88,11 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 ## Parser and externally reachable API
 
 - [x] `game [wins]`, `playgame`, `getaction`, `seed`, `surrender`, `quit`.
+- [x] Rust-only `mode legacy|parity|native` and
+  `rng legacy|park-miller|bmai-park-miller-16807-v1` are explicit extensions.
+  They default to legacy behavior and therefore add no output or state change
+  to C++ protocol inputs. `mode native` is currently a named evolution seam,
+  not a behavior change.
 - [x] Global `ply`, `max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`.
 - [x] `compare` (the upstream implementation is currently identical to
   `playgame`, despite its stale OLD-AI comment).
@@ -153,7 +158,7 @@ case named in the final column.
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | policy dispatch, `SelectRandomAction`, `SelectMaximizeAction`, `SelectQAIAction`, fixed/culling evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `EvaluateMove`, `PlayFightQAI`, `BMC_BMAI3::EvaluateMoves`/`CullMoves` | exact ply-2 and full bug16 traces, evaluator tests | covered |
 | round/match standings, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture and four playfair mode comparisons | covered |
-| `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG`; RNG passed through all stochastic operations | exact sequence/distribution tests and multi-million-event fixture traces | covered |
+| `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Parsing-only parity is intentional for `AUXILIARY`, `DOPPLEGANGER`,
 `RADIOACTIVE`, and `RAGE`: upstream C++ only assigns their property bits in

@@ -67,9 +67,25 @@ cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
-`getaction`, `ai`, `seed`, `surrender`, `ply`, `max_sims`, `min_sims`,
-`maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
+`getaction`, `ai`, `mode`, `rng`, `seed`, `surrender`, `ply`, `max_sims`,
+`min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
+
+### Execution and RNG modes
+
+`mode legacy` selects the exact C++ compatibility contract and remains the
+default. `mode parity` is an alias. `mode native` selects the explicit
+Rust-native evolution point; it currently uses the same implementation so that
+introducing the boundary does not change any established result.
+
+`rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
+16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`
+is an alias. Its stable replay identifier is
+`bmai-park-miller-16807-v1`. Selecting an RNG does not reseed it; use `seed`
+separately. Protocols intended for durable replay should record the execution
+mode, RNG replay identifier, seed, BMAIR version, and all search
+settings. The compatibility and replay contracts are defined in
+[`MODES.md`](MODES.md).
 
 ## Verification
 
