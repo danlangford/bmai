@@ -40,9 +40,10 @@ and completion order are therefore absent from the result.
    with known-answer tests. No threads or legacy-search changes were added. See
    `src/native.rs`; its versioned `bmair-native-stream-v1` contract deliberately
    excludes worker identity.
-2. **In progress:** Run native search sequentially with one independent stream
+2. **Implemented:** Run native search sequentially with one independent stream
    per simulation. Every direct `getaction` phase has a deterministic input and
-   expected-output fixture. Match-driving commands remain on legacy search.
+   expected-output fixture, and a subprocess fixture covers replay sequencing
+   through a complete `playgame` command.
 3. Introduce a bounded worker pool using scoped standard-library threads. Avoid
    a dependency until measurements demonstrate a need for one.
 4. Prove identical native results with 1, 2, and available-CPU worker counts,

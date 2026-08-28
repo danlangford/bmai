@@ -9,11 +9,12 @@ use crate::model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_PHASE, BME_SWING_SET, property,
 };
 use crate::simulation::{
-    BMC_AI_POLICY, PlayFairGames, PlayGamesWithPolicies, SelectBMAIAction, SelectBMAIChanceAction,
-    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
-    SelectNativeBMAIAction, SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction,
-    SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
-    SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
+    BMC_AI_POLICY, PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies,
+    PlayGamesWithPoliciesNative, SelectBMAIAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
+    SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIAction,
+    SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction, SelectNativeBMAIReserveAction,
+    SelectNativeBMAISetSwingAction, SelectQAIAction, SelectQAIReserveAction,
+    SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -201,7 +202,18 @@ impl BMC_Parser {
                 self.RequirePreround()?;
                 let games = parse_usize(line.trim_start_matches("playgame "))?;
                 let policies = self.Policies();
-                let wins = PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayGamesWithPoliciesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if let Some((games, mode, probability)) = playfair_arguments(line)? {
                 self.RequirePreround()?;
@@ -229,7 +241,18 @@ impl BMC_Parser {
                         _ => unreachable!(),
                     })
                 };
-                let wins = PlayFairGames(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayFairGamesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayFairGames(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(
                     output,
                     "PlayFairGames: {games} games, mode {mode}, p {probability:.6}"
@@ -257,7 +280,18 @@ impl BMC_Parser {
                 self.RequirePreround()?;
                 let games = parse_usize(line.trim_start_matches("compare "))?;
                 let policies = self.Policies();
-                let wins = PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayGamesWithPoliciesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if line == "quit" {
                 break;

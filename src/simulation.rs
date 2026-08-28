@@ -13,6 +13,27 @@ struct NativeEvaluation {
     replay: crate::native::NativeReplayKey,
 }
 
+struct NativeReplaySequence<'a> {
+    algorithm: crate::BME_RNG_ALGORITHM,
+    root_seed: u64,
+    decision_index: &'a mut u64,
+}
+
+impl NativeReplaySequence<'_> {
+    fn next(&mut self) -> NativeEvaluation {
+        let replay = crate::native::NativeReplayKey {
+            stream_version: crate::native::NativeStreamVersion::V1,
+            root_seed: self.root_seed,
+            decision_index: *self.decision_index,
+        };
+        *self.decision_index = self.decision_index.wrapping_add(1);
+        NativeEvaluation {
+            algorithm: self.algorithm,
+            replay,
+        }
+    }
+}
+
 const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
 use std::sync::OnceLock;
 
@@ -137,9 +158,36 @@ pub(crate) fn PlayGamesWithPolicies(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
 ) -> [usize; 2] {
+    PlayGamesWithPoliciesInternal(template, games, rng, policies, None)
+}
+
+pub(crate) fn PlayGamesWithPoliciesNative(
+    template: &BMC_Game,
+    games: usize,
+    rng: &mut BMC_RNG,
+    policies: &[BMC_AI_POLICY; 2],
+    root_seed: u64,
+    decision_index: &mut u64,
+) -> [usize; 2] {
+    let mut native = NativeReplaySequence {
+        algorithm: rng.Algorithm(),
+        root_seed,
+        decision_index,
+    };
+    PlayGamesWithPoliciesInternal(template, games, rng, policies, Some(&mut native))
+}
+
+fn PlayGamesWithPoliciesInternal(
+    template: &BMC_Game,
+    games: usize,
+    rng: &mut BMC_RNG,
+    policies: &[BMC_AI_POLICY; 2],
+    mut native: Option<&mut NativeReplaySequence<'_>>,
+) -> [usize; 2] {
     let mut matches = [0, 0];
     for _ in 0..games {
-        let (winner, wins, _) = PlayMatchWithPolicies(template, rng, policies);
+        let (winner, wins, _) =
+            PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
         matches[winner] += 1;
         println!("game over {} - {} - 0", wins[0], wins[1]);
     }
@@ -150,12 +198,13 @@ fn PlayMatchWithPolicies(
     template: &BMC_Game,
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
+    mut native: Option<&mut NativeReplaySequence<'_>>,
 ) -> (usize, [u8; 2], usize) {
     let mut game = template.clone();
     let mut wins = [0u8, 0u8];
     let mut initiative = 0;
     while wins[0] < template.m_target_wins && wins[1] < template.m_target_wins {
-        let round = PlayRoundWithPolicies(&mut game, rng, policies);
+        let round = PlayRoundWithPolicies(&mut game, rng, policies, native.as_deref_mut());
         let winner = round.0;
         initiative = round.1;
         wins[winner] += 1;
@@ -176,9 +225,36 @@ pub(crate) fn PlayFairGames(
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
 ) -> [[usize; 2]; 2] {
+    PlayFairGamesInternal(template, games, rng, policies, None)
+}
+
+pub(crate) fn PlayFairGamesNative(
+    template: &BMC_Game,
+    games: usize,
+    rng: &mut BMC_RNG,
+    policies: &[BMC_AI_POLICY; 2],
+    root_seed: u64,
+    decision_index: &mut u64,
+) -> [[usize; 2]; 2] {
+    let mut native = NativeReplaySequence {
+        algorithm: rng.Algorithm(),
+        root_seed,
+        decision_index,
+    };
+    PlayFairGamesInternal(template, games, rng, policies, Some(&mut native))
+}
+
+fn PlayFairGamesInternal(
+    template: &BMC_Game,
+    games: usize,
+    rng: &mut BMC_RNG,
+    policies: &[BMC_AI_POLICY; 2],
+    mut native: Option<&mut NativeReplaySequence<'_>>,
+) -> [[usize; 2]; 2] {
     let mut wins = [[0usize; 2]; 2];
     for _ in 0..games {
-        let (winner, _, initiative) = PlayMatchWithPolicies(template, rng, policies);
+        let (winner, _, initiative) =
+            PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
         wins[initiative][winner] += 1;
     }
     wins
@@ -188,8 +264,9 @@ fn PlayRoundWithPolicies(
     game: &mut BMC_Game,
     rng: &mut BMC_RNG,
     policies: &[BMC_AI_POLICY; 2],
+    mut native: Option<&mut NativeReplaySequence<'_>>,
 ) -> (usize, usize) {
-    PlayPreroundWithPolicies(game, rng, policies);
+    PlayPreroundWithPolicies(game, rng, policies, native.as_deref_mut());
     for player in &mut game.m_player {
         player.m_score = 0.0;
         for die in &mut player.m_die {
@@ -213,7 +290,8 @@ fn PlayRoundWithPolicies(
         }
         let action = match &policies[player] {
             BMC_AI_POLICY::BMAI(ai) => {
-                SelectChanceAction(game, player, rng, ai, 1, phase_player, None).0
+                let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
+                SelectChanceAction(game, player, rng, ai, 1, phase_player, native_evaluation).0
             }
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 ChanceMove { reroll: Vec::new() }
@@ -242,7 +320,8 @@ fn PlayRoundWithPolicies(
         }
         let action = match &policies[player] {
             BMC_AI_POLICY::BMAI(ai) => {
-                SelectFocusAction(game, player, rng, ai, 1, phase_player, None).0
+                let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
+                SelectFocusAction(game, player, rng, ai, 1, phase_player, native_evaluation).0
             }
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 FocusMove { values: Vec::new() }
@@ -264,7 +343,13 @@ fn PlayRoundWithPolicies(
             oriented.m_player.swap(0, 1);
         }
         let action = match &policies[phase_player] {
-            BMC_AI_POLICY::BMAI(ai) => SelectBMAIAction(&oriented, rng, ai),
+            BMC_AI_POLICY::BMAI(ai) => {
+                if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
+                    SelectNativeBMAIAction(&oriented, context.algorithm, context.replay, ai)
+                } else {
+                    SelectBMAIAction(&oriented, rng, ai)
+                }
+            }
             BMC_AI_POLICY::QAI => SelectQAIAction(&oriented, rng),
             BMC_AI_POLICY::RANDOM => SelectRandomAction(&oriented, rng),
             BMC_AI_POLICY::MAXIMIZE => SelectMaximizeAction(&oriented, rng),
@@ -295,7 +380,12 @@ fn PlayRoundWithPolicies(
     )
 }
 
-fn PlayPreroundWithPolicies(game: &mut BMC_Game, rng: &mut BMC_RNG, policies: &[BMC_AI_POLICY; 2]) {
+fn PlayPreroundWithPolicies(
+    game: &mut BMC_Game,
+    rng: &mut BMC_RNG,
+    policies: &[BMC_AI_POLICY; 2],
+    mut native: Option<&mut NativeReplaySequence<'_>>,
+) {
     for (player, policy) in policies.iter().enumerate() {
         if game.m_player[player].m_swing_set != BME_SWING_SET::NOT
             || !NeedsSetSwing(&game.m_player[player])
@@ -304,7 +394,10 @@ fn PlayPreroundWithPolicies(game: &mut BMC_Game, rng: &mut BMC_RNG, policies: &[
             continue;
         }
         let selected = match policy {
-            BMC_AI_POLICY::BMAI(ai) => SelectSwingAction(game, player, rng, ai, 1, None).0,
+            BMC_AI_POLICY::BMAI(ai) => {
+                let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
+                SelectSwingAction(game, player, rng, ai, 1, native_evaluation).0
+            }
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 GenerateSwingMoves(&game.m_player[player])
                     .into_iter()

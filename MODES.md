@@ -10,8 +10,9 @@ Execution mode and RNG algorithm are independent configuration axes.
 - `mode native` is the opt-in Rust-native evolution contract. Fight, reserve,
   preround, Chance, and Focus searches give each top-level candidate simulation
   an independent, deterministically derived RNG stream. Match-driving commands
-  still delegate to the legacy implementation. Future changes may alter search,
-  pruning, scheduling, or parallelism only behind this mode and their own tests.
+  assign the same replay keys across every internal BMAI decision. Future
+  changes may alter search, pruning, scheduling, or parallelism only behind this
+  mode and their own tests.
 - `rng legacy` selects `bmai-park-miller-16807-v1`. It is available to either
   execution mode and remains mandatory for exact C++ replay.
 
