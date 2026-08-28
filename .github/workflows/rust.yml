@@ -6,6 +6,7 @@ name: Rust CI
 on:
   push:
     branches: [rust]
+    tags: ["bmair-v*"]
   pull_request:
     branches: [rust]
   workflow_dispatch:
@@ -76,6 +77,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
       - name: Install pinned Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -106,12 +108,94 @@ jobs:
       - name: Build binary
         run: cargo build --profile "$CARGO_PROFILE" --locked --all-targets --all-features
         shell: bash
+      - name: Prepare binary and build metadata
+        shell: bash
+        run: |
+          artifact_base="bmair-${{ matrix.platform }}-${{ matrix.arch }}-${BUILD_TYPE}"
+          executable="bmair"
+          if [[ "${{ matrix.platform }}" == "Windows" ]]; then
+            executable="bmair.exe"
+          fi
+          suffix="${executable#bmair}"
+          mkdir -p dist
+          cp "target/${CARGO_OUTPUT_DIR}/${executable}" "dist/${artifact_base}${suffix}"
+          {
+            echo "Artifact: ${artifact_base}${suffix}"
+            echo "Version: $("dist/${artifact_base}${suffix}" --version)"
+            echo "Git-Commit: $GITHUB_SHA"
+            echo "Git-Ref: $GITHUB_REF"
+            echo "Platform: ${{ matrix.platform }}"
+            echo "Architecture: ${{ matrix.arch }}"
+            echo "Cargo-Profile: $CARGO_PROFILE"
+            rustc --version
+          } > "dist/${artifact_base}.build-info.txt"
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "${artifact_base}${suffix}" > "${artifact_base}.sha256"
+          else
+            shasum -a 256 "${artifact_base}${suffix}" > "${artifact_base}.sha256"
+          fi
       - name: Upload binary
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: bmair-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.BUILD_TYPE }}
           if-no-files-found: error
           retention-days: 7
-          path: |
-            target/${{ env.CARGO_OUTPUT_DIR }}/bmair
-            target/${{ env.CARGO_OUTPUT_DIR }}/bmair.exe
+          path: dist/*
+
+  preview-release:
+    name: Publish preview release
+    if: startsWith(github.ref, 'refs/tags/bmair-v')
+    needs: build-and-test
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release source and tags
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Download platform artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: bmair-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create aggregate checksums
+        working-directory: release-assets
+        shell: bash
+        run: |
+          find . -maxdepth 1 -type f ! -name '*.sha256' -printf '%f\n' \
+            | sort | xargs sha256sum > SHA256SUMS
+      - name: Create release notes
+        shell: bash
+        run: |
+          previous_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" \
+            --match='bmair-v[0-9]*' 2>/dev/null || true)
+          {
+            echo "Preview release built from \`${GITHUB_SHA}\`."
+            echo
+            echo "All six native platform artifacts include version/build metadata."
+            echo "Verify downloads against \`SHA256SUMS\`."
+            echo
+            if [[ -n "$previous_tag" ]]; then
+              change_count=$(git rev-list --count "${previous_tag}..${GITHUB_SHA}")
+              echo "## ${change_count} changes since ${previous_tag}"
+              echo
+              git log --format='- `%h` %s' "${previous_tag}..${GITHUB_SHA}"
+            else
+              echo "## Initial BMAIR preview"
+              echo
+              echo "Rust port lineage begins at upstream BMAI commit \`1fcb826\`."
+            fi
+          } > release-notes.md
+      - name: Publish GitHub preview release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --prerelease \
+            --verify-tag \
+            --title "BMAIR ${GITHUB_REF_NAME#bmair-v} preview" \
+            --notes-file release-notes.md

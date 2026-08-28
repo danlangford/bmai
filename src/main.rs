@@ -16,12 +16,27 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
+    if matches!(env::args().nth(1).as_deref(), Some("-V" | "--version")) {
+        println!(
+            "bmair {} ({}; {})",
+            env!("CARGO_PKG_VERSION"),
+            env!("BMAIR_GIT_DESCRIBE"),
+            env!("BMAIR_BUILD_PROFILE")
+        );
+        return Ok(());
+    }
+
     println!("BMAIR: the Button Men AI in Rust");
     println!("Based on BMAI, Copyright © 2001-2024 Denis Papp.");
     println!(
         "Rust port Copyright © 2026 Dan Langford <721364+danlangford@users.noreply.github.com>."
     );
-    println!("Version: {}", env!("CARGO_PKG_VERSION"));
+    println!(
+        "Version: {} ({}; {})",
+        env!("CARGO_PKG_VERSION"),
+        env!("BMAIR_GIT_DESCRIBE"),
+        env!("BMAIR_BUILD_PROFILE")
+    );
 
     let input = if let Some(path) = env::args().nth(1) {
         println!("Reading from {path}");

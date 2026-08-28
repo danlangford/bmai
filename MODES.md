@@ -43,3 +43,12 @@ Native behavior does not need byte-for-byte C++ output, but each divergence
 must be opt-in, deterministic for a complete replay key, mechanically legal,
 and covered by focused tests plus statistical evaluation where exact expected
 actions are inappropriate. Legacy gates remain mandatory and unchanged.
+
+## Legacy stability policy
+
+Legacy mode is the permanent executable compatibility oracle. After the
+`bmair-v0.1.0` preview it is frozen against intentional search or RNG behavior
+changes. Changes are limited to upstream mechanics corrections,
+parity-preserving maintenance, portability fixes, and measured optimizations
+that pass the complete material-output and RNG-fingerprint gates. Intentional
+AI divergence belongs exclusively behind native mode.

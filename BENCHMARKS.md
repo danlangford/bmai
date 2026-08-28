@@ -45,3 +45,22 @@ user CPU by about 18%. PGO improved its three training fixtures by roughly
 5–9% but was also rejected because the untrained `bug16_in` case regressed by
 about 1.4%. Exact all-fixture material output and RNG fingerprints passed after
 the retained changes; see `PARITY.md` for the gate evidence.
+
+## Preview-release artifact comparison
+
+Measured on 2026-08-28 on an Intel Mac using the x86_64 slices from GitHub
+Actions. The C++ reference was the universal macOS Release artifact from
+Konstant PR #82 at `4813530`; Rust was the macOS x86_64 Release artifact at
+`f2f56db`. All 24 `*in*.txt` fixtures had materially identical output.
+
+| Fixture | C++ | Rust | Rust / C++ |
+|---|---:|---:|---:|
+| `bmai_in.txt` | 6.23s | 7.30s | 1.17x |
+| `bmsim_in.txt` | 18.19s | 19.16s | 1.05x |
+| `bug11_in.txt` | 43.94s | 46.13s | 1.05x |
+| `bug16_in.txt` | 139.95s | 226.90s | 1.62x |
+| all 24 fixtures | 209.00s | 300.16s | 1.44x |
+
+The aggregate difference is dominated by `bug16_in.txt`; the other meaningful
+searches are within 5–17% of C++. Sub-10ms protocol fixtures are omitted from
+the table because process startup dominates their ratios.

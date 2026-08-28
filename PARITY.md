@@ -6,9 +6,10 @@ Konstant behavior until it lands upstream.
 
 ## Completion gates
 
-- [x] All 15 shipped `*in*.txt` fixtures have materially identical outputs.
-  Evidence: release differential passed on 2026-08-23; seeded internal traces
-  also matched the large preround/reserve searches.
+- [x] All 24 current `*in*.txt` fixtures have materially identical outputs.
+  Evidence: release differential passed on 2026-08-23; PR #82 differentials
+  and the GitHub artifact comparison passed on 2026-08-27/28; seeded internal
+  traces also matched the large preround/reserve searches.
 - [x] Every meaningful C++ test is mapped to an equivalent default Rust test;
   demo/developer-only exclusions are explicitly justified below.
 - [x] Every C++ parser command/API path is implemented or explicitly mapped.
@@ -205,7 +206,8 @@ TODO upstream but both engines enforce its existing no-Skill-attack behavior.
   RNG count/fingerprint gate in 901.65 seconds on 2026-08-27.
 - [x] Full release C++/Rust fixture and added differential suite passes
   after the Value lifecycle correction (1,208.03 seconds on 2026-08-27).
-- [x] Worktree committed locally and not pushed.
+- [x] The `rust` branch through `ccc5ff5` is published with the complete parity
+  implementation and REUSE-compliant attribution.
 
 ## Internal search proof
 

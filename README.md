@@ -26,6 +26,15 @@ notices are retained under the MIT license.
 The parity record in [`PARITY.md`](PARITY.md) maps the C++ implementation and
 tests to their Rust equivalents.
 
+## Versioning
+
+BMAIR preserves BMAI's source and rules lineage but starts its own semantic
+version series at `bmair-v0.1.0`. A language port changes the executable,
+packaging, public Rust API, and release lifecycle, so continuing BMAI's version
+number would imply compatibility beyond the intentionally preserved protocol
+and game behavior. The upstream commit and BMAIR Git description remain in
+every build for traceability.
+
 ## Development
 
 Install the pinned Rust toolchain through mise, then use Cargo for project
@@ -50,7 +59,8 @@ differential tests against the C++ implementation.
 The Rust CI workflow builds and tests native `x86_64` and ARM64 binaries for
 Linux, Windows, and macOS. Each platform/architecture pair is uploaded as a
 separate workflow artifact; macOS Intel and Apple Silicon builds are not
-combined into a universal binary.
+combined into a universal binary. Release artifacts include build metadata and
+SHA-256 checksums. Tags matching `bmair-v*` publish a GitHub preview release.
 
 ## Running BMAIR
 
@@ -65,6 +75,10 @@ Or pipe protocol input through standard input:
 ```shell
 cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
+
+`bmair --version` reports the Cargo version, build profile, and Git description.
+Tagged development builds include the number of commits since the release,
+abbreviated commit SHA, and a `dirty` suffix when built from modified source.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `getaction`, `ai`, `mode`, `rng`, `seed`, `surrender`, `ply`, `max_sims`,
@@ -86,6 +100,10 @@ separately. Protocols intended for durable replay should record the execution
 mode, RNG replay identifier, seed, BMAIR version, and all search
 settings. The compatibility and replay contracts are defined in
 [`MODES.md`](MODES.md).
+
+The first Rust-native search experiment is specified in
+[`NATIVE_MODE.md`](NATIVE_MODE.md). It targets deterministic parallel
+candidate simulation while keeping legacy mode as the compatibility oracle.
 
 ## Verification
 

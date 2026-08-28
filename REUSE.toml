@@ -50,6 +50,7 @@ path = [
     "AGENTS.md",
     "BENCHMARKS.md",
     "MODES.md",
+    "NATIVE_MODE.md",
     "PARITY.md",
 ]
 SPDX-License-Identifier = "MIT"
