@@ -1,0 +1,15 @@
+mode native
+rng legacy
+seed 17
+ply 1
+max_sims 2
+min_sims 1
+maxbranch 40
+game 1
+focus
+player 0 1 0
+f20:20
+player 1 1 0
+6:6
+getaction
+quit

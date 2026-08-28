@@ -58,6 +58,17 @@ impl Default for BMC_RNG {
 }
 
 impl BMC_RNG {
+    pub(crate) fn UntracedDefault() -> Self {
+        Self {
+            m_algorithm: BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            m_seed: 78_904_497,
+            m_trace_raw: false,
+            m_trace_hash: false,
+            m_trace_count: 0,
+            m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+        }
+    }
+
     pub(crate) fn FromNativeStream(
         algorithm: BME_RNG_ALGORITHM,
         seed: crate::native::NativeStreamSeed,

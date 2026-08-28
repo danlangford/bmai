@@ -1,0 +1,13 @@
+Setting execution mode to native
+Setting RNG to legacy (bmai-park-miller-16807-v1)
+Seeding with 17
+Setting max ply to 1
+Setting max # simulations to 2
+Setting min # simulations to 1
+Setting max branch to 10
+target wins set to 1
+p0 s6.0 Dice (40000000)6:6 (200000)6:1 
+p1 s3.0 Dice (0)6:4 
+stats 1/1-2/10/0.50
+action
+chance 0

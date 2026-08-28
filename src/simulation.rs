@@ -6,6 +6,14 @@
 
 use crate::model::{BMC_Die, BMC_Game, BMC_Move, BME_ACTION, BME_ATTACK, BME_SWING_SET, property};
 use crate::{BMC_BMAI3, BMC_RNG, BME_ROLLOUT_POLICY};
+
+#[derive(Clone, Copy)]
+struct NativeEvaluation {
+    algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+}
+
+const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
 use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
@@ -204,7 +212,9 @@ fn PlayRoundWithPolicies(
             break;
         }
         let action = match &policies[player] {
-            BMC_AI_POLICY::BMAI(ai) => SelectChanceAction(game, player, rng, ai, 1, phase_player).0,
+            BMC_AI_POLICY::BMAI(ai) => {
+                SelectChanceAction(game, player, rng, ai, 1, phase_player, None).0
+            }
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 ChanceMove { reroll: Vec::new() }
             }
@@ -231,7 +241,9 @@ fn PlayRoundWithPolicies(
             break;
         }
         let action = match &policies[player] {
-            BMC_AI_POLICY::BMAI(ai) => SelectFocusAction(game, player, rng, ai, 1, phase_player).0,
+            BMC_AI_POLICY::BMAI(ai) => {
+                SelectFocusAction(game, player, rng, ai, 1, phase_player, None).0
+            }
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 FocusMove { values: Vec::new() }
             }
@@ -292,7 +304,7 @@ fn PlayPreroundWithPolicies(game: &mut BMC_Game, rng: &mut BMC_RNG, policies: &[
             continue;
         }
         let selected = match policy {
-            BMC_AI_POLICY::BMAI(ai) => SelectSwingAction(game, player, rng, ai, 1).0,
+            BMC_AI_POLICY::BMAI(ai) => SelectSwingAction(game, player, rng, ai, 1, None).0,
             BMC_AI_POLICY::QAI | BMC_AI_POLICY::RANDOM | BMC_AI_POLICY::MAXIMIZE => {
                 GenerateSwingMoves(&game.m_player[player])
                     .into_iter()
@@ -318,7 +330,7 @@ fn PlayPreround(game: &mut BMC_Game, rng: &mut BMC_RNG, ai: &BMC_BMAI3, level: u
             game.m_player[player].m_swing_set = BME_SWING_SET::LOCKED;
             continue;
         }
-        let (selected, _) = SelectSwingAction(game, player, rng, ai, player_level);
+        let (selected, _) = SelectSwingAction(game, player, rng, ai, player_level, None);
         ApplySwingMove(&mut game.m_player[player], &selected);
         game.m_player[player].m_swing_set = BME_SWING_SET::LOCKED;
         if level > 1 {
@@ -334,6 +346,7 @@ fn SelectSwingAction(
     rng: &mut BMC_RNG,
     ai: &BMC_BMAI3,
     level: usize,
+    native: Option<NativeEvaluation>,
 ) -> (SwingMove, f32) {
     let traces = TraceSettings();
     let trace_list = level == 1 && traces.swing_list;
@@ -347,7 +360,21 @@ fn SelectSwingAction(
     }
     let max_moves = ai.m_max_branch / ai.m_min_sims;
     if moves.len() > max_moves {
-        RandomlySelectSwingMoves(&mut moves, &game.m_player[player], max_moves, rng);
+        let mut selection_rng = native.map(|context| {
+            NativeSimulationRng(
+                context.algorithm,
+                context.replay,
+                NATIVE_ENUMERATION_STREAM,
+                0,
+                0,
+            )
+        });
+        RandomlySelectSwingMoves(
+            &mut moves,
+            &game.m_player[player],
+            max_moves,
+            selection_rng.as_mut().unwrap_or(rng),
+        );
         moves.shrink_to_fit();
     }
     if trace_list {
@@ -361,6 +388,7 @@ fn SelectSwingAction(
     }
     let sims = ai.ComputeNumberSims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
+    let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
     let mut best = moves[0];
     let mut sims_run = 0usize;
@@ -390,7 +418,28 @@ fn SelectSwingAction(
                 RestoreSimulation(&mut simulation, game);
                 ApplySwingMove(&mut simulation.m_player[player], candidate);
                 simulation.m_player[player].m_swing_set = BME_SWING_SET::LOCKED;
-                scores[index] += EvaluateSwingMove(&mut simulation, player, rng, ai, level);
+                let mut partitioned_rng = native.map(|context| {
+                    NativeSimulationRng(
+                        context.algorithm,
+                        context.replay,
+                        candidate_indices
+                            .as_ref()
+                            .map_or(index, |indices| indices[index]),
+                        if ai.m_cull_moves {
+                            sims_run / ai.m_sims_per_check.max(1)
+                        } else {
+                            0
+                        },
+                        sims_run + simulation_index,
+                    )
+                });
+                scores[index] += EvaluateSwingMove(
+                    &mut simulation,
+                    player,
+                    partitioned_rng.as_mut().unwrap_or(&mut *rng),
+                    ai,
+                    level,
+                );
             }
             if scores[index] > best_score {
                 best_score = scores[index];
@@ -425,6 +474,9 @@ fn SelectSwingAction(
             {
                 moves.swap_remove(index);
                 scores.swap_remove(index);
+                if let Some(indices) = &mut candidate_indices {
+                    indices.swap_remove(index);
+                }
             } else {
                 index += 1;
             }
@@ -450,7 +502,28 @@ pub(crate) fn SelectBMAISetSwingAction(
     rng: &mut BMC_RNG,
     ai: &BMC_BMAI3,
 ) -> SwingMove {
-    SelectSwingAction(game, 0, rng, ai, 1).0
+    SelectSwingAction(game, 0, rng, ai, 1, None).0
+}
+
+pub(crate) fn SelectNativeBMAISetSwingAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    ai: &BMC_BMAI3,
+) -> SwingMove {
+    let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
+    SelectSwingAction(
+        game,
+        0,
+        &mut unused_legacy_rng,
+        ai,
+        1,
+        Some(NativeEvaluation {
+            algorithm: rng_algorithm,
+            replay,
+        }),
+    )
+    .0
 }
 
 pub(crate) fn SelectQAISetSwingAction(game: &BMC_Game) -> SwingMove {
@@ -648,7 +721,7 @@ fn EvaluateSwingMove(
         if game.m_player[player].m_swing_set == BME_SWING_SET::READY {
             game.m_player[player].m_swing_set = BME_SWING_SET::NOT;
         }
-        let (_, other_probability) = SelectSwingAction(game, other, rng, ai, level + 1);
+        let (_, other_probability) = SelectSwingAction(game, other, rng, ai, level + 1, None);
         return 1.0 - other_probability;
     }
 
@@ -752,10 +825,12 @@ fn SelectChanceAction(
     ai: &BMC_BMAI3,
     level: usize,
     initiative: usize,
+    native: Option<NativeEvaluation>,
 ) -> (ChanceMove, f32) {
     let mut moves = GenerateChanceMoves(game, player);
     let sims = ai.ComputeNumberSims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
+    let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
     let mut best = moves[0].clone();
     let mut sims_run = 0usize;
@@ -767,16 +842,39 @@ fn SelectChanceAction(
             sims - sims_run
         };
         for (index, action) in moves.iter().enumerate() {
-            for _ in 0..batch {
+            for simulation_index in 0..batch {
                 RestoreSimulation(&mut simulation, game);
+                let mut partitioned_rng = native.map(|context| {
+                    NativeSimulationRng(
+                        context.algorithm,
+                        context.replay,
+                        candidate_indices
+                            .as_ref()
+                            .map_or(index, |indices| indices[index]),
+                        if ai.m_cull_moves {
+                            sims_run / ai.m_sims_per_check.max(1)
+                        } else {
+                            0
+                        },
+                        sims_run + simulation_index,
+                    )
+                });
+                let evaluation_rng = partitioned_rng.as_mut().unwrap_or(&mut *rng);
                 let (next_initiative, chance_continues) =
-                    ApplyChanceMove(&mut simulation, player, initiative, action, rng);
+                    ApplyChanceMove(&mut simulation, player, initiative, action, evaluation_rng);
                 scores[index] += if level >= ai.m_max_ply {
-                    PlayFightQAIFromPhase(&mut simulation, rng, next_initiative, player, false, ai)
+                    PlayFightQAIFromPhase(
+                        &mut simulation,
+                        evaluation_rng,
+                        next_initiative,
+                        player,
+                        false,
+                        ai,
+                    )
                 } else {
                     EvaluateNextInitiativeAction(
                         &mut simulation,
-                        rng,
+                        evaluation_rng,
                         ai,
                         level + 1,
                         next_initiative,
@@ -813,6 +911,9 @@ fn SelectChanceAction(
             {
                 moves.swap_remove(index);
                 scores.swap_remove(index);
+                if let Some(indices) = &mut candidate_indices {
+                    indices.swap_remove(index);
+                }
             } else {
                 index += 1;
             }
@@ -836,7 +937,29 @@ pub(crate) fn SelectBMAIChanceAction(
     rng: &mut BMC_RNG,
     ai: &BMC_BMAI3,
 ) -> ChanceMove {
-    SelectChanceAction(game, 0, rng, ai, 1, 1).0
+    SelectChanceAction(game, 0, rng, ai, 1, 1, None).0
+}
+
+pub(crate) fn SelectNativeBMAIChanceAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    ai: &BMC_BMAI3,
+) -> ChanceMove {
+    let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
+    SelectChanceAction(
+        game,
+        0,
+        &mut unused_legacy_rng,
+        ai,
+        1,
+        1,
+        Some(NativeEvaluation {
+            algorithm: rng_algorithm,
+            replay,
+        }),
+    )
+    .0
 }
 
 fn GenerateFocusMoves(game: &BMC_Game, player: usize) -> Vec<FocusMove> {
@@ -895,6 +1018,7 @@ fn SelectFocusAction(
     ai: &BMC_BMAI3,
     level: usize,
     initiative: usize,
+    native: Option<NativeEvaluation>,
 ) -> (FocusMove, f32) {
     let trace = TraceSettings().focus;
     let mut moves = GenerateFocusMoves(game, player);
@@ -907,6 +1031,7 @@ fn SelectFocusAction(
         );
     }
     let mut scores = vec![0.0f32; moves.len()];
+    let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
     let mut best = moves[0].clone();
     let mut sims_run = 0usize;
@@ -918,8 +1043,24 @@ fn SelectFocusAction(
             sims - sims_run
         };
         for (index, action) in moves.iter().enumerate() {
-            for _ in 0..batch {
+            for simulation_index in 0..batch {
                 RestoreSimulation(&mut simulation, game);
+                let mut partitioned_rng = native.map(|context| {
+                    NativeSimulationRng(
+                        context.algorithm,
+                        context.replay,
+                        candidate_indices
+                            .as_ref()
+                            .map_or(index, |indices| indices[index]),
+                        if ai.m_cull_moves {
+                            sims_run / ai.m_sims_per_check.max(1)
+                        } else {
+                            0
+                        },
+                        sims_run + simulation_index,
+                    )
+                });
+                let evaluation_rng = partitioned_rng.as_mut().unwrap_or(&mut *rng);
                 let phase = if action.values.is_empty() {
                     initiative
                 } else {
@@ -927,11 +1068,11 @@ fn SelectFocusAction(
                     player
                 };
                 scores[index] += if level >= ai.m_max_ply {
-                    PlayFightQAIFromPhase(&mut simulation, rng, phase, player, false, ai)
+                    PlayFightQAIFromPhase(&mut simulation, evaluation_rng, phase, player, false, ai)
                 } else {
                     EvaluateNextInitiativeAction(
                         &mut simulation,
-                        rng,
+                        evaluation_rng,
                         ai,
                         level + 1,
                         phase,
@@ -977,6 +1118,9 @@ fn SelectFocusAction(
             {
                 moves.swap_remove(index);
                 scores.swap_remove(index);
+                if let Some(indices) = &mut candidate_indices {
+                    indices.swap_remove(index);
+                }
             } else {
                 index += 1;
             }
@@ -1000,7 +1144,29 @@ pub(crate) fn SelectBMAIFocusAction(
     rng: &mut BMC_RNG,
     ai: &BMC_BMAI3,
 ) -> FocusMove {
-    SelectFocusAction(game, 0, rng, ai, 1, 1).0
+    SelectFocusAction(game, 0, rng, ai, 1, 1, None).0
+}
+
+pub(crate) fn SelectNativeBMAIFocusAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    ai: &BMC_BMAI3,
+) -> FocusMove {
+    let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
+    SelectFocusAction(
+        game,
+        0,
+        &mut unused_legacy_rng,
+        ai,
+        1,
+        1,
+        Some(NativeEvaluation {
+            algorithm: rng_algorithm,
+            replay,
+        }),
+    )
+    .0
 }
 
 fn EvaluateNextInitiativeAction(
@@ -1015,7 +1181,8 @@ fn EvaluateNextInitiativeAction(
     if matches!(stage, InitiativeStage::Chance) {
         let player = 1 - initiative;
         if HasAvailableProperty(&game.m_player[player], property::CHANCE) {
-            let (_, probability) = SelectChanceAction(game, player, rng, ai, level, initiative);
+            let (_, probability) =
+                SelectChanceAction(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability
             } else {
@@ -1027,7 +1194,8 @@ fn EvaluateNextInitiativeAction(
     if matches!(stage, InitiativeStage::Focus) {
         let player = 1 - initiative;
         if HasAvailableProperty(&game.m_player[player], property::FOCUS) {
-            let (_, probability) = SelectFocusAction(game, player, rng, ai, level, initiative);
+            let (_, probability) =
+                SelectFocusAction(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability
             } else {
@@ -1073,7 +1241,7 @@ fn PlaySimulatedRound(
         if !HasAvailableProperty(&game.m_player[player], property::CHANCE) || use_qai {
             break;
         }
-        let action = SelectChanceAction(game, player, rng, ai, level, phase).0;
+        let action = SelectChanceAction(game, player, rng, ai, level, phase, None).0;
         if level >= ai.m_max_ply {
             use_qai = true;
         } else {
@@ -1090,7 +1258,7 @@ fn PlaySimulatedRound(
         if !HasAvailableProperty(&game.m_player[player], property::FOCUS) || use_qai {
             break;
         }
-        let action = SelectFocusAction(game, player, rng, ai, level, phase).0;
+        let action = SelectFocusAction(game, player, rng, ai, level, phase, None).0;
         if level >= ai.m_max_ply {
             use_qai = true;
         } else {
@@ -1368,13 +1536,17 @@ fn SelectBMAIActionAtLevelNative(
 fn NativeSimulationRng(
     algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
-    candidate_index: usize,
+    candidate_index: impl TryInto<u64>,
     batch_index: usize,
     simulation_index: usize,
 ) -> BMC_RNG {
+    let candidate_index = candidate_index
+        .try_into()
+        .ok()
+        .expect("candidate index must fit in the replay format");
     let stream_seed = crate::native::NativeSimulationKey {
         replay,
-        candidate_index: candidate_index as u64,
+        candidate_index,
         batch_index: batch_index as u64,
         simulation_index: simulation_index as u64,
     }
