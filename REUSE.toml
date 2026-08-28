@@ -33,7 +33,7 @@ path = [
     "tests/fixtures/test_out.txt",
 ]
 SPDX-License-Identifier = "MIT"
-SPDX-FileCopyrightText = "Copyright 2001 Denis Papp"
+SPDX-FileCopyrightText = "Copyright 2001-2026 Denis Papp"
 
 [[annotations]]
 path = [

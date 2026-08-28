@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-// SPDX-FileCopyrightText: Copyright 2001 Denis Papp
+// SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::env;
@@ -27,10 +27,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("BMAIR: the Button Men AI in Rust");
-    println!("Based on BMAI, Copyright © 2001-2024 Denis Papp.");
-    println!(
-        "Rust port Copyright © 2026 Dan Langford <721364+danlangford@users.noreply.github.com>."
-    );
+    println!("Based on BMAI, Copyright © 2001-2026 Denis Papp.");
+    println!("Rust port Copyright © 2026 Dan Langford.");
     println!(
         "Version: {} ({}; {})",
         env!("CARGO_PKG_VERSION"),
