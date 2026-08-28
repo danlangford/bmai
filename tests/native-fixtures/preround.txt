@@ -1,5 +1,6 @@
 mode native
 rng legacy
+workers 3
 seed 17
 ply 1
 max_sims 1

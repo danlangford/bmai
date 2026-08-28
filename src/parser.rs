@@ -573,6 +573,7 @@ impl BMC_Parser {
                         &self.m_game,
                         self.m_rng.Algorithm(),
                         replay,
+                        self.m_native_workers,
                         &self.m_player_ai[0],
                     )
                 } else {
@@ -1332,20 +1333,28 @@ Seeding with 17\n"
     }
 
     #[test]
-    fn native_reserve_is_worker_count_independent() {
-        let three_workers = include_str!("../tests/native-fixtures/reserve.txt");
-        let one_worker = three_workers.replace("workers 3", "workers 1");
-        let run = |input: &str| {
+    fn native_phases_are_worker_count_independent() {
+        let run = |input: &str, workers: usize| {
+            let input = input.replace("workers 3", &format!("workers {workers}"));
             let mut output = Vec::new();
             BMC_Parser::default()
-                .ParseString(input, &mut output)
+                .ParseString(&input, &mut output)
                 .unwrap();
-            String::from_utf8(output)
-                .unwrap()
-                .replace("Setting native workers to 1", "Setting native workers to N")
-                .replace("Setting native workers to 3", "Setting native workers to N")
+            String::from_utf8(output).unwrap().replace(
+                &format!("Setting native workers to {workers}"),
+                "Setting native workers to N",
+            )
         };
-        assert_eq!(run(&one_worker), run(three_workers));
+        let available = std::thread::available_parallelism().map_or(1, usize::from);
+        for input in [
+            include_str!("../tests/native-fixtures/reserve.txt"),
+            include_str!("../tests/native-fixtures/preround.txt"),
+        ] {
+            let expected = run(input, 1);
+            for workers in [2, available] {
+                assert_eq!(run(input, workers), expected);
+            }
+        }
     }
 
     #[test]

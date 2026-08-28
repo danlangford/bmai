@@ -1,5 +1,6 @@
 Setting execution mode to native
 Setting RNG to legacy (bmai-park-miller-16807-v1)
+Setting native workers to 3
 Seeding with 17
 Setting max ply to 1
 Setting max # simulations to 1
