@@ -116,6 +116,54 @@ fn mix64(mut value: u64) -> u64 {
     value ^ (value >> 31)
 }
 
+/// Evaluates independent tasks on scoped threads and restores input order.
+///
+/// Static round-robin assignment keeps the implementation dependency-free.
+/// Result ordering depends only on task position, never worker completion.
+#[cfg_attr(
+    not(test),
+    allow(dead_code, reason = "phase-3 coordinator precedes search integration")
+)]
+pub(crate) fn ordered_parallel_map<T, R, F>(tasks: Vec<T>, workers: usize, evaluate: F) -> Vec<R>
+where
+    T: Send,
+    R: Send,
+    F: Fn(T) -> R + Sync,
+{
+    let worker_count = workers.max(1).min(tasks.len().max(1));
+    if worker_count == 1 {
+        return tasks.into_iter().map(evaluate).collect();
+    }
+
+    let mut assignments = (0..worker_count)
+        .map(|_| Vec::new())
+        .collect::<Vec<Vec<(usize, T)>>>();
+    for (index, task) in tasks.into_iter().enumerate() {
+        assignments[index % worker_count].push((index, task));
+    }
+
+    let mut completed = std::thread::scope(|scope| {
+        let handles = assignments
+            .into_iter()
+            .map(|assignment| {
+                let evaluate = &evaluate;
+                scope.spawn(move || {
+                    assignment
+                        .into_iter()
+                        .map(|(index, task)| (index, evaluate(task)))
+                        .collect::<Vec<_>>()
+                })
+            })
+            .collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .flat_map(|handle| handle.join().expect("native worker panicked"))
+            .collect::<Vec<_>>()
+    });
+    completed.sort_unstable_by_key(|(index, _)| *index);
+    completed.into_iter().map(|(_, result)| result).collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +248,25 @@ mod tests {
             }
             .legacy_park_miller_state()
         );
+    }
+
+    #[test]
+    fn ordered_parallel_results_are_worker_count_independent() {
+        let tasks = (0u64..257).collect::<Vec<_>>();
+        let expected = ordered_parallel_map(tasks.clone(), 1, expensive_test_mapping);
+        for workers in [2, 3, 8, 512] {
+            assert_eq!(
+                ordered_parallel_map(tasks.clone(), workers, expensive_test_mapping),
+                expected
+            );
+        }
+    }
+
+    fn expensive_test_mapping(value: u64) -> u64 {
+        for _ in 0..(17 - value % 17) {
+            std::hint::spin_loop();
+            std::thread::yield_now();
+        }
+        mix64(value)
     }
 }

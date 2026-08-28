@@ -38,6 +38,7 @@ pub struct BMC_Parser {
     m_execution_mode: ExecutionMode,
     m_native_root_seed: u64,
     m_native_decision_index: u64,
+    m_native_workers: usize,
     m_rng: BMC_RNG,
     m_ai: BMC_BMAI3,
     m_player_ai: [BMC_BMAI3; 2],
@@ -58,6 +59,7 @@ impl Default for BMC_Parser {
             m_execution_mode: ExecutionMode::default(),
             m_native_root_seed: 78_904_497,
             m_native_decision_index: 0,
+            m_native_workers: 1,
             m_rng: BMC_RNG::default(),
             m_ai: BMC_BMAI3::default(),
             m_player_ai: std::array::from_fn(|_| BMC_BMAI3::default()),
@@ -112,6 +114,13 @@ impl BMC_Parser {
                 self.m_rng.SetAlgorithm(algorithm);
                 writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
                     .map_err(io_error)?;
+            } else if let Some(value) = argument(line, "workers") {
+                let workers = value?;
+                if workers == 0 {
+                    return Err(ParseError("native worker count must be at least 1".into()));
+                }
+                self.m_native_workers = workers;
+                writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
             } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
                     self.m_game.m_target_wins = parse_usize(wins)? as u8;
@@ -516,6 +525,7 @@ impl BMC_Parser {
                         &self.m_game,
                         self.m_rng.Algorithm(),
                         replay,
+                        self.m_native_workers,
                         &self.m_player_ai[0],
                     )
                 } else {

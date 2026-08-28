@@ -345,7 +345,7 @@ fn PlayRoundWithPolicies(
         let action = match &policies[phase_player] {
             BMC_AI_POLICY::BMAI(ai) => {
                 if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
-                    SelectNativeBMAIAction(&oriented, context.algorithm, context.replay, ai)
+                    SelectNativeBMAIAction(&oriented, context.algorithm, context.replay, 1, ai)
                 } else {
                     SelectBMAIAction(&oriented, rng, ai)
                 }
@@ -1573,15 +1573,17 @@ pub(crate) fn SelectNativeBMAIAction(
     game: &BMC_Game,
     rng_algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
+    workers: usize,
     settings: &BMC_BMAI3,
 ) -> BMC_Move {
-    SelectBMAIActionAtLevelNative(game, rng_algorithm, replay, settings).0
+    SelectBMAIActionAtLevelNative(game, rng_algorithm, replay, workers, settings).0
 }
 
 fn SelectBMAIActionAtLevelNative(
     game: &BMC_Game,
     rng_algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
+    workers: usize,
     settings: &BMC_BMAI3,
 ) -> (BMC_Move, f32) {
     let mut moves = game.GenerateValidAttacksInCppOrder();
@@ -1590,25 +1592,30 @@ fn SelectBMAIActionAtLevelNative(
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
-    let mut simulation = game.clone();
-    let selected = evaluator.EvaluateMoves(moves, 1, |candidate, coordinate| {
-        RestoreSimulation(&mut simulation, game);
-        let mut simulation_rng = NativeSimulationRng(
-            rng_algorithm,
-            replay,
-            coordinate.candidate_index,
-            coordinate.batch_index,
-            coordinate.simulation_index,
-        );
-        EvaluateMove(
-            &mut simulation,
-            candidate,
-            &mut simulation_rng,
-            &policy,
-            1,
-            false,
-            false,
-        )
+    let selected = evaluator.EvaluateMovesBatched(moves, 1, |requests| {
+        let tasks = requests
+            .iter()
+            .map(|request| (request.candidate.clone(), request.coordinate))
+            .collect();
+        crate::native::ordered_parallel_map(tasks, workers, |(candidate, coordinate)| {
+            let mut simulation = game.clone();
+            let mut simulation_rng = NativeSimulationRng(
+                rng_algorithm,
+                replay,
+                coordinate.candidate_index,
+                coordinate.batch_index,
+                coordinate.simulation_index,
+            );
+            EvaluateMove(
+                &mut simulation,
+                &candidate,
+                &mut simulation_rng,
+                &policy,
+                1,
+                false,
+                false,
+            )
+        })
     });
     let probability = evaluator.m_last_probability_win;
     let selected = if probability == 0.0 && game.m_surrender_allowed {
@@ -2371,13 +2378,30 @@ mod tests {
             decision_index: 0,
         };
 
-        let (action, probability) = SelectBMAIActionAtLevelNative(
-            &parser.m_game,
-            crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
-            replay,
-            &settings,
-        );
+        let available = std::thread::available_parallelism().map_or(1, usize::from);
+        let mut expected: Option<(BMC_Move, f32)> = None;
+        for workers in [1, 2, available] {
+            let result = SelectBMAIActionAtLevelNative(
+                &parser.m_game,
+                crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                replay,
+                workers,
+                &settings,
+            );
+            if let Some(expected) = &expected {
+                assert_eq!(result.0.m_action, expected.0.m_action);
+                assert_eq!(result.0.m_attack, expected.0.m_attack);
+                assert_eq!(result.0.m_attackers, expected.0.m_attackers);
+                assert_eq!(result.0.m_targets, expected.0.m_targets);
+                assert_eq!(result.0.m_score, expected.0.m_score);
+                assert_eq!(result.0.m_turbo_option, expected.0.m_turbo_option);
+                assert_eq!(result.1, expected.1);
+            } else {
+                expected = Some(result);
+            }
+        }
 
+        let (action, probability) = expected.unwrap();
         assert_eq!(action.m_action, BME_ACTION::ATTACK);
         assert_eq!(action.m_attack, Some(BME_ATTACK::POWER));
         assert_eq!(action.m_attackers, vec![0]);

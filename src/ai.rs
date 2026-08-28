@@ -37,6 +37,12 @@ pub struct EvaluationCoordinate {
     pub simulation_index: usize,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct EvaluationRequest<'a> {
+    pub candidate: &'a BMC_Move,
+    pub coordinate: EvaluationCoordinate,
+}
+
 impl BMC_Stats {
     pub fn OnFullSimulation(&mut self) {
         self.m_sims += 1;
@@ -110,23 +116,52 @@ impl BMC_BMAI3 {
     where
         F: FnMut(&BMC_Move, EvaluationCoordinate) -> f32,
     {
+        self.EvaluateMovesBatched(moves, level, |requests| {
+            requests
+                .iter()
+                .map(|request| evaluate(request.candidate, request.coordinate))
+                .collect()
+        })
+    }
+
+    /// Evaluates each culling batch as one canonically ordered unit. Results
+    /// must correspond positionally to requests. This is the native-mode
+    /// parallelization seam; score reduction and culling remain serial.
+    pub fn EvaluateMovesBatched<F>(
+        &mut self,
+        moves: Vec<BMC_Move>,
+        level: usize,
+        mut evaluate_batch: F,
+    ) -> BMC_Move
+    where
+        F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
+    {
         assert!(!moves.is_empty());
         let sims = self.ComputeNumberSims(moves.len(), level);
         self.m_stats.OnPlyAction(level, moves.len(), sims);
         if !self.m_cull_moves {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
-            for (candidate_index, candidate) in moves.iter().enumerate() {
-                let mut score = 0.0;
-                for simulation in 0..sims {
-                    score += evaluate(
+            let requests = moves
+                .iter()
+                .enumerate()
+                .flat_map(|(candidate_index, candidate)| {
+                    (0..sims).map(move |simulation| EvaluationRequest {
                         candidate,
-                        EvaluationCoordinate {
+                        coordinate: EvaluationCoordinate {
                             candidate_index,
                             batch_index: 0,
                             simulation_index: simulation,
                         },
-                    );
+                    })
+                })
+                .collect::<Vec<_>>();
+            let results = evaluate_batch(&requests);
+            assert_eq!(results.len(), requests.len());
+            for (candidate_index, candidate) in moves.iter().enumerate() {
+                let start = candidate_index * sims;
+                let score = results[start..start + sims].iter().sum();
+                for _ in 0..sims {
                     self.m_stats.OnFullSimulation();
                 }
                 if score > best_score {
@@ -145,16 +180,31 @@ impl BMC_BMAI3 {
             let check_sims = self
                 .m_sims_per_check
                 .min(state.sims.saturating_sub(state.sims_run));
-            for index in 0..state.movelist.len() {
-                for simulation in 0..check_sims {
-                    state.score[index] += evaluate(
-                        &state.movelist[index],
-                        EvaluationCoordinate {
-                            candidate_index: state.candidate_index[index],
-                            batch_index: state.sims_run / self.m_sims_per_check,
-                            simulation_index: state.sims_run + simulation,
+            let batch_index = state.sims_run / self.m_sims_per_check;
+            let simulation_start = state.sims_run;
+            let candidate_indices = &state.candidate_index;
+            let requests = state
+                .movelist
+                .iter()
+                .enumerate()
+                .flat_map(|(index, candidate)| {
+                    let candidate_index = candidate_indices[index];
+                    (0..check_sims).map(move |simulation| EvaluationRequest {
+                        candidate,
+                        coordinate: EvaluationCoordinate {
+                            candidate_index,
+                            batch_index,
+                            simulation_index: simulation_start + simulation,
                         },
-                    );
+                    })
+                })
+                .collect::<Vec<_>>();
+            let results = evaluate_batch(&requests);
+            assert_eq!(results.len(), requests.len());
+            for index in 0..state.movelist.len() {
+                let start = index * check_sims;
+                for score in &results[start..start + check_sims] {
+                    state.score[index] += score;
                     self.m_stats.OnFullSimulation();
                 }
                 if state.score[index] > state.best_score {

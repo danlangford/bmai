@@ -15,6 +15,8 @@ Execution mode and RNG algorithm are independent configuration axes.
   mode and their own tests.
 - `rng legacy` selects `bmai-park-miller-16807-v1`. It is available to either
   execution mode and remains mandatory for exact C++ replay.
+- `workers N` selects the bounded native search worker count. It defaults to
+  `1`, must be at least `1`, and has no effect on legacy search.
 
 Selecting a mode never implicitly selects or reseeds an RNG. Selecting an RNG
 never changes execution mode and does not reset its stream.
@@ -35,6 +37,7 @@ A durable recorded game or search must include:
 - AI selection and rollout policy for each player;
 - ply, minimum/maximum simulations, maximum branch, and Turbo accuracy;
 - any future native scheduling, worker-count, or stream-partition version.
+- native worker count (for performance reproduction, not result identity).
 
 A seed without the RNG replay identifier is not a complete replay key. Native
 parallel search must version its stream partitioning and deterministic result
