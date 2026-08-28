@@ -130,10 +130,6 @@ fn mix64(mut value: u64) -> u64 {
 ///
 /// Static round-robin assignment keeps the implementation dependency-free.
 /// Result ordering depends only on task position, never worker completion.
-#[cfg_attr(
-    not(test),
-    allow(dead_code, reason = "phase-3 coordinator precedes search integration")
-)]
 pub(crate) fn ordered_parallel_map<T, R, F>(tasks: Vec<T>, workers: usize, evaluate: F) -> Vec<R>
 where
     T: Send,

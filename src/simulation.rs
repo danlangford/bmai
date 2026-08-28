@@ -2572,6 +2572,76 @@ mod tests {
         assert_eq!(probability, 0.0);
     }
 
+    #[test]
+    fn native_initiative_phase_scores_are_worker_count_independent() {
+        let replay = crate::native::NativeReplayKey {
+            stream_version: crate::native::NativeStreamVersion::V1,
+            root_seed: 17,
+            decision_index: 0,
+        };
+        let available = std::thread::available_parallelism().map_or(1, usize::from);
+        let contexts = [1, 2, available].map(|workers| NativeEvaluation {
+            algorithm: crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            replay,
+            workers,
+        });
+
+        let game = native_fixture_game(include_str!("../tests/native-fixtures/preround.txt"));
+        let settings = BMC_BMAI3 {
+            m_min_sims: 1,
+            m_max_sims: 1,
+            m_max_branch: 20,
+            ..Default::default()
+        };
+        let swing = contexts.map(|context| {
+            let mut rng = BMC_RNG::UntracedDefault();
+            let (action, score) =
+                SelectSwingAction(&game, 0, &mut rng, &settings, 1, Some(context));
+            (action.values().to_vec(), action.options().to_vec(), score)
+        });
+        assert_eq!(swing[1], swing[0]);
+        assert_eq!(swing[2], swing[0]);
+
+        let game = native_fixture_game(include_str!("../tests/native-fixtures/chance.txt"));
+        let settings = BMC_BMAI3 {
+            m_min_sims: 1,
+            m_max_sims: 2,
+            m_max_branch: 10,
+            ..Default::default()
+        };
+        let chance = contexts.map(|context| {
+            let mut rng = BMC_RNG::UntracedDefault();
+            let (action, score) =
+                SelectChanceAction(&game, 0, &mut rng, &settings, 1, 1, Some(context));
+            (action.reroll, score)
+        });
+        assert_eq!(chance[1], chance[0]);
+        assert_eq!(chance[2], chance[0]);
+
+        let game = native_fixture_game(include_str!("../tests/native-fixtures/focus.txt"));
+        let settings = BMC_BMAI3 {
+            m_min_sims: 1,
+            m_max_sims: 2,
+            m_max_branch: 40,
+            ..Default::default()
+        };
+        let focus = contexts.map(|context| {
+            let mut rng = BMC_RNG::UntracedDefault();
+            let (action, score) =
+                SelectFocusAction(&game, 0, &mut rng, &settings, 1, 1, Some(context));
+            (action.values, score)
+        });
+        assert_eq!(focus[1], focus[0]);
+        assert_eq!(focus[2], focus[0]);
+    }
+
+    fn native_fixture_game(input: &str) -> BMC_Game {
+        let setup = input.split_once("getaction").unwrap().0;
+        let mut parser = crate::BMC_Parser::default();
+        parser.ParseString(setup, &mut Vec::new()).unwrap();
+        parser.m_game
+    }
+
     fn swing_die(swing: char, properties: u64, original_index: usize) -> BMC_Die {
         BMC_Die {
             m_properties: property::VALID | properties,
