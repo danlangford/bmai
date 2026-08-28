@@ -46,6 +46,10 @@ A seed without the RNG replay identifier is not a complete replay key. Native
 parallel search must version its stream partitioning and deterministic result
 reduction before it can claim reproducibility.
 
+The native decision index advances only when a native BMAI search actually
+runs. QAI actions and immediate protocol passes do not consume a replay key, so
+mixing policy types cannot silently shift later native simulation streams.
+
 ## Native-mode acceptance criteria
 
 Native behavior does not need byte-for-byte C++ output, but each divergence
