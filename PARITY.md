@@ -1,6 +1,8 @@
 # C++ → Rust full-parity ledger
 
-Authority: C++ `main` at `1fcb826` and the contract in `AGENTS.md`.
+Authority: C++ `main` at `1fcb826`, Konstant PR #82 at `4813530`, and the
+contract in `AGENTS.md`. PR #82 is treated as the reference for its signed
+Konstant behavior until it lands upstream.
 
 ## Completion gates
 
@@ -23,9 +25,35 @@ Authority: C++ `main` at `1fcb826` and the contract in `AGENTS.md`.
 Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 `SkillTest.cpp`, `BMAI3Tests.cpp`, and `DemoTest.cpp`.
 
+### Konstant PR #82 additions
+
+- [x] All PR #82 signed-Konstant generation cases (including the four
+  parameterized signed targets) and the ten-Konstant upper bound map to
+  `model::tests::pr82_signed_konstant_skill_attack_matrix` and
+  `pr82_variable_skill_stack_disables_legacy_value_pruning`.
+- [x] Konstant/Stinger/Warrior range, sign, gap, full-value, later-target, and
+  unused-pool cases are individually named in the table-driven Rust test, so
+  failures report the corresponding upstream GoogleTest name.
+- [x] Trip and Chance Mighty/Weak/Maximum sequencing maps to
+  `pr82_konstant_trip_target_retains_value_and_changes_sides_once`,
+  `pr82_trip_target_before_roll_effect_triggers_once`, and
+  `pr82_chance_effects_run_once_while_konstant_retains_value`.
+- [x] Participating/nonparticipating Ornery, Konstant Mighty/Weak, Mood, and
+  pass behavior maps to the four `simulation::tests::pr82_*ornery*` tests;
+  `OrdinarySideChangeInvalidatesValue` maps to
+  `pr82_ordinary_side_change_invalidates_value`.
+- [x] Konstant Time-and-Space, Morphing, Berserk, Skill, Trip, and Warrior
+  lifecycle cases map to `pr82_konstant_time_and_space_never_grants_extra_turn`,
+  `pr82_konstant_attack_side_changes_preserve_value`, and the existing focused
+  Konstant Skill/Trip/Warrior tests.
+- [x] `bug105372_in.txt` is copied into `tests/fixtures` and therefore runs in
+  the material-output and exhaustive RNG differential gates.
+
 - [x] Inventory all 48 registered upstream test cases: 42 functional cases,
   two debug assertion contracts, three demo/framework cases, and one disabled
-  developer setup case.
+  developer setup case. PR #82 adds 60 registered executions (56 named Skill
+  tests with one parameterized over four targets, plus `bug105372`), bringing
+  its reference suite to 108.
 - [x] `LegacyMembers.TestRNG` -> `rng::tests::cpp_legacy_rng_distribution`.
 - [x] `PlayerTests.CopyConstructor` ->
   `model::tests::cpp_player_copy_constructor_is_independent`.
@@ -114,9 +142,9 @@ case named in the final column.
 | `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `BMC_Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
 | `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `BMC_Die::GetScore` | score branch tests and all upstream skill score ports | covered |
 | `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `GenerateValidAttacks`, `GenerateValidAttacksInCppOrder` | upstream attack/Stealth/Insult tests | covered |
-| Konstant, Stealth, Warrior, Stinger, Unskilled, Queer attack restrictions | `CanDoAttack`, `CanBeAttacked`, subset/minimum skill enumeration | upstream ports, Stinger pruning/Stealth+Insult regressions, combined seeded differential | covered |
-| `BMC_Die::OnApplyAttackPlayer` Berserk, Mighty, Weak, Morphing, Turbo, Warrior and Ornery second pass | `ApplyAttackPlayerEffects` | Ornery/Mighty, Morphing/Twin/Speed, Turbo, Warrior tests and combined differentials | covered |
-| `OnBeforeRollInGame`, nature rerolls, Mood, Trip double before-roll pass | `ApplyBeforeRollEffects`, `ApplyMood`, `ApplyAttackerNatureRoll`, `RollScheduledDie` | Trip/Weak/Konstant tests and combined seeded differentials | covered |
+| Konstant, Stealth, Warrior, Stinger, Unskilled, Queer attack restrictions | `CanDoAttack`, `CanBeAttacked`, direct stack enumeration plus `SkillStackCanHit` signed intervals | PR #82's complete signed-Konstant/Stinger/Warrior matrix, Stealth+Insult regressions, differentials | covered |
+| `BMC_Die::OnApplyAttackPlayer` Berserk, Mighty, Weak, Morphing, Turbo, Warrior and Ornery scheduling | `ApplyAttackPlayerEffects`, cached attack-phase available boundary | PR #82 participating/nonparticipating Ornery, Morphing/Twin/Speed, Turbo, Warrior tests | covered |
+| `OnBeforeRollInGame`, nature rerolls, Mood, and Trip's single before-roll pass | `ApplyBeforeRollEffects`, `ApplyMood`, `ApplyAttackerNatureRoll`, `RollScheduledDie` | PR #82 Trip/Chance/Ornery/Konstant effect and pass tests plus seeded differentials | covered |
 | captured Null/Value mutation and scoring | target mutation in `ApplyAttackForPlayers` before captured score | property score tests and combined seeded differential | covered |
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
@@ -163,6 +191,13 @@ TODO upstream but both engines enforce its existing no-Skill-attack behavior.
 - [x] Clean C++ upstream test suite passes: 48/48 registered on 2026-08-26,
   with the one disabled developer fixture and two NDEBUG assertion deaths
   reported as the expected skips.
+- [x] Konstant PR #82 C++ reference at `4813530` passes all 108 registered
+  tests on 2026-08-27; the disabled developer fixture and two release-only
+  assertion deaths remain the three expected skips.
+- [x] Against the PR #82 reference, all 24 `*in*.txt` fixtures (including
+  `bug105372_in.txt`) pass the material-output differential in 826.45 seconds,
+  the representative raw RNG stream gate in 157.17 seconds, and the exhaustive
+  RNG count/fingerprint gate in 901.65 seconds on 2026-08-27.
 - [x] Full release C++/Rust fixture and added differential suite passes
   after the Value lifecycle correction (1,208.03 seconds on 2026-08-27).
 - [x] Worktree committed locally and not pushed.

@@ -243,7 +243,7 @@ pub struct BMC_Move {
 }
 
 impl BMC_Move {
-    fn attack(
+    pub(crate) fn attack(
         kind: BME_ATTACK,
         attackers: impl Into<BMC_DieIndexSet>,
         targets: impl Into<BMC_DieIndexSet>,
@@ -448,6 +448,72 @@ impl BMC_DieIndexStack {
     }
 }
 
+fn DieCount(die: &BMC_Die) -> i32 {
+    if die.HasProperty(property::TWIN) {
+        2
+    } else {
+        1
+    }
+}
+
+/// Port of PR #82's signed-Konstant `BMC_Game::ValidAttack` calculation.
+/// For one sign assignment, non-Warrior Stinger values form a continuous
+/// interval. Konstant dice may contribute either sign unless they are Warrior.
+fn SkillStackCanHit(
+    stack: &BMC_DieIndexStack,
+    available: &BMC_AvailableDice<'_>,
+    target: u16,
+) -> bool {
+    let subtractable = stack
+        .values()
+        .iter()
+        .filter(|position| {
+            let die = available[**position].1;
+            die.HasProperty(property::KONSTANT) && !die.HasProperty(property::WARRIOR)
+        })
+        .count();
+
+    for signs in 0..(1usize << subtractable) {
+        let mut minimum = 0i32;
+        let mut maximum = 0i32;
+        let mut sign_bit = 0usize;
+        for position in stack.values() {
+            let die = available[*position].1;
+            let value = i32::from(die.GetValueTotal());
+            let is_konstant = die.HasProperty(property::KONSTANT);
+            let variable_stinger =
+                die.HasProperty(property::STINGER) && !die.HasProperty(property::WARRIOR);
+            let term_minimum = if variable_stinger {
+                DieCount(die)
+            } else {
+                value
+            };
+
+            if is_konstant {
+                let may_subtract = !die.HasProperty(property::WARRIOR);
+                let subtract = may_subtract && signs & (1 << sign_bit) != 0;
+                if may_subtract {
+                    sign_bit += 1;
+                }
+                if subtract {
+                    minimum -= value;
+                    maximum -= term_minimum;
+                } else {
+                    minimum += term_minimum;
+                    maximum += value;
+                }
+            } else {
+                minimum += term_minimum;
+                maximum += value;
+            }
+        }
+        if i32::from(target) >= minimum && i32::from(target) <= maximum {
+            return true;
+        }
+    }
+    false
+}
+
 impl Default for BMC_Game {
     fn default() -> Self {
         Self {
@@ -482,188 +548,6 @@ impl BMC_Game {
         crate::simulation::RecoverDizzyDice(&mut self.m_player[player]);
     }
 
-    fn GenerateValidAttackCandidates(&self) -> Vec<BMC_Move> {
-        let attacker = &self.m_player[0];
-        let target = &self.m_player[1];
-        let available: Vec<_> = attacker
-            .m_die
-            .iter()
-            .enumerate()
-            .filter(|(_, d)| d.IsAvailable())
-            .collect();
-        let targets: Vec<_> = target
-            .m_die
-            .iter()
-            .enumerate()
-            .filter(|(_, d)| d.IsAvailable())
-            .collect();
-        let mut moves = Vec::new();
-
-        for (ai, a) in &available {
-            for (ti, t) in &targets {
-                if a.CanDoAttack(BME_ATTACK::POWER, 1)
-                    && t.CanBeAttacked(BME_ATTACK::POWER, 1)
-                    && a.GetValueTotal() >= t.GetValueTotal()
-                {
-                    // BMAI rollouts strongly prefer preserving Value dice because their
-                    // next roll changes their retained score; reflect that in move ordering.
-                    let value_reroll_cost = if a.HasProperty(property::VALUE) {
-                        a.GetValueTotal() as f32 * 0.02
-                    } else {
-                        0.0
-                    };
-                    let score = t.GetScore(false) - value_reroll_cost;
-                    moves.push(BMC_Move::attack(
-                        BME_ATTACK::POWER,
-                        vec![*ai],
-                        vec![*ti],
-                        score,
-                    ));
-                }
-                if a.CanDoAttack(BME_ATTACK::SHADOW, 1)
-                    && t.CanBeAttacked(BME_ATTACK::SHADOW, 1)
-                    && a.GetValueTotal() <= t.GetValueTotal()
-                    && a.GetSidesMax() >= t.GetValueTotal()
-                {
-                    moves.push(BMC_Move::attack(
-                        BME_ATTACK::SHADOW,
-                        vec![*ai],
-                        vec![*ti],
-                        t.GetScore(false),
-                    ));
-                }
-                if a.CanDoAttack(BME_ATTACK::TRIP, 1)
-                    && t.CanBeAttacked(BME_ATTACK::TRIP, 1)
-                    && !(!a.HasProperty(property::TWIN) && t.HasProperty(property::TWIN))
-                {
-                    moves.push(BMC_Move::attack(
-                        BME_ATTACK::TRIP,
-                        vec![*ai],
-                        vec![*ti],
-                        t.GetScore(false) * 0.2,
-                    ));
-                }
-            }
-
-            for attack in [BME_ATTACK::BERSERK, BME_ATTACK::SPEED] {
-                if !a.CanDoAttack(attack, 1) {
-                    continue;
-                }
-                for mask in 1usize..(1usize << targets.len()) {
-                    let chosen: Vec<_> = (0..targets.len())
-                        .filter(|bit| mask & (1 << bit) != 0)
-                        .collect();
-                    let sum: u16 = chosen
-                        .iter()
-                        .map(|bit| targets[*bit].1.GetValueTotal())
-                        .sum();
-                    if sum != a.GetValueTotal()
-                        || chosen
-                            .iter()
-                            .any(|bit| !targets[*bit].1.CanBeAttacked(attack, 1))
-                    {
-                        continue;
-                    }
-                    let target_indices =
-                        chosen.iter().map(|bit| targets[*bit].0).collect::<Vec<_>>();
-                    let score = chosen
-                        .iter()
-                        .map(|bit| targets[*bit].1.GetScore(false))
-                        .sum();
-                    moves.push(BMC_Move::attack(attack, vec![*ai], target_indices, score));
-                }
-            }
-        }
-
-        // Skill attacks are subset sums. Preserve C++ enumeration preference by mask, then target.
-        let n = available.len();
-        for mask in 1usize..(1usize << n) {
-            let chosen: Vec<_> = (0..n).filter(|bit| mask & (1 << bit) != 0).collect();
-            if chosen.iter().any(|bit| {
-                !available[*bit]
-                    .1
-                    .CanDoAttack(BME_ATTACK::SKILL, chosen.len())
-            }) {
-                continue;
-            }
-            let sum: u16 = chosen
-                .iter()
-                .map(|bit| available[*bit].1.GetValueTotal())
-                .sum();
-            // BMC_DieIndexStack does not grow a Skill stack after its current
-            // value reaches the largest target. This is observable with
-            // Stinger: although a larger stack could express a lower value,
-            // C++ never enumerates it once the anchor alone reaches the cap.
-            if chosen.len() > 1 {
-                let target_max = targets
-                    .iter()
-                    .map(|(_, die)| die.GetValueTotal())
-                    .max()
-                    .unwrap_or(0);
-                let mut prefix = 0;
-                let mut pruned_by_cpp_stack = false;
-                for bit in chosen.iter().take(chosen.len() - 1) {
-                    prefix += available[*bit].1.GetValueTotal();
-                    if prefix >= target_max {
-                        pruned_by_cpp_stack = true;
-                        break;
-                    }
-                }
-                if pruned_by_cpp_stack {
-                    continue;
-                }
-            }
-            let minimum: u16 = chosen
-                .iter()
-                .map(|bit| {
-                    let die = available[*bit].1;
-                    if die.HasProperty(property::STINGER) {
-                        1
-                    } else {
-                        die.GetValueTotal()
-                    }
-                })
-                .sum();
-            let has_stinger = chosen
-                .iter()
-                .any(|bit| available[*bit].1.HasProperty(property::STINGER));
-            let warriors = chosen
-                .iter()
-                .filter(|bit| available[**bit].1.HasProperty(property::WARRIOR))
-                .count();
-            let has_konstant = chosen
-                .iter()
-                .any(|bit| available[*bit].1.HasProperty(property::KONSTANT));
-            if warriors > 1 || chosen.len() < 2 && has_konstant {
-                continue;
-            }
-            for (ti, t) in &targets {
-                let exact_match = sum == t.GetValueTotal();
-                let stinger_match = chosen.len() > 1
-                    && has_stinger
-                    && t.GetValueTotal() >= minimum
-                    && t.GetValueTotal() <= sum;
-                if (exact_match || stinger_match)
-                    && t.CanBeAttacked(BME_ATTACK::SKILL, chosen.len())
-                {
-                    let mut attackers: Vec<_> =
-                        chosen.iter().map(|bit| available[*bit].0).collect();
-                    attackers.sort_by_key(|index| {
-                        std::cmp::Reverse(attacker.m_die[*index].GetValueTotal())
-                    });
-                    moves.push(BMC_Move::attack(
-                        BME_ATTACK::SKILL,
-                        attackers,
-                        vec![*ti],
-                        t.GetScore(false),
-                    ));
-                }
-            }
-        }
-
-        moves
-    }
-
     fn GenerateValidAttackCandidatesInCppOrder(&self) -> Vec<BMC_Move> {
         let attacker = &self.m_player[0];
         let target = &self.m_player[1];
@@ -671,9 +555,10 @@ impl BMC_Game {
         let targets = BMC_AvailableDice::new(target);
         let target_max = targets.first().map_or(0, |(_, die)| die.GetValueTotal());
         let target_min = targets.last().map_or(0, |(_, die)| die.GetValueTotal());
-        let has_stinger = available
-            .iter()
-            .any(|(_, die)| die.HasProperty(property::STINGER));
+        let player_has_variable_skill_value = available.iter().any(|(_, die)| {
+            !die.HasProperty(property::WARRIOR)
+                && die.HasProperty(property::STINGER | property::KONSTANT)
+        });
         let mut moves = Vec::with_capacity(32);
         for attacker_position in 0..available.len() {
             let (attacker_index, attacker_die) = available[attacker_position];
@@ -753,6 +638,16 @@ impl BMC_Game {
                                     .1
                                     .HasProperty(property::KONSTANT);
                             if dice_legal && warriors <= 1 && !single_konstant {
+                                let stack_has_stinger = stack.values().iter().any(|position| {
+                                    let die = available[*position].1;
+                                    !die.HasProperty(property::WARRIOR)
+                                        && die.HasProperty(property::STINGER)
+                                });
+                                let stack_has_konstant = stack.values().iter().any(|position| {
+                                    let die = available[*position].1;
+                                    !die.HasProperty(property::WARRIOR)
+                                        && die.HasProperty(property::KONSTANT)
+                                });
                                 let minimum = stack
                                     .values()
                                     .iter()
@@ -765,16 +660,31 @@ impl BMC_Game {
                                         }
                                     })
                                     .sum::<u16>();
+                                let flexible_stinger =
+                                    stack_has_stinger && !stack_has_konstant && stack_len > 1;
                                 for (target_index, target_die) in targets.iter() {
-                                    if target_die.GetValueTotal() < minimum {
+                                    if flexible_stinger && target_die.GetValueTotal() < minimum {
                                         break;
                                     }
-                                    let matches = if has_stinger && stack_len > 1 {
+                                    if !stack_has_konstant
+                                        && !flexible_stinger
+                                        && target_die.GetValueTotal() < stack.value_total
+                                    {
+                                        break;
+                                    }
+                                    let candidate_value = if stack_has_konstant {
+                                        true
+                                    } else if flexible_stinger {
                                         target_die.GetValueTotal() <= stack.value_total
                                     } else {
                                         target_die.GetValueTotal() == stack.value_total
                                     };
-                                    if matches
+                                    if candidate_value
+                                        && SkillStackCanHit(
+                                            &stack,
+                                            &available,
+                                            target_die.GetValueTotal(),
+                                        )
                                         && target_die.CanBeAttacked(BME_ATTACK::SKILL, stack_len)
                                     {
                                         moves.push(BMC_Move::attack(
@@ -790,10 +700,15 @@ impl BMC_Game {
                                     }
                                 }
                             }
-                            if stack.len == available.len() && stack.value_total <= target_min {
+                            if !player_has_variable_skill_value
+                                && stack.len == available.len()
+                                && stack.value_total <= target_min
+                            {
                                 break;
                             }
-                            let finished = if stack.value_total >= target_max {
+                            let finished = if !player_has_variable_skill_value
+                                && stack.value_total >= target_max
+                            {
                                 stack.cycle(false, &available)
                             } else {
                                 stack.cycle(true, &available)
@@ -855,7 +770,9 @@ impl BMC_Game {
     }
 
     pub fn GenerateValidAttacks(&self) -> Vec<BMC_Move> {
-        let mut moves = self.GenerateValidAttackCandidates();
+        // Use the direct C++ enumeration for the complete candidate set, then
+        // retain this API's historical score ordering for QAI/protocol users.
+        let mut moves = self.GenerateValidAttackCandidatesInCppOrder();
         moves.sort_by(|a, b| {
             b.m_score
                 .total_cmp(&a.m_score)
@@ -1060,6 +977,343 @@ mod tests {
             .collect()
     }
 
+    fn valued_die(value: i32, properties: u64, original_index: usize) -> BMC_Die {
+        let mut result = die(properties);
+        result.m_sides[0] = value.max(1) as u8;
+        result.m_value_total = Some(value as u8);
+        result.m_original_index = original_index;
+        result
+    }
+
+    fn has_skill(game: &BMC_Game, attackers: &[usize], target: usize) -> bool {
+        let expected: BMC_DieIndexSet = attackers.iter().copied().collect();
+        game.GenerateValidAttacks().iter().any(|action| {
+            action.m_attack == Some(BME_ATTACK::SKILL)
+                && action.m_attackers == expected
+                && action.m_targets.first() == Some(target)
+        })
+    }
+
+    /// Ports PR #82's signed-Konstant and Stinger/Warrior skill matrix.
+    #[test]
+    fn pr82_signed_konstant_skill_attack_matrix() {
+        const K: u64 = property::KONSTANT;
+        const G: u64 = property::STINGER;
+        const W: u64 = property::WARRIOR;
+        const M: u64 = property::MAXIMUM;
+
+        struct Case {
+            name: &'static str,
+            dice: &'static [(i32, u64)],
+            target: i32,
+            target_properties: u64,
+            selected: &'static [usize],
+            expected: bool,
+        }
+
+        let cases = [
+            Case {
+                name: "KonstantMultiDieSkillAttackWithSubtraction",
+                dice: &[(1, M | K), (1, M | K), (3, M | K)],
+                target: 3,
+                target_properties: 0,
+                selected: &[0, 1, 2],
+                expected: true,
+            },
+            Case {
+                name: "KonstantMixedMultiDieSkillAttackWithSubtraction",
+                dice: &[(8, 0), (1, M | K)],
+                target: 7,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "KonstantMultiDieSkillAttackNoMatchingAssignment",
+                dice: &[(1, M | K), (1, M | K), (3, M | K)],
+                target: 6,
+                target_properties: 0,
+                selected: &[0, 1, 2],
+                expected: false,
+            },
+            Case {
+                name: "KonstantWarriorCannotSubtractInSkillAttack",
+                dice: &[(3, W | K), (5, M | K)],
+                target: 2,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "OnlyOneWarriorMayParticipateInSkillAttack",
+                dice: &[(5, 0), (2, W | K), (3, W | K)],
+                target: 10,
+                target_properties: property::STEALTH,
+                selected: &[0, 1, 2],
+                expected: false,
+            },
+            Case {
+                name: "KonstantMultiDieSkillAttackWithoutSubtraction",
+                dice: &[(1, M | K), (2, M | K)],
+                target: 3,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "KonstantSkillAttackWithUnusedStingerInPool",
+                dice: &[(5, 0), (2, M | K), (3, M | K), (6, G)],
+                target: 4,
+                target_properties: 0,
+                selected: &[0, 1, 2],
+                expected: true,
+            },
+            Case {
+                name: "StingerAndKonstantBothInAttack",
+                dice: &[(6, G), (3, M | K)],
+                target: 7,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerAndKonstantWithSubtraction",
+                dice: &[(8, G), (5, M | K)],
+                target: 3,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerSkillAttackInRange",
+                dice: &[(4, 0), (6, G)],
+                target: 7,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerSkillAttackAtMinimumRange",
+                dice: &[(4, 0), (6, G)],
+                target: 5,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerSkillAttackAtMaximumRange",
+                dice: &[(4, 0), (6, G)],
+                target: 10,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerSkillAttackBelowRange",
+                dice: &[(4, 0), (6, G)],
+                target: 4,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "TwoStingersSkillAttackRange",
+                dice: &[(10, G), (10, G)],
+                target: 2,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "TwoStingersCannotHitBelowMinimum",
+                dice: &[(10, G), (10, G)],
+                target: 1,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "StingerAtValueOneHasNoFlexibility",
+                dice: &[(4, 0), (1, G)],
+                target: 5,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerAtValueOneCannotHitLowerTarget",
+                dice: &[(4, 0), (1, G)],
+                target: 4,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "NormalStingerKonstantThreeDieAttack",
+                dice: &[(4, 0), (6, G), (3, M | K)],
+                target: 5,
+                target_properties: 0,
+                selected: &[0, 1, 2],
+                expected: true,
+            },
+            Case {
+                name: "KonstantWarriorCanAddInSkillAttack",
+                dice: &[(5, 0), (3, W | K)],
+                target: 8,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerWarriorMustUseFullValue",
+                dice: &[(4, 0), (6, W | G)],
+                target: 7,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "StingerWarriorAtFullValueIsValid",
+                dice: &[(4, 0), (6, W | G)],
+                target: 10,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerAndKonstantCombinedFlexibility",
+                dice: &[(8, G), (5, M | K)],
+                target: 2,
+                target_properties: 0,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerKonstantOnSameDieWithSubtraction",
+                dice: &[(4, 0), (5, G | K)],
+                target: 2,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerKonstantOnSameDieWithAddition",
+                dice: &[(4, 0), (5, G | K)],
+                target: 6,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerKonstantOnSameDieCannotHitGapBetweenSigns",
+                dice: &[(4, 0), (5, G | K)],
+                target: 4,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "TwoStingerKonstantDiceCannotHitGapBetweenSignedValues",
+                dice: &[(1, G | K), (1, G | K)],
+                target: 1,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "StingerWithKonstantWarriorUsesStingerFlexibility",
+                dice: &[(6, G), (3, W | K)],
+                target: 7,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerWarriorWithKonstantUsesKonstantSubtraction",
+                dice: &[(6, W | G), (3, M | K)],
+                target: 3,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerKonstantWarriorUsesFullPositiveValue",
+                dice: &[(4, 0), (5, W | G | K)],
+                target: 9,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: true,
+            },
+            Case {
+                name: "StingerKonstantWarriorCannotUsePartialValue",
+                dice: &[(4, 0), (5, W | G | K)],
+                target: 6,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: false,
+            },
+            Case {
+                name: "StingerKonstantWarriorCannotSubtract",
+                dice: &[(4, 0), (5, W | G | K)],
+                target: 2,
+                target_properties: property::STEALTH,
+                selected: &[0, 1],
+                expected: false,
+            },
+        ];
+
+        for case in cases {
+            let attacker = case
+                .dice
+                .iter()
+                .enumerate()
+                .map(|(index, &(value, properties))| valued_die(value, properties, index))
+                .collect();
+            let game = game_with(
+                attacker,
+                vec![valued_die(case.target, case.target_properties, 0)],
+            );
+            assert_eq!(
+                has_skill(&game, case.selected, 0),
+                case.expected,
+                "{}",
+                case.name
+            );
+        }
+
+        for target in [10, 4, 6, 0] {
+            let game = game_with(
+                vec![
+                    valued_die(5, 0, 0),
+                    valued_die(2, M | K, 1),
+                    valued_die(3, M | K, 2),
+                ],
+                vec![valued_die(target, property::STEALTH, 0)],
+            );
+            assert!(has_skill(&game, &[0, 1, 2], 0), "signed target {target}");
+        }
+
+        let ten = (1..=10)
+            .enumerate()
+            .map(|(index, value)| valued_die(value, K, index))
+            .collect();
+        assert!(has_skill(
+            &game_with(ten, vec![valued_die(53, 0, 0)]),
+            &(0..10).collect::<Vec<_>>(),
+            0
+        ));
+
+        let game = game_with(
+            vec![valued_die(8, 0, 0), valued_die(1, M | K, 1)],
+            vec![
+                valued_die(8, property::STEALTH, 0),
+                valued_die(7, property::STEALTH, 1),
+            ],
+        );
+        assert!(!has_skill(&game, &[0, 1], 0));
+        assert!(has_skill(&game, &[0, 1], 1));
+    }
+
     /// Port of PlayerTests.CopyConstructor.
     #[test]
     fn cpp_player_copy_constructor_is_independent() {
@@ -1254,7 +1508,7 @@ mod tests {
     }
 
     #[test]
-    fn cpp_stinger_skill_stack_prunes_after_reaching_target() {
+    fn pr82_variable_skill_stack_disables_legacy_value_pruning() {
         let mut stinger = die(property::STINGER);
         stinger.m_value_total = Some(5);
         let mut three = die(0);
@@ -1271,7 +1525,7 @@ mod tests {
             BME_ATTACK::SKILL,
         );
         assert!(skill.iter().any(|action| action.m_attackers.len() == 2));
-        assert!(!skill.iter().any(|action| action.m_attackers.len() == 3));
+        assert!(skill.iter().any(|action| action.m_attackers.len() == 3));
     }
 
     /// Ports SpeedSkill and the score assertions from Maximum, Null, Value,

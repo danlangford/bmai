@@ -1043,6 +1043,10 @@ Seeding with 17\n"
                 "action\nskill\n3 0 1\n2\n",
             ),
             (
+                include_str!("../tests/fixtures/bug105372_in.txt"),
+                "action\nskill\n2 1 0\n0\n",
+            ),
+            (
                 include_str!("../tests/fixtures/SurrenderDefault-Pass-in.txt"),
                 "action\nsurrender\n",
             ),

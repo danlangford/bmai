@@ -683,10 +683,12 @@ fn ApplyChanceMove(
         return (previous_initiative, false);
     }
     for index in &action.reroll {
-        let die = &mut game.m_player[player].m_die[*index];
-        if !die.HasProperty(property::KONSTANT) {
-            die.m_notset = true;
-            RollDie(die, rng);
+        if !game.m_player[player].m_die[*index].HasProperty(property::KONSTANT) {
+            game.m_player[player].m_die[*index].m_notset = true;
+        }
+        ApplyBeforeRollEffects(game, player, *index);
+        if game.m_player[player].m_die[*index].m_notset {
+            RollScheduledDie(game, player, *index, rng);
         }
     }
     game.m_player[player].OptimizeDice();
@@ -1625,6 +1627,9 @@ fn ApplyAttackForPlayers(
     target_player: usize,
     rng: &mut BMC_RNG,
 ) -> bool {
+    // C++ GetAvailableDice() is a cached boundary and does not shrink merely
+    // because an attacker is marked NOTSET during this phase.
+    let available_attackers = AvailableDice(&game.m_player[attacker_player]);
     let is_trip = action.m_attack == Some(BME_ATTACK::TRIP);
     let null_attacker = action
         .m_attackers
@@ -1644,42 +1649,43 @@ fn ApplyAttackForPlayers(
         let target = action.m_targets.first().expect("Trip target");
         if !game.m_player[target_player].m_die[target].HasProperty(property::KONSTANT) {
             game.m_player[target_player].m_die[target].m_notset = true;
-            ApplyBeforeRollEffects(game, target_player, target);
+        }
+        ApplyBeforeRollEffects(game, target_player, target);
+    }
+
+    // C++ handles Ornery dice that were not already scheduled by the attack.
+    if action.m_attack.is_some() {
+        for attacker in 0..available_attackers {
+            let die = &game.m_player[attacker_player].m_die[attacker];
+            if !die.HasProperty(property::ORNERY) || die.m_notset {
+                continue;
+            }
+            if !die.HasProperty(property::KONSTANT) {
+                game.m_player[attacker_player].m_die[attacker].m_notset = true;
+            }
+            ApplyBeforeRollEffects(game, attacker_player, attacker);
         }
     }
 
-    // C++ calls OnApplyAttackPlayer a second time for every Ornery die,
-    // including one that was already an actual attacker.
-    let ornery = game.m_player[attacker_player]
-        .m_die
-        .iter()
-        .enumerate()
-        .filter_map(|(index, die)| {
-            ((die.IsAvailable() || action.m_attackers.contains(index))
-                && die.HasProperty(property::ORNERY))
-            .then_some(index)
-        })
-        .collect::<Vec<_>>();
-    for attacker in ornery {
-        ApplyAttackPlayerEffects(
-            game,
-            action,
-            attacker_player,
-            target_player,
-            attacker,
-            false,
-        );
-    }
-
-    if is_trip {
-        let attacker = action.m_attackers.first().expect("Trip attacker");
-        let target = action.m_targets.first().expect("Trip target");
+    // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
+    // that did not participate, and finally a Trip target.
+    for attacker in actual_attackers.iter() {
         ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
-        if !game.m_player[target_player].m_die[target].HasProperty(property::KONSTANT) {
-            game.m_player[target_player].m_die[target].m_notset = true;
-            ApplyBeforeRollEffects(game, target_player, target);
+    }
+    if action.m_attack.is_some() {
+        for attacker in 0..available_attackers {
+            let die = &game.m_player[attacker_player].m_die[attacker];
+            if die.HasProperty(property::ORNERY) && !actual_attackers.contains(attacker) {
+                ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
+            }
+        }
+    }
+    if is_trip {
+        let target = action.m_targets.first().expect("Trip target");
+        if game.m_player[target_player].m_die[target].m_notset {
             RollScheduledDie(game, target_player, target, rng);
         }
+        let attacker = action.m_attackers.first().expect("Trip attacker");
         if game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal()
         {
@@ -1703,14 +1709,11 @@ fn ApplyAttackForPlayers(
         game.m_player[attacker_player].m_score += captured_score;
         OnDieLost(&mut game.m_player[target_player], target);
     }
-    if !is_trip {
-        for attacker in actual_attackers.iter() {
-            ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
-        }
-    }
     let extra_turn = action.m_attackers.iter().any(|index| {
         let die = &game.m_player[attacker_player].m_die[index];
-        die.HasProperty(property::TIME_AND_SPACE) && die.GetValueTotal() % 2 == 1
+        die.HasProperty(property::TIME_AND_SPACE)
+            && !die.HasProperty(property::KONSTANT)
+            && die.GetValueTotal() % 2 == 1
     });
     OptimizeDice(&mut game.m_player[attacker_player]);
     extra_turn
@@ -1967,7 +1970,7 @@ fn SwingRange(swing: char) -> (u8, u8) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::model::{BMC_Die, BMC_Player};
+    use crate::model::{BMC_Die, BMC_DieIndexSet, BMC_Player};
 
     fn swing_die(swing: char, properties: u64, original_index: usize) -> BMC_Die {
         BMC_Die {
@@ -2043,31 +2046,28 @@ mod tests {
     }
 
     #[test]
-    fn trip_target_receives_both_cpp_before_roll_passes() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::TRIP | property::KONSTANT, 0);
-        attacker.m_sides[0] = 4;
-        attacker.m_value_total = Some(1);
-        game.m_player[0].m_die = vec![attacker];
-        let mut target = swing_die('P', property::WEAK, 0);
-        target.m_sides[0] = 20;
-        target.m_value_total = Some(20);
-        game.m_player[1].m_die = vec![target];
-        let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::TRIP),
-            m_attackers: vec![0].into(),
-            m_targets: vec![0].into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-        };
+    fn pr82_trip_target_before_roll_effect_triggers_once() {
+        for (effect, starting_sides, expected_sides) in
+            [(property::MIGHTY, 6, 8), (property::WEAK, 20, 16)]
+        {
+            let mut game = BMC_Game::default();
+            let mut attacker = swing_die('P', property::TRIP | property::KONSTANT, 0);
+            attacker.m_sides[0] = 4;
+            attacker.m_value_total = Some(1);
+            game.m_player[0].m_die = vec![attacker];
+            let mut target = swing_die('P', effect, 0);
+            target.m_sides[0] = starting_sides;
+            target.m_value_total = Some(starting_sides);
+            game.m_player[1].m_die = vec![target];
+            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
 
-        ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
-        assert_eq!(game.m_player[1].m_die[0].m_sides[0], 12);
+            ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+            assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
+        }
     }
 
     #[test]
-    fn attacked_ornery_die_receives_the_second_cpp_player_effect_pass() {
+    fn pr82_participating_ornery_before_roll_effect_triggers_once() {
         let mut game = BMC_Game::default();
         let mut attacker = swing_die('P', property::ORNERY | property::MIGHTY, 0);
         attacker.m_sides[0] = 4;
@@ -2087,6 +2087,26 @@ mod tests {
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+        assert_eq!(game.m_player[0].m_die[0].m_sides[0], 6);
+    }
+
+    /// Ports OrdinarySideChangeInvalidatesValue through the attack-side-change
+    /// path that owns the corresponding lifecycle transition in Rust.
+    #[test]
+    fn pr82_ordinary_side_change_invalidates_value() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::MIGHTY, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(3);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+
+        ApplyAttackPlayerEffects(&mut game, &action, 0, 1, 0, true);
+        assert!(game.m_player[0].m_die[0].m_notset);
         assert_eq!(game.m_player[0].m_die[0].m_sides[0], 8);
     }
 
@@ -2390,5 +2410,299 @@ mod tests {
                 expected[1] > 0
             );
         }
+    }
+
+    /// Ports PR #82's Chance Mighty/Weak/Maximum Konstant regressions.
+    #[test]
+    fn pr82_chance_effects_run_once_while_konstant_retains_value() {
+        for (properties, expected_sides) in [
+            (property::MIGHTY, 8),
+            (property::WEAK, 4),
+            (property::MAXIMUM, 6),
+        ] {
+            let mut game = BMC_Game::default();
+            let mut chance = swing_die('P', property::CHANCE | property::KONSTANT | properties, 0);
+            chance.m_sides[0] = 6;
+            chance.m_value_total = Some(3);
+            game.m_player[0].m_die = vec![chance];
+            let mut opponent = swing_die('P', 0, 0);
+            opponent.m_sides[0] = 20;
+            opponent.m_value_total = Some(20);
+            game.m_player[1].m_die = vec![opponent];
+
+            let mut rng = BMC_RNG::default();
+            rng.SRand(1);
+            ApplyChanceMove(&mut game, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
+            assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 3);
+            assert_eq!(game.m_player[0].m_die[0].m_sides[0], expected_sides);
+        }
+
+        for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
+            let mut game = BMC_Game::default();
+            let mut chance = swing_die('P', property::CHANCE | effect, 0);
+            chance.m_sides[0] = 6;
+            chance.m_value_total = Some(1);
+            game.m_player[0].m_die = vec![chance];
+            let mut opponent = swing_die('P', 0, 0);
+            opponent.m_sides[0] = 20;
+            opponent.m_value_total = Some(20);
+            game.m_player[1].m_die = vec![opponent];
+            let mut rng = BMC_RNG::default();
+            rng.SRand(1);
+            ApplyChanceMove(&mut game, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
+            assert_eq!(game.m_player[0].m_die[0].m_sides[0], expected_sides);
+        }
+    }
+
+    /// Ports the PR #82 Konstant Trip Mighty/Weak cases.
+    #[test]
+    fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
+        for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
+            let mut game = BMC_Game::default();
+            let mut attacker = swing_die('P', property::TRIP, 0);
+            attacker.m_sides[0] = 6;
+            attacker.m_value_total = Some(6);
+            let mut target = swing_die('P', property::KONSTANT | effect, 0);
+            target.m_sides[0] = 6;
+            target.m_value_total = Some(3);
+            game.m_player[0].m_die = vec![attacker];
+            game.m_player[1].m_die = vec![target];
+            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+
+            let mut rng = BMC_RNG::default();
+            rng.SRand(1);
+            ApplyAttack(&mut game, &action, &mut rng);
+            assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
+            assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
+        }
+    }
+
+    /// Ports KonstantOrneryMighty/Weak and NonparticipatingOrneryDieRerolls.
+    #[test]
+    fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
+        for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
+            let mut game = BMC_Game::default();
+            let mut attacker = swing_die('P', 0, 0);
+            attacker.m_sides[0] = 6;
+            attacker.m_value_total = Some(6);
+            let mut ornery = swing_die('P', property::ORNERY | property::KONSTANT | effect, 1);
+            ornery.m_sides[0] = 6;
+            ornery.m_value_total = Some(3);
+            let mut target = swing_die('P', 0, 0);
+            target.m_sides[0] = 1;
+            target.m_value_total = Some(1);
+            game.m_player[0].m_die = vec![attacker, ornery];
+            game.m_player[1].m_die = vec![target];
+
+            ApplyAttack(
+                &mut game,
+                &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+                &mut BMC_RNG::default(),
+            );
+            let ornery = game.m_player[0]
+                .m_die
+                .iter()
+                .find(|die| die.m_original_index == 1)
+                .unwrap();
+            assert_eq!(ornery.GetValueTotal(), 3);
+            assert_eq!(ornery.m_sides[0], expected_sides);
+        }
+
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', 0, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut ornery = swing_die('P', property::ORNERY, 1);
+        ornery.m_sides[0] = 100;
+        ornery.m_value_total = Some(100);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker, ornery];
+        game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(1);
+        ApplyAttack(
+            &mut game,
+            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+            &mut rng,
+        );
+        let ornery = game.m_player[0]
+            .m_die
+            .iter()
+            .find(|die| die.m_original_index == 1)
+            .unwrap();
+        assert_ne!(ornery.GetValueTotal(), 100);
+    }
+
+    /// Ports OrneryMoodDoesNotChangeOnPass and the Konstant Mood attack case.
+    #[test]
+    fn pr82_ornery_mood_only_changes_on_an_attack() {
+        let mood_die = || {
+            let mut die = swing_die(
+                'X',
+                property::ORNERY | property::MOOD | property::KONSTANT,
+                0,
+            );
+            die.m_sides[0] = 6;
+            die.m_value_total = Some(3);
+            die
+        };
+
+        let mut pass_game = BMC_Game::default();
+        pass_game.m_player[0].m_die = vec![mood_die()];
+        ApplyAttack(
+            &mut pass_game,
+            &BMC_Move {
+                m_action: BME_ACTION::PASS,
+                m_attack: None,
+                m_attackers: BMC_DieIndexSet::default(),
+                m_targets: BMC_DieIndexSet::default(),
+                m_score: 0.0,
+                m_turbo_option: -1,
+            },
+            &mut BMC_RNG::default(),
+        );
+        assert_eq!(
+            (
+                pass_game.m_player[0].m_die[0].m_sides[0],
+                pass_game.m_player[0].m_die[0].GetValueTotal()
+            ),
+            (6, 3)
+        );
+
+        let mut attack_game = BMC_Game::default();
+        let mut attacker = swing_die('P', 0, 1);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        attack_game.m_player[0].m_die = vec![attacker, mood_die()];
+        attack_game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(3);
+        ApplyAttack(
+            &mut attack_game,
+            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+            &mut rng,
+        );
+        let mood = attack_game.m_player[0]
+            .m_die
+            .iter()
+            .find(|die| die.m_original_index == 0)
+            .unwrap();
+        assert_ne!(mood.m_sides[0], 6);
+        assert_eq!(mood.GetValueTotal(), 3);
+    }
+
+    /// Ports both Konstant Time-and-Space no-extra-turn cases.
+    #[test]
+    fn pr82_konstant_time_and_space_never_grants_extra_turn() {
+        for attack in [BME_ATTACK::TRIP, BME_ATTACK::SKILL] {
+            let mut game = BMC_Game::default();
+            let mut konstant = swing_die(
+                'P',
+                property::KONSTANT
+                    | property::TIME_AND_SPACE
+                    | if attack == BME_ATTACK::TRIP {
+                        property::TRIP
+                    } else {
+                        0
+                    },
+                0,
+            );
+            konstant.m_sides[0] = 6;
+            konstant.m_value_total = Some(3);
+            game.m_player[0].m_die = vec![konstant];
+            let mut target = swing_die('P', 0, 0);
+            target.m_sides[0] = 1;
+            target.m_value_total = Some(1);
+            game.m_player[1].m_die = vec![target];
+            let action = if attack == BME_ATTACK::TRIP {
+                BMC_Move::attack(attack, [0], [0], 0.0)
+            } else {
+                let mut ordinary = swing_die('P', 0, 1);
+                ordinary.m_sides[0] = 2;
+                ordinary.m_value_total = Some(2);
+                game.m_player[0].m_die.push(ordinary);
+                game.m_player[1].m_die[0].m_sides[0] = 5;
+                game.m_player[1].m_die[0].m_value_total = Some(5);
+                BMC_Move::attack(attack, [0, 1], [0], 0.0)
+            };
+            assert!(!ApplyAttack(&mut game, &action, &mut BMC_RNG::default()));
+        }
+    }
+
+    /// Ports TimeAndSpaceOddRerollGrantsExtraTurn.
+    #[test]
+    fn pr82_ordinary_time_and_space_uses_its_rerolled_value() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::TIME_AND_SPACE, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(1);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(3);
+        let extra_turn = ApplyAttack(
+            &mut game,
+            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+            &mut rng,
+        );
+        assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
+        assert!(extra_turn);
+    }
+
+    /// Ports the Konstant Morphing and Berserk side-change regressions.
+    #[test]
+    fn pr82_konstant_attack_side_changes_preserve_value() {
+        let mut morph_game = BMC_Game::default();
+        let mut morph = swing_die('P', property::MORPHING | property::KONSTANT, 0);
+        morph.m_sides[0] = 9;
+        morph.m_value_total = Some(6);
+        let mut ordinary = swing_die('P', 0, 1);
+        ordinary.m_sides[0] = 1;
+        ordinary.m_value_total = Some(1);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 7;
+        target.m_value_total = Some(7);
+        morph_game.m_player[0].m_die = vec![morph, ordinary];
+        morph_game.m_player[1].m_die = vec![target];
+        ApplyAttack(
+            &mut morph_game,
+            &BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0),
+            &mut BMC_RNG::default(),
+        );
+        let morph = morph_game.m_player[0]
+            .m_die
+            .iter()
+            .find(|die| die.m_original_index == 0)
+            .unwrap();
+        assert_eq!((morph.m_sides[0], morph.GetValueTotal()), (7, 6));
+
+        let mut berserk_game = BMC_Game::default();
+        let mut berserk = swing_die('P', property::BERSERK | property::KONSTANT, 0);
+        berserk.m_sides[0] = 9;
+        berserk.m_value_total = Some(8);
+        let mut first = swing_die('P', 0, 0);
+        first.m_sides[0] = 3;
+        first.m_value_total = Some(3);
+        let mut second = swing_die('P', 0, 1);
+        second.m_sides[0] = 5;
+        second.m_value_total = Some(5);
+        berserk_game.m_player[0].m_die = vec![berserk];
+        berserk_game.m_player[1].m_die = vec![first, second];
+        ApplyAttack(
+            &mut berserk_game,
+            &BMC_Move::attack(BME_ATTACK::BERSERK, [0], [0, 1], 0.0),
+            &mut BMC_RNG::default(),
+        );
+        let berserk = &berserk_game.m_player[0].m_die[0];
+        assert_eq!((berserk.m_sides[0], berserk.GetValueTotal()), (5, 8));
+        assert!(!berserk.HasProperty(property::BERSERK));
     }
 }
