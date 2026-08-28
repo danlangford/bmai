@@ -52,11 +52,27 @@ and completion order are therefore absent from the result.
    worker counts. Every direct phase has protocol-output equivalence coverage,
    fight has direct score and complete-match coverage, and the coordinator has
    test-only scheduling perturbation coverage.
-5. Benchmark the four representative fixtures and record CPU time, wall time,
-   peak memory, worker count, version, and complete replay key.
-6. Run paired native-versus-legacy matches with swapped player positions and
-   seeds. Define the sample size and confidence interval before inspecting the
-   result.
+5. **Implemented:** Benchmark the four representative fixtures and record CPU
+   time, wall time, peak memory, worker count, version, and complete replay key.
+   See `BENCHMARKS.md`; eight workers improve wall time by 1.73x to 3.59x, with
+   the large reserve case's 1.86GB peak RSS recorded as a limitation.
+6. **Implemented:** Run paired native-versus-legacy matches with swapped player
+   positions and seeds. `STRENGTH.md` preregistered the sample and interval,
+   then recorded noninferiority for the declared fixed matchup.
+
+## Validation evidence
+
+On 2026-08-28, the completed implementation passed 108 upstream PR #82 C++
+tests (three expected upstream skips), all Rust default tests, the parser error
+differential, the 487.65-second all-fixture material differential, the
+153.57-second representative raw RNG stream differential, and the 470.82-second
+exhaustive RNG count/fingerprint differential. The C++ oracle was PR #82 commit
+`4813530bca328231535c2c0853a7b239be064794`.
+
+Worker closures never print diagnostics. The coordinator marks scoped worker
+threads, and trace settings resolve to a quiet configuration there. Candidate
+scores and any diagnostics are reduced and emitted only in canonical order on
+the coordinating thread. Legacy logging and protocol output are unchanged.
 
 ## Explicit non-goals for the first experiment
 

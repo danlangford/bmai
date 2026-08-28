@@ -1352,6 +1352,9 @@ Seeding with 17\n"
         ];
 
         for (input, expected) in cases {
+            // Git may check text fixtures out with CRLF on Windows, while the
+            // protocol writer deliberately emits `\n` on every platform.
+            let expected = expected.replace("\r\n", "\n");
             for _ in 0..2 {
                 let mut output = Vec::new();
                 BMC_Parser::default()

@@ -66,6 +66,24 @@ struct TraceSettings {
 }
 
 fn TraceSettings() -> &'static TraceSettings {
+    static QUIET: TraceSettings = TraceSettings {
+        swing_list: false,
+        swing_candidate: false,
+        swing_sim: false,
+        swing_moves: false,
+        swing: false,
+        reserve: false,
+        chance: false,
+        focus: false,
+        bmai_attack: false,
+        attack_eval: false,
+        qai: false,
+        rng: false,
+        qai_moves: false,
+    };
+    if crate::native::native_worker_active() {
+        return &QUIET;
+    }
     static SETTINGS: OnceLock<TraceSettings> = OnceLock::new();
     SETTINGS.get_or_init(|| TraceSettings {
         swing_list: std::env::var_os("BMAIR_TRACE_SWING_LIST").is_some(),

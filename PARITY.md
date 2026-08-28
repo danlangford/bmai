@@ -204,6 +204,12 @@ TODO upstream but both engines enforce its existing no-Skill-attack behavior.
   `bug105372_in.txt`) pass the material-output differential in 826.45 seconds,
   the representative raw RNG stream gate in 157.17 seconds, and the exhaustive
   RNG count/fingerprint gate in 901.65 seconds on 2026-08-27.
+- [x] After native-mode parallel-search work, the legacy contract was rechecked
+  on 2026-08-28 against PR #82 reference `4813530`: all current input fixtures
+  passed material comparison in 487.65 seconds, representative raw RNG streams
+  matched in 153.57 seconds, and exhaustive RNG fingerprints matched in 470.82
+  seconds. Parser error parity and all 108 registered upstream tests also
+  passed, with the same three expected upstream skips.
 - [x] Full release C++/Rust fixture and added differential suite passes
   after the Value lifecycle correction (1,208.03 seconds on 2026-08-27).
 - [x] The `rust` branch through `ccc5ff5` is published with the complete parity

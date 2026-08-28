@@ -8,11 +8,21 @@
 //! replay boundary that native search can use to give every simulation an
 //! independent random stream, regardless of worker count or scheduling order.
 
+use std::cell::Cell;
+
 /// Identifies the stream-partitioning algorithm used by [`NativeSimulationKey`].
 ///
 /// Changing the derivation requires a new identifier so recorded searches can
 /// continue to be reproduced with their original semantics.
 pub const NATIVE_STREAM_PARTITION_ID: &str = "bmair-native-stream-v1";
+
+thread_local! {
+    static NATIVE_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
+}
+
+pub(crate) fn native_worker_active() -> bool {
+    NATIVE_WORKER_ACTIVE.get()
+}
 
 /// Selects the versioned native stream-partitioning contract.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -148,10 +158,13 @@ where
             .map(|assignment| {
                 let evaluate = &evaluate;
                 scope.spawn(move || {
-                    assignment
+                    NATIVE_WORKER_ACTIVE.set(true);
+                    let completed = assignment
                         .into_iter()
                         .map(|(index, task)| (index, evaluate(task)))
-                        .collect::<Vec<_>>()
+                        .collect::<Vec<_>>();
+                    NATIVE_WORKER_ACTIVE.set(false);
+                    completed
                 })
             })
             .collect::<Vec<_>>();
@@ -260,6 +273,16 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn worker_identity_is_scoped_to_parallel_evaluation() {
+        assert!(!native_worker_active());
+        assert_eq!(
+            ordered_parallel_map(vec![1, 2], 2, |_| native_worker_active()),
+            [true, true]
+        );
+        assert!(!native_worker_active());
     }
 
     fn expensive_test_mapping(value: u64) -> u64 {
