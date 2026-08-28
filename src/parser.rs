@@ -546,6 +546,7 @@ impl BMC_Parser {
                         &self.m_game,
                         self.m_rng.Algorithm(),
                         replay,
+                        self.m_native_workers,
                         &self.m_player_ai[0],
                     )
                 } else {
@@ -1328,6 +1329,23 @@ Seeding with 17\n"
                 assert_eq!(String::from_utf8(output).unwrap(), expected);
             }
         }
+    }
+
+    #[test]
+    fn native_reserve_is_worker_count_independent() {
+        let three_workers = include_str!("../tests/native-fixtures/reserve.txt");
+        let one_worker = three_workers.replace("workers 3", "workers 1");
+        let run = |input: &str| {
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(input, &mut output)
+                .unwrap();
+            String::from_utf8(output)
+                .unwrap()
+                .replace("Setting native workers to 1", "Setting native workers to N")
+                .replace("Setting native workers to 3", "Setting native workers to N")
+        };
+        assert_eq!(run(&one_worker), run(three_workers));
     }
 
     #[test]

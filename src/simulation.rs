@@ -690,6 +690,7 @@ pub(crate) fn SelectNativeBMAIReserveAction(
     game: &BMC_Game,
     rng_algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
+    workers: usize,
     ai: &BMC_BMAI3,
 ) -> Option<usize> {
     let reserve_indices = game.m_player[0]
@@ -699,27 +700,38 @@ pub(crate) fn SelectNativeBMAIReserveAction(
         .filter_map(|(index, die)| die.m_in_reserve.then_some(index))
         .collect::<Vec<_>>();
     let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
-    let mut best_score = -1.0f32;
-    let mut best = None;
-    let mut simulation = game.clone();
-
-    for (candidate_index, candidate) in reserve_indices
+    let candidates = reserve_indices
         .into_iter()
         .map(Some)
         .chain([None])
+        .collect::<Vec<_>>();
+    let tasks = candidates
+        .iter()
+        .copied()
         .enumerate()
-    {
-        let mut score = 0.0f32;
-        for simulation_index in 0..sims {
-            RestoreSimulation(&mut simulation, game);
+        .flat_map(|(candidate_index, candidate)| {
+            (0..sims).map(move |simulation_index| (candidate_index, candidate, simulation_index))
+        })
+        .collect();
+    let results = crate::native::ordered_parallel_map(
+        tasks,
+        workers,
+        |(candidate_index, candidate, simulation_index)| {
+            let mut simulation = game.clone();
             if let Some(index) = candidate {
                 ApplyUseReserve(&mut simulation.m_player[0].m_die[index]);
             }
             let mut simulation_rng =
                 NativeSimulationRng(rng_algorithm, replay, candidate_index, 0, simulation_index);
             let fight_level = PlayPreround(&mut simulation, &mut simulation_rng, ai, 2);
-            score += PlaySimulatedRound(&mut simulation, &mut simulation_rng, ai, fight_level, 0);
-        }
+            PlaySimulatedRound(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
+        },
+    );
+
+    let mut best_score = -1.0f32;
+    let mut best = None;
+    for (candidate, scores) in candidates.into_iter().zip(results.chunks_exact(sims)) {
+        let score = scores.iter().sum();
         if score > best_score {
             best_score = score;
             best = candidate;
