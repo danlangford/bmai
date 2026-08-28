@@ -1227,48 +1227,65 @@ fn SelectFocusAction(
         } else {
             sims - sims_run
         };
-        for (index, action) in moves.iter().enumerate() {
-            for simulation_index in 0..batch {
-                RestoreSimulation(&mut simulation, game);
-                let mut partitioned_rng = native.map(|context| {
-                    NativeSimulationRng(
+        let native_results = native.map(|context| {
+            let batch_index = if ai.m_cull_moves {
+                sims_run / ai.m_sims_per_check.max(1)
+            } else {
+                0
+            };
+            let tasks = moves
+                .iter()
+                .cloned()
+                .enumerate()
+                .flat_map(|(index, action)| {
+                    let candidate_index = candidate_indices.as_ref().unwrap()[index];
+                    (0..batch).map(move |simulation_index| {
+                        (action.clone(), candidate_index, simulation_index)
+                    })
+                })
+                .collect();
+            crate::native::ordered_parallel_map(
+                tasks,
+                context.workers,
+                |(action, candidate_index, simulation_index)| {
+                    let mut simulation = game.clone();
+                    let mut simulation_rng = NativeSimulationRng(
                         context.algorithm,
                         context.replay,
-                        candidate_indices
-                            .as_ref()
-                            .map_or(index, |indices| indices[index]),
-                        if ai.m_cull_moves {
-                            sims_run / ai.m_sims_per_check.max(1)
-                        } else {
-                            0
-                        },
+                        candidate_index,
+                        batch_index,
                         sims_run + simulation_index,
-                    )
-                });
-                let evaluation_rng = partitioned_rng.as_mut().unwrap_or(&mut *rng);
-                let phase = if action.values.is_empty() {
-                    initiative
-                } else {
-                    ApplyFocusMove(&mut simulation, player, action);
-                    player
-                };
-                scores[index] += if level >= ai.m_max_ply {
-                    PlayFightQAIFromPhase(&mut simulation, evaluation_rng, phase, player, false, ai)
-                } else {
-                    EvaluateNextInitiativeAction(
+                    );
+                    EvaluateFocusSimulation(
                         &mut simulation,
-                        evaluation_rng,
-                        ai,
-                        level + 1,
-                        phase,
                         player,
-                        if action.values.is_empty() {
-                            InitiativeStage::Fight
-                        } else {
-                            InitiativeStage::Focus
-                        },
+                        initiative,
+                        &action,
+                        &mut simulation_rng,
+                        ai,
+                        level,
                     )
-                };
+                },
+            )
+        });
+        for (index, action) in moves.iter().enumerate() {
+            if let Some(results) = &native_results {
+                scores[index] += results[index * batch..(index + 1) * batch]
+                    .iter()
+                    .sum::<f32>();
+            } else {
+                for _ in 0..batch {
+                    RestoreSimulation(&mut simulation, game);
+                    scores[index] += EvaluateFocusSimulation(
+                        &mut simulation,
+                        player,
+                        initiative,
+                        action,
+                        rng,
+                        ai,
+                        level,
+                    );
+                }
             }
             if trace {
                 eprintln!(
@@ -1324,6 +1341,40 @@ fn SelectFocusAction(
     (best, best_score / sims_run as f32)
 }
 
+fn EvaluateFocusSimulation(
+    simulation: &mut BMC_Game,
+    player: usize,
+    initiative: usize,
+    action: &FocusMove,
+    rng: &mut BMC_RNG,
+    ai: &BMC_BMAI3,
+    level: usize,
+) -> f32 {
+    let phase = if action.values.is_empty() {
+        initiative
+    } else {
+        ApplyFocusMove(simulation, player, action);
+        player
+    };
+    if level >= ai.m_max_ply {
+        PlayFightQAIFromPhase(simulation, rng, phase, player, false, ai)
+    } else {
+        EvaluateNextInitiativeAction(
+            simulation,
+            rng,
+            ai,
+            level + 1,
+            phase,
+            player,
+            if action.values.is_empty() {
+                InitiativeStage::Fight
+            } else {
+                InitiativeStage::Focus
+            },
+        )
+    }
+}
+
 pub(crate) fn SelectBMAIFocusAction(
     game: &BMC_Game,
     rng: &mut BMC_RNG,
@@ -1336,6 +1387,7 @@ pub(crate) fn SelectNativeBMAIFocusAction(
     game: &BMC_Game,
     rng_algorithm: crate::BME_RNG_ALGORITHM,
     replay: crate::native::NativeReplayKey,
+    workers: usize,
     ai: &BMC_BMAI3,
 ) -> FocusMove {
     let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
@@ -1349,7 +1401,7 @@ pub(crate) fn SelectNativeBMAIFocusAction(
         Some(NativeEvaluation {
             algorithm: rng_algorithm,
             replay,
-            workers: 1,
+            workers,
         }),
     )
     .0

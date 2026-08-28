@@ -44,15 +44,14 @@ and completion order are therefore absent from the result.
    per simulation. Every direct `getaction` phase has a deterministic input and
    expected-output fixture, and a subprocess fixture covers replay sequencing
    through a complete `playgame` command.
-3. **In progress:** Introduce bounded scoped standard-library workers without a
-   dependency. The ordered task coordinator and native fight-search integration
-   are implemented for direct actions and complete matches. Direct reserve
-   evaluation, preround/swing evaluation, and Chance evaluation are also
-   parallel; Focus remains outstanding.
-4. **In progress:** Prove identical native results with 1, 2, and available-CPU
-   worker counts. Fight search has direct and complete-match equivalence
-   coverage, and the generic coordinator has test-only scheduling perturbation
-   coverage.
+3. **Implemented:** Introduce bounded scoped standard-library workers without a
+   dependency. The ordered task coordinator drives fight, reserve,
+   preround/swing, Chance, and Focus evaluations. Match-driven native searches
+   use the same worker count.
+4. **Implemented:** Prove identical native results with 1, 2, and available-CPU
+   worker counts. Every direct phase has protocol-output equivalence coverage,
+   fight has direct score and complete-match coverage, and the coordinator has
+   test-only scheduling perturbation coverage.
 5. Benchmark the four representative fixtures and record CPU time, wall time,
    peak memory, worker count, version, and complete replay key.
 6. Run paired native-versus-legacy matches with swapped player positions and
