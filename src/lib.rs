@@ -7,6 +7,7 @@
 mod ai;
 mod engine;
 mod model;
+pub mod native;
 mod parser;
 mod rng;
 mod simulation;

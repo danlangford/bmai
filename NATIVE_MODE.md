@@ -36,8 +36,10 @@ and completion order are therefore absent from the result.
 
 ## Experiment sequence
 
-1. Add a native replay key and deterministic stream derivation with known-answer
-   tests. Do not add threads yet.
+1. **Implemented:** Add a native replay key and deterministic stream derivation
+   with known-answer tests. No threads or legacy-search changes were added. See
+   `src/native.rs`; its versioned `bmair-native-stream-v1` contract deliberately
+   excludes worker identity.
 2. Run native search sequentially with one independent stream per simulation.
    Record the expected deterministic actions and score summaries.
 3. Introduce a bounded worker pool using scoped standard-library threads. Avoid
