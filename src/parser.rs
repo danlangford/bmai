@@ -594,6 +594,7 @@ impl BMC_Parser {
                         &self.m_game,
                         self.m_rng.Algorithm(),
                         replay,
+                        self.m_native_workers,
                         &self.m_player_ai[0],
                     )
                 } else {
@@ -1349,6 +1350,7 @@ Seeding with 17\n"
         for input in [
             include_str!("../tests/native-fixtures/reserve.txt"),
             include_str!("../tests/native-fixtures/preround.txt"),
+            include_str!("../tests/native-fixtures/chance.txt"),
         ] {
             let expected = run(input, 1);
             for workers in [2, available] {

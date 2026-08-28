@@ -47,8 +47,8 @@ and completion order are therefore absent from the result.
 3. **In progress:** Introduce bounded scoped standard-library workers without a
    dependency. The ordered task coordinator and native fight-search integration
    are implemented for direct actions and complete matches. Direct reserve
-   evaluation and preround/swing evaluation are also parallel; Chance and Focus
-   remain outstanding.
+   evaluation, preround/swing evaluation, and Chance evaluation are also
+   parallel; Focus remains outstanding.
 4. **In progress:** Prove identical native results with 1, 2, and available-CPU
    worker counts. Fight search has direct and complete-match equivalence
    coverage, and the generic coordinator has test-only scheduling perturbation
