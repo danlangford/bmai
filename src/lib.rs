@@ -21,3 +21,5 @@ pub use model::{
 pub use parser::{BMC_Parser, ParseError};
 pub use rng::{BMC_RNG, BME_RNG_ALGORITHM};
 pub use simulation::{BMC_AI_POLICY, PlayGames};
+#[cfg(test)]
+mod build_version;

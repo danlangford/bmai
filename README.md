@@ -52,8 +52,9 @@ BMAIR preserves BMAI's source and rules lineage but starts its own semantic
 version series at `bmair-v0.1.0`. A language port changes the executable,
 packaging, public Rust API, and release lifecycle, so continuing BMAI's version
 number would imply compatibility beyond the intentionally preserved protocol
-and game behavior. The upstream commit and BMAIR Git description remain in
-every build for traceability.
+and game behavior. Tag-derived build versions and Git descriptions remain in
+every build for traceability. Release history follows the
+[Keep a Changelog](CHANGELOG.md) convention.
 
 ## Development
 
@@ -80,7 +81,17 @@ The Rust CI workflow builds and tests native `x86_64` and ARM64 binaries for
 Linux, Windows, and macOS. Each platform/architecture pair is uploaded as a
 separate workflow artifact; macOS Intel and Apple Silicon builds are not
 combined into a universal binary. Release artifacts include build metadata and
-SHA-256 checksums. Tags matching `bmair-v*` publish a GitHub preview release.
+SHA-256 checksums.
+
+A merge to `rust` is treated as a release when its Cargo version has no matching
+`bmair-v*` tag and `CHANGELOG.md` contains that dated version. After every
+platform passes, the workflow creates the annotated tag and GitHub preview
+release from the already-tested artifacts. Pushing a matching tag remains a
+supported recovery/manual release trigger.
+
+Pull requests, default-branch pushes, and tags use Release builds by default so
+release-only optimizer or linker failures are caught before tagging. Manual
+workflow runs may select Debug for diagnostics.
 
 ## Running BMAIR
 
@@ -96,9 +107,10 @@ Or pipe protocol input through standard input:
 cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
 
-`bmair --version` reports the Cargo version, build profile, and Git description.
-Tagged development builds include the number of commits since the release,
-abbreviated commit SHA, and a `dirty` suffix when built from modified source.
+`bmair --version` derives its displayed version from Cargo and
+`git describe`. An exact `bmair-v0.2.0` tag reports `0.2.0`; development builds
+report the upcoming Cargo version plus the number of commits since the previous
+release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `getaction`, `ai`, `mode`, `rng`, `seed`, `surrender`, `ply`, `max_sims`,

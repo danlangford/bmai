@@ -35,13 +35,93 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: rust-ci-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   CARGO_TERM_COLOR: always
   BUILD_TYPE: ${{ inputs.build_type || 'Release' }}
 
 jobs:
+  release-plan:
+    name: Validate version and changelog
+    runs-on: ubuntu-24.04
+    outputs:
+      publish: ${{ steps.plan.outputs.publish }}
+      tag: ${{ steps.plan.outputs.tag }}
+      version: ${{ steps.plan.outputs.version }}
+      describe: ${{ steps.plan.outputs.describe }}
+    steps:
+      - name: Check out source and tags
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
+      - name: Resolve release plan
+        id: plan
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Cargo version must use stable major.minor.patch form: $version" >&2
+            exit 1
+          fi
+          tag="bmair-v${version}"
+          publish=false
+          describe=""
+          tag_exists=false
+          if git rev-parse --quiet --verify "refs/tags/${tag}" >/dev/null; then
+            tag_exists=true
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$tag_exists" == false ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+            base_version=$(git show "${base_sha}:Cargo.toml" \
+              | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n 1)
+            if [[ ! "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "base Cargo version is invalid: $base_version" >&2
+              exit 1
+            fi
+            highest_version=$(printf '%s\n%s\n' "$base_version" "$version" \
+              | sort -V | tail -n 1)
+            if [[ "$version" == "$base_version" || "$highest_version" != "$version" ]]; then
+              echo "unreleased Cargo version $version must be greater than base version $base_version" >&2
+              exit 1
+            fi
+            if ! grep -Fq "## [$version] - " CHANGELOG.md; then
+              echo "CHANGELOG.md has no dated $version release entry" >&2
+              exit 1
+            fi
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/tags/bmair-v* ]]; then
+            if [[ "$GITHUB_REF_NAME" != "$tag" ]]; then
+              echo "tag $GITHUB_REF_NAME does not match Cargo version $version" >&2
+              exit 1
+            fi
+            publish=true
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/rust \
+            && "$tag_exists" == false ]]; then
+            publish=true
+          fi
+
+          if [[ "$publish" == true ]]; then
+            if ! grep -Fq "## [$version] - " CHANGELOG.md; then
+              echo "CHANGELOG.md has no dated $version release entry" >&2
+              exit 1
+            fi
+            describe="${tag}-0-g${GITHUB_SHA:0:7}"
+          fi
+
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "describe=$describe" >> "$GITHUB_OUTPUT"
+
   build-and-test:
     name: ${{ matrix.platform }} ${{ matrix.arch }} / ${{ inputs.build_type || 'Release' }}
+    needs: release-plan
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +152,8 @@ jobs:
             primary: false
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    env:
+      BMAIR_GIT_DESCRIBE: ${{ needs.release-plan.outputs.describe }}
     steps:
       - name: Check out source
         uses: actions/checkout@v6
@@ -119,9 +201,17 @@ jobs:
           suffix="${executable#bmair}"
           mkdir -p dist
           cp "target/${CARGO_OUTPUT_DIR}/${executable}" "dist/${artifact_base}${suffix}"
+          reported_version=$("dist/${artifact_base}${suffix}" --version)
+          if [[ "${{ needs.release-plan.outputs.publish }}" == true ]]; then
+            release_version="${{ needs.release-plan.outputs.version }}"
+            if [[ "$reported_version" != "bmair ${release_version} ("* ]]; then
+              echo "tagged binary reports unexpected version: $reported_version" >&2
+              exit 1
+            fi
+          fi
           {
             echo "Artifact: ${artifact_base}${suffix}"
-            echo "Version: $("dist/${artifact_base}${suffix}" --version)"
+            echo "Version: $reported_version"
             echo "Git-Commit: $GITHUB_SHA"
             echo "Git-Ref: $GITHUB_REF"
             echo "Platform: ${{ matrix.platform }}"
@@ -145,8 +235,8 @@ jobs:
 
   preview-release:
     name: Publish preview release
-    if: startsWith(github.ref, 'refs/tags/bmair-v')
-    needs: build-and-test
+    if: needs.release-plan.outputs.publish == 'true'
+    needs: [release-plan, build-and-test]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -155,6 +245,22 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      - name: Create release tag after successful builds
+        shell: bash
+        run: |
+          tag="${{ needs.release-plan.outputs.tag }}"
+          if git rev-parse --quiet --verify "refs/tags/${tag}" >/dev/null; then
+            tagged_commit=$(git rev-parse "${tag}^{}")
+            if [[ "$tagged_commit" != "$GITHUB_SHA" ]]; then
+              echo "$tag already points at $tagged_commit, not $GITHUB_SHA" >&2
+              exit 1
+            fi
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag --annotate "$tag" "$GITHUB_SHA" --message "BMAIR ${{ needs.release-plan.outputs.version }} preview"
+            git push origin "$tag"
+          fi
       - name: Download platform artifacts
         uses: actions/download-artifact@v8
         with:
@@ -171,8 +277,18 @@ jobs:
       - name: Create release notes
         shell: bash
         run: |
-          previous_tag=$(git describe --tags --abbrev=0 "${GITHUB_REF_NAME}^" \
+          tag_version="${{ needs.release-plan.outputs.version }}"
+          previous_tag=$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" \
             --match='bmair-v[0-9]*' 2>/dev/null || true)
+          awk -v version="$tag_version" '
+            index($0, "## [" version "] - ") == 1 { found = 1 }
+            found && /^## \[/ && index($0, "## [" version "] - ") != 1 { exit }
+            found { print }
+          ' CHANGELOG.md > changelog-notes.md
+          if [[ ! -s changelog-notes.md ]]; then
+            echo "failed to extract $tag_version from CHANGELOG.md" >&2
+            exit 1
+          fi
           {
             echo "Preview release built from \`${GITHUB_SHA}\`."
             echo
@@ -181,22 +297,23 @@ jobs:
             echo
             if [[ -n "$previous_tag" ]]; then
               change_count=$(git rev-list --count "${previous_tag}..${GITHUB_SHA}")
-              echo "## ${change_count} changes since ${previous_tag}"
+              echo "${change_count} commits since \`${previous_tag}\`."
               echo
-              git log --format='- `%h` %s' "${previous_tag}..${GITHUB_SHA}"
-            else
-              echo "## Initial BMAIR preview"
-              echo
-              echo "Rust port lineage begins at upstream BMAI commit \`1fcb826\`."
             fi
+            cat changelog-notes.md
           } > release-notes.md
       - name: Publish GitHub preview release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          gh release create "$GITHUB_REF_NAME" release-assets/* \
-            --prerelease \
-            --verify-tag \
-            --title "BMAIR ${GITHUB_REF_NAME#bmair-v} preview" \
-            --notes-file release-notes.md
+          tag="${{ needs.release-plan.outputs.tag }}"
+          title="BMAIR ${{ needs.release-plan.outputs.version }} preview"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" release-assets/* --clobber
+            gh release edit "$tag" --prerelease --verify-tag \
+              --title "$title" --notes-file release-notes.md
+          else
+            gh release create "$tag" release-assets/* --prerelease --verify-tag \
+              --title "$title" --notes-file release-notes.md
+          fi
