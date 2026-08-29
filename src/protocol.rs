@@ -3,6 +3,8 @@
 
 use serde::Serialize;
 
+use crate::notation::DieNotationCapabilities;
+
 /// A public protocol identifier is permanent once released. Add a variant for
 /// incompatible future contracts instead of changing an existing contract.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
@@ -181,6 +183,7 @@ pub struct Capabilities {
     pub ai_policies: &'static [&'static str],
     pub skills: &'static [&'static str],
     pub parsing_only_skills: &'static [&'static str],
+    pub die_notation: DieNotationCapabilities,
     pub native: NativeCapabilities,
 }
 
@@ -265,6 +268,7 @@ impl Capabilities {
                 "Weak",
             ],
             parsing_only_skills: &["Auxiliary", "Doppelganger", "Radioactive", "Rage"],
+            die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],
                 rng_algorithms: &["legacy", "park-miller"],
@@ -342,6 +346,84 @@ mod tests {
                 .unwrap()
                 .contains(&"Auxiliary".into())
         );
+    }
+
+    #[test]
+    fn die_notation_is_complete_unique_and_machine_readable() {
+        use std::collections::HashSet;
+
+        use crate::notation::CapabilitySupport;
+
+        let capabilities = Capabilities::current();
+        let tokens: Vec<_> = capabilities
+            .die_notation
+            .property_prefixes
+            .iter()
+            .map(|entry| entry.token)
+            .collect();
+        assert_eq!(
+            tokens,
+            vec![
+                '^', 'q', 't', 'z', 's', 'B', 'd', 'p', 'n', 'f', 'H', 'h', 'r', 'o', 'c', 'm',
+                '`', 'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', '+', 'D', '%', 'G'
+            ]
+        );
+        assert_eq!(
+            tokens.iter().copied().collect::<HashSet<_>>().len(),
+            tokens.len()
+        );
+        let implemented_skills: HashSet<_> = capabilities.skills.iter().copied().collect();
+        let parsing_only_skills: HashSet<_> =
+            capabilities.parsing_only_skills.iter().copied().collect();
+        for entry in capabilities.die_notation.property_prefixes {
+            let advertised = match entry.support {
+                CapabilitySupport::Implemented => &implemented_skills,
+                CapabilitySupport::ParsingOnly => &parsing_only_skills,
+            };
+            assert!(
+                advertised.contains(entry.name),
+                "{} is absent from its compatibility skill list",
+                entry.name
+            );
+        }
+        assert_eq!(parsing_only_skills.len(), 4);
+        for entry in capabilities.die_notation.postfix_properties {
+            assert!(implemented_skills.contains(entry.name));
+        }
+
+        let value = serde_json::to_value(capabilities).unwrap();
+        let prefixes = value["die_notation"]["property_prefixes"]
+            .as_array()
+            .unwrap();
+        assert_eq!(
+            prefixes.iter().find(|entry| entry["token"] == "d").unwrap(),
+            &serde_json::json!({
+                "token": "d",
+                "id": "stealth",
+                "name": "Stealth",
+                "support": "implemented"
+            })
+        );
+        assert_eq!(
+            prefixes.iter().find(|entry| entry["token"] == "G").unwrap(),
+            &serde_json::json!({
+                "token": "G",
+                "id": "rage",
+                "name": "Rage",
+                "support": "parsing_only"
+            })
+        );
+        assert_eq!(
+            value["die_notation"]["postfix_properties"],
+            serde_json::json!([
+                {"token": "!", "id": "turbo", "name": "Turbo"},
+                {"token": "?", "id": "mood", "name": "Mood"}
+            ])
+        );
+        assert_eq!(value["die_notation"]["swing_types"], "P-Z");
+        assert_eq!(value["die_notation"]["option_separator"], "/");
+        assert_eq!(value["die_notation"]["rolled_value_separator"], ":");
+        assert_eq!(value["die_notation"]["dizzy_value_suffix"], "d");
     }
 
     #[test]

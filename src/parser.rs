@@ -837,38 +837,10 @@ fn parse_side(chars: &[char], mut pos: usize) -> Result<(u8, Option<char>, usize
 }
 
 fn prefix_property(ch: char) -> Option<u64> {
-    Some(match ch {
-        '^' => property::TIME_AND_SPACE,
-        'q' => property::QUEER,
-        't' => property::TRIP,
-        'z' => property::SPEED,
-        's' => property::SHADOW,
-        'B' => property::BERSERK,
-        'd' => property::STEALTH,
-        'p' => property::POISON,
-        'n' => property::NULL,
-        'f' => property::FOCUS,
-        'H' => property::MIGHTY,
-        'h' => property::WEAK,
-        'r' => property::RESERVE,
-        'o' => property::ORNERY,
-        'c' => property::CHANCE,
-        'm' => property::MORPHING,
-        '`' => property::WARRIOR,
-        'w' => property::SLOW,
-        'u' => property::UNIQUE,
-        '~' => property::UNSKILLED,
-        'g' => property::STINGER,
-        'k' => property::KONSTANT,
-        'M' => property::MAXIMUM,
-        'I' => property::INSULT,
-        'v' => property::VALUE,
-        '+' => property::AUXILIARY,
-        'D' => property::DOPPLEGANGER,
-        '%' => property::RADIOACTIVE,
-        'G' => property::RAGE,
-        _ => return None,
-    })
+    crate::notation::DIE_PROPERTY_PREFIXES
+        .iter()
+        .find(|notation| notation.token == ch)
+        .map(|notation| notation.property)
 }
 
 fn DebugPlayer<W: Write>(

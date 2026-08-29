@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Python subprocess example.
 - Protocol specifications, compatibility guarantees, consumer examples, and
   cross-protocol contract tests while retaining `legacy-v1` unchanged.
+- Discoverable BMAIR die-notation tokens, stable skill identifiers, and
+  implementation-support labels for recipe translators.
 
 ### Changed
 

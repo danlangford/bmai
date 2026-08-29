@@ -314,3 +314,8 @@ optimized storage indices back to original protocol die indices.
 - [x] Invalid-command exit status and error behavior match the PR #82 parser
   reference; default Rust tests, JSONL process tests, clippy, and REUSE also
   pass after the integration boundary was added.
+- [x] Capability discovery and legacy parsing share one authoritative table for
+  all 29 die-property prefixes. After exposing that notation, all material
+  fixture outputs matched again (491.85 seconds), representative raw RNG states
+  matched (155.73 seconds), and every fixture RNG fingerprint matched (469.00
+  seconds) against the instrumented Release PR #82 reference on 2026-08-28.

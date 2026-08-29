@@ -61,7 +61,12 @@ class Bmair:
 
 def main() -> None:
     with Bmair() as bmair:
-        print(json.dumps(bmair.request("capabilities"), indent=2))
+        capabilities = bmair.request("capabilities")
+        notation_by_token = {
+            item["token"]: item
+            for item in capabilities["die_notation"]["property_prefixes"]
+        }
+        print(json.dumps(notation_by_token["d"], indent=2))
         result = bmair.request("session.execute", {"script": "seed 17\nply 1\n"})
         print(json.dumps(result["session"], indent=2))
 

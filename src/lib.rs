@@ -9,6 +9,7 @@ mod engine;
 pub mod jsonl;
 mod model;
 pub mod native;
+pub mod notation;
 mod parser;
 pub mod protocol;
 mod rng;
@@ -20,6 +21,9 @@ pub use jsonl::{BmairSession, SessionExecuteResult, run_jsonl};
 pub use model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMC_Player, BME_ACTION, BME_ATTACK, BME_PHASE,
     BME_SWING_SET, property,
+};
+pub use notation::{
+    CapabilitySupport, DieNotationCapabilities, DiePostfixNotation, DiePropertyNotation,
 };
 pub use parser::{BMC_Parser, ParseError};
 pub use protocol::{

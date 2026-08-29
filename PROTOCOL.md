@@ -17,11 +17,24 @@ legacy response.
 running JSONL session also accepts a `capabilities` request. Discovery reports
 the build identity, protocols, parser commands, phases, typed actions, attack
 types, implemented skills, parsing-only upstream skills, execution modes, RNGs,
-and worker constraints.
+worker constraints, and the complete BMAIR die-notation vocabulary.
 
 ```json
 {"protocol":"jsonl-v1","id":"caps-1","method":"capabilities"}
 ```
+
+The `die_notation` object lets clients translate external recipes without
+hard-coding BMAIR's skill abbreviations. `property_prefixes` reports each
+one-character token with a stable snake-case `id`, display `name`, and
+`support` of `implemented` or `parsing_only`. `postfix_properties` reports
+Turbo (`!`) and Mood (`?`). The remaining fields describe swing types `P-Z`,
+option and Twin punctuation, defined-side selection, rolled values, and the
+dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
+Buttonweavers recipe grammar.
+
+For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
+and `G` as the parsing-only Rage property. Consumers should use this metadata
+instead of maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
 
