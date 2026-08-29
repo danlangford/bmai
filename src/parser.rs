@@ -10,11 +10,11 @@ use crate::model::{
 };
 use crate::simulation::{
     BMC_AI_POLICY, PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies,
-    PlayGamesWithPoliciesNative, SelectBMAIAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
-    SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIAction,
-    SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction, SelectNativeBMAIReserveAction,
-    SelectNativeBMAISetSwingAction, SelectQAIAction, SelectQAIReserveAction,
-    SelectQAISetSwingAction, SwingMove,
+    PlayGamesWithPoliciesNative, SelectBMAIActionWithStats, SelectBMAIChanceAction,
+    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
+    SelectNativeBMAIActionWithStats, SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction,
+    SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
+    SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -615,21 +615,38 @@ impl BMC_Parser {
                     )
                     .map_err(io_error)?;
                 }
-                let action = if self.m_ai_type[0] == 1 {
-                    SelectQAIAction(&self.m_game, &mut self.m_rng)
+                let (action, search) = if self.m_ai_type[0] == 1 {
+                    (SelectQAIAction(&self.m_game, &mut self.m_rng), None)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
-                    SelectNativeBMAIAction(
+                    let result = SelectNativeBMAIActionWithStats(
                         &self.m_game,
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
                         &self.m_player_ai[0],
-                    )
+                    );
+                    let summary = (result.m_best_score, result.ProbabilityWin());
+                    (result.m_move, Some(summary))
                 } else {
-                    SelectBMAIAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                    let result = SelectBMAIActionWithStats(
+                        &self.m_game,
+                        &mut self.m_rng,
+                        &self.m_player_ai[0],
+                    );
+                    let summary = (result.m_best_score, result.ProbabilityWin());
+                    (result.m_move, Some(summary))
                 };
                 self.m_last_action = Some(protocol_attack(&self.m_game, &action)?);
+                if let Some((best_score, probability_win)) = search {
+                    writeln!(
+                        output,
+                        "l1 p0 best move ({:.1} points, {:.1}% win)",
+                        best_score,
+                        probability_win * 100.0
+                    )
+                    .map_err(io_error)?;
+                }
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 SendAttack(&self.m_game, &action, output)

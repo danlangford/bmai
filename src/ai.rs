@@ -70,6 +70,8 @@ pub struct BMC_BMAI3 {
     pub m_sims_per_check: usize,
     pub m_min_best_score_threshold: f32,
     pub m_max_best_score_threshold: f32,
+    pub m_last_best_score: f32,
+    pub m_last_sims_run: usize,
     pub m_last_probability_win: f32,
     pub m_ply_decay: f32,
     pub m_stats: BMC_Stats,
@@ -87,6 +89,8 @@ impl Default for BMC_BMAI3 {
             m_sims_per_check: 10,
             m_min_best_score_threshold: 0.25,
             m_max_best_score_threshold: 0.90,
+            m_last_best_score: 0.0,
+            m_last_sims_run: 0,
             m_last_probability_win: 0.0,
             m_ply_decay: 0.5,
             m_stats: BMC_Stats::default(),
@@ -169,6 +173,8 @@ impl BMC_BMAI3 {
                     best = candidate.clone();
                 }
             }
+            self.m_last_best_score = best_score;
+            self.m_last_sims_run = sims;
             self.m_last_probability_win = best_score / sims as f32;
             return best;
         }
@@ -224,6 +230,8 @@ impl BMC_BMAI3 {
             }
         }
 
+        self.m_last_best_score = state.best_score;
+        self.m_last_sims_run = state.sims_run;
         self.m_last_probability_win = state.best_score / state.sims_run as f32;
         state.best_move
     }
@@ -324,6 +332,10 @@ mod tests {
         };
         let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, _| m.m_score);
         assert_eq!(selected.m_score, 0.8);
+        assert!(ai.m_last_sims_run > 0);
+        assert!(
+            (ai.m_last_best_score / ai.m_last_sims_run as f32 - 0.8).abs() < f32::EPSILON * 2.0
+        );
         assert!((ai.m_last_probability_win - 0.8).abs() < f32::EPSILON * 2.0);
     }
 

@@ -126,6 +126,11 @@ terminates immediately without waiting for EOF. This preserves the original
 C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
 
+Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
+before `stats` and `action`. Its parenthesized fields include the accumulated
+winning score and numeric win percentage used by historical subprocess
+consumers. Recursive search diagnostics remain internal.
+
 The stable command forms are:
 
 | Form | Effect |

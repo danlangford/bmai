@@ -61,6 +61,19 @@ fn legacy_stdin_matches_bmaibagels_write_flush_read_contract() {
         "legacy response waited for EOF",
     );
     assert!(response.starts_with("BMAIR: the Button Men AI in Rust\n"));
+    let best_move = response
+        .lines()
+        .find(|line| line.contains(" p0 best move ") && line.contains('%'))
+        .expect("BMAIBagels-compatible best-move diagnostic");
+    let win_percentage = best_move
+        .split('%')
+        .next()
+        .and_then(|prefix| prefix.split_whitespace().last())
+        .expect("percentage before percent sign")
+        .parse::<f32>()
+        .expect("numeric win percentage");
+    assert!(win_percentage.is_finite(), "{best_move}");
+    assert_eq!(best_move, "l1 p0 best move (0.0 points, 0.0% win)");
     assert!(response.contains("action\npower\n0\n0\n"), "{response}");
     assert!(child.wait().unwrap().success());
     drop(stdin);
