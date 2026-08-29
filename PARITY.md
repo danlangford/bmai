@@ -336,3 +336,18 @@ optimized storage indices back to original protocol die indices.
   states matched (168.60 seconds); and every fixture RNG fingerprint matched
   (539.06 seconds). The three ignored deep-search Rust tests also passed in
   Release mode (246.49 seconds).
+
+## 0.4.1 legacy search diagnostic
+
+- [x] Top-level legacy and native fight searches expose the evaluator's actual
+  accumulated best score and simulations-run count without rerunning search or
+  consuming RNG.
+- [x] `legacy_stdin_matches_bmaibagels_write_flush_read_contract` applies
+  BMAIBagels' historical ` p0 best move ` and `%` extraction to subprocess
+  output and requires a finite numeric percentage.
+- [x] The focused C++ comparison request reports identical `0.0 points, 0.0%
+  win` fields in both implementations.
+- [x] On 2026-08-29, parser-error parity passed; every material fixture
+  matched (517.75 seconds); representative raw RNG states matched (154.06
+  seconds); every fixture RNG fingerprint matched (469.60 seconds); and all
+  three extended Release tests passed (207.99 seconds).

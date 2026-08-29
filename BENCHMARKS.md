@@ -111,3 +111,12 @@ measurable streaming penalty in this sample: framing and flushing happen only
 around top-level commands, while AI search dominates runtime. Peak RSS was not
 recorded because sandboxed macOS `/usr/bin/time -l` could not access
 `kern.clockrate`.
+
+## 0.4.1 legacy diagnostic sanity check
+
+Measured once on 2026-08-29 on the same Intel Mac using `bmai_in.txt` and
+Release builds. Published 0.4.0 took 7.60s wall / 7.03s user; local 0.4.1 took
+6.24s wall / 6.22s user. The difference is ordinary single-run variance, not a
+claimed speedup. The change records two already-computed evaluation scalars
+and formats one line only after the top-level search completes, so it adds no
+work to simulation, branching, culling, or RNG consumption.

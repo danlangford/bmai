@@ -1793,7 +1793,28 @@ pub(crate) fn SelectBMAIAction(
     rng: &mut BMC_RNG,
     settings: &BMC_BMAI3,
 ) -> BMC_Move {
-    SelectBMAIActionAtLevel(game, rng, settings, 1, false).0
+    SelectBMAIActionWithStats(game, rng, settings).m_move
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct BMC_SearchResult {
+    pub m_move: BMC_Move,
+    pub m_best_score: f32,
+    pub m_sims_run: usize,
+}
+
+impl BMC_SearchResult {
+    pub fn ProbabilityWin(&self) -> f32 {
+        self.m_best_score / self.m_sims_run as f32
+    }
+}
+
+pub(crate) fn SelectBMAIActionWithStats(
+    game: &BMC_Game,
+    rng: &mut BMC_RNG,
+    settings: &BMC_BMAI3,
+) -> BMC_SearchResult {
+    SelectBMAIActionAtLevelWithStats(game, rng, settings, 1, false)
 }
 
 pub(crate) fn SelectNativeBMAIAction(
@@ -1803,9 +1824,20 @@ pub(crate) fn SelectNativeBMAIAction(
     workers: usize,
     settings: &BMC_BMAI3,
 ) -> BMC_Move {
-    SelectBMAIActionAtLevelNative(game, rng_algorithm, replay, workers, settings).0
+    SelectNativeBMAIActionWithStats(game, rng_algorithm, replay, workers, settings).m_move
 }
 
+pub(crate) fn SelectNativeBMAIActionWithStats(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    workers: usize,
+    settings: &BMC_BMAI3,
+) -> BMC_SearchResult {
+    SelectBMAIActionAtLevelNativeWithStats(game, rng_algorithm, replay, workers, settings)
+}
+
+#[cfg(test)]
 fn SelectBMAIActionAtLevelNative(
     game: &BMC_Game,
     rng_algorithm: crate::BME_RNG_ALGORITHM,
@@ -1813,6 +1845,19 @@ fn SelectBMAIActionAtLevelNative(
     workers: usize,
     settings: &BMC_BMAI3,
 ) -> (BMC_Move, f32) {
+    let result =
+        SelectBMAIActionAtLevelNativeWithStats(game, rng_algorithm, replay, workers, settings);
+    let probability = result.ProbabilityWin();
+    (result.m_move, probability)
+}
+
+fn SelectBMAIActionAtLevelNativeWithStats(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    workers: usize,
+    settings: &BMC_BMAI3,
+) -> BMC_SearchResult {
     let mut moves = game.GenerateValidAttacksInCppOrder();
     if moves.is_empty() {
         moves.push(PassMove());
@@ -1857,7 +1902,11 @@ fn SelectBMAIActionAtLevelNative(
     } else {
         selected
     };
-    (selected, probability)
+    BMC_SearchResult {
+        m_move: selected,
+        m_best_score: evaluator.m_last_best_score,
+        m_sims_run: evaluator.m_last_sims_run,
+    }
 }
 
 fn NativeSimulationRng(
@@ -1888,6 +1937,18 @@ fn SelectBMAIActionAtLevel(
     level: usize,
     previous_pass: bool,
 ) -> (BMC_Move, f32) {
+    let result = SelectBMAIActionAtLevelWithStats(game, rng, settings, level, previous_pass);
+    let probability = result.ProbabilityWin();
+    (result.m_move, probability)
+}
+
+fn SelectBMAIActionAtLevelWithStats(
+    game: &BMC_Game,
+    rng: &mut BMC_RNG,
+    settings: &BMC_BMAI3,
+    level: usize,
+    previous_pass: bool,
+) -> BMC_SearchResult {
     let trace = TraceSettings().bmai_attack;
     let trace_evaluation = TraceSettings().attack_eval;
     let mut moves = game.GenerateValidAttacksInCppOrder();
@@ -1939,7 +2000,11 @@ fn SelectBMAIActionAtLevel(
             selected.m_targets
         );
     }
-    (selected, probability)
+    BMC_SearchResult {
+        m_move: selected,
+        m_best_score: evaluator.m_last_best_score,
+        m_sims_run: evaluator.m_last_sims_run,
+    }
 }
 
 fn EvaluateMove(

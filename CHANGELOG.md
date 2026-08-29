@@ -12,6 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-29
+
+### Fixed
+
+- Restored the top-level legacy fight-search `best move` diagnostic, including
+  its numeric win percentage, so existing subprocess consumers such as
+  BMAIBagels can continue extracting odds from C++-compatible output.
+
 ## [0.4.0] - 2026-08-29
 
 ### Added
@@ -98,7 +106,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...HEAD
+[0.4.1]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...bmair-v0.4.1
 [0.4.0]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...bmair-v0.4.0
 [0.3.0]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...bmair-v0.3.0
 [0.2.0]: https://github.com/danlangford/bmai/compare/bmair-v0.1.0...bmair-v0.2.0
