@@ -46,7 +46,7 @@ user CPU by about 18%. PGO improved its three training fixtures by roughly
 about 1.4%. Exact all-fixture material output and RNG fingerprints passed after
 the retained changes; see `PARITY.md` for the gate evidence.
 
-## Preview-release artifact comparison
+## 0.1.0 release artifact comparison
 
 Measured on 2026-08-28 on an Intel Mac using the x86_64 slices from GitHub
 Actions. The C++ reference was the universal macOS Release artifact from

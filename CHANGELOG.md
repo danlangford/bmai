@@ -43,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial Rust preview port of BMAI with compatible parser commands, game
+- Initial Rust port release of BMAI with compatible parser commands, game
   mechanics, AI search, candidate ordering, simulation counts, culling, and
   legacy Park-Miller RNG consumption.
 - Rust mappings for the upstream C++ tests and seeded differential fixtures,

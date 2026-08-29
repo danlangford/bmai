@@ -29,7 +29,7 @@ tests to their Rust equivalents.
 ## Performance snapshot
 
 Release-build wall times on the same Intel Mac are shown below. The C++ and
-Rust 0.1.0 columns use the preview-release artifacts; the parallel column uses
+Rust 0.1.0 columns use the release artifacts; the parallel column uses
 the current deterministic native search with eight workers. Lower is better.
 
 | Fixture | C++ Release | Rust 0.1.0 legacy | Current native, 8 workers | Native vs. C++ | Native vs. Rust 0.1.0 |
@@ -87,7 +87,7 @@ Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
 tagged, is not greater than the base branch version, or lacks the changelog
 entry. After the squash merge and every platform passes, the workflow creates
-the annotated `bmair-v*` tag and GitHub preview release from the already-tested
+the annotated `bmair-v*` tag and GitHub release from the already-tested
 artifacts. Pushing a matching tag remains a supported recovery/manual release
 trigger.
 

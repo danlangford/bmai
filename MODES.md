@@ -64,7 +64,7 @@ must remain valid input to both the C++ and Rust binaries.
 ## Legacy stability policy
 
 Legacy mode is the permanent executable compatibility oracle. After the
-`bmair-v0.1.0` preview it is frozen against intentional search or RNG behavior
+`bmair-v0.1.0` release it is frozen against intentional search or RNG behavior
 changes. Changes are limited to upstream mechanics corrections,
 parity-preserving maintenance, portability fixes, and measured optimizations
 that pass the complete material-output and RNG-fingerprint gates. Intentional

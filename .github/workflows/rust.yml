@@ -107,8 +107,16 @@ jobs:
               exit 1
             fi
             publish=true
-          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/rust \
-            && "$tag_exists" == false ]]; then
+          elif [[ "$GITHUB_EVENT_NAME" == push && "$GITHUB_REF" == refs/heads/rust ]]; then
+            if [[ "$tag_exists" == true ]]; then
+              tagged_commit=$(git rev-parse "${tag}^{}")
+              if [[ "$tagged_commit" != "$GITHUB_SHA" ]]; then
+                echo "$tag already points at $tagged_commit, not $GITHUB_SHA" >&2
+                exit 1
+              fi
+            fi
+            # Keep same-commit reruns publishable if an earlier run created the
+            # tag but failed while creating or uploading the GitHub release.
             publish=true
           fi
 
@@ -239,8 +247,8 @@ jobs:
           retention-days: 7
           path: dist/*
 
-  preview-release:
-    name: Publish preview release
+  release:
+    name: Publish release
     if: needs.release-plan.outputs.publish == 'true'
     needs: [release-plan, build-and-test]
     runs-on: ubuntu-24.04
@@ -264,7 +272,7 @@ jobs:
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git tag --annotate "$tag" "$GITHUB_SHA" --message "BMAIR ${{ needs.release-plan.outputs.version }} preview"
+            git tag --annotate "$tag" "$GITHUB_SHA" --message "BMAIR ${{ needs.release-plan.outputs.version }}"
             git push origin "$tag"
           fi
       - name: Download platform artifacts
@@ -296,7 +304,7 @@ jobs:
             exit 1
           fi
           {
-            echo "Preview release built from \`${GITHUB_SHA}\`."
+            echo "Release built from \`${GITHUB_SHA}\`."
             echo
             echo "All six native platform artifacts include version/build metadata."
             echo "Verify downloads against \`SHA256SUMS\`."
@@ -308,18 +316,18 @@ jobs:
             fi
             cat changelog-notes.md
           } > release-notes.md
-      - name: Publish GitHub preview release
+      - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           tag="${{ needs.release-plan.outputs.tag }}"
-          title="BMAIR ${{ needs.release-plan.outputs.version }} preview"
+          title="BMAIR ${{ needs.release-plan.outputs.version }}"
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release upload "$tag" release-assets/* --clobber
-            gh release edit "$tag" --prerelease --verify-tag \
+            gh release edit "$tag" --prerelease=false --latest --verify-tag \
               --title "$title" --notes-file release-notes.md
           else
-            gh release create "$tag" release-assets/* --prerelease --verify-tag \
+            gh release create "$tag" release-assets/* --latest --verify-tag \
               --title "$title" --notes-file release-notes.md
           fi
