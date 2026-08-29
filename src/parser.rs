@@ -28,7 +28,7 @@ impl fmt::Display for ParseError {
 }
 impl std::error::Error for ParseError {}
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct BMC_Parser {
     pub m_game: BMC_Game,
     m_max_ply: usize,
@@ -82,6 +82,20 @@ impl BMC_Parser {
 
     pub const fn rng_replay_id(&self) -> &'static str {
         self.m_rng.ReplayId()
+    }
+
+    pub fn session_metadata(&self) -> crate::protocol::SessionMetadata {
+        crate::protocol::SessionMetadata {
+            execution_mode: self.m_execution_mode.as_str(),
+            rng: self.m_rng.ReplayId(),
+            native_root_seed: self.m_native_root_seed,
+            native_decision_index: self.m_native_decision_index,
+            workers: self.m_native_workers,
+            max_ply: self.m_max_ply,
+            min_simulations: self.m_min_sims,
+            max_simulations: self.m_max_sims,
+            max_branch: self.m_max_branch,
+        }
     }
 
     pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
