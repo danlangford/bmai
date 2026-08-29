@@ -77,19 +77,21 @@ root and the Rust sources follow the standard Cargo layout under `src/`.
 Existing protocol samples are retained under `tests/fixtures/` for parity and
 differential tests against the C++ implementation.
 
-The Rust CI workflow builds and tests native `x86_64` and ARM64 binaries for
-Linux, Windows, and macOS. Each platform/architecture pair is uploaded as a
-separate workflow artifact; macOS Intel and Apple Silicon builds are not
-combined into a universal binary. Release artifacts include build metadata and
-SHA-256 checksums.
+Pull requests validate the release declaration independently from Rust format,
+lint, extended-test, and platform-build checks, so one failure does not hide
+unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
+binaries for Linux, Windows, and macOS. Each platform/architecture pair is
+uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
+are not combined into a universal binary. Release artifacts include build
+metadata and SHA-256 checksums.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
 tagged, is not greater than the base branch version, or lacks the changelog
-entry. After the squash merge and every platform passes, the workflow creates
-the annotated `bmair-v*` tag and GitHub release from the already-tested
-artifacts. Pushing a matching tag remains a supported recovery/manual release
-trigger.
+entry. Release publication does not appear in pull-request checks. After the
+squash merge and every release check passes, the release workflow creates the
+annotated `bmair-v*` tag and GitHub release from the already-tested artifacts.
+Pushing a matching tag remains a supported recovery/manual release trigger.
 
 Pull requests, default-branch pushes, and tags use Release builds by default so
 release-only optimizer or linker failures are caught before tagging. Manual

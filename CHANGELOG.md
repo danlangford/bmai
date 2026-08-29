@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A release-ready default-branch merge builds and tests all six
   platform/architecture targets before creating its version tag and publishing
   binaries, checksums, build metadata, and changelog notes.
+- Pull-request release-policy checks run independently from format, lint, test,
+  and platform builds; release-publication jobs appear only on release runs.
 
 ### Fixed
 

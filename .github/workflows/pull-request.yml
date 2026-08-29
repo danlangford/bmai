@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+
+name: Pull Request
+
+on:
+  pull_request:
+    branches: [rust]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-request-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  release-policy:
+    name: Validate version and changelog
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source and tags
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Validate release declaration
+        shell: bash
+        run: |
+          version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Cargo version must use stable major.minor.patch form: $version" >&2
+            exit 1
+          fi
+          tag="bmair-v${version}"
+          if git rev-parse --quiet --verify "refs/tags/${tag}" >/dev/null; then
+            echo "$tag is already released; bump Cargo and add a dated changelog entry before merge" >&2
+            exit 1
+          fi
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          base_version=$(git show "${base_sha}:Cargo.toml" \
+            | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n 1)
+          if [[ ! "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "base Cargo version is invalid: $base_version" >&2
+            exit 1
+          fi
+          highest_version=$(printf '%s\n%s\n' "$base_version" "$version" \
+            | sort -V | tail -n 1)
+          if [[ "$version" == "$base_version" || "$highest_version" != "$version" ]]; then
+            echo "unreleased Cargo version $version must be greater than base version $base_version" >&2
+            exit 1
+          fi
+          if ! grep -F "## [$version] - " CHANGELOG.md \
+            | grep -Eq '^## \[[0-9]+\.[0-9]+\.[0-9]+\] - [0-9]{4}-[0-9]{2}-[0-9]{2}$'; then
+            echo "CHANGELOG.md has no dated $version release entry" >&2
+            exit 1
+          fi
+
+  rust:
+    name: Rust verification
+    uses: ./.github/workflows/rust.yml
+    with:
+      build_type: Release
+      source_ref: ${{ github.sha }}
+      release_build: false
