@@ -37,7 +37,9 @@ permissions:
 
 concurrency:
   group: rust-ci-${{ github.ref }}
-  cancel-in-progress: false
+  # Superseded PR runs are disposable. Default-branch runs must serialize so
+  # only one workflow at a time can decide whether to create the release tag.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   CARGO_TERM_COLOR: always
