@@ -42,6 +42,10 @@ A durable recorded game or search must include:
 - any future native scheduling, worker-count, or stream-partition version.
 - native worker count (for performance reproduction, not result identity).
 
+JSONL responses expose the exact top-level native decision identity in their
+`replay` field. The `session.native_decision_index` field is the next index, not
+the one just consumed. See [`PROTOCOL.md`](PROTOCOL.md) for the schema.
+
 A seed without the RNG replay identifier is not a complete replay key. Native
 parallel search must version its stream partitioning and deterministic result
 reduction before it can claim reproducibility.

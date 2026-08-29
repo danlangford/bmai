@@ -6,7 +6,9 @@ use std::io::{BufRead, Write};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::{BMC_Parser, Capabilities};
+use crate::{
+    BMC_Parser, Capabilities, ParseError, ProtocolAction, ReplayMetadata, SessionMetadata,
+};
 
 pub const JSONL_PROTOCOL: &str = "jsonl-v1";
 
@@ -78,7 +80,38 @@ pub struct BmairSession {
     parser: BMC_Parser,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SessionExecuteResult {
+    pub action: Option<ProtocolAction>,
+    pub legacy_output: String,
+    pub replay: Option<ReplayMetadata>,
+    pub session: SessionMetadata,
+}
+
 impl BmairSession {
+    /// Executes a legacy command script transactionally against this session.
+    /// A parser error leaves all prior state untouched.
+    pub fn execute(&mut self, script: &str) -> Result<SessionExecuteResult, ParseError> {
+        let mut candidate = self.parser.clone();
+        let mut output = Vec::new();
+        candidate.ParseString(script, &mut output)?;
+        self.parser = candidate;
+        Ok(SessionExecuteResult {
+            action: self.parser.last_action().cloned(),
+            legacy_output: String::from_utf8(output).expect("legacy protocol output is UTF-8"),
+            replay: self.parser.last_replay().cloned(),
+            session: self.parser.session_metadata(),
+        })
+    }
+
+    pub fn reset(&mut self) {
+        self.parser = BMC_Parser::default();
+    }
+
+    pub fn metadata(&self) -> SessionMetadata {
+        self.parser.session_metadata()
+    }
+
     pub fn handle_line(&mut self, line: &str) -> String {
         let response = match serde_json::from_str::<Request>(line) {
             Ok(request) => self.handle_request(request),
@@ -129,22 +162,13 @@ impl BmairSession {
                     }
                 };
 
-                // Execute against a copy so a rejected script cannot leave a
-                // partially updated session behind for the next request.
-                let mut candidate = self.parser.clone();
-                let mut output = Vec::new();
-                if let Err(error) = candidate.ParseString(&params.script, &mut output) {
-                    return Response::error(request.id, "execution_error", error.to_string());
+                match self.execute(&params.script) {
+                    Ok(result) => Response::success(
+                        request.id,
+                        serde_json::to_value(result).expect("session result is serializable"),
+                    ),
+                    Err(error) => Response::error(request.id, "execution_error", error.to_string()),
                 }
-                self.parser = candidate;
-                let output = String::from_utf8(output).expect("legacy protocol output is UTF-8");
-                Response::success(
-                    request.id,
-                    json!({
-                        "legacy_output": output,
-                        "session": self.parser.session_metadata(),
-                    }),
-                )
             }
             "session.reset" => {
                 if !request.params.is_null() && request.params != json!({}) {
@@ -154,11 +178,8 @@ impl BmairSession {
                         "session.reset takes no parameters",
                     );
                 }
-                self.parser = BMC_Parser::default();
-                Response::success(
-                    request.id,
-                    json!({ "session": self.parser.session_metadata() }),
-                )
+                self.reset();
+                Response::success(request.id, json!({ "session": self.metadata() }))
             }
             _ => Response::error(
                 request.id,
@@ -252,5 +273,100 @@ mod tests {
         assert_eq!(values.len(), 2);
         assert_eq!(values[0]["error"]["code"], "invalid_json");
         assert_eq!(values[1]["ok"], true);
+    }
+
+    #[test]
+    fn typed_actions_share_the_exact_legacy_execution_path() {
+        let cases = [
+            (
+                "fight",
+                include_str!("../tests/native-fixtures/fight.txt"),
+                "attack",
+            ),
+            (
+                "preround",
+                include_str!("../tests/native-fixtures/preround.txt"),
+                "set_swing",
+            ),
+            (
+                "reserve",
+                include_str!("../tests/native-fixtures/reserve.txt"),
+                "reserve",
+            ),
+            (
+                "chance",
+                include_str!("../tests/native-fixtures/chance.txt"),
+                "chance",
+            ),
+            (
+                "focus",
+                include_str!("../tests/native-fixtures/focus.txt"),
+                "pass",
+            ),
+        ];
+
+        for (id, script, action_type) in cases {
+            let mut legacy_parser = BMC_Parser::default();
+            let mut legacy_output = Vec::new();
+            legacy_parser
+                .ParseString(script, &mut legacy_output)
+                .unwrap();
+
+            let value = response(
+                &mut BmairSession::default(),
+                json!({
+                    "protocol": "jsonl-v1",
+                    "id": id,
+                    "method": "session.execute",
+                    "params": { "script": script }
+                }),
+            );
+            assert_eq!(value["ok"], true, "{id}");
+            assert_eq!(value["result"]["action"]["type"], action_type, "{id}");
+            assert_eq!(
+                value["result"]["legacy_output"],
+                String::from_utf8(legacy_output).unwrap(),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn native_search_reports_the_exact_decision_replay_key() {
+        let value = response(
+            &mut BmairSession::default(),
+            json!({
+                "protocol": "jsonl-v1",
+                "id": "replay",
+                "method": "session.execute",
+                "params": { "script": include_str!("../tests/native-fixtures/fight.txt") }
+            }),
+        );
+        assert_eq!(value["ok"], true);
+        assert_eq!(
+            value["result"]["replay"]["stream_partition"],
+            crate::native::NATIVE_STREAM_PARTITION_ID
+        );
+        assert_eq!(value["result"]["replay"]["root_seed"], 17);
+        assert_eq!(value["result"]["replay"]["decision_index"], 0);
+        assert_eq!(value["result"]["session"]["native_decision_index"], 1);
+    }
+
+    #[test]
+    fn legacy_execution_does_not_claim_a_native_replay_key() {
+        let script = include_str!("../tests/native-fixtures/fight.txt")
+            .replace("mode native", "mode legacy");
+        let value = response(
+            &mut BmairSession::default(),
+            json!({
+                "protocol": "jsonl-v1",
+                "id": "legacy",
+                "method": "session.execute",
+                "params": { "script": script }
+            }),
+        );
+        assert_eq!(value["ok"], true);
+        assert!(value["result"]["replay"].is_null());
+        assert_eq!(value["result"]["session"]["native_decision_index"], 0);
     }
 }

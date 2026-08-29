@@ -16,13 +16,15 @@ mod simulation;
 
 pub use ai::{BMC_BMAI3, BMC_Stats, BME_ROLLOUT_POLICY, EvaluationCoordinate};
 pub use engine::ExecutionMode;
-pub use jsonl::{BmairSession, run_jsonl};
+pub use jsonl::{BmairSession, SessionExecuteResult, run_jsonl};
 pub use model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMC_Player, BME_ACTION, BME_ATTACK, BME_PHASE,
     BME_SWING_SET, property,
 };
 pub use parser::{BMC_Parser, ParseError};
-pub use protocol::{Capabilities, ProtocolVersion};
+pub use protocol::{
+    Capabilities, ProtocolAction, ProtocolVersion, ReplayMetadata, SessionMetadata,
+};
 pub use rng::{BMC_RNG, BME_RNG_ALGORITHM};
 pub use simulation::{BMC_AI_POLICY, PlayGames};
 #[cfg(test)]

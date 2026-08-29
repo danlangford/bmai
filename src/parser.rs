@@ -46,6 +46,8 @@ pub struct BMC_Parser {
     m_ai_explicit: [bool; 2],
     m_debug_ply: usize,
     m_logging: [bool; 8],
+    m_last_action: Option<crate::protocol::ProtocolAction>,
+    m_last_replay: Option<crate::protocol::ReplayMetadata>,
 }
 
 impl Default for BMC_Parser {
@@ -67,6 +69,8 @@ impl Default for BMC_Parser {
             m_ai_explicit: [false, false],
             m_debug_ply: 0,
             m_logging: [true; 8],
+            m_last_action: None,
+            m_last_replay: None,
         }
     }
 }
@@ -86,6 +90,7 @@ impl BMC_Parser {
 
     pub fn session_metadata(&self) -> crate::protocol::SessionMetadata {
         crate::protocol::SessionMetadata {
+            phase: phase_protocol(self.m_game.m_phase),
             execution_mode: self.m_execution_mode.as_str(),
             rng: self.m_rng.ReplayId(),
             native_root_seed: self.m_native_root_seed,
@@ -98,7 +103,17 @@ impl BMC_Parser {
         }
     }
 
+    pub fn last_action(&self) -> Option<&crate::protocol::ProtocolAction> {
+        self.m_last_action.as_ref()
+    }
+
+    pub fn last_replay(&self) -> Option<&crate::protocol::ReplayMetadata> {
+        self.m_last_replay.as_ref()
+    }
+
     pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
+        self.m_last_action = None;
+        self.m_last_replay = None;
         let lines: Vec<_> = data.lines().collect();
         let mut pos = 0;
         while pos < lines.len() {
@@ -538,6 +553,7 @@ impl BMC_Parser {
                 } else {
                     SelectBMAIAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
+                self.m_last_action = Some(protocol_attack(&self.m_game, &action)?);
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 SendAttack(&self.m_game, &action, output)
@@ -557,6 +573,9 @@ impl BMC_Parser {
                 } else {
                     SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
+                self.m_last_action = Some(crate::protocol::ProtocolAction::Reserve {
+                    die: reserve.map(|index| self.m_game.m_player[0].m_die[index].m_original_index),
+                });
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if let Some(index) = reserve {
@@ -585,12 +604,14 @@ impl BMC_Parser {
                 } else {
                     SelectBMAISetSwingAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
+                self.m_last_action = Some(protocol_swing(&self.m_game, &action));
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 SendSetSwing(&self.m_game, &action, output)
             }
             BME_PHASE::CHANCE => {
                 if self.m_ai_type[0] == 1 {
+                    self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
@@ -607,6 +628,7 @@ impl BMC_Parser {
                 } else {
                     SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
+                self.m_last_action = Some(protocol_chance(&self.m_game, &action));
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.reroll.is_empty() {
@@ -625,6 +647,7 @@ impl BMC_Parser {
             }
             BME_PHASE::FOCUS => {
                 if self.m_ai_type[0] == 1 {
+                    self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
@@ -641,6 +664,7 @@ impl BMC_Parser {
                 } else {
                     SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
+                self.m_last_action = Some(protocol_focus(&self.m_game, &action));
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.values.is_empty() {
@@ -668,6 +692,11 @@ impl BMC_Parser {
             root_seed: self.m_native_root_seed,
             decision_index: self.m_native_decision_index,
         };
+        self.m_last_replay = Some(crate::protocol::ReplayMetadata {
+            stream_partition: replay.stream_version.partition_id(),
+            root_seed: replay.root_seed,
+            decision_index: replay.decision_index,
+        });
         self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
         replay
     }
@@ -885,6 +914,134 @@ fn SendAttack<W: Write>(
             Ok(())
         }
         _ => Err(ParseError("invalid fight action".into())),
+    }
+}
+
+fn protocol_attack(
+    game: &BMC_Game,
+    action: &BMC_Move,
+) -> Result<crate::protocol::ProtocolAction, ParseError> {
+    match action.m_action {
+        BME_ACTION::PASS => Ok(crate::protocol::ProtocolAction::Pass),
+        BME_ACTION::SURRENDER => Ok(crate::protocol::ProtocolAction::Surrender),
+        BME_ACTION::ATTACK => {
+            let attack_type = action
+                .m_attack
+                .ok_or_else(|| ParseError("attack has no attack type".into()))?
+                .protocol();
+            let original_indices = |player: usize, indices: &BMC_DieIndexSet| {
+                indices
+                    .iter()
+                    .map(|index| game.m_player[player].m_die[index].m_original_index)
+                    .collect::<Vec<_>>()
+            };
+            let turbo = if action.m_turbo_option < 0 {
+                None
+            } else {
+                game.m_player[0]
+                    .m_die
+                    .iter()
+                    .find(|die| die.IsAvailable() && die.HasProperty(property::TURBO))
+                    .and_then(|die| {
+                        if die.HasProperty(property::OPTION) {
+                            Some(crate::protocol::TurboSelection::Option {
+                                die: die.m_original_index,
+                                value: die.m_sides[action.m_turbo_option as usize],
+                            })
+                        } else {
+                            die.m_swing_type[0].map(|swing| {
+                                crate::protocol::TurboSelection::Swing {
+                                    swing,
+                                    value: action.m_turbo_option as u8,
+                                }
+                            })
+                        }
+                    })
+            };
+            Ok(crate::protocol::ProtocolAction::Attack {
+                attack_type,
+                attackers: original_indices(0, &action.m_attackers),
+                targets: original_indices(1, &action.m_targets),
+                turbo,
+            })
+        }
+        _ => Err(ParseError("invalid fight action".into())),
+    }
+}
+
+fn protocol_swing(game: &BMC_Game, action: &SwingMove) -> crate::protocol::ProtocolAction {
+    let swings = action
+        .values()
+        .iter()
+        .map(|(swing, value)| crate::protocol::SwingSelection {
+            swing: *swing,
+            value: *value,
+        })
+        .collect::<Vec<_>>();
+    let options = action
+        .options()
+        .iter()
+        .map(|(index, second)| {
+            let die = &game.m_player[0].m_die[*index];
+            crate::protocol::OptionSelection {
+                die: die.m_original_index,
+                value: die.m_sides[usize::from(*second)],
+            }
+        })
+        .collect::<Vec<_>>();
+    if swings.is_empty() && options.is_empty() {
+        crate::protocol::ProtocolAction::Pass
+    } else {
+        crate::protocol::ProtocolAction::SetSwing { swings, options }
+    }
+}
+
+fn protocol_chance(
+    game: &BMC_Game,
+    action: &crate::simulation::ChanceMove,
+) -> crate::protocol::ProtocolAction {
+    if action.reroll.is_empty() {
+        crate::protocol::ProtocolAction::Pass
+    } else {
+        crate::protocol::ProtocolAction::Chance {
+            dice: action
+                .reroll
+                .iter()
+                .map(|index| game.m_player[0].m_die[*index].m_original_index)
+                .collect(),
+        }
+    }
+}
+
+fn protocol_focus(
+    game: &BMC_Game,
+    action: &crate::simulation::FocusMove,
+) -> crate::protocol::ProtocolAction {
+    if action.values.is_empty() {
+        crate::protocol::ProtocolAction::Pass
+    } else {
+        crate::protocol::ProtocolAction::Focus {
+            dice: action
+                .values
+                .iter()
+                .map(|(index, value)| crate::protocol::FocusSelection {
+                    die: game.m_player[0].m_die[*index].m_original_index,
+                    value: *value,
+                })
+                .collect(),
+        }
+    }
+}
+
+fn phase_protocol(phase: BME_PHASE) -> &'static str {
+    match phase {
+        BME_PHASE::PREROUND => "preround",
+        BME_PHASE::RESERVE => "reserve",
+        BME_PHASE::INITIATIVE => "initiative",
+        BME_PHASE::CHANCE => "chance",
+        BME_PHASE::FOCUS => "focus",
+        BME_PHASE::FIGHT => "fight",
+        BME_PHASE::GAMEOVER => "gameover",
     }
 }
 
@@ -1157,6 +1314,36 @@ Seeding with 17\n"
             let output = String::from_utf8(output).unwrap();
             assert!(output.ends_with(expected), "{output}");
         }
+    }
+
+    #[test]
+    fn typed_initiative_actions_use_original_die_indices() {
+        let mut parser = BMC_Parser::default();
+        parser
+            .ParseString(
+                "game 3\nfocus\nplayer 0 2 0\nf10:10\nc8:8\nplayer 1 1 0\n6:6\n",
+                &mut Vec::new(),
+            )
+            .unwrap();
+
+        assert_eq!(
+            protocol_focus(
+                &parser.m_game,
+                &crate::simulation::FocusMove {
+                    values: vec![(0, 4)]
+                }
+            ),
+            crate::protocol::ProtocolAction::Focus {
+                dice: vec![crate::protocol::FocusSelection { die: 0, value: 4 }]
+            }
+        );
+        assert_eq!(
+            protocol_chance(
+                &parser.m_game,
+                &crate::simulation::ChanceMove { reroll: vec![1] }
+            ),
+            crate::protocol::ProtocolAction::Chance { dice: vec![1] }
+        );
     }
 
     #[test]

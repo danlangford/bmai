@@ -37,6 +37,7 @@ pub struct NativeCapabilities {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct SessionMetadata {
+    pub phase: &'static str,
     pub execution_mode: &'static str,
     pub rng: &'static str,
     pub native_root_seed: u64,
@@ -48,6 +49,67 @@ pub struct SessionMetadata {
     pub max_branch: usize,
 }
 
+/// Complete identity of the native decision stream used by the most recent
+/// search. Candidate and simulation coordinates are derived from this key.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct ReplayMetadata {
+    pub stream_partition: &'static str,
+    pub root_seed: u64,
+    pub decision_index: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct SwingSelection {
+    pub swing: char,
+    pub value: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct OptionSelection {
+    pub die: usize,
+    pub value: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct FocusSelection {
+    pub die: usize,
+    pub value: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TurboSelection {
+    Option { die: usize, value: u8 },
+    Swing { swing: char, value: u8 },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ProtocolAction {
+    Pass,
+    Surrender,
+    Attack {
+        attack_type: &'static str,
+        attackers: Vec<usize>,
+        targets: Vec<usize>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        turbo: Option<TurboSelection>,
+    },
+    Reserve {
+        die: Option<usize>,
+    },
+    SetSwing {
+        swings: Vec<SwingSelection>,
+        options: Vec<OptionSelection>,
+    },
+    Chance {
+        dice: Vec<usize>,
+    },
+    Focus {
+        dice: Vec<FocusSelection>,
+    },
+}
+
 #[derive(Debug, Serialize)]
 pub struct Capabilities {
     pub implementation: &'static str,
@@ -56,7 +118,9 @@ pub struct Capabilities {
     pub commands: &'static [&'static str],
     pub phases: &'static [&'static str],
     pub actions: &'static [&'static str],
+    pub attack_types: &'static [&'static str],
     pub skills: &'static [&'static str],
+    pub parsing_only_skills: &'static [&'static str],
     pub native: NativeCapabilities,
 }
 
@@ -75,6 +139,7 @@ impl Capabilities {
                 "rng",
                 "workers",
                 "game",
+                "player",
                 "ai",
                 "ply",
                 "max_sims",
@@ -89,6 +154,7 @@ impl Capabilities {
                 "seed",
                 "debugply",
                 "debug",
+                "quit",
             ],
             phases: &[
                 "preround",
@@ -101,21 +167,17 @@ impl Capabilities {
             ],
             actions: &[
                 "attack",
-                "auxiliary",
                 "chance",
                 "focus",
-                "option",
                 "pass",
                 "reserve",
+                "set_swing",
                 "surrender",
-                "swing",
-                "turbo",
             ],
+            attack_types: &["power", "skill", "berserk", "speed", "trip", "shadow"],
             skills: &[
-                "Auxiliary",
                 "Berserk",
                 "Chance",
-                "Doppelganger",
                 "Focus",
                 "Insult",
                 "Konstant",
@@ -128,7 +190,6 @@ impl Capabilities {
                 "Ornery",
                 "Poison",
                 "Queer",
-                "Radioactive",
                 "Reserve",
                 "Shadow",
                 "Slow",
@@ -141,10 +202,12 @@ impl Capabilities {
                 "Turbo",
                 "Twin",
                 "Unique",
+                "Unskilled",
                 "Value",
                 "Warrior",
                 "Weak",
             ],
+            parsing_only_skills: &["Auxiliary", "Doppelganger", "Radioactive", "Rage"],
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],
                 rng_algorithms: &["legacy", "park-miller"],
@@ -179,5 +242,71 @@ mod tests {
                 .unwrap()
                 .contains(&"Konstant".into())
         );
+        assert_eq!(
+            value["actions"],
+            serde_json::json!([
+                "attack",
+                "chance",
+                "focus",
+                "pass",
+                "reserve",
+                "set_swing",
+                "surrender"
+            ])
+        );
+        assert!(
+            value["parsing_only_skills"]
+                .as_array()
+                .unwrap()
+                .contains(&"Auxiliary".into())
+        );
+    }
+
+    #[test]
+    fn every_typed_action_shape_has_a_stable_discriminator() {
+        let actions = [
+            serde_json::to_value(ProtocolAction::Pass).unwrap(),
+            serde_json::to_value(ProtocolAction::Surrender).unwrap(),
+            serde_json::to_value(ProtocolAction::Attack {
+                attack_type: "skill",
+                attackers: vec![0, 2],
+                targets: vec![1],
+                turbo: Some(TurboSelection::Swing {
+                    swing: 'X',
+                    value: 12,
+                }),
+            })
+            .unwrap(),
+            serde_json::to_value(ProtocolAction::Reserve { die: None }).unwrap(),
+            serde_json::to_value(ProtocolAction::SetSwing {
+                swings: vec![SwingSelection {
+                    swing: 'X',
+                    value: 12,
+                }],
+                options: vec![OptionSelection { die: 1, value: 20 }],
+            })
+            .unwrap(),
+            serde_json::to_value(ProtocolAction::Chance { dice: vec![0, 2] }).unwrap(),
+            serde_json::to_value(ProtocolAction::Focus {
+                dice: vec![FocusSelection { die: 0, value: 4 }],
+            })
+            .unwrap(),
+        ];
+        assert_eq!(
+            actions
+                .iter()
+                .map(|action| action["type"].as_str().unwrap())
+                .collect::<Vec<_>>(),
+            [
+                "pass",
+                "surrender",
+                "attack",
+                "reserve",
+                "set_swing",
+                "chance",
+                "focus"
+            ]
+        );
+        assert_eq!(actions[2]["turbo"]["kind"], "swing");
     }
 }
