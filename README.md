@@ -83,11 +83,13 @@ separate workflow artifact; macOS Intel and Apple Silicon builds are not
 combined into a universal binary. Release artifacts include build metadata and
 SHA-256 checksums.
 
-A merge to `rust` is treated as a release when its Cargo version has no matching
-`bmair-v*` tag and `CHANGELOG.md` contains that dated version. After every
-platform passes, the workflow creates the annotated tag and GitHub preview
-release from the already-tested artifacts. Pushing a matching tag remains a
-supported recovery/manual release trigger.
+Every merge-ready pull request must increase the Cargo version and add its dated
+`CHANGELOG.md` entry. The required PR gate fails if that version is already
+tagged, is not greater than the base branch version, or lacks the changelog
+entry. After the squash merge and every platform passes, the workflow creates
+the annotated `bmair-v*` tag and GitHub preview release from the already-tested
+artifacts. Pushing a matching tag remains a supported recovery/manual release
+trigger.
 
 Pull requests, default-branch pushes, and tags use Release builds by default so
 release-only optimizer or linker failures are caught before tagging. Manual

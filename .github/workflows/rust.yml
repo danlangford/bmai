@@ -75,7 +75,11 @@ jobs:
             tag_exists=true
           fi
 
-          if [[ "$GITHUB_EVENT_NAME" == pull_request && "$tag_exists" == false ]]; then
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            if [[ "$tag_exists" == true ]]; then
+              echo "$tag is already released; bump Cargo and add a dated changelog entry before merge" >&2
+              exit 1
+            fi
             base_sha="${{ github.event.pull_request.base.sha }}"
             base_version=$(git show "${base_sha}:Cargo.toml" \
               | sed -n 's/^version = "\([^"]*\)"/\1/p' | head -n 1)
