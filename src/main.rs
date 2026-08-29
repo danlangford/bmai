@@ -4,7 +4,7 @@
 
 use std::env;
 use std::fs;
-use std::io::{self, Read};
+use std::io::{self, Write};
 
 use bmair::{BMC_Parser, Capabilities, run_jsonl};
 
@@ -48,26 +48,27 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    println!("BMAIR: the Button Men AI in Rust");
-    println!("Based on BMAI, Copyright © 2001-2026 Denis Papp.");
-    println!("Rust port Copyright © 2026 Dan Langford.");
-    println!(
+    let mut output = io::stdout().lock();
+    writeln!(output, "BMAIR: the Button Men AI in Rust")?;
+    writeln!(output, "Based on BMAI, Copyright © 2001-2026 Denis Papp.")?;
+    writeln!(output, "Rust port Copyright © 2026 Dan Langford.")?;
+    writeln!(
+        output,
         "Version: {} ({}; {})",
         env!("BMAIR_BUILD_VERSION"),
         env!("BMAIR_GIT_DESCRIBE"),
         env!("BMAIR_BUILD_PROFILE")
-    );
-
-    let input = if let Some(path) = arguments.first() {
-        println!("Reading from {path}");
-        fs::read_to_string(path)?
-    } else {
-        let mut input = String::new();
-        io::stdin().read_to_string(&mut input)?;
-        input
-    };
+    )?;
+    output.flush()?;
 
     let mut parser = BMC_Parser::default();
-    parser.ParseString(&input, &mut io::stdout())?;
+    if let Some(path) = arguments.first() {
+        writeln!(output, "Reading from {path}")?;
+        let input = fs::read_to_string(path)?;
+        parser.ParseString(&input, &mut output)?;
+    } else {
+        let mut input = io::stdin().lock();
+        parser.ParseStream(&mut input, &mut output)?;
+    }
     Ok(())
 }

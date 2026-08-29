@@ -118,6 +118,14 @@ output are part of this human-oriented interface. The command set is:
 `max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
+Standard input is incremental. BMAIR flushes the four-line banner before
+waiting for input, executes each single-line command as it arrives, and
+executes a `game` after receiving its phase and both complete player/die
+blocks. Output is flushed after every complete top-level command. `quit`
+terminates immediately without waiting for EOF. This preserves the original
+C++ subprocess contract used by clients that write and flush a request, keep
+stdin open, and then read the response. File arguments remain batch inputs.
+
 The stable command forms are:
 
 | Form | Effect |

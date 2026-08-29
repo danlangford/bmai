@@ -3,7 +3,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::fmt;
-use std::io::Write;
+use std::io::{BufRead, Write};
 
 use crate::model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_PHASE, BME_SWING_SET, property,
@@ -134,6 +134,71 @@ impl BMC_Parser {
     pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
         self.m_last_action = None;
         self.m_last_replay = None;
+        self.ParseStringCommands(data, output)
+    }
+
+    /// Parse the legacy protocol incrementally, matching the C++ stdin
+    /// contract: each top-level command is executed as soon as its complete
+    /// line or game block arrives, and `quit` terminates without waiting for
+    /// EOF.
+    pub fn ParseStream<R: BufRead, W: Write>(
+        &mut self,
+        input: &mut R,
+        output: &mut W,
+    ) -> Result<(), ParseError> {
+        self.m_last_action = None;
+        self.m_last_replay = None;
+
+        while let Some(line) = read_stream_line(input)? {
+            let command = line.trim();
+            if command.is_empty() {
+                continue;
+            }
+            let is_game = command.starts_with("game");
+            let is_quit = command == "quit";
+
+            let mut block = line;
+            if is_game {
+                let phase = read_required_stream_line(input, "missing phase")?;
+                parse_phase(phase.trim())?;
+                block.push_str(&phase);
+                for expected_player in 0..2 {
+                    let header = read_required_stream_line(input, "missing player")?;
+                    let fields = header.split_whitespace().collect::<Vec<_>>();
+                    if fields.len() < 4 || fields[0] != "player" {
+                        return Err(ParseError(format!("missing player: {}", header.trim())));
+                    }
+                    let player = parse_usize(fields[1])?;
+                    let dice = parse_usize(fields[2])?;
+                    fields[3]
+                        .parse::<f32>()
+                        .map_err(|_| ParseError(format!("invalid score: {}", fields[3])))?;
+                    if player != expected_player {
+                        return Err(ParseError(format!("expected player {expected_player}")));
+                    }
+                    block.push_str(&header);
+                    for original_index in 0..dice {
+                        let definition = read_required_stream_line(input, "missing die")?;
+                        ParseDie(definition.trim(), original_index)?;
+                        block.push_str(&definition);
+                    }
+                }
+            }
+
+            self.ParseStringCommands(&block, output)?;
+            output.flush().map_err(io_error)?;
+            if is_quit {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn ParseStringCommands<W: Write>(
+        &mut self,
+        data: &str,
+        output: &mut W,
+    ) -> Result<(), ParseError> {
         let lines: Vec<_> = data.lines().collect();
         let mut pos = 0;
         while pos < lines.len() {
@@ -457,16 +522,7 @@ impl BMC_Parser {
             .ok_or_else(|| ParseError("missing phase".into()))?
             .trim();
         pos += 1;
-        self.m_game.m_phase = match phase {
-            "preround" => BME_PHASE::PREROUND,
-            "reserve" => BME_PHASE::RESERVE,
-            "initiative" => BME_PHASE::INITIATIVE,
-            "chance" => BME_PHASE::CHANCE,
-            "focus" => BME_PHASE::FOCUS,
-            "fight" => BME_PHASE::FIGHT,
-            "gameover" => BME_PHASE::GAMEOVER,
-            _ => return Err(ParseError("phase not found".into())),
-        };
+        self.m_game.m_phase = parse_phase(phase)?;
         for expected in 0..2 {
             let header = lines
                 .get(pos)
@@ -836,6 +892,21 @@ fn parse_side(chars: &[char], mut pos: usize) -> Result<(u8, Option<char>, usize
     Ok((value, None, pos))
 }
 
+fn read_stream_line<R: BufRead>(input: &mut R) -> Result<Option<String>, ParseError> {
+    let mut line = String::new();
+    match input.read_line(&mut line).map_err(io_error)? {
+        0 => Ok(None),
+        _ => Ok(Some(line)),
+    }
+}
+
+fn read_required_stream_line<R: BufRead>(
+    input: &mut R,
+    missing: &'static str,
+) -> Result<String, ParseError> {
+    read_stream_line(input)?.ok_or_else(|| ParseError(missing.into()))
+}
+
 fn prefix_property(ch: char) -> Option<u64> {
     crate::notation::DIE_PROPERTY_PREFIXES
         .iter()
@@ -1037,6 +1108,19 @@ fn phase_protocol(phase: BME_PHASE) -> &'static str {
     }
 }
 
+fn parse_phase(phase: &str) -> Result<BME_PHASE, ParseError> {
+    match phase {
+        "preround" => Ok(BME_PHASE::PREROUND),
+        "reserve" => Ok(BME_PHASE::RESERVE),
+        "initiative" => Ok(BME_PHASE::INITIATIVE),
+        "chance" => Ok(BME_PHASE::CHANCE),
+        "focus" => Ok(BME_PHASE::FOCUS),
+        "fight" => Ok(BME_PHASE::FIGHT),
+        "gameover" => Ok(BME_PHASE::GAMEOVER),
+        _ => Err(ParseError("phase not found".into())),
+    }
+}
+
 fn write_indices<W: Write>(
     player: &crate::model::BMC_Player,
     indices: &BMC_DieIndexSet,
@@ -1140,6 +1224,47 @@ getaction\n";
         BMC_Parser::default()
             .ParseString(input, &mut Vec::new())
             .unwrap();
+    }
+
+    #[test]
+    fn streamed_legacy_commands_match_batched_parsing() {
+        let input = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 2 30\n1:1\n(30,30):60\nseed 17\nsurrender off\ngetaction\nquit\n";
+        let mut batched = BMC_Parser::default();
+        let mut batched_output = Vec::new();
+        batched.ParseString(input, &mut batched_output).unwrap();
+
+        let mut streamed = BMC_Parser::default();
+        let mut streamed_output = Vec::new();
+        streamed
+            .ParseStream(&mut std::io::Cursor::new(input), &mut streamed_output)
+            .unwrap();
+
+        assert_eq!(streamed_output, batched_output);
+        assert_eq!(streamed.session_metadata(), batched.session_metadata());
+        assert_eq!(streamed.last_action(), batched.last_action());
+        assert_eq!(streamed.last_replay(), batched.last_replay());
+    }
+
+    #[test]
+    fn streamed_game_rejects_malformed_structure_without_waiting_for_more_input() {
+        for (input, expected) in [
+            ("game\ninvalid-phase\n", "phase not found"),
+            ("game\nfight\nplayer 0 1\n", "missing player: player 0 1"),
+            (
+                "game\nfight\nplayer 0 1 invalid\n",
+                "invalid score: invalid",
+            ),
+            (
+                "game\nfight\nplayer 0 2 1\nnot-a-die\n",
+                "error parsing die not-a-die at -",
+            ),
+        ] {
+            let mut parser = BMC_Parser::default();
+            let error = parser
+                .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+                .unwrap_err();
+            assert_eq!(error.to_string(), expected);
+        }
     }
 
     #[test]

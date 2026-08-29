@@ -319,3 +319,20 @@ optimized storage indices back to original protocol die indices.
   fixture outputs matched again (491.85 seconds), representative raw RNG states
   matched (155.73 seconds), and every fixture RNG fingerprint matched (469.00
   seconds) against the instrumented Release PR #82 reference on 2026-08-28.
+
+## 0.4 streaming legacy subprocess contract
+
+- [x] C++ `ParseStdIn` consumes commands with `fgets`, and Rust
+  `BMC_Parser::ParseStream` now consumes complete commands with `BufRead`
+  without waiting for EOF. Both terminate on `quit`.
+- [x] `legacy_banner_is_flushed_before_input` proves banner availability, and
+  `legacy_stdin_matches_bmaibagels_write_flush_read_contract` returns an action
+  while the parent deliberately keeps stdin open.
+- [x] `streamed_legacy_commands_match_batched_parsing` asserts identical
+  output, session metadata, typed action, and replay metadata for streamed and
+  batched execution of the same seeded request.
+- [x] On 2026-08-29, the PR #82 Release reference passed parser-error parity;
+  every material fixture matched (533.45 seconds); representative raw RNG
+  states matched (168.60 seconds); and every fixture RNG fingerprint matched
+  (539.06 seconds). The three ignored deep-search Rust tests also passed in
+  Release mode (246.49 seconds).
