@@ -101,9 +101,11 @@ jobs:
         working-directory: release-assets
         shell: bash
         run: |
+          checksum_manifest=$(mktemp)
           find . -maxdepth 1 -type f ! -name '*.sha256' ! -name SHA256SUMS \
             -printf '%f\n' \
-            | sort | xargs sha256sum > SHA256SUMS
+            | sort | xargs sha256sum > "$checksum_manifest"
+          mv "$checksum_manifest" SHA256SUMS
       - name: Create release notes
         shell: bash
         run: |
@@ -132,17 +134,46 @@ jobs:
             fi
             cat changelog-notes.md
           } > release-notes.md
-      - name: Publish GitHub release
+      - name: Stage, verify, and publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           tag="${{ needs.release-plan.outputs.tag }}"
           title="BMAIR ${{ needs.release-plan.outputs.version }}"
+
           if gh release view "$tag" >/dev/null 2>&1; then
-            gh release upload "$tag" release-assets/* --clobber
-            gh release edit "$tag" --prerelease=false --latest --verify-tag \
-              --title "$title" --notes-file release-notes.md
+            is_draft=$(gh release view "$tag" --json isDraft --jq .isDraft)
+            if [[ "$is_draft" == false ]]; then
+              expected_assets=$(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+              published_assets=$(gh release view "$tag" --json assets --jq '.assets[].name' | sort)
+              if [[ "$published_assets" != "$expected_assets" ]]; then
+                echo "$tag is already published with an unexpected asset set" >&2
+                diff <(printf '%s\n' "$expected_assets") \
+                  <(printf '%s\n' "$published_assets") || true
+                exit 1
+              fi
+              echo "$tag is already published with the complete asset set"
+              exit 0
+            fi
+            gh release edit "$tag" --verify-tag --title "$title" \
+              --notes-file release-notes.md
           else
-            gh release create "$tag" release-assets/* --latest --verify-tag \
+            gh release create "$tag" --draft --verify-tag \
               --title "$title" --notes-file release-notes.md
+          fi
+
+          # Draft assets remain replaceable after an interrupted run. Once the
+          # verified draft is published, repository immutability locks them.
+          gh release upload "$tag" release-assets/* --clobber
+          expected_assets=$(find release-assets -maxdepth 1 -type f -printf '%f\n' | sort)
+          uploaded_assets=$(gh release view "$tag" --json assets --jq '.assets[].name' | sort)
+          if [[ "$uploaded_assets" != "$expected_assets" ]]; then
+            echo "$tag draft does not contain the complete asset set" >&2
+            diff <(printf '%s\n' "$expected_assets") \
+              <(printf '%s\n' "$uploaded_assets") || true
+            exit 1
+          fi
+
+          gh release edit "$tag" --draft=false --prerelease=false --latest \
+            --verify-tag --title "$title" --notes-file release-notes.md

@@ -90,8 +90,11 @@ Every merge-ready pull request must increase the Cargo version and add its dated
 tagged, is not greater than the base branch version, or lacks the changelog
 entry. Release publication does not appear in pull-request checks. After the
 squash merge and every release check passes, the release workflow creates the
-annotated `bmair-v*` tag and GitHub release from the already-tested artifacts.
-Pushing a matching tag remains a supported recovery/manual release trigger.
+annotated `bmair-v*` tag, stages and verifies every already-tested artifact on a
+draft GitHub release, and publishes it once. This is compatible with immutable
+releases: interrupted drafts can resume, while published tags and assets are
+never modified. Pushing a matching tag remains a supported recovery/manual
+release trigger.
 
 Pull requests, default-branch pushes, and tags use Release builds by default so
 release-only optimizer or linker failures are caught before tagging. Manual

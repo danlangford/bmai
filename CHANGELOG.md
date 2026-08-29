@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   binaries, checksums, build metadata, and changelog notes.
 - Pull-request release-policy checks run independently from format, lint, test,
   and platform builds; release-publication jobs appear only on release runs.
+- GitHub releases stage and verify their complete asset set as resumable drafts
+  before one-way publication, making the pipeline compatible with immutable
+  releases.
 
 ### Fixed
 
