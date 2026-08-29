@@ -124,6 +124,19 @@ The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
 
+### Python and service integration
+
+Long-lived clients should start `bmair --protocol jsonl-v1` and exchange one
+request and response per line. This interface has request IDs, typed actions,
+structured recoverable errors, capability discovery, transactional session
+updates, and native replay metadata; it emits no human banner on stdout.
+
+The complete wire contract and compatibility policy are in
+[`PROTOCOL.md`](PROTOCOL.md). A dependency-free persistent Python client is in
+[`examples/python/bmair_jsonl.py`](examples/python/bmair_jsonl.py). It is
+intended to support Python consumers such as bmaibagels without requiring those
+consumers to move engine logic into Python or Rust.
+
 ### Execution and RNG modes
 
 `mode legacy` selects the exact C++ compatibility contract and remains the

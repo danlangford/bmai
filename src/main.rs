@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Read};
 
-use bmair::BMC_Parser;
+use bmair::{BMC_Parser, Capabilities, run_jsonl};
 
 fn main() {
     if let Err(error) = run() {
@@ -16,7 +16,11 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    if matches!(env::args().nth(1).as_deref(), Some("-V" | "--version")) {
+    let arguments = env::args().skip(1).collect::<Vec<_>>();
+    if matches!(
+        arguments.first().map(String::as_str),
+        Some("-V" | "--version")
+    ) {
         println!(
             "bmair {} ({}; {})",
             env!("BMAIR_BUILD_VERSION"),
@@ -24,6 +28,24 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
             env!("BMAIR_BUILD_PROFILE")
         );
         return Ok(());
+    }
+    if matches!(
+        arguments.first().map(String::as_str),
+        Some("--capabilities")
+    ) {
+        serde_json::to_writer(io::stdout().lock(), &Capabilities::current())?;
+        println!();
+        return Ok(());
+    }
+    if arguments.first().map(String::as_str) == Some("--protocol") {
+        match arguments.get(1).map(String::as_str) {
+            Some("jsonl-v1") if arguments.len() == 2 => {
+                run_jsonl(io::stdin().lock(), io::stdout().lock())?;
+                return Ok(());
+            }
+            Some(protocol) => return Err(format!("unsupported protocol: {protocol}").into()),
+            None => return Err("--protocol requires a protocol name".into()),
+        }
     }
 
     println!("BMAIR: the Button Men AI in Rust");
@@ -36,7 +58,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         env!("BMAIR_BUILD_PROFILE")
     );
 
-    let input = if let Some(path) = env::args().nth(1) {
+    let input = if let Some(path) = arguments.first() {
         println!("Reading from {path}");
         fs::read_to_string(path)?
     } else {

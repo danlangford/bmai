@@ -12,6 +12,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-28
+
+### Added
+
+- A versioned, Python-friendly machine-to-machine integration contract for
+  capability discovery, structured JSON Lines requests and responses, typed
+  actions, replay metadata, and reusable multi-request sessions.
+- A public transactional `BmairSession` Rust API and dependency-free persistent
+  Python subprocess example.
+- Protocol specifications, compatibility guarantees, consumer examples, and
+  cross-protocol contract tests while retaining `legacy-v1` unchanged.
+- Discoverable BMAIR die-notation tokens, stable skill identifiers, and
+  implementation-support labels for recipe translators.
+
+### Changed
+
+- Machine responses now carry build identity, complete global/per-player search
+  settings, original die indices, and the exact native decision replay key.
+
 ## [0.2.0] - 2026-08-28
 
 ### Added
@@ -63,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...HEAD
+[0.3.0]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...bmair-v0.3.0
 [0.2.0]: https://github.com/danlangford/bmai/compare/bmair-v0.1.0...bmair-v0.2.0
 [0.1.0]: https://github.com/danlangford/bmai/releases/tag/bmair-v0.1.0
