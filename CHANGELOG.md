@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-29
+
+### Added
+
+- Incremental `legacy-v1` standard-input execution for long-lived subprocess
+  callers such as BMAIBagels, including banner flushing and `quit` termination
+  without requiring the caller to close stdin.
+- Process-level regression coverage for the BMAIBagels write, flush, read, and
+  submit workflow.
+
+### Changed
+
+- Standard-input legacy commands now execute as soon as a complete command or
+  game block arrives, matching the original C++ parser. File inputs, JSONL, AI
+  decisions, output syntax, and RNG behavior remain unchanged.
+
 ## [0.3.0] - 2026-08-28
 
 ### Added
@@ -82,7 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...HEAD
+[0.4.0]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...bmair-v0.4.0
 [0.3.0]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...bmair-v0.3.0
 [0.2.0]: https://github.com/danlangford/bmai/compare/bmair-v0.1.0...bmair-v0.2.0
 [0.1.0]: https://github.com/danlangford/bmai/releases/tag/bmair-v0.1.0

@@ -115,7 +115,7 @@ cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
 
 `bmair --version` derives its displayed version from Cargo and
-`git describe`. An exact `bmair-v0.2.0` tag reports `0.2.0`; development builds
+`git describe`. An exact `bmair-v0.4.0` tag reports `0.4.0`; development builds
 report the upcoming Cargo version plus the number of commits since the previous
 release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
@@ -136,6 +136,12 @@ The complete wire contract and compatibility policy are in
 [`examples/python/bmair_jsonl.py`](examples/python/bmair_jsonl.py). It is
 intended to support Python consumers such as bmaibagels without requiring those
 consumers to move engine logic into Python or Rust.
+
+Existing subprocess clients may continue using the C++-compatible legacy
+protocol. BMAIR flushes its banner, processes complete stdin commands without
+waiting for EOF, and treats `quit` as immediate termination. This supports the
+historical BMAIBagels `Popen` pattern of writing and flushing a complete legacy
+request while keeping the pipe open to read the action.
 
 ### Execution and RNG modes
 

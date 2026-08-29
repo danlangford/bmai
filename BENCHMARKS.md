@@ -88,3 +88,26 @@ largest reserve search is the limiting case: its 2.89x wall-time improvement
 costs 3.74x peak RSS and 2.45x aggregate CPU time. Native mode therefore keeps
 the default at one worker. Higher counts are explicitly opt-in until simulation
 state reuse or a persistent bounded worker pool reduces this overhead.
+
+## 0.4.0 streaming-stdin comparison
+
+Measured sequentially on 2026-08-29 on the same Intel Mac. The 0.3.0 side is
+the published macOS x86_64 Release artifact (`8ffdc1b`, Rust 1.97.1); the 0.4.0
+side is a local Release build from `8ffdc1b` plus the streaming-stdin change
+using Rust 1.98.0. Each fixture was run once in file-argument mode and once via
+stdin redirected to EOF. Times are observational rather than a release gate.
+
+| Fixture | 0.3 file | 0.4 file | 0.3 stdin | 0.4 stdin | stdin change |
+|---|---:|---:|---:|---:|---:|
+| `bmai_in.txt` | 6.86s | 6.72s | 6.72s | 6.78s | +0.9% |
+| `bmsim_in.txt` | 18.95s | 17.36s | 17.44s | 17.41s | -0.2% |
+| `bug11_in.txt` | 43.44s | 42.06s | 43.31s | 42.14s | -2.7% |
+| `bug16_in.txt` | 241.22s | 245.46s | 236.47s | 231.31s | -2.2% |
+
+User CPU time followed wall time closely on the first three fixtures. The
+`bug16_in.txt` runs had 200.74–210.13s user and 27.91–31.60s system time, which
+shows that its few-percent spread is ordinary run variance. There is no
+measurable streaming penalty in this sample: framing and flushing happen only
+around top-level commands, while AI search dominates runtime. Peak RSS was not
+recorded because sandboxed macOS `/usr/bin/time -l` could not access
+`kern.clockrate`.
