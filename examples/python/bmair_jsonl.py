@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +37,8 @@ class Bmair:
         if not line:
             raise RuntimeError(f"BMAIR exited with status {self._process.poll()}")
         response = json.loads(line)
+        if response.get("protocol") != "jsonl-v1":
+            raise RuntimeError(f"protocol mismatch: {response!r}")
         if response.get("id") != request_id:
             raise RuntimeError(f"response ID mismatch: {response!r}")
         if not response.get("ok"):
@@ -58,8 +59,7 @@ class Bmair:
         self.close()
 
 
-def main(arguments: Iterator[str] | None = None) -> None:
-    del arguments
+def main() -> None:
     with Bmair() as bmair:
         print(json.dumps(bmair.request("capabilities"), indent=2))
         result = bmair.request("session.execute", {"script": "seed 17\nply 1\n"})

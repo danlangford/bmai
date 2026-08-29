@@ -7,7 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    BMC_Parser, Capabilities, ParseError, ProtocolAction, ReplayMetadata, SessionMetadata,
+    BMC_Parser, BuildIdentity, Capabilities, ParseError, ProtocolAction, ReplayMetadata,
+    SessionMetadata,
 };
 
 pub const JSONL_PROTOCOL: &str = "jsonl-v1";
@@ -80,8 +81,10 @@ pub struct BmairSession {
     parser: BMC_Parser,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct SessionExecuteResult {
+    pub build: BuildIdentity,
     pub action: Option<ProtocolAction>,
     pub legacy_output: String,
     pub replay: Option<ReplayMetadata>,
@@ -97,6 +100,7 @@ impl BmairSession {
         candidate.ParseString(script, &mut output)?;
         self.parser = candidate;
         Ok(SessionExecuteResult {
+            build: BuildIdentity::current(),
             action: self.parser.last_action().cloned(),
             legacy_output: String::from_utf8(output).expect("legacy protocol output is UTF-8"),
             replay: self.parser.last_replay().cloned(),
@@ -113,8 +117,18 @@ impl BmairSession {
     }
 
     pub fn handle_line(&mut self, line: &str) -> String {
-        let response = match serde_json::from_str::<Request>(line) {
-            Ok(request) => self.handle_request(request),
+        let response = match serde_json::from_str::<Value>(line) {
+            Ok(value) => {
+                let error_id = value
+                    .get("id")
+                    .filter(|id| valid_id(id))
+                    .cloned()
+                    .unwrap_or(Value::Null);
+                match serde_json::from_value::<Request>(value) {
+                    Ok(request) => self.handle_request(request),
+                    Err(error) => Response::error(error_id, "invalid_request", error.to_string()),
+                }
+            }
             Err(error) => Response::error(Value::Null, "invalid_json", error.to_string()),
         };
         serde_json::to_string(&response).expect("protocol responses are serializable")
@@ -233,16 +247,28 @@ mod tests {
     #[test]
     fn rejected_scripts_are_transactional_and_the_session_recovers() {
         let mut session = BmairSession::default();
+        let initial = response(
+            &mut session,
+            json!({
+                "protocol": "jsonl-v1",
+                "id": 0,
+                "method": "session.execute",
+                "params": { "script": "workers 4" }
+            }),
+        );
+        assert_eq!(initial["result"]["session"]["workers"], 4);
+
         let rejected = response(
             &mut session,
             json!({
                 "protocol": "jsonl-v1",
                 "id": 1,
                 "method": "session.execute",
-                "params": { "script": "workers 0" }
+                "params": { "script": "workers 2\nnot-a-command" }
             }),
         );
         assert_eq!(rejected["error"]["code"], "execution_error");
+        assert_eq!(session.metadata().workers, 4);
 
         let accepted = response(
             &mut session,
@@ -250,11 +276,12 @@ mod tests {
                 "protocol": "jsonl-v1",
                 "id": 2,
                 "method": "session.execute",
-                "params": { "script": "workers 2" }
+                "params": { "script": "ply 2" }
             }),
         );
         assert_eq!(accepted["ok"], true);
-        assert_eq!(accepted["result"]["session"]["workers"], 2);
+        assert_eq!(accepted["result"]["session"]["workers"], 4);
+        assert_eq!(accepted["result"]["session"]["max_ply"], 2);
     }
 
     #[test]
@@ -368,5 +395,147 @@ mod tests {
         assert_eq!(value["ok"], true);
         assert!(value["result"]["replay"].is_null());
         assert_eq!(value["result"]["session"]["native_decision_index"], 0);
+    }
+
+    #[test]
+    fn reset_restores_defaults_after_multiple_stateful_requests() {
+        let mut session = BmairSession::default();
+        let changed = response(
+            &mut session,
+            json!({
+                "protocol": "jsonl-v1",
+                "id": 1,
+                "method": "session.execute",
+                "params": { "script": "mode native\nworkers 4\nseed 17\nply 2\n" }
+            }),
+        );
+        assert_eq!(changed["result"]["session"]["execution_mode"], "native");
+        assert_eq!(changed["result"]["session"]["workers"], 4);
+        assert_eq!(changed["result"]["session"]["max_ply"], 2);
+        assert_eq!(changed["result"]["session"]["players"][0]["max_ply"], 2);
+        assert_eq!(
+            changed["result"]["build"]["version"],
+            env!("BMAIR_BUILD_VERSION")
+        );
+
+        let reset = response(
+            &mut session,
+            json!({
+                "protocol": "jsonl-v1",
+                "id": 2,
+                "method": "session.reset"
+            }),
+        );
+        assert_eq!(reset["result"]["session"]["execution_mode"], "legacy");
+        assert_eq!(reset["result"]["session"]["workers"], 1);
+        assert_eq!(reset["result"]["session"]["max_ply"], 1);
+    }
+
+    #[test]
+    fn request_validation_has_stable_recoverable_error_codes() {
+        let cases = [
+            (
+                json!({"protocol":"jsonl-v0","id":1,"method":"capabilities"}),
+                "unsupported_protocol",
+            ),
+            (
+                json!({"protocol":"jsonl-v1","id":[],"method":"capabilities"}),
+                "invalid_request",
+            ),
+            (
+                json!({"protocol":"jsonl-v1","id":2,"method":"missing"}),
+                "method_not_found",
+            ),
+            (
+                json!({"protocol":"jsonl-v1","id":3,"method":"capabilities","params":{"extra":true}}),
+                "invalid_params",
+            ),
+            (
+                json!({"protocol":"jsonl-v1","id":4,"method":"session.execute","params":{}}),
+                "invalid_params",
+            ),
+        ];
+        let mut session = BmairSession::default();
+        for (request, code) in cases {
+            let value = response(&mut session, request);
+            assert_eq!(value["ok"], false, "{code}");
+            assert_eq!(value["error"]["code"], code);
+            assert_eq!(value["error"]["recoverable"], true);
+        }
+
+        let schema_error: Value =
+            serde_json::from_str(&session.handle_line(
+                r#"{"protocol":"jsonl-v1","id":5,"method":"capabilities","extra":true}"#,
+            ))
+            .unwrap();
+        assert_eq!(schema_error["error"]["code"], "invalid_request");
+        assert_eq!(schema_error["id"], 5);
+    }
+
+    #[test]
+    fn surrender_and_turbo_are_captured_from_the_legacy_action() {
+        let cases = [
+            (
+                include_str!("../tests/fixtures/SurrenderDefault-Pass-in.txt"),
+                "surrender",
+                None,
+            ),
+            (
+                include_str!("../tests/fixtures/parity_turbo_option_in.txt"),
+                "attack",
+                Some("option"),
+            ),
+            (
+                include_str!("../tests/fixtures/parity_turbo_swing_in.txt"),
+                "attack",
+                Some("swing"),
+            ),
+        ];
+        for (script, action_type, turbo_kind) in cases {
+            let result = BmairSession::default().execute(script).unwrap();
+            let action = serde_json::to_value(result.action).unwrap();
+            assert_eq!(action["type"], action_type);
+            match turbo_kind {
+                Some(kind) => assert_eq!(action["turbo"]["kind"], kind),
+                None => assert!(action.get("turbo").is_none()),
+            }
+        }
+    }
+
+    #[test]
+    fn native_typed_actions_and_replay_keys_are_worker_count_independent() {
+        let available = std::thread::available_parallelism().map_or(1, usize::from);
+        for fixture in [
+            include_str!("../tests/native-fixtures/fight.txt"),
+            include_str!("../tests/native-fixtures/preround.txt"),
+            include_str!("../tests/native-fixtures/reserve.txt"),
+            include_str!("../tests/native-fixtures/chance.txt"),
+            include_str!("../tests/native-fixtures/focus.txt"),
+        ] {
+            let run = |workers: usize| {
+                let script = fixture.replace("workers 3", &format!("workers {workers}"));
+                let result = BmairSession::default().execute(&script).unwrap();
+                (result.action, result.replay)
+            };
+            let expected = run(1);
+            assert_eq!(run(2), expected);
+            assert_eq!(run(available), expected);
+        }
+    }
+
+    #[test]
+    fn phase_specific_declines_have_unambiguous_typed_results() {
+        let reserve = BmairSession::default()
+            .execute("game\nreserve\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\n")
+            .unwrap();
+        assert_eq!(
+            reserve.action,
+            Some(crate::protocol::ProtocolAction::Reserve { die: None })
+        );
+
+        let preround = BmairSession::default()
+            .execute("game\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\n")
+            .unwrap();
+        assert_eq!(preround.action, Some(crate::protocol::ProtocolAction::Pass));
     }
 }

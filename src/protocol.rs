@@ -7,6 +7,7 @@ use serde::Serialize;
 /// incompatible future contracts instead of changing an existing contract.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
 pub enum ProtocolVersion {
     LegacyV1,
     JsonlV1,
@@ -21,14 +22,26 @@ impl ProtocolVersion {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct BuildIdentity {
     pub version: &'static str,
     pub git_describe: &'static str,
     pub profile: &'static str,
 }
 
+impl BuildIdentity {
+    pub const fn current() -> Self {
+        Self {
+            version: env!("BMAIR_BUILD_VERSION"),
+            git_describe: env!("BMAIR_GIT_DESCRIBE"),
+            profile: env!("BMAIR_BUILD_PROFILE"),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
+#[non_exhaustive]
 pub struct NativeCapabilities {
     pub execution_modes: &'static [&'static str],
     pub rng_algorithms: &'static [&'static str],
@@ -36,8 +49,46 @@ pub struct NativeCapabilities {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct PlayerAiMetadata {
+    pub ai_type: usize,
+    pub policy: &'static str,
+    pub culls_moves: bool,
+    pub max_ply: usize,
+    pub min_simulations: usize,
+    pub max_simulations: usize,
+    pub max_branch: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(untagged)]
+#[non_exhaustive]
+pub enum ProtocolFloat {
+    Finite(f32),
+    NonFinite(&'static str),
+}
+
+impl ProtocolFloat {
+    pub fn from_f32(value: f32) -> Self {
+        if value.is_nan() {
+            Self::NonFinite("nan")
+        } else if value == f32::INFINITY {
+            Self::NonFinite("infinity")
+        } else if value == f32::NEG_INFINITY {
+            Self::NonFinite("-infinity")
+        } else {
+            Self::Finite(value)
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct SessionMetadata {
     pub phase: &'static str,
+    pub target_wins: u8,
+    pub surrender_allowed: bool,
+    pub turbo_accuracy: ProtocolFloat,
     pub execution_mode: &'static str,
     pub rng: &'static str,
     pub native_root_seed: u64,
@@ -47,11 +98,13 @@ pub struct SessionMetadata {
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
+    pub players: [PlayerAiMetadata; 2],
 }
 
 /// Complete identity of the native decision stream used by the most recent
 /// search. Candidate and simulation coordinates are derived from this key.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct ReplayMetadata {
     pub stream_partition: &'static str,
     pub root_seed: u64,
@@ -59,18 +112,21 @@ pub struct ReplayMetadata {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct SwingSelection {
     pub swing: char,
     pub value: u8,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct OptionSelection {
     pub die: usize,
     pub value: u8,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
 pub struct FocusSelection {
     pub die: usize,
     pub value: u8,
@@ -78,6 +134,7 @@ pub struct FocusSelection {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum TurboSelection {
     Option { die: usize, value: u8 },
     Swing { swing: char, value: u8 },
@@ -85,6 +142,7 @@ pub enum TurboSelection {
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ProtocolAction {
     Pass,
     Surrender,
@@ -111,6 +169,7 @@ pub enum ProtocolAction {
 }
 
 #[derive(Debug, Serialize)]
+#[non_exhaustive]
 pub struct Capabilities {
     pub implementation: &'static str,
     pub build: BuildIdentity,
@@ -119,6 +178,7 @@ pub struct Capabilities {
     pub phases: &'static [&'static str],
     pub actions: &'static [&'static str],
     pub attack_types: &'static [&'static str],
+    pub ai_policies: &'static [&'static str],
     pub skills: &'static [&'static str],
     pub parsing_only_skills: &'static [&'static str],
     pub native: NativeCapabilities,
@@ -128,11 +188,7 @@ impl Capabilities {
     pub const fn current() -> Self {
         Self {
             implementation: "bmair",
-            build: BuildIdentity {
-                version: env!("BMAIR_BUILD_VERSION"),
-                git_describe: env!("BMAIR_GIT_DESCRIBE"),
-                profile: env!("BMAIR_BUILD_PROFILE"),
-            },
+            build: BuildIdentity::current(),
             protocols: &[ProtocolVersion::LegacyV1, ProtocolVersion::JsonlV1],
             commands: &[
                 "mode",
@@ -175,6 +231,7 @@ impl Capabilities {
                 "surrender",
             ],
             attack_types: &["power", "skill", "berserk", "speed", "trip", "shadow"],
+            ai_policies: &["bmai", "qai", "bmai3"],
             skills: &[
                 "Berserk",
                 "Chance",
@@ -235,6 +292,31 @@ mod tests {
                 .as_array()
                 .unwrap()
                 .contains(&"getaction".into())
+        );
+        assert_eq!(
+            value["commands"],
+            serde_json::json!([
+                "mode",
+                "rng",
+                "workers",
+                "game",
+                "player",
+                "ai",
+                "ply",
+                "max_sims",
+                "min_sims",
+                "maxbranch",
+                "turbo_accuracy",
+                "surrender",
+                "getaction",
+                "playgame",
+                "playfair",
+                "compare",
+                "seed",
+                "debugply",
+                "debug",
+                "quit"
+            ])
         );
         assert!(
             value["skills"]
@@ -308,5 +390,21 @@ mod tests {
             ]
         );
         assert_eq!(actions[2]["turbo"]["kind"], "swing");
+    }
+
+    #[test]
+    fn protocol_floats_preserve_non_finite_legacy_settings_without_invalid_json() {
+        assert_eq!(
+            serde_json::to_value(ProtocolFloat::from_f32(0.5)).unwrap(),
+            0.5
+        );
+        assert_eq!(
+            serde_json::to_value(ProtocolFloat::from_f32(f32::NAN)).unwrap(),
+            "nan"
+        );
+        assert_eq!(
+            serde_json::to_value(ProtocolFloat::from_f32(f32::INFINITY)).unwrap(),
+            "infinity"
+        );
     }
 }

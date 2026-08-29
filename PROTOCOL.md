@@ -58,10 +58,12 @@ restores a fresh default parser. `session.execute` accepts:
 The script is the migration bridge from the legacy command language. Its
 success result contains:
 
+- `build`: Cargo/tag-derived version, Git description, and build profile;
 - `legacy_output`: exact text emitted by the legacy parser;
 - `action`: the typed result of the last `getaction`, or null;
-- `session`: phase, execution/RNG modes, next native decision index, worker
-  count, and search settings after execution;
+- `session`: phase/game rules, execution/RNG modes, next native decision index,
+  worker count, global settings, and per-player AI/search settings after
+  execution;
 - `replay`: the native stream partition, root seed, and decision index actually
   used by the last native BMAI search, or null when no native search ran.
 
@@ -69,6 +71,9 @@ Replay metadata describes the top-level decision. Candidate/batch/simulation
 coordinates are deterministically derived inside the versioned partition.
 Legacy searches deliberately return null because reproducing an arbitrary
 legacy continuation requires the preceding RNG stream, not merely its seed.
+Finite settings are JSON numbers. Legacy accepts non-finite Turbo accuracy
+values, so those exceptional values serialize as `"nan"`, `"infinity"`, or
+`"-infinity"` instead of becoming invalid or misleading JSON.
 
 ### Typed actions
 
@@ -100,10 +105,42 @@ output are part of this human-oriented interface. The command set is:
 `max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
+The stable command forms are:
+
+| Form | Effect |
+|---|---|
+| `game [TARGET_WINS]` | Begin a two-player state; the following line is a phase, followed by two `player ID DICE SCORE` blocks and one die per line. |
+| `ai PLAYER TYPE` | Select unculled BMAI (`0`), QAI (`1`), or culled BMAI (`2`). |
+| `mode legacy\|parity\|native` | Select compatible or opt-in native execution. |
+| `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
+| `workers N` | Configure at least one native worker; legacy results are unaffected. |
+| `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
+| `ply [PLAYER] N` | Set global or per-player BMAI depth. |
+| `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
+| `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
+| `maxbranch [PLAYER] N` | Set global or per-player branch budget. |
+| `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
+| `surrender on\|off` | Enable or disable surrender selection. |
+| `getaction` | Select an action for player zero in the supplied phase. |
+| `playgame N` / `compare N` | Run N complete games from a preround state. |
+| `playfair N MODE P` | Run position-swapped games with the selected rollout mode. |
+| `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
+| `quit` | Stop consuming the current script. |
+
+Phases are `preround`, `reserve`, `initiative`, `chance`, `focus`, `fight`, and
+`gameover`. `getaction` is defined for preround, reserve, Chance, Focus, and
+fight; initiative/gameover are state-description phases rather than direct
+action requests. Legacy parser errors terminate the process with a nonzero exit
+status. JSONL converts those same errors into recoverable `execution_error`
+responses and rolls back the request.
+
 Game-state syntax and multiline action examples live in
 [`tests/fixtures/`](tests/fixtures/); deterministic native examples live in
-[`tests/native-fixtures/`](tests/native-fixtures/). The exact compatibility and
-differential evidence is maintained in [`PARITY.md`](PARITY.md).
+[`tests/native-fixtures/`](tests/native-fixtures/). A complete persistent JSONL
+conversation is executable at
+[`tests/jsonl-fixtures/session.jsonl`](tests/jsonl-fixtures/session.jsonl). The
+exact compatibility and differential evidence is maintained in
+[`PARITY.md`](PARITY.md).
 
 ## Compatibility policy
 
@@ -118,3 +155,16 @@ retyping existing behavior requires a new protocol identifier.
 in `PARITY.md`. Native execution may intentionally evolve, but its algorithms
 and replay partitions are explicitly versioned and opt-in.
 
+The process protocol is the cross-language compatibility boundary. The public
+Rust types follow Cargo semantic versioning and may gain fields or
+`#[non_exhaustive]` variants independently of the JSON forward-compatibility
+rules.
+
+## Operational boundary
+
+BMAIR is a local computation engine, not a network server. It performs no
+authentication, authorization, request-size limiting, timeout enforcement, or
+per-session resource accounting. A service should keep the subprocess private,
+validate its own inputs, constrain worker/search settings, apply process-level
+time and memory limits, and restart the process after an unexpected exit. Do
+not expose `session.execute` directly to untrusted network users.

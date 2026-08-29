@@ -40,6 +40,7 @@ path = [
     "tests/fixtures/parity_*",
     "tests/fixtures/bug105372_in.txt",
     "tests/native-fixtures/*",
+    "tests/jsonl-fixtures/*",
 ]
 SPDX-License-Identifier = "MIT"
 SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"

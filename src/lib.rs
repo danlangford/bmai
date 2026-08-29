@@ -23,7 +23,8 @@ pub use model::{
 };
 pub use parser::{BMC_Parser, ParseError};
 pub use protocol::{
-    Capabilities, ProtocolAction, ProtocolVersion, ReplayMetadata, SessionMetadata,
+    BuildIdentity, Capabilities, PlayerAiMetadata, ProtocolAction, ProtocolFloat, ProtocolVersion,
+    ReplayMetadata, SessionMetadata,
 };
 pub use rng::{BMC_RNG, BME_RNG_ALGORITHM};
 pub use simulation::{BMC_AI_POLICY, PlayGames};

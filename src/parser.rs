@@ -91,6 +91,9 @@ impl BMC_Parser {
     pub fn session_metadata(&self) -> crate::protocol::SessionMetadata {
         crate::protocol::SessionMetadata {
             phase: phase_protocol(self.m_game.m_phase),
+            target_wins: self.m_game.m_target_wins,
+            surrender_allowed: self.m_game.m_surrender_allowed,
+            turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.m_game.m_turbo_accuracy),
             execution_mode: self.m_execution_mode.as_str(),
             rng: self.m_rng.ReplayId(),
             native_root_seed: self.m_native_root_seed,
@@ -100,6 +103,23 @@ impl BMC_Parser {
             min_simulations: self.m_min_sims,
             max_simulations: self.m_max_sims,
             max_branch: self.m_max_branch,
+            players: std::array::from_fn(|player| {
+                let ai = &self.m_player_ai[player];
+                crate::protocol::PlayerAiMetadata {
+                    ai_type: self.m_ai_type[player],
+                    policy: match self.m_ai_type[player] {
+                        0 => "bmai",
+                        1 => "qai",
+                        2 => "bmai3",
+                        _ => unreachable!(),
+                    },
+                    culls_moves: ai.m_cull_moves,
+                    max_ply: ai.m_max_ply,
+                    min_simulations: ai.m_min_sims,
+                    max_simulations: ai.m_max_sims,
+                    max_branch: ai.m_max_branch,
+                }
+            }),
         }
     }
 

@@ -1,0 +1,5 @@
+{"protocol":"jsonl-v1","id":"caps","method":"capabilities"}
+not-json
+{"protocol":"jsonl-v1","id":"configure","method":"session.execute","params":{"script":"mode native\nrng legacy\nworkers 2\nseed 17\nply 1\nmax_sims 2\nmin_sims 1\nmaxbranch 40\n"}}
+{"protocol":"jsonl-v1","id":"fight","method":"session.execute","params":{"script":"game 1\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\ngetaction\n"}}
+{"protocol":"jsonl-v1","id":"reset","method":"session.reset"}

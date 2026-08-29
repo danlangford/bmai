@@ -19,8 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A versioned, Python-friendly machine-to-machine integration contract for
   capability discovery, structured JSON Lines requests and responses, typed
   actions, replay metadata, and reusable multi-request sessions.
+- A public transactional `BmairSession` Rust API and dependency-free persistent
+  Python subprocess example.
 - Protocol specifications, compatibility guarantees, consumer examples, and
   cross-protocol contract tests while retaining `legacy-v1` unchanged.
+
+### Changed
+
+- Machine responses now carry build identity, complete global/per-player search
+  settings, original die indices, and the exact native decision replay key.
 
 ## [0.2.0] - 2026-08-28
 

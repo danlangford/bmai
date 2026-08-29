@@ -109,7 +109,13 @@ fn run_with_rng_fingerprint(
     let line = stderr
         .lines()
         .find(|line| line.starts_with("RNG_HASH "))
-        .expect("RNG fingerprint output");
+        .unwrap_or_else(|| {
+            panic!(
+                "{} produced no RNG fingerprint (status {}): {stderr}",
+                fixture.display(),
+                result.status
+            )
+        });
     let values = line
         .split_whitespace()
         .skip(1)

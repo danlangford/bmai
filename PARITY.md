@@ -290,3 +290,27 @@ raw pointers, or literal byte copying.
 | preround/reserve BMAI batches and culling | `SelectSwingAction`/`SelectBMAIReserveAction` plus `BMC_BMAI3` evaluator settings | aligned, including static-level quirks and direct scratch restoration |
 | Chance/Focus phase recursion | `SelectChanceAction`, `SelectFocusAction`, `EvaluateNextInitiativeAction` | aligned candidate batches, culling, phase transitions, and POV inversion |
 | fight BMAI/BMAI3/QAI | direct ordered generation, `EvaluateMove`, `PlayFightQAI`, `SelectQAIAction` | aligned simulation lifecycle, ply transition, culling, and RNG order |
+
+## 0.3 integration-boundary revalidation
+
+The JSONL work observes the existing parser/search result; it does not parse
+legacy output to reconstruct actions and does not introduce an alternate game
+or AI path. `BmairSession::execute` runs `BMC_Parser::ParseString` against a
+clone and commits that exact state only on success. `BMC_Parser::GetAction`
+records the already-selected move beside the unchanged legacy writer, mapping
+optimized storage indices back to original protocol die indices.
+
+- [x] Authoritative C++ reference is upstream PR #82 head `4813530` (`Cover
+  Konstant skill interactions`), not the older main-branch release binary.
+- [x] Upstream PR #82 C++ suite: 108 tests discovered, 105 passed, and its three
+  assertion/development cases intentionally skipped (2026-08-28).
+- [x] All `tests/fixtures/*in*.txt` material outputs match the PR #82 C++
+  reference after timing-only normalization (523.89 seconds, 2026-08-28).
+- [x] Representative raw RNG states match exactly across five search/mechanics
+  fixtures (180.29 seconds, 2026-08-28).
+- [x] Every input fixture has the identical RNG event count and FNV fingerprint
+  against an instrumented Release build of PR #82 (515.06 seconds,
+  2026-08-28).
+- [x] Invalid-command exit status and error behavior match the PR #82 parser
+  reference; default Rust tests, JSONL process tests, clippy, and REUSE also
+  pass after the integration boundary was added.
