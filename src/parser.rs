@@ -9,9 +9,12 @@ use crate::model::{
     BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_PHASE, BME_SWING_SET, property,
 };
 use crate::simulation::{
-    BMC_AI_POLICY, PlayFairGames, PlayGamesWithPolicies, SelectBMAIAction, SelectBMAIChanceAction,
-    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectQAIAction,
-    SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
+    BMC_AI_POLICY, PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies,
+    PlayGamesWithPoliciesNative, SelectBMAIAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
+    SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIAction,
+    SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction, SelectNativeBMAIReserveAction,
+    SelectNativeBMAISetSwingAction, SelectQAIAction, SelectQAIReserveAction,
+    SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -33,6 +36,9 @@ pub struct BMC_Parser {
     m_max_sims: usize,
     m_max_branch: usize,
     m_execution_mode: ExecutionMode,
+    m_native_root_seed: u64,
+    m_native_decision_index: u64,
+    m_native_workers: usize,
     m_rng: BMC_RNG,
     m_ai: BMC_BMAI3,
     m_player_ai: [BMC_BMAI3; 2],
@@ -51,6 +57,9 @@ impl Default for BMC_Parser {
             m_max_sims: 500,
             m_max_branch: 5000,
             m_execution_mode: ExecutionMode::default(),
+            m_native_root_seed: 78_904_497,
+            m_native_decision_index: 0,
+            m_native_workers: 1,
             m_rng: BMC_RNG::default(),
             m_ai: BMC_BMAI3::default(),
             m_player_ai: std::array::from_fn(|_| BMC_BMAI3::default()),
@@ -105,6 +114,13 @@ impl BMC_Parser {
                 self.m_rng.SetAlgorithm(algorithm);
                 writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
                     .map_err(io_error)?;
+            } else if let Some(value) = argument(line, "workers") {
+                let workers = value?;
+                if workers == 0 {
+                    return Err(ParseError("native worker count must be at least 1".into()));
+                }
+                self.m_native_workers = workers;
+                writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
             } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
                     self.m_game.m_target_wins = parse_usize(wins)? as u8;
@@ -195,7 +211,19 @@ impl BMC_Parser {
                 self.RequirePreround()?;
                 let games = parse_usize(line.trim_start_matches("playgame "))?;
                 let policies = self.Policies();
-                let wins = PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayGamesWithPoliciesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        self.m_native_workers,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if let Some((games, mode, probability)) = playfair_arguments(line)? {
                 self.RequirePreround()?;
@@ -223,7 +251,19 @@ impl BMC_Parser {
                         _ => unreachable!(),
                     })
                 };
-                let wins = PlayFairGames(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayFairGamesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        self.m_native_workers,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayFairGames(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(
                     output,
                     "PlayFairGames: {games} games, mode {mode}, p {probability:.6}"
@@ -251,7 +291,19 @@ impl BMC_Parser {
                 self.RequirePreround()?;
                 let games = parse_usize(line.trim_start_matches("compare "))?;
                 let policies = self.Policies();
-                let wins = PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies);
+                let wins = if self.m_execution_mode == ExecutionMode::Native {
+                    PlayGamesWithPoliciesNative(
+                        &self.m_game,
+                        games,
+                        &mut self.m_rng,
+                        &policies,
+                        self.m_native_root_seed,
+                        self.m_native_workers,
+                        &mut self.m_native_decision_index,
+                    )
+                } else {
+                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if line == "quit" {
                 break;
@@ -266,6 +318,8 @@ impl BMC_Parser {
                     seed as u32
                 };
                 self.m_rng.SRand(resolved);
+                self.m_native_root_seed = u64::from(resolved);
+                self.m_native_decision_index = 0;
                 writeln!(output, "Seeding with {seed}").map_err(io_error)?;
             } else if let Some(value) = argument(line, "debugply") {
                 self.m_debug_ply = value?;
@@ -458,6 +512,15 @@ impl BMC_Parser {
                 }
                 let action = if self.m_ai_type[0] == 1 {
                     SelectQAIAction(&self.m_game, &mut self.m_rng)
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    SelectNativeBMAIAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    )
                 } else {
                     SelectBMAIAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
@@ -468,6 +531,15 @@ impl BMC_Parser {
             BME_PHASE::RESERVE => {
                 let reserve = if self.m_ai_type[0] == 1 {
                     SelectQAIReserveAction(&self.m_game)
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    SelectNativeBMAIReserveAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    )
                 } else {
                     SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
@@ -487,6 +559,15 @@ impl BMC_Parser {
             BME_PHASE::PREROUND => {
                 let action = if self.m_ai_type[0] == 1 {
                     SelectQAISetSwingAction(&self.m_game)
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    SelectNativeBMAISetSwingAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    )
                 } else {
                     SelectBMAISetSwingAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
                 };
@@ -500,8 +581,18 @@ impl BMC_Parser {
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action =
-                    SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0]);
+                let action = if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    SelectNativeBMAIChanceAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    )
+                } else {
+                    SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                };
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.reroll.is_empty() {
@@ -524,8 +615,18 @@ impl BMC_Parser {
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action =
-                    SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0]);
+                let action = if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    SelectNativeBMAIFocusAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    )
+                } else {
+                    SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                };
                 self.SendStats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.values.is_empty() {
@@ -544,6 +645,17 @@ impl BMC_Parser {
             }
             _ => Err(ParseError("GetAction(): Unrecognized phase".into())),
         }
+    }
+
+    fn NextNativeReplay(&mut self) -> crate::native::NativeReplayKey {
+        debug_assert_eq!(self.m_execution_mode, ExecutionMode::Native);
+        let replay = crate::native::NativeReplayKey {
+            stream_version: crate::native::NativeStreamVersion::V1,
+            root_seed: self.m_native_root_seed,
+            decision_index: self.m_native_decision_index,
+        };
+        self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
+        replay
     }
 
     fn SendStats<W: Write>(&self, output: &mut W) -> Result<(), ParseError> {
@@ -1189,6 +1301,117 @@ Seeding with 17\n"
             rng.to_string(),
             "invalid RNG algorithm: xoshiro (expected legacy or park-miller)"
         );
+    }
+
+    #[test]
+    fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
+        let zero = BMC_Parser::default()
+            .ParseString("workers 0\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(zero.to_string(), "native worker count must be at least 1");
+
+        let malformed = BMC_Parser::default()
+            .ParseString("workers many\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(malformed.to_string(), "invalid integer: many");
+
+        let fixture = include_str!("../tests/native-fixtures/fight.txt")
+            .replace("mode native", "mode legacy");
+        let run = |workers: usize| {
+            let input = fixture.replace("workers 3", &format!("workers {workers}"));
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(&input, &mut output)
+                .unwrap();
+            String::from_utf8(output).unwrap().replace(
+                &format!("Setting native workers to {workers}"),
+                "Setting native workers to N",
+            )
+        };
+        assert_eq!(run(1), run(64));
+    }
+
+    #[test]
+    fn native_replay_index_advances_only_for_native_bmai_searches() {
+        let fixture = include_str!("../tests/native-fixtures/fight.txt");
+
+        let mut qai = BMC_Parser::default();
+        qai.ParseString(
+            &fixture.replace("getaction", "ai 0 1\ngetaction"),
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(qai.m_native_decision_index, 0);
+
+        let mut bmai = BMC_Parser::default();
+        bmai.ParseString(fixture, &mut Vec::new()).unwrap();
+        assert_eq!(bmai.m_native_decision_index, 1);
+    }
+
+    #[test]
+    fn native_wire_fixtures_are_deterministic() {
+        let cases = [
+            (
+                include_str!("../tests/native-fixtures/fight.txt"),
+                include_str!("../tests/native-fixtures/fight.out.txt"),
+            ),
+            (
+                include_str!("../tests/native-fixtures/reserve.txt"),
+                include_str!("../tests/native-fixtures/reserve.out.txt"),
+            ),
+            (
+                include_str!("../tests/native-fixtures/preround.txt"),
+                include_str!("../tests/native-fixtures/preround.out.txt"),
+            ),
+            (
+                include_str!("../tests/native-fixtures/chance.txt"),
+                include_str!("../tests/native-fixtures/chance.out.txt"),
+            ),
+            (
+                include_str!("../tests/native-fixtures/focus.txt"),
+                include_str!("../tests/native-fixtures/focus.out.txt"),
+            ),
+        ];
+
+        for (input, expected) in cases {
+            // Git may check text fixtures out with CRLF on Windows, while the
+            // protocol writer deliberately emits `\n` on every platform.
+            let expected = expected.replace("\r\n", "\n");
+            for _ in 0..2 {
+                let mut output = Vec::new();
+                BMC_Parser::default()
+                    .ParseString(input, &mut output)
+                    .unwrap();
+                assert_eq!(String::from_utf8(output).unwrap(), expected);
+            }
+        }
+    }
+
+    #[test]
+    fn native_phases_are_worker_count_independent() {
+        let run = |input: &str, workers: usize| {
+            let input = input.replace("workers 3", &format!("workers {workers}"));
+            let mut output = Vec::new();
+            BMC_Parser::default()
+                .ParseString(&input, &mut output)
+                .unwrap();
+            String::from_utf8(output).unwrap().replace(
+                &format!("Setting native workers to {workers}"),
+                "Setting native workers to N",
+            )
+        };
+        let available = std::thread::available_parallelism().map_or(1, usize::from);
+        for input in [
+            include_str!("../tests/native-fixtures/reserve.txt"),
+            include_str!("../tests/native-fixtures/preround.txt"),
+            include_str!("../tests/native-fixtures/chance.txt"),
+            include_str!("../tests/native-fixtures/focus.txt"),
+        ] {
+            let expected = run(input, 1);
+            for workers in [2, available] {
+                assert_eq!(run(input, workers), expected);
+            }
+        }
     }
 
     #[test]

@@ -39,6 +39,7 @@ SPDX-FileCopyrightText = "Copyright 2001-2026 Denis Papp"
 path = [
     "tests/fixtures/parity_*",
     "tests/fixtures/bug105372_in.txt",
+    "tests/native-fixtures/*",
 ]
 SPDX-License-Identifier = "MIT"
 SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"

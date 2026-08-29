@@ -4,6 +4,9 @@
 use std::env;
 use std::process::Command;
 
+#[path = "src/build_version.rs"]
+mod build_version;
+
 fn main() {
     println!("cargo:rerun-if-env-changed=BMAIR_GIT_DESCRIBE");
     watch_git_path("HEAD");
@@ -16,7 +19,9 @@ fn main() {
         .filter(|value| !value.is_empty())
         .or_else(git_describe)
         .unwrap_or_else(|| "unknown".to_owned());
+    let version = build_version::derive(env!("CARGO_PKG_VERSION"), &describe);
     println!("cargo:rustc-env=BMAIR_GIT_DESCRIBE={describe}");
+    println!("cargo:rustc-env=BMAIR_BUILD_VERSION={version}");
     println!(
         "cargo:rustc-env=BMAIR_BUILD_PROFILE={}",
         env::var("PROFILE").unwrap_or_else(|_| "unknown".to_owned())

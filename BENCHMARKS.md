@@ -46,7 +46,7 @@ user CPU by about 18%. PGO improved its three training fixtures by roughly
 about 1.4%. Exact all-fixture material output and RNG fingerprints passed after
 the retained changes; see `PARITY.md` for the gate evidence.
 
-## Preview-release artifact comparison
+## 0.1.0 release artifact comparison
 
 Measured on 2026-08-28 on an Intel Mac using the x86_64 slices from GitHub
 Actions. The C++ reference was the universal macOS Release artifact from
@@ -64,3 +64,27 @@ Konstant PR #82 at `4813530`; Rust was the macOS x86_64 Release artifact at
 The aggregate difference is dominated by `bug16_in.txt`; the other meaningful
 searches are within 5–17% of C++. Sub-10ms protocol fixtures are omitted from
 the table because process startup dominates their ratios.
+
+## Native deterministic parallel-search experiment
+
+Measured on 2026-08-28 on the same Intel Mac at `3640c4c` with Rust 1.98.0 and
+the release profile. `scripts/benchmark_native.sh` captured raw protocol output,
+wall/user/system time, peak resident memory, build metadata, and SHA-256 hashes.
+The native replay used stream version `bmair-native-stream-v1`; each fixture's
+existing seed and search settings were retained. Output after removing only the
+reported `Setting native workers to N` line was byte-identical between one and
+eight workers for all four fixtures.
+
+| Fixture | 1 worker | 8 workers | Speedup | 1-worker RSS | 8-worker RSS |
+|---|---:|---:|---:|---:|---:|
+| `bmai_in.txt` | 6.24s | 1.81s | 3.45x | 1.0MB | 1.3MB |
+| `bmsim_in.txt` | 18.27s | 10.59s | 1.73x | 1.5MB | 2.0MB |
+| `bug11_in.txt` | 43.06s | 12.01s | 3.59x | 1.3MB | 1.9MB |
+| `bug16_in.txt` | 227.63s | 78.75s | 2.89x | 496.5MB | 1859.0MB |
+
+Eight workers increase aggregate CPU consumption because each culling batch
+creates scoped workers and each task owns independent simulation state. The
+largest reserve search is the limiting case: its 2.89x wall-time improvement
+costs 3.74x peak RSS and 2.45x aggregate CPU time. Native mode therefore keeps
+the default at one worker. Higher counts are explicitly opt-in until simulation
+state reuse or a persistent bounded worker pool reduces this overhead.

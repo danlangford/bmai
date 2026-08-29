@@ -25,6 +25,24 @@ pub struct BMC_Stats {
     pub m_total_samples: [usize; 10],
 }
 
+/// Stable coordinates for one candidate evaluation within a search node.
+///
+/// Culling may move candidates within its compact working vectors. These
+/// coordinates retain the original enumeration index and a simulation index
+/// that does not reset at batch boundaries.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EvaluationCoordinate {
+    pub candidate_index: usize,
+    pub batch_index: usize,
+    pub simulation_index: usize,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct EvaluationRequest<'a> {
+    pub candidate: &'a BMC_Move,
+    pub coordinate: EvaluationCoordinate,
+}
+
 impl BMC_Stats {
     pub fn OnFullSimulation(&mut self) {
         self.m_sims += 1;
@@ -96,7 +114,27 @@ impl BMC_BMAI3 {
         mut evaluate: F,
     ) -> BMC_Move
     where
-        F: FnMut(&BMC_Move, usize) -> f32,
+        F: FnMut(&BMC_Move, EvaluationCoordinate) -> f32,
+    {
+        self.EvaluateMovesBatched(moves, level, |requests| {
+            requests
+                .iter()
+                .map(|request| evaluate(request.candidate, request.coordinate))
+                .collect()
+        })
+    }
+
+    /// Evaluates each culling batch as one canonically ordered unit. Results
+    /// must correspond positionally to requests. This is the native-mode
+    /// parallelization seam; score reduction and culling remain serial.
+    pub fn EvaluateMovesBatched<F>(
+        &mut self,
+        moves: Vec<BMC_Move>,
+        level: usize,
+        mut evaluate_batch: F,
+    ) -> BMC_Move
+    where
+        F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
         assert!(!moves.is_empty());
         let sims = self.ComputeNumberSims(moves.len(), level);
@@ -104,10 +142,26 @@ impl BMC_BMAI3 {
         if !self.m_cull_moves {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
-            for candidate in &moves {
-                let mut score = 0.0;
-                for simulation in 0..sims {
-                    score += evaluate(candidate, simulation);
+            let requests = moves
+                .iter()
+                .enumerate()
+                .flat_map(|(candidate_index, candidate)| {
+                    (0..sims).map(move |simulation| EvaluationRequest {
+                        candidate,
+                        coordinate: EvaluationCoordinate {
+                            candidate_index,
+                            batch_index: 0,
+                            simulation_index: simulation,
+                        },
+                    })
+                })
+                .collect::<Vec<_>>();
+            let results = evaluate_batch(&requests);
+            assert_eq!(results.len(), requests.len());
+            for (candidate_index, candidate) in moves.iter().enumerate() {
+                let start = candidate_index * sims;
+                let score = results[start..start + sims].iter().sum();
+                for _ in 0..sims {
                     self.m_stats.OnFullSimulation();
                 }
                 if score > best_score {
@@ -126,9 +180,31 @@ impl BMC_BMAI3 {
             let check_sims = self
                 .m_sims_per_check
                 .min(state.sims.saturating_sub(state.sims_run));
+            let batch_index = state.sims_run / self.m_sims_per_check;
+            let simulation_start = state.sims_run;
+            let candidate_indices = &state.candidate_index;
+            let requests = state
+                .movelist
+                .iter()
+                .enumerate()
+                .flat_map(|(index, candidate)| {
+                    let candidate_index = candidate_indices[index];
+                    (0..check_sims).map(move |simulation| EvaluationRequest {
+                        candidate,
+                        coordinate: EvaluationCoordinate {
+                            candidate_index,
+                            batch_index,
+                            simulation_index: simulation_start + simulation,
+                        },
+                    })
+                })
+                .collect::<Vec<_>>();
+            let results = evaluate_batch(&requests);
+            assert_eq!(results.len(), requests.len());
             for index in 0..state.movelist.len() {
-                for simulation in 0..check_sims {
-                    state.score[index] += evaluate(&state.movelist[index], simulation);
+                let start = index * check_sims;
+                for score in &results[start..start + check_sims] {
+                    state.score[index] += score;
                     self.m_stats.OnFullSimulation();
                 }
                 if state.score[index] > state.best_score {
@@ -179,6 +255,7 @@ impl BMC_BMAI3 {
             if cannot_catch_up || below_threshold {
                 state.movelist.swap_remove(index);
                 state.score.swap_remove(index);
+                state.candidate_index.swap_remove(index);
             } else {
                 index += 1;
             }
@@ -192,6 +269,7 @@ struct BMC_ThinkState {
     sims: usize,
     sims_run: usize,
     score: Vec<f32>,
+    candidate_index: Vec<usize>,
     best_score: f32,
     best_move: BMC_Move,
     movelist: Vec<BMC_Move>,
@@ -204,6 +282,7 @@ impl BMC_ThinkState {
             sims,
             sims_run: 0,
             score: vec![0.0; movelist.len()],
+            candidate_index: (0..movelist.len()).collect(),
             best_score: -1.0,
             best_move,
             movelist,
@@ -259,12 +338,73 @@ mod tests {
         };
         let mut order = Vec::new();
         let selected =
-            ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, simulation| {
-                order.push((m.m_score, simulation));
+            ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, coordinate| {
+                order.push((m.m_score, coordinate));
                 m.m_score
             });
         assert_eq!(selected.m_score, 0.8);
-        assert_eq!(order[..20], (0..20).map(|i| (0.2, i)).collect::<Vec<_>>());
-        assert_eq!(order[20..], (0..20).map(|i| (0.8, i)).collect::<Vec<_>>());
+        assert_eq!(
+            order[..20],
+            (0..20)
+                .map(|simulation_index| (
+                    0.2,
+                    EvaluationCoordinate {
+                        candidate_index: 0,
+                        batch_index: 0,
+                        simulation_index,
+                    }
+                ))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            order[20..],
+            (0..20)
+                .map(|simulation_index| (
+                    0.8,
+                    EvaluationCoordinate {
+                        candidate_index: 1,
+                        batch_index: 0,
+                        simulation_index,
+                    }
+                ))
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+    fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
+        let mut ai = BMC_BMAI3 {
+            m_min_sims: 20,
+            m_max_sims: 20,
+            m_max_branch: 100,
+            m_sims_per_check: 10,
+            ..Default::default()
+        };
+        let mut coordinates = Vec::new();
+        ai.EvaluateMoves(
+            vec![test_move(1.0), test_move(0.8)],
+            1,
+            |candidate, coordinate| {
+                coordinates.push((candidate.m_score, coordinate));
+                candidate.m_score
+            },
+        );
+
+        assert!(coordinates.contains(&(
+            1.0,
+            EvaluationCoordinate {
+                candidate_index: 0,
+                batch_index: 1,
+                simulation_index: 10,
+            }
+        )));
+        assert!(coordinates.contains(&(
+            0.8,
+            EvaluationCoordinate {
+                candidate_index: 1,
+                batch_index: 1,
+                simulation_index: 10,
+            }
+        )));
     }
 }

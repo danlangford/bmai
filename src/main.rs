@@ -19,7 +19,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if matches!(env::args().nth(1).as_deref(), Some("-V" | "--version")) {
         println!(
             "bmair {} ({}; {})",
-            env!("CARGO_PKG_VERSION"),
+            env!("BMAIR_BUILD_VERSION"),
             env!("BMAIR_GIT_DESCRIBE"),
             env!("BMAIR_BUILD_PROFILE")
         );
@@ -31,7 +31,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!("Rust port Copyright © 2026 Dan Langford.");
     println!(
         "Version: {} ({}; {})",
-        env!("CARGO_PKG_VERSION"),
+        env!("BMAIR_BUILD_VERSION"),
         env!("BMAIR_GIT_DESCRIBE"),
         env!("BMAIR_BUILD_PROFILE")
     );

@@ -1,0 +1,68 @@
+# Changelog
+
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+-->
+
+All notable changes to BMAIR are documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.2.0] - 2026-08-28
+
+### Added
+
+- Opt-in native execution mode with versioned, deterministic per-simulation
+  random streams.
+- Bounded parallel candidate evaluation for fight, preround/swing, reserve,
+  Chance, and Focus search through the `workers` protocol command.
+- Native wire-protocol fixtures, deterministic replay tests, performance
+  benchmarks, and a preregistered paired playing-strength experiment.
+- README performance comparison covering C++, Rust 0.1.0 legacy mode, and
+  eight-worker native mode.
+
+### Changed
+
+- Build versions are derived from `bmair-v*` tags with commit distance, SHA,
+  and dirty state retained for development builds.
+- A release-ready default-branch merge builds and tests all six
+  platform/architecture targets before creating its version tag and publishing
+  binaries, checksums, build metadata, and changelog notes.
+- Pull-request release-policy checks run independently from format, lint, test,
+  and platform builds; release-publication jobs appear only on release runs.
+- GitHub releases stage and verify their complete asset set as resumable drafts
+  before one-way publication, making the pipeline compatible with immutable
+  releases.
+
+### Fixed
+
+- Complete matches now mirror C++ tied-round standings and offer the losing
+  player a reserve decision between nonterminal rounds.
+- Native replay indices advance only when a native BMAI search actually runs.
+
+## [0.1.0] - 2026-08-28
+
+### Added
+
+- Initial Rust port release of BMAI with compatible parser commands, game
+  mechanics, AI search, candidate ordering, simulation counts, culling, and
+  legacy Park-Miller RNG consumption.
+- Rust mappings for the upstream C++ tests and seeded differential fixtures,
+  including Konstant PR #82 mechanics and regression coverage.
+- Release builds for ARM64 and x86_64 Linux, Windows, and macOS with SHA-256
+  checksums and build metadata.
+
+### Changed
+
+- Established BMAIR's independent semantic-version series while preserving the
+  original BMAI Git history, MIT license, and source lineage.
+- Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
+  and compiler/linker optimizations.
+
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...HEAD
+[0.2.0]: https://github.com/danlangford/bmai/compare/bmair-v0.1.0...bmair-v0.2.0
+[0.1.0]: https://github.com/danlangford/bmai/releases/tag/bmair-v0.1.0

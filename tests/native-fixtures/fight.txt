@@ -1,0 +1,17 @@
+mode native
+rng legacy
+workers 3
+seed 17
+max_sims 20
+min_sims 20
+maxbranch 100
+game
+fight
+player 0 1 1
+1:1
+player 1 2 30
+1:1
+(30,30):60
+surrender off
+getaction
+quit

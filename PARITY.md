@@ -155,10 +155,10 @@ case named in the final column.
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
-| reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction` | exact bug16 candidate/simulation/RNG trace | covered |
+| reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | policy dispatch, `SelectRandomAction`, `SelectMaximizeAction`, `SelectQAIAction`, fixed/culling evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `EvaluateMove`, `PlayFightQAI`, `BMC_BMAI3::EvaluateMoves`/`CullMoves` | exact ply-2 and full bug16 traces, evaluator tests | covered |
-| round/match standings, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture and four playfair mode comparisons | covered |
+| round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Parsing-only parity is intentional for `AUXILIARY`, `DOPPLEGANGER`,
@@ -204,6 +204,12 @@ TODO upstream but both engines enforce its existing no-Skill-attack behavior.
   `bug105372_in.txt`) pass the material-output differential in 826.45 seconds,
   the representative raw RNG stream gate in 157.17 seconds, and the exhaustive
   RNG count/fingerprint gate in 901.65 seconds on 2026-08-27.
+- [x] After native-mode parallel-search work, the legacy contract was rechecked
+  on 2026-08-28 against PR #82 reference `4813530`: all current input fixtures
+  passed material comparison in 487.65 seconds, representative raw RNG streams
+  matched in 153.57 seconds, and exhaustive RNG fingerprints matched in 470.82
+  seconds. Parser error parity and all 108 registered upstream tests also
+  passed, with the same three expected upstream skips.
 - [x] Full release C++/Rust fixture and added differential suite passes
   after the Value lifecycle correction (1,208.03 seconds on 2026-08-27).
 - [x] The `rust` branch through `ccc5ff5` is published with the complete parity
