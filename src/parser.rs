@@ -1430,6 +1430,8 @@ Seeding with 17\n"
         let option = ParseDie("zU?-30", 1).unwrap();
         assert!(option.HasProperty(property::SPEED | property::MOOD));
         assert_eq!(option.m_sides[0], 30);
+        let jolt = ParseDie("J^6:3", 2).unwrap();
+        assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
     }
 
     #[test]

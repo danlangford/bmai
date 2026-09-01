@@ -4,7 +4,9 @@
 
 #![allow(non_snake_case)]
 
-use crate::model::{BMC_Die, BMC_Game, BMC_Move, BME_ACTION, BME_ATTACK, BME_SWING_SET, property};
+use crate::model::{
+    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_ATTACK, BME_SWING_SET, property,
+};
 use crate::{BMC_BMAI3, BMC_RNG, BME_ROLLOUT_POLICY};
 
 #[derive(Clone, Copy)]
@@ -240,6 +242,7 @@ fn PlayMatchWithPolicies(
     let mut initiative = 0;
     let mut reserves_used = 0;
     while wins[0] < template.m_target_wins && wins[1] < template.m_target_wins {
+        RestoreJoltForNewRound(&mut game, template);
         let round = PlayRoundWithPolicies(&mut game, rng, policies, native.as_deref_mut());
         let Some(winner) = round.0 else {
             ties += 1;
@@ -295,6 +298,23 @@ fn PlayMatchWithPolicies(
         ties,
         initiative_winner: initiative,
         reserves_used,
+    }
+}
+
+fn RestoreJoltForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
+    for player in 0..game.m_player.len() {
+        for die in &mut game.m_player[player].m_die {
+            let started_with_jolt = template.m_player[player]
+                .m_die
+                .iter()
+                .find(|original| original.m_original_index == die.m_original_index)
+                .is_some_and(|original| original.HasProperty(property::JOLT));
+            if started_with_jolt {
+                die.m_properties |= property::JOLT;
+            } else {
+                die.m_properties &= !property::JOLT;
+            }
+        }
     }
 }
 
@@ -2319,6 +2339,14 @@ fn ApplyAttackForPlayers(
         .m_attackers
         .iter()
         .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
+    let attacking_jolt = action
+        .m_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::JOLT));
+    let captured_jolt = action
+        .m_targets
+        .iter()
+        .any(|index| game.m_player[target_player].m_die[index].HasProperty(property::JOLT));
 
     let actual_attackers = action.m_attackers;
     for attacker in actual_attackers.iter() {
@@ -2347,6 +2375,11 @@ fn ApplyAttackForPlayers(
         }
     }
 
+    // ButtonWeavers consumes ordinary attacking Jolt before the attack reroll.
+    // Trip resolves both rerolls first and consumes attacking Jolt below.
+    if !is_trip {
+        ConsumeAttackingJolt(game, attacker_player, &actual_attackers);
+    }
     // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
     // that did not participate, and finally a Trip target.
     for attacker in actual_attackers.iter() {
@@ -2365,13 +2398,27 @@ fn ApplyAttackForPlayers(
         if game.m_player[target_player].m_die[target].m_notset {
             RollScheduledDie(game, target_player, target, rng);
         }
+        ConsumeAttackingJolt(game, attacker_player, &actual_attackers);
+    }
+
+    // Time and Space is a post-roll effect. It applies even when a Trip fails,
+    // but Konstant attackers cannot trigger it because they do not reroll.
+    let time_and_space_extra_turn = action.m_attackers.iter().any(|index| {
+        let die = &game.m_player[attacker_player].m_die[index];
+        die.HasProperty(property::TIME_AND_SPACE)
+            && !die.HasProperty(property::KONSTANT)
+            && die.GetValueTotal() % 2 == 1
+    });
+
+    if is_trip {
+        let target = action.m_targets.first().expect("Trip target");
         let attacker = action.m_attackers.first().expect("Trip attacker");
         if game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal()
         {
             OptimizeDice(&mut game.m_player[attacker_player]);
             OptimizeDice(&mut game.m_player[target_player]);
-            return false;
+            return attacking_jolt || time_and_space_extra_turn;
         }
     }
 
@@ -2389,14 +2436,14 @@ fn ApplyAttackForPlayers(
         game.m_player[attacker_player].m_score += captured_score;
         OnDieLost(&mut game.m_player[target_player], target);
     }
-    let extra_turn = action.m_attackers.iter().any(|index| {
-        let die = &game.m_player[attacker_player].m_die[index];
-        die.HasProperty(property::TIME_AND_SPACE)
-            && !die.HasProperty(property::KONSTANT)
-            && die.GetValueTotal() % 2 == 1
-    });
     OptimizeDice(&mut game.m_player[attacker_player]);
-    extra_turn
+    attacking_jolt || captured_jolt || time_and_space_extra_turn
+}
+
+fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: &BMC_DieIndexSet) {
+    for attacker in attackers.iter() {
+        game.m_player[player].m_die[attacker].m_properties &= !property::JOLT;
+    }
 }
 
 fn ApplyAttackPlayerEffects(
@@ -2815,6 +2862,19 @@ mod tests {
         let mut parser = crate::BMC_Parser::default();
         parser.ParseString(setup, &mut Vec::new()).unwrap();
         parser.m_game
+    }
+
+    fn apply_generated_attack(game: &mut BMC_Game, action: &BMC_Move, rng: &mut BMC_RNG) -> bool {
+        assert!(
+            game.GenerateValidAttacksInCppOrder()
+                .iter()
+                .any(|candidate| {
+                    candidate.m_attack == action.m_attack
+                        && candidate.m_attackers == action.m_attackers
+                        && candidate.m_targets == action.m_targets
+                })
+        );
+        ApplyAttack(game, action, rng)
     }
 
     fn swing_die(swing: char, properties: u64, original_index: usize) -> BMC_Die {
@@ -3500,6 +3560,230 @@ mod tests {
         );
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
         assert!(extra_turn);
+    }
+
+    #[test]
+    fn attacking_jolt_grants_an_extra_turn_and_loses_jolt() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::JOLT, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn consumed_jolt_returns_at_the_start_of_the_next_round() {
+        let mut template = BMC_Game::default();
+        let mut jolt = swing_die('P', property::JOLT, 0);
+        jolt.m_sides[0] = 6;
+        jolt.m_value_total = Some(6);
+        template.m_player[0].m_die = vec![jolt];
+
+        let mut game = template.clone();
+        game.m_player[0].m_die[0].m_properties &= !property::JOLT;
+        RestoreJoltForNewRound(&mut game, &template);
+
+        assert!(game.m_player[0].m_die[0].HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn every_attacking_jolt_loses_the_skill_but_grants_only_one_extra_turn() {
+        let mut game = BMC_Game::default();
+        let mut first = swing_die('P', property::JOLT, 0);
+        first.m_sides[0] = 2;
+        first.m_value_total = Some(2);
+        let mut second = swing_die('P', property::JOLT, 1);
+        second.m_sides[0] = 3;
+        second.m_value_total = Some(3);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 5;
+        target.m_value_total = Some(5);
+        game.m_player[0].m_die = vec![first, second];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        assert!(
+            game.m_player[0]
+                .m_die
+                .iter()
+                .all(|die| !die.HasProperty(property::JOLT))
+        );
+    }
+
+    #[test]
+    fn nonparticipating_jolt_keeps_the_skill_and_does_not_grant_an_extra_turn() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', 0, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut idle_jolt = swing_die('P', property::JOLT, 1);
+        idle_jolt.m_sides[0] = 4;
+        idle_jolt.m_value_total = Some(4);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker, idle_jolt];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(!extra_turn);
+        let idle_jolt = game.m_player[0]
+            .m_die
+            .iter()
+            .find(|die| die.m_original_index == 1)
+            .unwrap();
+        assert!(idle_jolt.HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn capturing_a_jolt_die_grants_the_capturer_an_extra_turn() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', 0, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', property::JOLT, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        assert!(game.m_player[1].m_die[0].m_captured);
+        assert!(game.m_player[1].m_die[0].HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn unsuccessful_jolt_trip_still_grants_an_extra_turn_and_consumes_jolt() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::JOLT | property::TRIP, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 6;
+        target.m_value_total = Some(6);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(4);
+
+        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
+
+        assert!(extra_turn);
+        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
+        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
+        assert!(!game.m_player[1].m_die[0].m_captured);
+    }
+
+    #[test]
+    fn unsuccessful_trip_does_not_trigger_defending_jolt() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::TRIP, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', property::JOLT, 0);
+        target.m_sides[0] = 6;
+        target.m_value_total = Some(6);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(4);
+
+        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
+
+        assert!(!extra_turn);
+        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
+        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
+        assert!(!game.m_player[1].m_die[0].m_captured);
+        assert!(game.m_player[1].m_die[0].HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn unsuccessful_time_and_space_trip_grants_an_extra_turn_after_odd_reroll() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::TRIP | property::TIME_AND_SPACE, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(6);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 6;
+        target.m_value_total = Some(6);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+        let mut rng = BMC_RNG::default();
+        rng.SRand(4);
+
+        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
+
+        assert!(extra_turn);
+        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
+        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
+        assert!(!game.m_player[1].m_die[0].m_captured);
+    }
+
+    #[test]
+    fn jolt_and_time_and_space_still_produce_only_one_extra_turn() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::JOLT | property::TIME_AND_SPACE, 0);
+        attacker.m_sides[0] = 1;
+        attacker.m_value_total = Some(1);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 1;
+        target.m_value_total = Some(1);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        let attacker = &game.m_player[0].m_die[0];
+        assert_eq!(attacker.GetValueTotal(), 1);
+        assert!(!attacker.HasProperty(property::JOLT));
+        assert!(attacker.HasProperty(property::TIME_AND_SPACE));
+    }
+
+    #[test]
+    fn konstant_jolt_grants_an_extra_turn_without_rerolling() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::JOLT | property::KONSTANT, 0);
+        attacker.m_sides[0] = 6;
+        attacker.m_value_total = Some(3);
+        let mut companion = swing_die('P', 0, 1);
+        companion.m_sides[0] = 2;
+        companion.m_value_total = Some(2);
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides[0] = 5;
+        target.m_value_total = Some(5);
+        game.m_player[0].m_die = vec![attacker, companion];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 3);
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
     }
 
     /// Ports the Konstant Morphing and Berserk side-change regressions.

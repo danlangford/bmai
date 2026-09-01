@@ -143,6 +143,11 @@ waiting for EOF, and treats `quit` as immediate termination. This supports the
 historical BMAIBagels `Popen` pattern of writing and flushing a complete legacy
 request while keeping the pipe open to read the action.
 
+BMAIR also implements the ButtonWeavers Jolt skill. Prefix a die recipe with
+`J`, for example `J6:4` or `J^12:7`. An attacking Jolt die grants another turn
+and loses Jolt; capturing a Jolt die also grants another turn. Multiple Jolt
+and Time-and-Space triggers during one attack still produce one extra turn.
+
 ### Execution and RNG modes
 
 `mode legacy` selects the exact C++ compatibility contract and remains the

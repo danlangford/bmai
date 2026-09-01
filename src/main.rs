@@ -50,8 +50,8 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut output = io::stdout().lock();
     writeln!(output, "BMAIR: the Button Men AI in Rust")?;
-    writeln!(output, "Based on BMAI, Copyright © 2001-2026 Denis Papp.")?;
     writeln!(output, "Rust port Copyright © 2026 Dan Langford.")?;
+    writeln!(output, "Original BMAI Copyright © 2001-2026 Denis Papp.")?;
     writeln!(
         output,
         "Version: {} ({}; {})",

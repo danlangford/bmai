@@ -240,6 +240,7 @@ impl Capabilities {
                 "Chance",
                 "Focus",
                 "Insult",
+                "Jolt",
                 "Konstant",
                 "Maximum",
                 "Mighty",
@@ -365,7 +366,7 @@ mod tests {
             tokens,
             vec![
                 '^', 'q', 't', 'z', 's', 'B', 'd', 'p', 'n', 'f', 'H', 'h', 'r', 'o', 'c', 'm',
-                '`', 'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', '+', 'D', '%', 'G'
+                '`', 'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', '+', 'D', '%', 'G'
             ]
         );
         assert_eq!(

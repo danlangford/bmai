@@ -37,6 +37,7 @@ pub mod property {
     pub const MAXIMUM: u64 = 0x8000_0000;
     pub const INSULT: u64 = 0x1_0000_0000;
     pub const VALUE: u64 = 0x2_0000_0000;
+    pub const JOLT: u64 = 0x4_0000_0000;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
