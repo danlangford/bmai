@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attacks, captured defenders, Konstant, and Time and Space.
 - Added `workers auto` to use the logical CPU parallelism available to the
   process for native search while recording the resolved worker count.
+- Added embedded build versions to platform executable and workflow-artifact
+  filenames so downloaded development and release builds remain distinguishable.
 
 ### Changed
 

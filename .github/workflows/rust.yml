@@ -122,17 +122,26 @@ jobs:
         shell: bash
         run: cargo build --profile "$CARGO_PROFILE" --locked --all-targets --all-features
       - name: Prepare binary and build metadata
+        id: package
         shell: bash
         run: |
-          artifact_base="bmair-${{ matrix.platform }}-${{ matrix.arch }}-${BUILD_TYPE}"
           executable="bmair"
           if [[ "${{ matrix.platform }}" == "Windows" ]]; then
             executable="bmair.exe"
           fi
+          reported_version=$("target/${CARGO_OUTPUT_DIR}/${executable}" --version)
+          build_version=${reported_version#bmair }
+          build_version=${build_version%% *}
+          if [[ -z "$build_version" || "$build_version" == "$reported_version" ]]; then
+            echo "could not extract build version from: $reported_version" >&2
+            exit 1
+          fi
+          platform=$(printf '%s' '${{ matrix.platform }}' | tr '[:upper:]' '[:lower:]')
+          profile=$(printf '%s' "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
+          artifact_base="bmair-${build_version}-${platform}-${{ matrix.arch }}-${profile}"
           suffix="${executable#bmair}"
           mkdir -p dist
           cp "target/${CARGO_OUTPUT_DIR}/${executable}" "dist/${artifact_base}${suffix}"
-          reported_version=$("dist/${artifact_base}${suffix}" --version)
           if [[ -n "${EXPECTED_VERSION:-}" && "$reported_version" != "bmair ${EXPECTED_VERSION} ("* ]]; then
             echo "release binary reports unexpected version: $reported_version" >&2
             exit 1
@@ -153,10 +162,11 @@ jobs:
           else
             shasum -a 256 "${artifact_base}${suffix}" > "${artifact_base}.sha256"
           fi
+          echo "artifact_name=${artifact_base}" >> "$GITHUB_OUTPUT"
       - name: Upload binary
         uses: actions/upload-artifact@v7
         with:
-          name: bmair-${{ matrix.platform }}-${{ matrix.arch }}-${{ env.BUILD_TYPE }}
+          name: ${{ steps.package.outputs.artifact_name }}
           if-no-files-found: error
           retention-days: 7
           path: dist/*

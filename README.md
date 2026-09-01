@@ -83,7 +83,10 @@ unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
 binaries for Linux, Windows, and macOS. Each platform/architecture pair is
 uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
 are not combined into a universal binary. Release artifacts include build
-metadata and SHA-256 checksums.
+metadata and SHA-256 checksums. Executable filenames use the embedded version,
+platform, architecture, and profile, such as
+`bmair-0.5.0-macos-arm64-release` for an exact release or
+`bmair-0.5.0-dev.2+g4652ac6-macos-arm64-release` for a development build.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
