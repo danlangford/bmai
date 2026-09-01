@@ -179,4 +179,6 @@ candidate simulation while keeping legacy mode as the compatibility oracle.
 The default Rust test suite includes unit, parser, game-mechanics, and structural
 search tests. Expensive reference-binary differential tests are marked ignored
 because they require separately supplied C++ reference executables; their setup
-and recorded evidence are documented in [`PARITY.md`](PARITY.md).
+and recorded evidence are documented in [`PARITY.md`](PARITY.md). New mechanics
+tests can use the recipe-based scenario DSL described in
+[`TESTING.md`](TESTING.md).
