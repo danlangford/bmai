@@ -239,6 +239,7 @@ impl Capabilities {
             skills: &[
                 "Berserk",
                 "Chance",
+                "Doppelganger",
                 "Focus",
                 "Insult",
                 "Jolt",
@@ -269,7 +270,7 @@ impl Capabilities {
                 "Warrior",
                 "Weak",
             ],
-            parsing_only_skills: &["Auxiliary", "Doppelganger", "Radioactive", "Rage"],
+            parsing_only_skills: &["Auxiliary", "Radioactive", "Rage"],
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],
@@ -390,7 +391,7 @@ mod tests {
                 entry.name
             );
         }
-        assert_eq!(parsing_only_skills.len(), 4);
+        assert_eq!(parsing_only_skills.len(), 3);
         for entry in capabilities.die_notation.postfix_properties {
             assert!(implemented_skills.contains(entry.name));
         }

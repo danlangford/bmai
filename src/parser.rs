@@ -170,6 +170,7 @@ impl BMC_Parser {
                     }
                     let player = parse_usize(fields[1])?;
                     let dice = parse_usize(fields[2])?;
+                    validate_player_dice_count(dice)?;
                     fields[3]
                         .parse::<f32>()
                         .map_err(|_| ParseError(format!("invalid score: {}", fields[3])))?;
@@ -547,6 +548,7 @@ impl BMC_Parser {
             }
             let id = parse_usize(header[1])?;
             let count = parse_usize(header[2])?;
+            validate_player_dice_count(count)?;
             let score: f32 = header[3]
                 .parse()
                 .map_err(|_| ParseError(format!("invalid score: {}", header[3])))?;
@@ -582,6 +584,9 @@ impl BMC_Parser {
                 dice.push(die);
             }
             self.m_game.m_player[id].m_die = dice;
+            self.m_game.m_player[id].m_round_original_sides = [[0; 2]; crate::model::BMD_MAX_DICE];
+            self.m_game.m_player[id].m_round_transformed = 0;
+            self.m_game.m_player[id].m_radioactive_products = 0;
             self.m_game.m_player[id].m_score = if matches!(
                 self.m_game.m_phase,
                 BME_PHASE::INITIATIVE | BME_PHASE::CHANCE | BME_PHASE::FOCUS
@@ -1224,6 +1229,15 @@ fn parse_usize(input: &str) -> Result<usize, ParseError> {
         .parse()
         .map_err(|_| ParseError(format!("invalid integer: {input}")))
 }
+fn validate_player_dice_count(count: usize) -> Result<(), ParseError> {
+    if count > crate::model::BMD_MAX_INPUT_DICE {
+        return Err(ParseError(format!(
+            "player dice count {count} exceeds maximum {}",
+            crate::model::BMD_MAX_INPUT_DICE
+        )));
+    }
+    Ok(())
+}
 fn available_workers() -> usize {
     std::thread::available_parallelism()
         .map(usize::from)
@@ -1347,6 +1361,22 @@ getaction\n";
                 .unwrap_err();
             assert_eq!(error.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn game_rejects_more_than_ten_input_dice_in_both_parsing_paths() {
+        let input = "game\nfight\nplayer 0 11 0\n";
+        let expected = "player dice count 11 exceeds maximum 10";
+
+        let batched = BMC_Parser::default()
+            .ParseString(input, &mut Vec::new())
+            .unwrap_err();
+        let streamed = BMC_Parser::default()
+            .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+            .unwrap_err();
+
+        assert_eq!(batched.to_string(), expected);
+        assert_eq!(streamed.to_string(), expected);
     }
 
     #[test]

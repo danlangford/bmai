@@ -23,7 +23,7 @@ pub mod property {
     pub const WEAK: u64 = 0x2_0000;
     pub const RESERVE: u64 = 0x4_0000;
     pub const ORNERY: u64 = 0x8_0000;
-    pub const DOPPLEGANGER: u64 = 0x10_0000;
+    pub const DOPPELGANGER: u64 = 0x10_0000;
     pub const CHANCE: u64 = 0x20_0000;
     pub const MORPHING: u64 = 0x40_0000;
     pub const RADIOACTIVE: u64 = 0x80_0000;
@@ -207,6 +207,12 @@ pub struct BMC_Player {
     pub m_score: f32,
     pub m_die: Vec<BMC_Die>,
     pub m_swing_set: BME_SWING_SET,
+    /// Dynamic sides of original recipes transformed during this round.
+    pub m_round_original_sides: [[u8; 2]; BMD_MAX_DICE],
+    /// Stable indices whose original recipe must return next round.
+    pub m_round_transformed: u32,
+    /// Synthetic Radioactive decay products removed before the next round.
+    pub m_radioactive_products: u32,
 }
 
 impl BMC_Player {
@@ -262,7 +268,7 @@ impl BMC_Move {
 }
 
 #[derive(Clone, Copy, Default, Eq, PartialEq)]
-pub struct BMC_DieIndexSet(u16);
+pub struct BMC_DieIndexSet(u32);
 
 impl BMC_DieIndexSet {
     pub fn iter(self) -> impl Iterator<Item = usize> {
@@ -306,7 +312,7 @@ impl<const N: usize> From<[usize; N]> for BMC_DieIndexSet {
 
 impl From<&[usize]> for BMC_DieIndexSet {
     fn from(indices: &[usize]) -> Self {
-        let mut bits = 0u16;
+        let mut bits = 0u32;
         for index in indices {
             assert!(*index < BMD_MAX_DICE);
             bits |= 1 << index;
@@ -317,7 +323,7 @@ impl From<&[usize]> for BMC_DieIndexSet {
 
 impl FromIterator<usize> for BMC_DieIndexSet {
     fn from_iter<T: IntoIterator<Item = usize>>(indices: T) -> Self {
-        let mut bits = 0u16;
+        let mut bits = 0u32;
         for index in indices {
             assert!(index < BMD_MAX_DICE);
             bits |= 1 << index;
@@ -341,7 +347,12 @@ pub struct BMC_Game {
     pub m_turbo_accuracy: f32,
 }
 
-const BMD_MAX_DICE: usize = 10;
+// Original BMAI fixes each input player at ten dice. A successful
+// Radioactive+Doppelganger Power capture moves one active die from the defender
+// to the attacker, so twenty slots cover every distribution of the original
+// two-player pool while keeping move indices compact.
+pub(crate) const BMD_MAX_INPUT_DICE: usize = 10;
+pub(crate) const BMD_MAX_DICE: usize = BMD_MAX_INPUT_DICE * 2;
 
 struct BMC_AvailableDice<'a> {
     dice: [Option<(usize, &'a BMC_Die)>; BMD_MAX_DICE],

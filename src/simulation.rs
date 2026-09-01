@@ -5,7 +5,8 @@
 #![allow(non_snake_case)]
 
 use crate::model::{
-    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_ATTACK, BME_SWING_SET, property,
+    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMD_MAX_DICE, BME_ACTION, BME_ATTACK,
+    BME_SWING_SET, property,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_ROLLOUT_POLICY};
 
@@ -242,7 +243,7 @@ fn PlayMatchWithPolicies(
     let mut initiative = 0;
     let mut reserves_used = 0;
     while wins[0] < template.m_target_wins && wins[1] < template.m_target_wins {
-        RestoreJoltForNewRound(&mut game, template);
+        RestoreDiceForNewRound(&mut game, template);
         let round = PlayRoundWithPolicies(&mut game, rng, policies, native.as_deref_mut());
         let Some(winner) = round.0 else {
             ties += 1;
@@ -301,15 +302,52 @@ fn PlayMatchWithPolicies(
     }
 }
 
-fn RestoreJoltForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
+fn RestoreDiceForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
     for player in 0..game.m_player.len() {
-        for die in &mut game.m_player[player].m_die {
-            let started_with_jolt = template.m_player[player]
+        let products = game.m_player[player].m_radioactive_products;
+        game.m_player[player]
+            .m_die
+            .retain(|die| products & (1 << die.m_original_index) == 0);
+        game.m_player[player].m_round_transformed &= !products;
+        game.m_player[player].m_radioactive_products = 0;
+        for index in 0..game.m_player[player].m_die.len() {
+            let original_index = game.m_player[player].m_die[index].m_original_index;
+            let transformed =
+                game.m_player[player].m_round_transformed & (1 << original_index) != 0;
+            if transformed {
+                let sides = game.m_player[player].m_round_original_sides[original_index];
+                let in_reserve = game.m_player[player].m_die[index].m_in_reserve;
+                if let Some(original) = template.m_player[player]
+                    .m_die
+                    .iter()
+                    .find(|original| original.m_original_index == original_index)
+                {
+                    game.m_player[player].m_die[index] = *original;
+                    // Swing and Option selections persist for a round winner;
+                    // fixed Mighty/Weak side changes do not.
+                    if original.HasProperty(property::OPTION) {
+                        game.m_player[player].m_die[index].m_sides = sides;
+                    } else {
+                        for (side, saved) in sides.iter().enumerate() {
+                            if original.m_swing_type[side].is_some() {
+                                game.m_player[player].m_die[index].m_sides[side] = *saved;
+                            }
+                        }
+                    }
+                    game.m_player[player].m_die[index].m_in_reserve = in_reserve;
+                }
+                game.m_player[player].m_round_transformed &= !(1 << original_index);
+            }
+            let die = &mut game.m_player[player].m_die[index];
+            let Some(original) = template.m_player[player]
                 .m_die
                 .iter()
                 .find(|original| original.m_original_index == die.m_original_index)
-                .is_some_and(|original| original.HasProperty(property::JOLT));
-            if started_with_jolt {
+            else {
+                continue;
+            };
+
+            if original.HasProperty(property::JOLT) {
                 die.m_properties |= property::JOLT;
             } else {
                 die.m_properties &= !property::JOLT;
@@ -2309,6 +2347,12 @@ fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
             simulation_dice.clone_from(source_dice);
         }
         simulation.m_player[player].m_swing_set = source.m_player[player].m_swing_set;
+        simulation.m_player[player].m_round_original_sides =
+            source.m_player[player].m_round_original_sides;
+        simulation.m_player[player].m_round_transformed =
+            source.m_player[player].m_round_transformed;
+        simulation.m_player[player].m_radioactive_products =
+            source.m_player[player].m_radioactive_products;
     }
     simulation.m_phase = source.m_phase;
     simulation.m_surrender_allowed = source.m_surrender_allowed;
@@ -2329,29 +2373,48 @@ fn ApplyAttackForPlayers(
 ) -> bool {
     // C++ GetAvailableDice() is a cached boundary and does not shrink merely
     // because an attacker is marked NOTSET during this phase.
-    let available_attackers = AvailableDice(&game.m_player[attacker_player]);
+    let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
     let is_trip = action.m_attack == Some(BME_ATTACK::TRIP);
-    let null_attacker = action
+    let attacking_jolt_dice = action
         .m_attackers
         .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::NULL));
-    let value_attacker = action
-        .m_attackers
-        .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
-    let attacking_jolt = action
-        .m_attackers
-        .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::JOLT));
+        .filter(|index| game.m_player[attacker_player].m_die[*index].HasProperty(property::JOLT))
+        .collect::<BMC_DieIndexSet>();
+    let attacking_jolt = !attacking_jolt_dice.is_empty();
     let captured_jolt = action
         .m_targets
         .iter()
         .any(|index| game.m_player[target_player].m_die[index].HasProperty(property::JOLT));
-
-    let actual_attackers = action.m_attackers;
+    let mut actual_attackers = action.m_attackers;
+    let decayed = if let Some(decay_products) =
+        ApplyRadioactiveDecay(game, action, attacker_player, target_player)
+    {
+        actual_attackers = decay_products;
+        available_attackers += 1;
+        true
+    } else {
+        false
+    };
+    let jolt_dice_to_consume = if decayed {
+        BMC_DieIndexSet::default()
+    } else {
+        attacking_jolt_dice
+    };
+    let rerolling_attackers = actual_attackers
+        .iter()
+        .filter(|index| {
+            !game.m_player[attacker_player].m_die[*index].HasProperty(property::KONSTANT)
+        })
+        .collect::<BMC_DieIndexSet>();
     for attacker in actual_attackers.iter() {
         ApplyAttackPlayerEffects(game, action, attacker_player, target_player, attacker, true);
     }
+    let null_attacker = actual_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::NULL));
+    let value_attacker = actual_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
 
     if is_trip {
         let target = action.m_targets.first().expect("Trip target");
@@ -2378,7 +2441,7 @@ fn ApplyAttackForPlayers(
     // ButtonWeavers consumes ordinary attacking Jolt before the attack reroll.
     // Trip resolves both rerolls first and consumes attacking Jolt below.
     if !is_trip {
-        ConsumeAttackingJolt(game, attacker_player, &actual_attackers);
+        ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
     }
     // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
     // that did not participate, and finally a Trip target.
@@ -2398,15 +2461,15 @@ fn ApplyAttackForPlayers(
         if game.m_player[target_player].m_die[target].m_notset {
             RollScheduledDie(game, target_player, target, rng);
         }
-        ConsumeAttackingJolt(game, attacker_player, &actual_attackers);
+        ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
     }
 
     // Time and Space is a post-roll effect. It applies even when a Trip fails,
     // but Konstant attackers cannot trigger it because they do not reroll.
-    let time_and_space_extra_turn = action.m_attackers.iter().any(|index| {
+    let time_and_space_extra_turn = actual_attackers.iter().any(|index| {
         let die = &game.m_player[attacker_player].m_die[index];
         die.HasProperty(property::TIME_AND_SPACE)
-            && !die.HasProperty(property::KONSTANT)
+            && rerolling_attackers.contains(index)
             && die.GetValueTotal() % 2 == 1
     });
 
@@ -2440,7 +2503,84 @@ fn ApplyAttackForPlayers(
     attacking_jolt || captured_jolt || time_and_space_extra_turn
 }
 
-fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: &BMC_DieIndexSet) {
+fn ApplyRadioactiveDecay(
+    game: &mut BMC_Game,
+    action: &BMC_Move,
+    attacker_player: usize,
+    target_player: usize,
+) -> Option<BMC_DieIndexSet> {
+    if action.m_attack != Some(BME_ATTACK::POWER)
+        || action.m_attackers.len() != 1
+        || action.m_targets.len() != 1
+    {
+        return None;
+    }
+    let attacker = action.m_attackers.first()?;
+    let target = action.m_targets.first()?;
+    let doppelganger =
+        game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER);
+    let radioactive = game.m_player[attacker_player].m_die[attacker]
+        .HasProperty(property::RADIOACTIVE)
+        || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE);
+    if !doppelganger || !radioactive {
+        return None;
+    }
+    assert!(
+        game.m_player[attacker_player].m_die.len() < BMD_MAX_DICE,
+        "Radioactive+Doppelganger decay exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+    );
+
+    let original = game.m_player[attacker_player].m_die[attacker];
+    let original_index = original.m_original_index;
+    let used_indices = game.m_player[attacker_player]
+        .m_die
+        .iter()
+        .map(|die| die.m_original_index)
+        .collect::<BMC_DieIndexSet>();
+    let synthetic_index = (0..BMD_MAX_DICE)
+        .find(|index| !used_indices.contains(*index))
+        .expect("Radioactive+Doppelganger decay has no free stable die index");
+    let mut first = original;
+    let mut second = original;
+    let removed = property::RADIOACTIVE
+        | property::TURBO
+        | property::MOOD
+        | property::JOLT
+        | property::TIME_AND_SPACE;
+    first.m_properties &= !removed;
+    second.m_properties &= !removed;
+    if original.HasProperty(property::TWIN) {
+        first.m_sides = [original.m_sides[0] / 2, original.m_sides[1].div_ceil(2)];
+        second.m_sides = [original.m_sides[0].div_ceil(2), original.m_sides[1] / 2];
+    } else {
+        first.m_sides[0] = original.m_sides[0].div_ceil(2);
+        second.m_sides[0] = original.m_sides[0] / 2;
+    }
+    for die in [&mut first, &mut second] {
+        die.m_value_total = None;
+        die.m_notset = true;
+        die.m_captured = false;
+        die.m_dizzy = false;
+    }
+    second.m_original_index = synthetic_index;
+
+    let transformed = 1 << original_index;
+    if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
+        game.m_player[attacker_player].m_round_original_sides[original_index] = original.m_sides;
+        game.m_player[attacker_player].m_round_transformed |= transformed;
+    }
+    game.m_player[attacker_player].m_radioactive_products |= 1 << synthetic_index;
+    let old_score = original.GetScore(true);
+    game.m_player[attacker_player].m_die[attacker] = first;
+    game.m_player[attacker_player]
+        .m_die
+        .insert(attacker + 1, second);
+    let new_score = first.GetScore(true) + second.GetScore(true);
+    game.m_player[attacker_player].m_score += new_score - old_score;
+    Some([attacker, attacker + 1].into())
+}
+
+fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: BMC_DieIndexSet) {
     for attacker in attackers.iter() {
         game.m_player[player].m_die[attacker].m_properties &= !property::JOLT;
     }
@@ -2517,6 +2657,35 @@ fn ApplyAttackPlayerEffects(
             }
             game.m_player[attacker_player].m_score += score_delta;
         }
+    }
+
+    // ButtonWeavers runs Doppelganger after Mighty, Weak, and Turbo, but
+    // before Warrior and the attack reroll. A successful single-die Power
+    // attack replaces the attacking recipe with an exact copy of its target.
+    if actually_attacking
+        && action.m_attack == Some(BME_ATTACK::POWER)
+        && action.m_attackers.len() == 1
+        && action.m_targets.len() == 1
+        && game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER)
+    {
+        let target = action.m_targets.first().expect("Doppelganger target");
+        let mut copied = game.m_player[target_player].m_die[target];
+        let original = game.m_player[attacker_player].m_die[attacker];
+        let original_index = original.m_original_index;
+        let old_score = original.GetScore(true);
+        let transformed = 1 << original_index;
+        if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
+            game.m_player[attacker_player].m_round_original_sides[original_index] =
+                original.m_sides;
+            game.m_player[attacker_player].m_round_transformed |= transformed;
+        }
+        copied.m_captured = false;
+        copied.m_notset = true;
+        copied.m_dizzy = false;
+        copied.m_original_index = original_index;
+        copied.m_in_reserve = false;
+        game.m_player[attacker_player].m_die[attacker] = copied;
+        game.m_player[attacker_player].m_score += copied.GetScore(true) - old_score;
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {
@@ -3317,6 +3486,388 @@ mod tests {
         }
     }
 
+    #[test]
+    fn doppelganger_power_attack_copies_the_captured_die_recipe() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER | property::TRIP, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die('V', property::KONSTANT | property::POISON, 0);
+        target.m_sides = [12, 0];
+        target.m_value_total = Some(7);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        let copied = &game.m_player[0].m_die[0];
+        assert_eq!(copied.m_sides, [12, 0]);
+        assert_eq!(copied.m_swing_type, [Some('V'), None]);
+        assert!(copied.HasProperty(property::KONSTANT | property::POISON));
+        assert!(!copied.HasProperty(property::DOPPELGANGER | property::TRIP));
+        assert_eq!(copied.m_original_index, 0);
+    }
+
+    #[test]
+    fn doppelganger_does_not_copy_a_skill_attack_target() {
+        let mut game = BMC_Game::default();
+        let mut doppelganger = swing_die('P', property::DOPPELGANGER, 0);
+        doppelganger.m_sides = [6, 0];
+        doppelganger.m_value_total = Some(3);
+        let mut helper = swing_die('P', 0, 1);
+        helper.m_sides = [6, 0];
+        helper.m_value_total = Some(3);
+        let mut target = swing_die('P', property::TWIN | property::POISON, 0);
+        target.m_sides = [4, 2];
+        target.m_value_total = Some(6);
+        game.m_player[0].m_die = vec![doppelganger, helper];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        let original = game.m_player[0]
+            .m_die
+            .iter()
+            .find(|die| die.m_original_index == 0)
+            .unwrap();
+        assert_eq!(original.m_sides, [6, 0]);
+        assert!(original.HasProperty(property::DOPPELGANGER));
+        assert!(!original.HasProperty(property::TWIN | property::POISON));
+    }
+
+    #[test]
+    fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die('X', property::DOPPELGANGER | property::TWIN, 0);
+        target.m_sides = [8, 10];
+        target.m_swing_type = [Some('X'), Some('V')];
+        target.m_value_total = Some(12);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        let copied = &game.m_player[0].m_die[0];
+        assert_eq!(copied.m_sides, [8, 10]);
+        assert_eq!(copied.m_swing_type, [Some('X'), Some('V')]);
+        assert!(copied.HasProperty(property::TWIN | property::DOPPELGANGER));
+    }
+
+    #[test]
+    fn capturing_jolt_copies_and_retains_it_after_the_extra_turn_trigger() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die('P', property::JOLT | property::MAXIMUM, 0);
+        target.m_sides = [5, 0];
+        target.m_value_total = Some(5);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn);
+        assert!(game.m_player[0].m_die[0].HasProperty(property::JOLT));
+    }
+
+    #[test]
+    fn copied_time_and_space_runs_after_the_doppelganger_reroll() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die(
+            'P',
+            property::TIME_AND_SPACE | property::KONSTANT | property::MAXIMUM,
+            0,
+        );
+        target.m_sides = [5, 0];
+        target.m_value_total = Some(5);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        let copied = &game.m_player[0].m_die[0];
+        assert!(extra_turn);
+        assert!(copied.HasProperty(property::TIME_AND_SPACE | property::KONSTANT));
+        assert_eq!(copied.GetValueTotal(), 5);
+    }
+
+    #[test]
+    fn copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die(
+            'X',
+            property::MIGHTY | property::TURBO | property::MAXIMUM,
+            0,
+        );
+        target.m_sides = [6, 0];
+        target.m_value_total = Some(6);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        let copied = &game.m_player[0].m_die[0];
+        assert_eq!(copied.m_sides, [6, 0]);
+        assert_eq!(copied.GetValueTotal(), 6);
+        assert!(copied.HasProperty(property::MIGHTY | property::TURBO));
+    }
+
+    #[test]
+    fn radioactive_doppelganger_decays_before_both_products_copy_the_target() {
+        let mut template = BMC_Game::default();
+        let mut attacker = swing_die(
+            'P',
+            property::RADIOACTIVE
+                | property::DOPPELGANGER
+                | property::TURBO
+                | property::MOOD
+                | property::JOLT
+                | property::TIME_AND_SPACE,
+            0,
+        );
+        attacker.m_swing_type = [None, None];
+        attacker.m_sides = [17, 0];
+        attacker.m_value_total = Some(17);
+        let mut target = swing_die('P', property::POISON | property::MAXIMUM, 0);
+        target.m_swing_type = [None, None];
+        target.m_sides = [8, 0];
+        target.m_value_total = Some(8);
+        template.m_player[0].m_die = vec![attacker];
+        template.m_player[1].m_die = vec![target];
+        let mut game = template.clone();
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(extra_turn, "Jolt triggers before Radioactive removes it");
+        assert_eq!(game.m_player[0].m_die.len(), 2);
+        for product in &game.m_player[0].m_die {
+            assert_eq!(product.m_sides, [8, 0]);
+            assert_eq!(product.GetValueTotal(), 8);
+            assert!(product.HasProperty(property::POISON | property::MAXIMUM));
+            assert!(!product.HasProperty(
+                property::RADIOACTIVE
+                    | property::DOPPELGANGER
+                    | property::TURBO
+                    | property::MOOD
+                    | property::JOLT
+                    | property::TIME_AND_SPACE
+            ));
+        }
+
+        RestoreDiceForNewRound(&mut game, &template);
+        assert_eq!(game.m_player[0].m_die.len(), 1);
+        assert_eq!(game.m_player[0].m_round_transformed, 0);
+        assert_eq!(game.m_player[0].m_die[0].m_sides, [17, 0]);
+        assert!(
+            game.m_player[0].m_die[0].HasProperty(property::RADIOACTIVE | property::DOPPELGANGER)
+        );
+    }
+
+    #[test]
+    fn doppelganger_that_captures_rage_retains_rage_after_transforming() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        let mut target = swing_die('P', property::RAGE | property::MAXIMUM, 0);
+        target.m_sides = [7, 0];
+        target.m_value_total = Some(7);
+        game.m_player[0].m_die = vec![attacker];
+        game.m_player[1].m_die = vec![target];
+
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+
+        assert!(game.m_player[0].m_die[0].HasProperty(property::RAGE));
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
+    }
+
+    #[test]
+    fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
+        let mut template = BMC_Game::default();
+        for original_index in 0..10 {
+            let mut attacker = swing_die(
+                'P',
+                property::RADIOACTIVE | property::DOPPELGANGER,
+                original_index,
+            );
+            attacker.m_sides = [20, 0];
+            attacker.m_value_total = Some(20);
+            template.m_player[0].m_die.push(attacker);
+
+            let mut target = swing_die('P', 0, original_index);
+            target.m_sides = [1, 0];
+            target.m_value_total = Some(1);
+            template.m_player[1].m_die.push(target);
+        }
+        let mut game = template.clone();
+
+        for _ in 0..10 {
+            let attacker = game.m_player[0]
+                .m_die
+                .iter()
+                .position(|die| die.HasProperty(property::RADIOACTIVE | property::DOPPELGANGER))
+                .expect("an untransformed Radioactive Doppelganger remains");
+            let action = BMC_Move::attack(BME_ATTACK::POWER, [attacker], [0], 0.0);
+            apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        }
+
+        assert_eq!(game.m_player[0].m_die.len(), 20);
+        assert!(game.m_player[1].m_die.iter().all(|die| die.m_captured));
+        RestoreDiceForNewRound(&mut game, &template);
+        assert_eq!(game.m_player[0].m_die.len(), 10);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Radioactive+Doppelganger decay exceeds the transformed dice capacity of 20"
+    )]
+    fn radioactive_doppelganger_reports_transformed_capacity_exhaustion() {
+        let mut game = BMC_Game::default();
+        for original_index in 0..20 {
+            let properties = if original_index == 0 {
+                property::RADIOACTIVE | property::DOPPELGANGER
+            } else {
+                0
+            };
+            game.m_player[0]
+                .m_die
+                .push(swing_die('P', properties, original_index));
+        }
+        game.m_player[1].m_die.push(swing_die('P', 0, 0));
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+
+        ApplyRadioactiveDecay(&mut game, &action, 0, 1);
+    }
+
+    #[test]
+    fn radioactive_doppelganger_decay_is_limited_to_power_attacks() {
+        let mut game = BMC_Game::default();
+        game.m_player[0].m_die.push(swing_die(
+            'P',
+            property::RADIOACTIVE | property::DOPPELGANGER | property::SHADOW,
+            0,
+        ));
+        game.m_player[1].m_die.push(swing_die('P', 0, 0));
+        let action = BMC_Move::attack(BME_ATTACK::SHADOW, [0], [0], 0.0);
+
+        assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
+        assert_eq!(game.m_player[0].m_die.len(), 1);
+    }
+
+    #[test]
+    fn standalone_radioactive_remains_parsing_only() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', property::RADIOACTIVE, 0);
+        attacker.m_sides = [20, 0];
+        attacker.m_value_total = Some(20);
+        game.m_player[0].m_die = vec![attacker];
+        let mut target = swing_die('P', 0, 0);
+        target.m_sides = [2, 0];
+        target.m_value_total = Some(2);
+        game.m_player[1].m_die = vec![target];
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+
+        assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
+        assert_eq!(game.m_player[0].m_die.len(), 1);
+    }
+
+    #[test]
+    fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
+        let mut template = BMC_Game::default();
+        let mut original = swing_die('P', property::DOPPELGANGER | property::TRIP, 0);
+        original.m_sides = [20, 0];
+        original.m_value_total = Some(20);
+        template.m_player[0].m_die = vec![original];
+        let mut target = swing_die('V', property::POISON | property::TWIN, 0);
+        target.m_sides = [8, 10];
+        target.m_swing_type = [Some('V'), Some('X')];
+        target.m_value_total = Some(12);
+        template.m_player[1].m_die = vec![target];
+
+        let mut game = template.clone();
+        game.m_player[0].m_die[0].m_sides = [18, 0];
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        assert_eq!(game.m_player[0].m_die[0].m_sides, [8, 10]);
+
+        RestoreDiceForNewRound(&mut game, &template);
+
+        assert_eq!(game.m_player[0].m_die[0].m_sides, [18, 0]);
+        assert_eq!(game.m_player[0].m_die[0].m_swing_type, [Some('P'), None]);
+        assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER | property::TRIP));
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::POISON | property::TWIN));
+    }
+
+    #[test]
+    fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
+        let mut template = BMC_Game::default();
+        let mut original = swing_die('P', property::DOPPELGANGER, 0);
+        original.m_sides = [18, 0];
+        original.m_value_total = Some(18);
+        template.m_player[0].m_die = vec![original];
+        let mut first_target = swing_die('P', property::DOPPELGANGER | property::MAXIMUM, 0);
+        first_target.m_sides = [12, 0];
+        first_target.m_value_total = Some(12);
+        let mut second_target = swing_die('P', property::POISON, 1);
+        second_target.m_sides = [6, 0];
+        second_target.m_value_total = Some(6);
+        template.m_player[1].m_die = vec![first_target, second_target];
+
+        let mut game = template.clone();
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        assert!(game.m_player[0].m_die[0].HasProperty(property::POISON));
+
+        RestoreDiceForNewRound(&mut game, &template);
+
+        assert_eq!(game.m_player[0].m_die[0].m_sides, [18, 0]);
+        assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
+        assert!(!game.m_player[0].m_die[0].HasProperty(property::POISON));
+    }
+
+    #[test]
+    fn doppelganger_round_reset_does_not_preserve_mighty_side_changes() {
+        let mut template = BMC_Game::default();
+        let mut original = swing_die('P', property::DOPPELGANGER | property::MIGHTY, 0);
+        original.m_swing_type = [None, None];
+        original.m_sides = [6, 0];
+        original.m_value_total = Some(6);
+        template.m_player[0].m_die = vec![original];
+        let mut target = swing_die('P', property::MAXIMUM, 0);
+        target.m_swing_type = [None, None];
+        target.m_sides = [4, 0];
+        target.m_value_total = Some(4);
+        template.m_player[1].m_die = vec![target];
+
+        let mut game = template.clone();
+        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        RestoreDiceForNewRound(&mut game, &template);
+
+        assert_eq!(game.m_player[0].m_die[0].m_sides, [6, 0]);
+        assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER | property::MIGHTY));
+    }
+
     /// Ports PR #82's Chance Mighty/Weak/Maximum Konstant regressions.
     #[test]
     fn pr82_chance_effects_run_once_while_konstant_retains_value() {
@@ -3591,7 +4142,7 @@ mod tests {
 
         let mut game = template.clone();
         game.m_player[0].m_die[0].m_properties &= !property::JOLT;
-        RestoreJoltForNewRound(&mut game, &template);
+        RestoreDiceForNewRound(&mut game, &template);
 
         assert!(game.m_player[0].m_die[0].HasProperty(property::JOLT));
     }

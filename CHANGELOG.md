@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+
+- Add a human-readable Button Men scenario DSL for mechanics tests, with
+  domain-specific setup, expectations, and failure messages.
+- Complete mechanics support for the three remaining parsing-only skills:
+  Auxiliary (`+`), Radioactive (`R`), and Rage (`G`).
+
+## [0.6.0] - 2026-09-01
+
+### Added
+
+- Implemented the ButtonWeavers Doppelganger (`D`) skill. A successful
+  single-die Power attack replaces the attacker with an exact copy of the
+  captured die for the rest of the round, then rerolls it.
+- Added focused Doppelganger coverage for ordinary and Skill attacks, Twin and
+  Swing recipes, copied Doppelganger, Jolt, Time and Space, Konstant, Mighty,
+  Turbo, Rage, Radioactive decay products, and restoration of the original
+  recipe for the next round.
+
+### Changed
+
+- Enforced BMAI's historical maximum of ten input dice per player with a clear
+  parser error, while reserving twenty in-round slots for
+  Radioactive+Doppelganger transfers and reporting capacity exhaustion.
+
+### Fixed
+
+- Corrected the internal spelling of the Doppelganger property; the existing
+  user-facing `Doppelganger` name and `D` notation were already correct.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added
@@ -126,7 +156,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...HEAD
+[0.6.0]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...bmair-v0.6.0
 [0.5.0]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...bmair-v0.5.0
 [0.4.1]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...bmair-v0.4.1
 [0.4.0]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...bmair-v0.4.0

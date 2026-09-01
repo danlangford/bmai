@@ -183,6 +183,7 @@ case named in the final column.
 | captured Null/Value mutation and scoring | target mutation in `ApplyAttackForPlayers` before captured score | property score tests and combined seeded differential | covered |
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
+| ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -191,10 +192,32 @@ case named in the final column.
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
-Parsing-only parity is intentional for `AUXILIARY`, `DOPPLEGANGER`,
-`RADIOACTIVE`, and `RAGE`: upstream C++ only assigns their property bits in
-`BMC_Parser::ParseDie` and implements no game behavior. `UNSKILLED` is marked
-TODO upstream but both engines enforce its existing no-Skill-attack behavior.
+Parsing-only parity is intentional for `AUXILIARY`, `RADIOACTIVE`, and `RAGE`:
+upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
+implements no game behavior. Doppelganger is an intentional post-C++ extension
+based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
+The Radioactive decay path required by its documented Doppelganger interaction
+is implemented, including decay-product replacement and round restoration;
+unrelated Radioactive and Rage mechanics remain parsing-only. `UNSKILLED` is
+marked TODO upstream but both engines enforce its existing no-Skill-attack
+behavior. Rust accepts the legacy C++ maximum of ten input dice per player and
+uses a compact 20-bit in-round index space. A successful
+Radioactive+Doppelganger Power capture transfers one active die from the
+defender to the attacker, so twenty covers every distribution of the original
+two-player pool. Both the input and transformed limits fail explicitly rather
+than silently dropping dice or skill behavior.
+
+### Doppelganger interaction coverage
+
+The three distinct Doppelganger interaction notes in ButtonWeavers'
+`skills.html` are mapped explicitly here so none is hidden inside a generic
+mechanics test:
+
+| Documented interaction | Rust evidence |
+|---|---|
+| Radioactive decays first; both decay products copy the captured die | `radioactive_doppelganger_decays_before_both_products_copy_the_target` |
+| A Doppelganger that captures a Rage die retains Rage after copying it | `doppelganger_that_captures_rage_retains_rage_after_transforming` |
+| Copied Turbo does not resize the Doppelganger during the triggering attack | `copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll` |
 
 ## New differential coverage
 
@@ -315,7 +338,7 @@ raw pointers, or literal byte copying.
 | C++ state/path | Rust-native equivalent | Decision |
 |---|---|---|
 | fixed `BMC_Game` assignment into one `sim` | `RestoreSimulation` into one scratch game per evaluator | aligned; same-length dice use direct slice copying, with allocation-retaining `Vec::clone_from` for shape changes |
-| `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u16)` | aligned; no per-move participant allocation |
+| `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u32)` | aligned; no per-move participant allocation |
 | `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `BMC_DieIndexStack`, stack-backed available-dice views, and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access and transient index vectors are eliminated |
 | cached `m_sides_max` | sum of at most two `u8` sides in `GetSidesMax` | intentionally computed; cheaper invariant surface than synchronizing another field |
 | cached attack/vulnerability bits | property branches in `CanDoAttack`/`CanBeAttacked` | intentionally computed; preserves Stealth's skill-dice-count rule explicitly and avoids stale masks after property mutation |
