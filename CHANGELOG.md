@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   grants another turn, while capturing a Jolt die also grants another turn.
 - Added Jolt interaction coverage for multiple attackers, unsuccessful Trip
   attacks, captured defenders, Konstant, and Time and Space.
+- Added `workers auto` to use the logical CPU parallelism available to the
+  process for native search while recording the resolved worker count.
 
 ### Changed
 

@@ -139,7 +139,7 @@ The stable command forms are:
 | `ai PLAYER TYPE` | Select unculled BMAI (`0`), QAI (`1`), or culled BMAI (`2`). |
 | `mode legacy\|parity\|native` | Select compatible or opt-in native execution. |
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
-| `workers N` | Configure at least one native worker; legacy results are unaffected. |
+| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
 | `ply [PLAYER] N` | Set global or per-player BMAI depth. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |

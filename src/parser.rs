@@ -228,13 +228,22 @@ impl BMC_Parser {
                 self.m_rng.SetAlgorithm(algorithm);
                 writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
                     .map_err(io_error)?;
-            } else if let Some(value) = argument(line, "workers") {
-                let workers = value?;
+            } else if let Some(value) = line.strip_prefix("workers ") {
+                let (workers, automatic) = if value == "auto" {
+                    (available_workers(), true)
+                } else {
+                    (parse_usize(value)?, false)
+                };
                 if workers == 0 {
                     return Err(ParseError("native worker count must be at least 1".into()));
                 }
                 self.m_native_workers = workers;
-                writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
+                if automatic {
+                    writeln!(output, "Setting native workers to {workers} (auto)")
+                        .map_err(io_error)?;
+                } else {
+                    writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
+                }
             } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
                     self.m_game.m_target_wins = parse_usize(wins)? as u8;
@@ -1215,6 +1224,11 @@ fn parse_usize(input: &str) -> Result<usize, ParseError> {
         .parse()
         .map_err(|_| ParseError(format!("invalid integer: {input}")))
 }
+fn available_workers() -> usize {
+    std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+}
 fn io_error(error: std::io::Error) -> ParseError {
     ParseError(error.to_string())
 }
@@ -1666,6 +1680,21 @@ Seeding with 17\n"
             )
         };
         assert_eq!(run(1), run(64));
+    }
+
+    #[test]
+    fn native_worker_auto_uses_available_logical_parallelism() {
+        let expected = available_workers();
+        let mut parser = BMC_Parser::default();
+        let mut output = Vec::new();
+
+        parser.ParseString("workers auto\n", &mut output).unwrap();
+
+        assert_eq!(parser.session_metadata().workers, expected);
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            format!("Setting native workers to {expected} (auto)\n")
+        );
     }
 
     #[test]

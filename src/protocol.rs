@@ -48,6 +48,7 @@ pub struct NativeCapabilities {
     pub execution_modes: &'static [&'static str],
     pub rng_algorithms: &'static [&'static str],
     pub minimum_workers: usize,
+    pub automatic_workers: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -274,6 +275,7 @@ impl Capabilities {
                 execution_modes: &["legacy", "native"],
                 rng_algorithms: &["legacy", "park-miller"],
                 minimum_workers: 1,
+                automatic_workers: true,
             },
         }
     }
@@ -292,6 +294,7 @@ mod tests {
         assert_eq!(value["implementation"], "bmair");
         assert_eq!(value["protocols"][0], "legacy-v1");
         assert_eq!(value["protocols"][1], "jsonl-v1");
+        assert_eq!(value["native"]["automatic_workers"], true);
         assert!(
             value["commands"]
                 .as_array()

@@ -15,11 +15,13 @@ Execution mode and RNG algorithm are independent configuration axes.
   mode and their own tests.
 - `rng legacy` selects `bmai-park-miller-16807-v1`. It is available to either
   execution mode and remains mandatory for exact C++ replay.
-- `workers N` selects the bounded native search worker count. It defaults to
-  `1`, must be at least `1`, and has no effect on legacy search. Each evaluation
-  batch clamps the effective count to its number of tasks, so an excessively
-  large setting does not create idle threads. The configured count remains part
-  of performance-reproduction metadata even though results are count-independent.
+- `workers N` selects the bounded native search worker count. `workers auto`
+  resolves to the logical CPU parallelism available to the process. The setting
+  defaults to `1`, numeric values must be at least `1`, and neither form affects
+  legacy search. Each evaluation batch clamps the effective count to its number
+  of tasks, so an excessively large setting does not create idle threads. The
+  resolved count remains part of performance-reproduction metadata even though
+  results are count-independent.
 
 Selecting a mode never implicitly selects or reseeds an RNG. Selecting an RNG
 never changes execution mode and does not reset its stream.
