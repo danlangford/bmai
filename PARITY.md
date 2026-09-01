@@ -109,6 +109,10 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   They default to legacy behavior and therefore add no output or state change
   to C++ protocol inputs. `mode native` is currently a named evolution seam,
   not a behavior change.
+- [x] Whole-line `#` comments between top-level commands are an explicit Rust
+  parser extension. Batched-file and incremental-stdin tests prove identical
+  behavior after comments are removed. Inline comments and comments within a
+  structured `game` block remain invalid; the C++ parser accepts no comments.
 - [x] Jolt (`J`) is an explicit post-C++ mechanics extension based on the
   ButtonWeavers rules engine. The C++ reference predates Jolt and has no Jolt
   parser or behavior to map. Existing C++ inputs remain unchanged; focused Rust

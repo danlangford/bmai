@@ -126,6 +126,9 @@ The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
 `min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
+Whole lines whose first non-whitespace character is `#` may be used as comments
+between top-level commands. Inline comments and comments inside `game` blocks
+are not supported.
 
 ### Python and service integration
 

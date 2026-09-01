@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   process for native search while recording the resolved worker count.
 - Added embedded build versions to platform executable and workflow-artifact
   filenames so downloaded development and release builds remain distinguishable.
+- Added whole-line `#` comments between top-level legacy protocol commands for
+  both file and incremental standard-input parsing.
 
 ### Changed
 

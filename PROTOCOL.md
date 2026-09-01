@@ -125,6 +125,8 @@ blocks. Output is flushed after every complete top-level command. `quit`
 terminates immediately without waiting for EOF. This preserves the original
 C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
+After trimming whitespace, a whole top-level line beginning with `#` is ignored.
+Inline comments and comments within a `game` phase/player/die block are invalid.
 
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated

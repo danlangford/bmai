@@ -151,7 +151,7 @@ impl BMC_Parser {
 
         while let Some(line) = read_stream_line(input)? {
             let command = line.trim();
-            if command.is_empty() {
+            if command.is_empty() || command.starts_with('#') {
                 continue;
             }
             let is_game = command.starts_with("game");
@@ -204,7 +204,7 @@ impl BMC_Parser {
         while pos < lines.len() {
             let line = lines[pos].trim();
             pos += 1;
-            if line.is_empty() {
+            if line.is_empty() || line.starts_with('#') {
                 continue;
             }
             if let Some(value) = line.strip_prefix("mode ") {
@@ -1274,6 +1274,57 @@ getaction\n";
         assert_eq!(streamed.session_metadata(), batched.session_metadata());
         assert_eq!(streamed.last_action(), batched.last_action());
         assert_eq!(streamed.last_replay(), batched.last_replay());
+    }
+
+    #[test]
+    fn whole_line_comments_are_ignored_between_top_level_commands() {
+        let game = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 1 1\n1:1\n";
+        let plain = format!("{game}seed 17\nsurrender off\nquit\n");
+        let commented = format!(
+            "  # generated game state\n{game}\t# search policy\nseed 17\nsurrender off\n# done\nquit\n"
+        );
+
+        let parse_batched = |input: &str| {
+            let mut parser = BMC_Parser::default();
+            let mut output = Vec::new();
+            parser.ParseString(input, &mut output).unwrap();
+            (output, parser.session_metadata())
+        };
+        let parse_streamed = |input: &str| {
+            let mut parser = BMC_Parser::default();
+            let mut output = Vec::new();
+            parser
+                .ParseStream(&mut std::io::Cursor::new(input), &mut output)
+                .unwrap();
+            (output, parser.session_metadata())
+        };
+
+        let expected = parse_batched(&plain);
+        assert_eq!(parse_batched(&commented), expected);
+        assert_eq!(parse_streamed(&commented), expected);
+    }
+
+    #[test]
+    fn comments_inside_game_blocks_remain_invalid() {
+        let input = "game\n# phase comment\nfight\n";
+        let batched = BMC_Parser::default()
+            .ParseString(input, &mut Vec::new())
+            .unwrap_err();
+        let streamed = BMC_Parser::default()
+            .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+            .unwrap_err();
+
+        assert_eq!(batched.to_string(), "phase not found");
+        assert_eq!(streamed.to_string(), batched.to_string());
+    }
+
+    #[test]
+    fn inline_comments_remain_invalid() {
+        let error = BMC_Parser::default()
+            .ParseString("seed 17 # comment\n", &mut Vec::new())
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), "invalid integer: 17 # comment");
     }
 
     #[test]
