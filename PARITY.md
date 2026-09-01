@@ -200,9 +200,12 @@ The Radioactive decay path required by its documented Doppelganger interaction
 is implemented, including decay-product replacement and round restoration;
 unrelated Radioactive and Rage mechanics remain parsing-only. `UNSKILLED` is
 marked TODO upstream but both engines enforce its existing no-Skill-attack
-behavior. Rust's compact move-index bound is 16 rather than the legacy C++
-bound of 10 so ButtonWeavers transformations can temporarily expand a full
-ten-die pool without allocating an unbounded move representation.
+behavior. Rust accepts the legacy C++ maximum of ten input dice per player and
+uses a compact 20-bit in-round index space. A successful
+Radioactive+Doppelganger Power capture transfers one active die from the
+defender to the attacker, so twenty covers every distribution of the original
+two-player pool. Both the input and transformed limits fail explicitly rather
+than silently dropping dice or skill behavior.
 
 ### Doppelganger interaction coverage
 
@@ -335,7 +338,7 @@ raw pointers, or literal byte copying.
 | C++ state/path | Rust-native equivalent | Decision |
 |---|---|---|
 | fixed `BMC_Game` assignment into one `sim` | `RestoreSimulation` into one scratch game per evaluator | aligned; same-length dice use direct slice copying, with allocation-retaining `Vec::clone_from` for shape changes |
-| `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u16)` | aligned; no per-move participant allocation |
+| `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u32)` | aligned; no per-move participant allocation |
 | `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `BMC_DieIndexStack`, stack-backed available-dice views, and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access and transient index vectors are eliminated |
 | cached `m_sides_max` | sum of at most two `u8` sides in `GetSidesMax` | intentionally computed; cheaper invariant surface than synchronizing another field |
 | cached attack/vulnerability bits | property branches in `CanDoAttack`/`CanBeAttacked` | intentionally computed; preserves Stealth's skill-dice-count rule explicitly and avoids stale masks after property mutation |

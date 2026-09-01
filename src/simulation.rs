@@ -2509,7 +2509,10 @@ fn ApplyRadioactiveDecay(
     attacker_player: usize,
     target_player: usize,
 ) -> Option<BMC_DieIndexSet> {
-    if action.m_attackers.len() != 1 || action.m_targets.len() != 1 {
+    if action.m_attack != Some(BME_ATTACK::POWER)
+        || action.m_attackers.len() != 1
+        || action.m_targets.len() != 1
+    {
         return None;
     }
     let attacker = action.m_attackers.first()?;
@@ -2519,9 +2522,13 @@ fn ApplyRadioactiveDecay(
     let radioactive = game.m_player[attacker_player].m_die[attacker]
         .HasProperty(property::RADIOACTIVE)
         || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE);
-    if !doppelganger || !radioactive || game.m_player[attacker_player].m_die.len() >= BMD_MAX_DICE {
+    if !doppelganger || !radioactive {
         return None;
     }
+    assert!(
+        game.m_player[attacker_player].m_die.len() < BMD_MAX_DICE,
+        "Radioactive+Doppelganger decay exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+    );
 
     let original = game.m_player[attacker_player].m_die[attacker];
     let original_index = original.m_original_index;
@@ -2530,7 +2537,9 @@ fn ApplyRadioactiveDecay(
         .iter()
         .map(|die| die.m_original_index)
         .collect::<BMC_DieIndexSet>();
-    let synthetic_index = (0..BMD_MAX_DICE).find(|index| !used_indices.contains(*index))?;
+    let synthetic_index = (0..BMD_MAX_DICE)
+        .find(|index| !used_indices.contains(*index))
+        .expect("Radioactive+Doppelganger decay has no free stable die index");
     let mut first = original;
     let mut second = original;
     let removed = property::RADIOACTIVE
@@ -3691,28 +3700,76 @@ mod tests {
     }
 
     #[test]
-    fn radioactive_doppelganger_can_expand_a_full_legacy_ten_die_pool() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::RADIOACTIVE | property::DOPPELGANGER, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        game.m_player[0].m_die.push(attacker);
-        for original_index in 1..10 {
-            let mut bystander = swing_die('P', 0, original_index);
-            bystander.m_sides = [1, 0];
-            bystander.m_value_total = Some(1);
-            game.m_player[0].m_die.push(bystander);
+    fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
+        let mut template = BMC_Game::default();
+        for original_index in 0..10 {
+            let mut attacker = swing_die(
+                'P',
+                property::RADIOACTIVE | property::DOPPELGANGER,
+                original_index,
+            );
+            attacker.m_sides = [20, 0];
+            attacker.m_value_total = Some(20);
+            template.m_player[0].m_die.push(attacker);
+
+            let mut target = swing_die('P', 0, original_index);
+            target.m_sides = [1, 0];
+            target.m_value_total = Some(1);
+            template.m_player[1].m_die.push(target);
         }
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides = [2, 0];
-        target.m_value_total = Some(2);
-        game.m_player[1].m_die = vec![target];
+        let mut game = template.clone();
+
+        for _ in 0..10 {
+            let attacker = game.m_player[0]
+                .m_die
+                .iter()
+                .position(|die| die.HasProperty(property::RADIOACTIVE | property::DOPPELGANGER))
+                .expect("an untransformed Radioactive Doppelganger remains");
+            let action = BMC_Move::attack(BME_ATTACK::POWER, [attacker], [0], 0.0);
+            apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        }
+
+        assert_eq!(game.m_player[0].m_die.len(), 20);
+        assert!(game.m_player[1].m_die.iter().all(|die| die.m_captured));
+        RestoreDiceForNewRound(&mut game, &template);
+        assert_eq!(game.m_player[0].m_die.len(), 10);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Radioactive+Doppelganger decay exceeds the transformed dice capacity of 20"
+    )]
+    fn radioactive_doppelganger_reports_transformed_capacity_exhaustion() {
+        let mut game = BMC_Game::default();
+        for original_index in 0..20 {
+            let properties = if original_index == 0 {
+                property::RADIOACTIVE | property::DOPPELGANGER
+            } else {
+                0
+            };
+            game.m_player[0]
+                .m_die
+                .push(swing_die('P', properties, original_index));
+        }
+        game.m_player[1].m_die.push(swing_die('P', 0, 0));
         let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
 
-        let products = ApplyRadioactiveDecay(&mut game, &action, 0, 1).unwrap();
+        ApplyRadioactiveDecay(&mut game, &action, 0, 1);
+    }
 
-        assert_eq!(products, vec![0, 1]);
-        assert_eq!(game.m_player[0].m_die.len(), 11);
+    #[test]
+    fn radioactive_doppelganger_decay_is_limited_to_power_attacks() {
+        let mut game = BMC_Game::default();
+        game.m_player[0].m_die.push(swing_die(
+            'P',
+            property::RADIOACTIVE | property::DOPPELGANGER | property::SHADOW,
+            0,
+        ));
+        game.m_player[1].m_die.push(swing_die('P', 0, 0));
+        let action = BMC_Move::attack(BME_ATTACK::SHADOW, [0], [0], 0.0);
+
+        assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
+        assert_eq!(game.m_player[0].m_die.len(), 1);
     }
 
     #[test]

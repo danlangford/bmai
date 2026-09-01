@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Turbo, Rage, Radioactive decay products, and restoration of the original
   recipe for the next round.
 
+### Changed
+
+- Enforced BMAI's historical maximum of ten input dice per player with a clear
+  parser error, while reserving twenty in-round slots for
+  Radioactive+Doppelganger transfers and reporting capacity exhaustion.
+
 ### Fixed
 
 - Corrected the internal spelling of the Doppelganger property; the existing
