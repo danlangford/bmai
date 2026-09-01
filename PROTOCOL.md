@@ -125,6 +125,8 @@ blocks. Output is flushed after every complete top-level command. `quit`
 terminates immediately without waiting for EOF. This preserves the original
 C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
+After trimming whitespace, a whole top-level line beginning with `#` is ignored.
+Inline comments and comments within a `game` phase/player/die block are invalid.
 
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
@@ -139,7 +141,7 @@ The stable command forms are:
 | `ai PLAYER TYPE` | Select unculled BMAI (`0`), QAI (`1`), or culled BMAI (`2`). |
 | `mode legacy\|parity\|native` | Select compatible or opt-in native execution. |
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
-| `workers N` | Configure at least one native worker; legacy results are unaffected. |
+| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
 | `ply [PLAYER] N` | Set global or per-player BMAI depth. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |

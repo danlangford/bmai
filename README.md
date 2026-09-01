@@ -83,7 +83,10 @@ unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
 binaries for Linux, Windows, and macOS. Each platform/architecture pair is
 uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
 are not combined into a universal binary. Release artifacts include build
-metadata and SHA-256 checksums.
+metadata and SHA-256 checksums. Executable filenames use the embedded version,
+platform, architecture, and profile, such as
+`bmair-0.5.0-macos-arm64-release` for an exact release or
+`bmair-0.5.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
@@ -115,14 +118,17 @@ cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
 
 `bmair --version` derives its displayed version from Cargo and
-`git describe`. An exact `bmair-v0.4.0` tag reports `0.4.0`; development builds
+`git describe`. An exact `bmair-v0.5.0` tag reports `0.5.0`; development builds
 report the upcoming Cargo version plus the number of commits since the previous
 release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
-`getaction`, `ai`, `mode`, `rng`, `seed`, `surrender`, `ply`, `max_sims`,
+`getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
 `min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
+Whole lines whose first non-whitespace character is `#` may be used as comments
+between top-level commands. Inline comments and comments inside `game` blocks
+are not supported.
 
 ### Python and service integration
 
@@ -149,6 +155,11 @@ request while keeping the pipe open to read the action.
 default. `mode parity` is an alias. `mode native` selects the explicit
 Rust-native evolution point and currently enables deterministic per-simulation
 RNG streams plus bounded parallel candidate evaluation.
+
+Native search defaults to `workers 1`. Set an explicit positive count or use
+`workers auto` to resolve the logical CPU parallelism available to the process.
+The resolved count is reported and included in replay metadata; worker settings
+do not affect legacy search.
 
 `rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
 16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`

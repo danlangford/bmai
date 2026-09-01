@@ -31,6 +31,14 @@ fn legacy_banner_is_flushed_before_input() {
         "legacy banner was not flushed before input",
     );
     assert!(banner.starts_with("BMAIR: the Button Men AI in Rust\n"));
+    assert_eq!(
+        banner.lines().nth(1),
+        Some("Rust port Copyright © 2026 Dan Langford.")
+    );
+    assert_eq!(
+        banner.lines().nth(2),
+        Some("Original BMAI Copyright © 2001-2026 Denis Papp.")
+    );
     assert!(banner.contains("Version:"));
     stop(&mut child);
 }

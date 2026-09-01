@@ -4,6 +4,21 @@ Authority: C++ `main` at `1fcb826`, Konstant PR #82 at `4813530`, and the
 contract in `AGENTS.md`. PR #82 is treated as the reference for its signed
 Konstant behavior until it lands upstream.
 
+## Regression oracle policy
+
+The adopted Konstant reference at `4813530` remains the source-provenance
+oracle even though that patch has not been merged upstream. Its implementation
+and regression suite were deliberately accepted as part of BMAIR's mechanics
+contract.
+
+The published `bmair-v0.4.1` legacy executable is the routine regression oracle
+for later releases: its complete C++ and adopted-Konstant parity was established
+before post-C++ mechanics such as Jolt were added. Current legacy builds should
+match it on every historical fixture. Re-run the C++ reference gates after
+changes to mechanics, parsing, RNG consumption, candidate generation, or search
+control flow, and periodically as a provenance audit; the Rust baseline does
+not replace that historical evidence chain.
+
 ## Completion gates
 
 - [x] All 24 current `*in*.txt` fixtures have materially identical outputs.
@@ -94,6 +109,20 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   They default to legacy behavior and therefore add no output or state change
   to C++ protocol inputs. `mode native` is currently a named evolution seam,
   not a behavior change.
+- [x] Whole-line `#` comments between top-level commands are an explicit Rust
+  parser extension. Batched-file and incremental-stdin tests prove identical
+  behavior after comments are removed. Inline comments and comments within a
+  structured `game` block remain invalid; the C++ parser accepts no comments.
+- [x] Jolt (`J`) is an explicit post-C++ mechanics extension based on the
+  ButtonWeavers rules engine. The C++ reference predates Jolt and has no Jolt
+  parser or behavior to map. Existing C++ inputs remain unchanged; focused Rust
+  tests cover attacking, successful and unsuccessful capture, unsuccessful
+  Trip, Konstant, multiple-Jolt, and Time-and-Space post-roll interactions. The
+  attack lifecycle was audited against ButtonWeavers `master` at
+  `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`, including `BMAttack`,
+  `BMSkillTrip`, `BMSkillJolt`, `BMSkillTimeAndSpace`, and `BMSkillKonstant`;
+  the seeded Trip and Konstant interaction tests also assert that their attacks
+  are produced by BMAIR's legal-attack generator.
 - [x] Global `ply`, `max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`.
 - [x] `compare` (the upstream implementation is currently identical to
   `playgame`, despite its stale OLD-AI comment).
@@ -153,6 +182,7 @@ case named in the final column.
 | `OnBeforeRollInGame`, nature rerolls, Mood, and Trip's single before-roll pass | `ApplyBeforeRollEffects`, `ApplyMood`, `ApplyAttackerNatureRoll`, `RollScheduledDie` | PR #82 Trip/Chance/Ornery/Konstant effect and pass tests plus seeded differentials | covered |
 | captured Null/Value mutation and scoring | target mutation in `ApplyAttackForPlayers` before captured score | property score tests and combined seeded differential | covered |
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
+| Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -212,6 +242,10 @@ TODO upstream but both engines enforce its existing no-Skill-attack behavior.
   passed, with the same three expected upstream skips.
 - [x] Full release C++/Rust fixture and added differential suite passes
   after the Value lifecycle correction (1,208.03 seconds on 2026-08-27).
+- [x] The 0.5.0 Jolt implementation left every historical fixture unchanged:
+  the complete material-output differential passed against the adopted
+  Konstant reference at `4813530` in 567.54 seconds on 2026-09-01. Jolt is
+  covered separately because the C++ reference predates it.
 - [x] The `rust` branch through `ccc5ff5` is published with the complete parity
   implementation and REUSE-compliant attribution.
 

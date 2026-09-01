@@ -151,7 +151,7 @@ impl BMC_Parser {
 
         while let Some(line) = read_stream_line(input)? {
             let command = line.trim();
-            if command.is_empty() {
+            if command.is_empty() || command.starts_with('#') {
                 continue;
             }
             let is_game = command.starts_with("game");
@@ -204,7 +204,7 @@ impl BMC_Parser {
         while pos < lines.len() {
             let line = lines[pos].trim();
             pos += 1;
-            if line.is_empty() {
+            if line.is_empty() || line.starts_with('#') {
                 continue;
             }
             if let Some(value) = line.strip_prefix("mode ") {
@@ -228,13 +228,22 @@ impl BMC_Parser {
                 self.m_rng.SetAlgorithm(algorithm);
                 writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
                     .map_err(io_error)?;
-            } else if let Some(value) = argument(line, "workers") {
-                let workers = value?;
+            } else if let Some(value) = line.strip_prefix("workers ") {
+                let (workers, automatic) = if value == "auto" {
+                    (available_workers(), true)
+                } else {
+                    (parse_usize(value)?, false)
+                };
                 if workers == 0 {
                     return Err(ParseError("native worker count must be at least 1".into()));
                 }
                 self.m_native_workers = workers;
-                writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
+                if automatic {
+                    writeln!(output, "Setting native workers to {workers} (auto)")
+                        .map_err(io_error)?;
+                } else {
+                    writeln!(output, "Setting native workers to {workers}").map_err(io_error)?;
+                }
             } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
                     self.m_game.m_target_wins = parse_usize(wins)? as u8;
@@ -1215,6 +1224,11 @@ fn parse_usize(input: &str) -> Result<usize, ParseError> {
         .parse()
         .map_err(|_| ParseError(format!("invalid integer: {input}")))
 }
+fn available_workers() -> usize {
+    std::thread::available_parallelism()
+        .map(usize::from)
+        .unwrap_or(1)
+}
 fn io_error(error: std::io::Error) -> ParseError {
     ParseError(error.to_string())
 }
@@ -1260,6 +1274,57 @@ getaction\n";
         assert_eq!(streamed.session_metadata(), batched.session_metadata());
         assert_eq!(streamed.last_action(), batched.last_action());
         assert_eq!(streamed.last_replay(), batched.last_replay());
+    }
+
+    #[test]
+    fn whole_line_comments_are_ignored_between_top_level_commands() {
+        let game = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 1 1\n1:1\n";
+        let plain = format!("{game}seed 17\nsurrender off\nquit\n");
+        let commented = format!(
+            "  # generated game state\n{game}\t# search policy\nseed 17\nsurrender off\n# done\nquit\n"
+        );
+
+        let parse_batched = |input: &str| {
+            let mut parser = BMC_Parser::default();
+            let mut output = Vec::new();
+            parser.ParseString(input, &mut output).unwrap();
+            (output, parser.session_metadata())
+        };
+        let parse_streamed = |input: &str| {
+            let mut parser = BMC_Parser::default();
+            let mut output = Vec::new();
+            parser
+                .ParseStream(&mut std::io::Cursor::new(input), &mut output)
+                .unwrap();
+            (output, parser.session_metadata())
+        };
+
+        let expected = parse_batched(&plain);
+        assert_eq!(parse_batched(&commented), expected);
+        assert_eq!(parse_streamed(&commented), expected);
+    }
+
+    #[test]
+    fn comments_inside_game_blocks_remain_invalid() {
+        let input = "game\n# phase comment\nfight\n";
+        let batched = BMC_Parser::default()
+            .ParseString(input, &mut Vec::new())
+            .unwrap_err();
+        let streamed = BMC_Parser::default()
+            .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+            .unwrap_err();
+
+        assert_eq!(batched.to_string(), "phase not found");
+        assert_eq!(streamed.to_string(), batched.to_string());
+    }
+
+    #[test]
+    fn inline_comments_remain_invalid() {
+        let error = BMC_Parser::default()
+            .ParseString("seed 17 # comment\n", &mut Vec::new())
+            .unwrap_err();
+
+        assert_eq!(error.to_string(), "invalid integer: 17 # comment");
     }
 
     #[test]
@@ -1430,6 +1495,8 @@ Seeding with 17\n"
         let option = ParseDie("zU?-30", 1).unwrap();
         assert!(option.HasProperty(property::SPEED | property::MOOD));
         assert_eq!(option.m_sides[0], 30);
+        let jolt = ParseDie("J^6:3", 2).unwrap();
+        assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
     }
 
     #[test]
@@ -1664,6 +1731,21 @@ Seeding with 17\n"
             )
         };
         assert_eq!(run(1), run(64));
+    }
+
+    #[test]
+    fn native_worker_auto_uses_available_logical_parallelism() {
+        let expected = available_workers();
+        let mut parser = BMC_Parser::default();
+        let mut output = Vec::new();
+
+        parser.ParseString("workers auto\n", &mut output).unwrap();
+
+        assert_eq!(parser.session_metadata().workers, expected);
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            format!("Setting native workers to {expected} (auto)\n")
+        );
     }
 
     #[test]

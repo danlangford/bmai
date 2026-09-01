@@ -51,7 +51,7 @@ fn run(executable: impl AsRef<std::ffi::OsStr>, input: &str) -> (bool, String) {
             !line.starts_with("BMAI:")
                 && !line.starts_with("BMAIR:")
                 && !line.starts_with("Copyright")
-                && !line.starts_with("Based on BMAI")
+                && !line.starts_with("Original BMAI Copyright")
                 && !line.starts_with("Rust port Copyright")
                 && !line.starts_with("For information")
                 && !line.starts_with("Version:")

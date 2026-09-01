@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-01
+
+### Added
+
+- Implemented the Jolt (`J`) skill: an attacking Jolt die loses Jolt and
+  grants another turn, while capturing a Jolt die also grants another turn.
+- Added Jolt interaction coverage for multiple attackers, unsuccessful Trip
+  attacks, captured defenders, Konstant, and Time and Space.
+- Added `workers auto` to use the logical CPU parallelism available to the
+  process for native search while recording the resolved worker count.
+- Added embedded build versions to platform executable and workflow-artifact
+  filenames so downloaded development and release builds remain distinguishable.
+- Added whole-line `#` comments between top-level legacy protocol commands for
+  both file and incremental standard-input parsing.
+
+### Changed
+
+- Displayed Dan Langford's BMAIR copyright before the original BMAI
+  attribution so single-copyright legacy clients identify the current port.
+
 ## [0.4.1] - 2026-08-29
 
 ### Fixed
@@ -106,7 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...HEAD
+[0.5.0]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...bmair-v0.5.0
 [0.4.1]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...bmair-v0.4.1
 [0.4.0]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...bmair-v0.4.0
 [0.3.0]: https://github.com/danlangford/bmai/compare/bmair-v0.2.0...bmair-v0.3.0

@@ -124,7 +124,7 @@ jobs:
           {
             echo "Release built from \`${GITHUB_SHA}\`."
             echo
-            echo "All six native platform artifacts include version/build metadata."
+            echo "All six platform-specific artifacts include version/build metadata."
             echo "Verify downloads against \`SHA256SUMS\`."
             echo
             if [[ -n "$previous_tag" ]]; then
