@@ -347,8 +347,9 @@ pub struct BMC_Game {
     pub m_turbo_accuracy: f32,
 }
 
-// ButtonWeavers transformations can temporarily expand the legacy ten-die
-// pool. The compact index set remains fixed-capacity while allowing that room.
+// Original BMAI fixes player and move storage at ten dice. The
+// Radioactive+Doppelganger interaction can add dice during a round; u16 keeps
+// move indices compact while providing temporary headroom beyond that limit.
 pub(crate) const BMD_MAX_DICE: usize = 16;
 
 struct BMC_AvailableDice<'a> {
