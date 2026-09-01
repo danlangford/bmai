@@ -183,6 +183,7 @@ case named in the final column.
 | captured Null/Value mutation and scoring | target mutation in `ApplyAttackForPlayers` before captured score | property score tests and combined seeded differential | covered |
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
+| ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, and round-lifecycle tests | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -191,10 +192,13 @@ case named in the final column.
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
-Parsing-only parity is intentional for `AUXILIARY`, `DOPPELGANGER`,
-`RADIOACTIVE`, and `RAGE`: upstream C++ only assigns their property bits in
-`BMC_Parser::ParseDie` and implements no game behavior. `UNSKILLED` is marked
-TODO upstream but both engines enforce its existing no-Skill-attack behavior.
+Parsing-only parity is intentional for `AUXILIARY`, `RADIOACTIVE`, and `RAGE`:
+upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
+implements no game behavior. Doppelganger is an intentional post-C++ extension
+based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
+It copies Radioactive and Rage property bits, while those skills' own mechanics
+remain parsing-only. `UNSKILLED` is marked TODO upstream but both engines
+enforce its existing no-Skill-attack behavior.
 
 ## New differential coverage
 

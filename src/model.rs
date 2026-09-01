@@ -207,6 +207,10 @@ pub struct BMC_Player {
     pub m_score: f32,
     pub m_die: Vec<BMC_Die>,
     pub m_swing_set: BME_SWING_SET,
+    /// Dynamic sides of original recipes replaced by Doppelganger this round.
+    pub m_doppelganger_original_sides: [[u8; 2]; BMD_MAX_DICE],
+    /// Bit set keyed by stable die index for each transformed Doppelganger.
+    pub m_doppelganger_transformed: u16,
 }
 
 impl BMC_Player {
@@ -341,7 +345,7 @@ pub struct BMC_Game {
     pub m_turbo_accuracy: f32,
 }
 
-const BMD_MAX_DICE: usize = 10;
+pub(crate) const BMD_MAX_DICE: usize = 10;
 
 struct BMC_AvailableDice<'a> {
     dice: [Option<(usize, &'a BMC_Die)>; BMD_MAX_DICE],

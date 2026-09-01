@@ -14,6 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.0] - 2026-09-01
 
+### Added
+
+- Implemented the ButtonWeavers Doppelganger (`D`) skill. A successful
+  single-die Power attack replaces the attacker with an exact copy of the
+  captured die for the rest of the round, then rerolls it.
+- Added focused Doppelganger coverage for ordinary and Skill attacks, Twin and
+  Swing recipes, copied Doppelganger, Jolt, Time and Space, Konstant, Mighty,
+  Turbo, and restoration of the original recipe for the next round.
+
 ### Fixed
 
 - Corrected the internal spelling of the Doppelganger property; the existing

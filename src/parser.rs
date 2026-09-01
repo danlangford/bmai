@@ -582,6 +582,9 @@ impl BMC_Parser {
                 dice.push(die);
             }
             self.m_game.m_player[id].m_die = dice;
+            self.m_game.m_player[id].m_doppelganger_original_sides =
+                [[0; 2]; crate::model::BMD_MAX_DICE];
+            self.m_game.m_player[id].m_doppelganger_transformed = 0;
             self.m_game.m_player[id].m_score = if matches!(
                 self.m_game.m_phase,
                 BME_PHASE::INITIATIVE | BME_PHASE::CHANCE | BME_PHASE::FOCUS
