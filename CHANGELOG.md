@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-01
+
+### Fixed
+
+- Corrected the internal spelling of the Doppelganger property; the existing
+  user-facing `Doppelganger` name and `D` notation were already correct.
+
 ## [0.5.0] - 2026-09-01
 
 ### Added
@@ -126,7 +133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...HEAD
+[0.6.0]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...bmair-v0.6.0
 [0.5.0]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...bmair-v0.5.0
 [0.4.1]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...bmair-v0.4.1
 [0.4.0]: https://github.com/danlangford/bmai/compare/bmair-v0.3.0...bmair-v0.4.0

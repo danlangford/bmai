@@ -23,7 +23,7 @@ pub mod property {
     pub const WEAK: u64 = 0x2_0000;
     pub const RESERVE: u64 = 0x4_0000;
     pub const ORNERY: u64 = 0x8_0000;
-    pub const DOPPLEGANGER: u64 = 0x10_0000;
+    pub const DOPPELGANGER: u64 = 0x10_0000;
     pub const CHANCE: u64 = 0x20_0000;
     pub const MORPHING: u64 = 0x40_0000;
     pub const RADIOACTIVE: u64 = 0x80_0000;

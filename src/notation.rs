@@ -105,7 +105,7 @@ pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
         "doppelganger",
         "Doppelganger",
         ParsingOnly,
-        DOPPLEGANGER
+        DOPPELGANGER
     ),
     die_property!('%', "radioactive", "Radioactive", ParsingOnly, RADIOACTIVE),
     die_property!('G', "rage", "Rage", ParsingOnly, RAGE),

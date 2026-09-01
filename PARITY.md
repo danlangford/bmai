@@ -191,7 +191,7 @@ case named in the final column.
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
-Parsing-only parity is intentional for `AUXILIARY`, `DOPPLEGANGER`,
+Parsing-only parity is intentional for `AUXILIARY`, `DOPPELGANGER`,
 `RADIOACTIVE`, and `RAGE`: upstream C++ only assigns their property bits in
 `BMC_Parser::ParseDie` and implements no game behavior. `UNSKILLED` is marked
 TODO upstream but both engines enforce its existing no-Skill-attack behavior.
