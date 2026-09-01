@@ -80,6 +80,11 @@ threads, and trace settings resolve to a quiet configuration there. Candidate
 scores and any diagnostics are reduced and emitted only in canonical order on
 the coordinating thread. Legacy logging and protocol output are unchanged.
 
+Native search defaults to one configured worker. `workers auto` resolves to the
+logical CPU parallelism available to the process and records that numeric value
+in session metadata. Individual evaluation batches still clamp their effective
+worker count to the number of tasks.
+
 ## Explicit non-goals for the first experiment
 
 - no changes to legacy RNG, enumeration, simulation counts, or output;
