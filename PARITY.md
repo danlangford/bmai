@@ -183,7 +183,7 @@ case named in the final column.
 | captured Null/Value mutation and scoring | target mutation in `ApplyAttackForPlayers` before captured score | property score tests and combined seeded differential | covered |
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
-| ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, and round-lifecycle tests | covered Rust extension |
+| ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -196,9 +196,25 @@ Parsing-only parity is intentional for `AUXILIARY`, `RADIOACTIVE`, and `RAGE`:
 upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
 implements no game behavior. Doppelganger is an intentional post-C++ extension
 based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
-It copies Radioactive and Rage property bits, while those skills' own mechanics
-remain parsing-only. `UNSKILLED` is marked TODO upstream but both engines
-enforce its existing no-Skill-attack behavior.
+The Radioactive decay path required by its documented Doppelganger interaction
+is implemented, including decay-product replacement and round restoration;
+unrelated Radioactive and Rage mechanics remain parsing-only. `UNSKILLED` is
+marked TODO upstream but both engines enforce its existing no-Skill-attack
+behavior. Rust's compact move-index bound is 16 rather than the legacy C++
+bound of 10 so ButtonWeavers transformations can temporarily expand a full
+ten-die pool without allocating an unbounded move representation.
+
+### Doppelganger interaction coverage
+
+The three distinct Doppelganger interaction notes in ButtonWeavers'
+`skills.html` are mapped explicitly here so none is hidden inside a generic
+mechanics test:
+
+| Documented interaction | Rust evidence |
+|---|---|
+| Radioactive decays first; both decay products copy the captured die | `radioactive_doppelganger_decays_before_both_products_copy_the_target` |
+| A Doppelganger that captures a Rage die retains Rage after copying it | `doppelganger_that_captures_rage_retains_rage_after_transforming` |
+| Copied Turbo does not resize the Doppelganger during the triggering attack | `copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll` |
 
 ## New differential coverage
 

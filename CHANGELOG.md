@@ -21,7 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   captured die for the rest of the round, then rerolls it.
 - Added focused Doppelganger coverage for ordinary and Skill attacks, Twin and
   Swing recipes, copied Doppelganger, Jolt, Time and Space, Konstant, Mighty,
-  Turbo, and restoration of the original recipe for the next round.
+  Turbo, Rage, Radioactive decay products, and restoration of the original
+  recipe for the next round.
 
 ### Fixed
 

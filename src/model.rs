@@ -207,10 +207,12 @@ pub struct BMC_Player {
     pub m_score: f32,
     pub m_die: Vec<BMC_Die>,
     pub m_swing_set: BME_SWING_SET,
-    /// Dynamic sides of original recipes replaced by Doppelganger this round.
-    pub m_doppelganger_original_sides: [[u8; 2]; BMD_MAX_DICE],
-    /// Bit set keyed by stable die index for each transformed Doppelganger.
-    pub m_doppelganger_transformed: u16,
+    /// Dynamic sides of original recipes transformed during this round.
+    pub m_round_original_sides: [[u8; 2]; BMD_MAX_DICE],
+    /// Stable indices whose original recipe must return next round.
+    pub m_round_transformed: u16,
+    /// Synthetic Radioactive decay products removed before the next round.
+    pub m_radioactive_products: u16,
 }
 
 impl BMC_Player {
@@ -345,7 +347,9 @@ pub struct BMC_Game {
     pub m_turbo_accuracy: f32,
 }
 
-pub(crate) const BMD_MAX_DICE: usize = 10;
+// ButtonWeavers transformations can temporarily expand the legacy ten-die
+// pool. The compact index set remains fixed-capacity while allowing that room.
+pub(crate) const BMD_MAX_DICE: usize = 16;
 
 struct BMC_AvailableDice<'a> {
     dice: [Option<(usize, &'a BMC_Die)>; BMD_MAX_DICE],
