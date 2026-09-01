@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+
+- Add a human-readable Button Men scenario DSL for mechanics tests, with
+  domain-specific setup, expectations, and failure messages.
+- Complete mechanics support for the three remaining parsing-only skills:
+  Auxiliary (`+`), Radioactive (`R`), and Rage (`G`).
+
 ## [0.6.0] - 2026-09-01
 
 ### Added
