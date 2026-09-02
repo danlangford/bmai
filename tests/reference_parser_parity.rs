@@ -46,6 +46,10 @@ fn defined_swing_forms_produce_the_same_cpp_search_result() {
         "T?-20:20",
         "(T,T)-2!:2",
         "(T,T)!-2:2",
+        "6/20-6:6",
+        "6/20-20:20",
+        "T/20-20:20",
+        "T/U-6:6",
     ];
 
     for recipe in recipes {

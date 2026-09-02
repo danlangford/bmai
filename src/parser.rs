@@ -1540,10 +1540,20 @@ Seeding with 17\n"
         assert!(twin.HasProperty(property::TWIN));
         assert!(twin.HasProperty(property::POISON));
         assert_eq!(twin.m_sides, [4, 4]);
-        let option = ParseDie("zU?-30", 1).unwrap();
-        assert!(option.HasProperty(property::SPEED | property::MOOD));
-        assert_eq!(option.m_sides[0], 30);
-        let jolt = ParseDie("J^6:3", 2).unwrap();
+
+        let first_option = ParseDie("6/20-6:4", 1).unwrap();
+        assert!(first_option.HasProperty(property::OPTION));
+        assert_eq!(first_option.m_sides, [6, 20]);
+
+        let second_option = ParseDie("6/20-20:17", 2).unwrap();
+        assert!(second_option.HasProperty(property::OPTION));
+        assert_eq!(second_option.m_sides, [20, 6]);
+
+        let mood_swing = ParseDie("zU?-30", 3).unwrap();
+        assert!(mood_swing.HasProperty(property::SPEED | property::MOOD));
+        assert_eq!(mood_swing.m_sides[0], 30);
+
+        let jolt = ParseDie("J^6:3", 4).unwrap();
         assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
     }
 
