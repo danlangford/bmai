@@ -38,7 +38,7 @@ and completion order are therefore absent from the result.
 
 1. **Implemented:** Add a native replay key and deterministic stream derivation
    with known-answer tests. No threads or legacy-search changes were added. See
-   `src/native.rs`; its versioned `bmair-native-stream-v1` contract deliberately
+   `src/native.rs`; its versioned stream-partition contract deliberately
    excludes worker identity.
 2. **Implemented:** Run native search sequentially with one independent stream
    per simulation. Every direct `getaction` phase has a deterministic input and
@@ -84,6 +84,15 @@ Native search defaults to one configured worker. `workers auto` resolves to the
 logical CPU parallelism available to the process and records that numeric value
 in session metadata. Individual evaluation batches still clamp their effective
 worker count to the number of tasks.
+
+Beginning with `bmair-native-stream-v2`, a simulation that begins with a
+bounded random draw stratifies that draw by canonical simulation index. Once
+culling leaves one candidate, native search continues evaluating that survivor
+through the declared simulation budget. Together these rules reduce
+probability-estimate noise and prevent a larger configured budget from being
+ignored merely because move selection became certain. The coordinator still
+reduces results in canonical order, so worker count and completion order cannot
+affect output.
 
 ## Explicit non-goals for the first experiment
 

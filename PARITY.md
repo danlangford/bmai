@@ -198,6 +198,15 @@ case named in the final column.
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
+Native search deliberately advances beyond C++ BMAI3's probability-reporting
+behavior under the versioned `bmair-native-stream-v2` replay contract. Culling
+still removes inferior candidates, but the survivor runs through its declared
+simulation budget; an opening bounded random draw is stratified across
+canonical simulation indices. The game 119365 regression proves that the
+shared Poison/Queer mechanics win only on d20 rerolls 5 and 6, while the search
+scenario proves legacy and native both report 10% and select the same Power
+capture. Legacy C++-ordered RNG consumption and early culling remain unchanged.
+
 Parsing-only parity is intentional for `AUXILIARY` and `RADIOACTIVE`:
 upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
 implements no game behavior. Doppelganger is an intentional post-C++ extension

@@ -797,7 +797,7 @@ impl BMC_Parser {
     fn NextNativeReplay(&mut self) -> crate::native::NativeReplayKey {
         debug_assert_eq!(self.m_execution_mode, ExecutionMode::Native);
         let replay = crate::native::NativeReplayKey {
-            stream_version: crate::native::NativeStreamVersion::V1,
+            stream_version: crate::native::NativeStreamVersion::CURRENT,
             root_seed: self.m_native_root_seed,
             decision_index: self.m_native_decision_index,
         };

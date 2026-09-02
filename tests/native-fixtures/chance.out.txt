@@ -11,4 +11,4 @@ p0 s6.0 Dice (40000000)6:6 (200000)6:1
 p1 s3.0 Dice (0)6:4 
 stats 1/1-2/10/0.50
 action
-chance 0
+pass

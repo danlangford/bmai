@@ -42,6 +42,7 @@ pub struct BMC_RNG {
     m_trace_hash: bool,
     m_trace_count: u64,
     m_trace_fingerprint: u64,
+    m_native_stratum: Option<crate::native::NativeStratum>,
 }
 
 impl Default for BMC_RNG {
@@ -53,6 +54,7 @@ impl Default for BMC_RNG {
             m_trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: None,
         }
     }
 }
@@ -66,12 +68,14 @@ impl BMC_RNG {
             m_trace_hash: false,
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: None,
         }
     }
 
     pub(crate) fn FromNativeStream(
         algorithm: BME_RNG_ALGORITHM,
         seed: crate::native::NativeStreamSeed,
+        stratum: Option<crate::native::NativeStratum>,
     ) -> Self {
         Self {
             m_algorithm: algorithm,
@@ -80,6 +84,7 @@ impl BMC_RNG {
             m_trace_hash: false,
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: stratum,
         }
     }
 
@@ -110,6 +115,7 @@ impl BMC_RNG {
     }
 
     pub fn GetRand(&mut self) -> u32 {
+        self.m_native_stratum = None;
         match self.m_algorithm {
             BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
         }
@@ -135,7 +141,16 @@ impl BMC_RNG {
     }
 
     pub fn GetRandMax(&mut self, upper: u32) -> u32 {
-        self.GetRand() % upper
+        assert!(upper > 0, "GetRandMax requires a nonzero upper bound");
+        let random = match self.m_algorithm {
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
+        };
+        self.m_native_stratum
+            .take()
+            .map_or(random % upper, |stratum| {
+                let upper = u64::from(upper);
+                ((stratum.index % upper + stratum.offset % upper) % upper) as u32
+            })
     }
 
     pub fn GetFRand(&mut self) -> f32 {
@@ -189,6 +204,47 @@ mod tests {
             (first, second),
             (uninterrupted.GetRand(), uninterrupted.GetRand())
         );
+    }
+
+    #[test]
+    fn native_strata_balance_the_first_bounded_sample() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        for offset in [0, 7, u64::MAX] {
+            let mut counts = [0usize; 20];
+            for index in 0..100 {
+                let mut rng = BMC_RNG::FromNativeStream(
+                    BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                    seed,
+                    Some(crate::native::NativeStratum { index, offset }),
+                );
+                counts[rng.GetRandMax(20) as usize] += 1;
+            }
+            assert_eq!(counts, [5; 20]);
+        }
+    }
+
+    #[test]
+    fn an_unbounded_native_draw_consumes_the_first_sample_stratum() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        let mut stratified = BMC_RNG::FromNativeStream(
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            seed,
+            Some(crate::native::NativeStratum {
+                index: 999,
+                offset: 999,
+            }),
+        );
+        let mut ordinary =
+            BMC_RNG::FromNativeStream(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1, seed, None);
+
+        assert_eq!(stratified.GetRand(), ordinary.GetRand());
+        assert_eq!(stratified.GetRandMax(20), ordinary.GetRandMax(20));
     }
 
     /// Port of LegacyMembers.TestRNG. The C++ test is statistical rather than

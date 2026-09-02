@@ -323,7 +323,7 @@ mod tests {
             (
                 "chance",
                 include_str!("../tests/native-fixtures/chance.txt"),
-                "chance",
+                "pass",
             ),
             (
                 "focus",
