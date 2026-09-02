@@ -184,6 +184,7 @@ case named in the final column.
 | Time and Space odd-roll extra turn and dizzy recovery | `ApplyAttackForPlayers` extra-turn result, `RecoverDizzyDice` | combined seeded differential and exact QAI/RNG trace | covered |
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
+| ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -192,20 +193,22 @@ case named in the final column.
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
-Parsing-only parity is intentional for `AUXILIARY`, `RADIOACTIVE`, and `RAGE`:
+Parsing-only parity is intentional for `AUXILIARY` and `RADIOACTIVE`:
 upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
 implements no game behavior. Doppelganger is an intentional post-C++ extension
 based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
 The Radioactive decay path required by its documented Doppelganger interaction
 is implemented, including decay-product replacement and round restoration;
-unrelated Radioactive and Rage mechanics remain parsing-only. `UNSKILLED` is
-marked TODO upstream but both engines enforce its existing no-Skill-attack
-behavior. Rust accepts the legacy C++ maximum of ten input dice per player and
-uses a compact 20-bit in-round index space. A successful
-Radioactive+Doppelganger Power capture transfers one active die from the
-defender to the attacker, so twenty covers every distribution of the original
-two-player pool. Both the input and transformed limits fail explicitly rather
-than silently dropping dice or skill behavior.
+unrelated Radioactive mechanics remain parsing-only. Rage is also an intentional
+post-C++ extension based on the ButtonWeavers engine at the same pinned source
+revision and its live skill contract.
+`UNSKILLED` is marked TODO upstream but both engines enforce its existing
+no-Skill-attack behavior. Rust accepts the legacy C++ maximum of ten input dice
+per player and uses a compact 20-bit in-round index space. Twenty slots cover
+both every Radioactive+Doppelganger distribution of the original two-player
+pool and one round-local Rage replacement for every original die. Both the
+input and transformed limits fail explicitly rather than silently dropping
+dice or skill behavior.
 
 Mechanics scenarios in `src/simulation/scenario.rs` are a test-only adapter
 over the same production parser, C++-ordered legality enumeration, attack
@@ -225,6 +228,32 @@ mechanics test:
 | Radioactive decays first; both decay products copy the captured die | `radioactive_doppelganger_decays_before_both_products_copy_the_target` |
 | A Doppelganger that captures a Rage die retains Rage after copying it | `doppelganger_that_captures_rage_retains_rage_after_transforming` |
 | Copied Turbo does not resize the Doppelganger during the triggering attack | `copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll` |
+
+### Rage rule and interaction coverage
+
+The live ButtonWeavers skills page describes three core Rage rules and repeats
+one named Doppelganger interaction under both skills. Each distinct behavior is
+mapped explicitly:
+
+| Documented behavior | Rust evidence |
+|---|---|
+| Rage dice do not count for initiative | `rage_dice_do_not_contribute_to_initiative` |
+| A participating Rage attacker loses Rage | `attacking_rage_die_loses_rage`, `only_participating_rage_dice_lose_rage` |
+| A captured Rage die produces a rolled same-ability replacement without Rage | `captured_rage_die_is_replaced_until_the_round_ends` |
+| A Doppelganger capturing Rage retains Rage after transforming | `doppelganger_that_captures_rage_retains_rage_after_transforming` |
+
+Additional ButtonWeavers-source and edge-case coverage exercises failed Trip,
+Speed multi-capture, Jolt, Time and Space, Konstant, Null, Value, Poison,
+Radioactive, Mighty, Weak, Mood, Twin, Turbo, next-round restoration, and the
+ten-original-to-twenty-round-dice capacity boundary. The older Rage issue
+clarifications for Slow, Focus, and the initial roll of a Konstant replacement
+also have direct tests. Rage+Fire (firing does not consume Rage) and Rage gained
+during a Chaotic attacking reroll are recorded as deferred because BMAIR does
+not yet parse or implement Fire or Chaotic. Single-attacker/single-target
+Radioactive+Rage ordering remains part of the explicitly parsing-only
+Radioactive work; the current Rage test uses a multi-target Speed attack, where
+Radioactive does not trigger, to prove the replacement retains its other
+properties without pretending that standalone Radioactive is complete.
 
 ## New differential coverage
 

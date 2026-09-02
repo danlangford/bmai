@@ -304,12 +304,14 @@ fn PlayMatchWithPolicies(
 
 fn RestoreDiceForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
     for player in 0..game.m_player.len() {
-        let products = game.m_player[player].m_radioactive_products;
+        let products = game.m_player[player].m_radioactive_products
+            | game.m_player[player].m_rage_replacements;
         game.m_player[player]
             .m_die
             .retain(|die| products & (1 << die.m_original_index) == 0);
         game.m_player[player].m_round_transformed &= !products;
         game.m_player[player].m_radioactive_products = 0;
+        game.m_player[player].m_rage_replacements = 0;
         for index in 0..game.m_player[player].m_die.len() {
             let original_index = game.m_player[player].m_die[index].m_original_index;
             let transformed =
@@ -351,6 +353,11 @@ fn RestoreDiceForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
                 die.m_properties |= property::JOLT;
             } else {
                 die.m_properties &= !property::JOLT;
+            }
+            if original.HasProperty(property::RAGE) {
+                die.m_properties |= property::RAGE;
+            } else {
+                die.m_properties &= !property::RAGE;
             }
         }
     }
@@ -1293,7 +1300,10 @@ fn GenerateFocusMoves(game: &BMC_Game, player: usize) -> Vec<FocusMove> {
         .iter()
         .enumerate()
         .filter(|(_, die)| {
-            die.IsAvailable() && die.HasProperty(property::FOCUS) && die.GetValueTotal() > 1
+            die.IsAvailable()
+                && die.HasProperty(property::FOCUS)
+                && !die.HasProperty(property::RAGE)
+                && die.GetValueTotal() > 1
         })
         .map(|(index, die)| (index, die.GetValueTotal() as u8))
         .collect::<Vec<_>>();
@@ -2353,6 +2363,8 @@ fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
             source.m_player[player].m_round_transformed;
         simulation.m_player[player].m_radioactive_products =
             source.m_player[player].m_radioactive_products;
+        simulation.m_player[player].m_rage_replacements =
+            source.m_player[player].m_rage_replacements;
     }
     simulation.m_phase = source.m_phase;
     simulation.m_surrender_allowed = source.m_surrender_allowed;
@@ -2381,6 +2393,10 @@ fn ApplyAttackForPlayers(
         .filter(|index| game.m_player[attacker_player].m_die[*index].HasProperty(property::JOLT))
         .collect::<BMC_DieIndexSet>();
     let attacking_jolt = !attacking_jolt_dice.is_empty();
+    let attacking_rage = action
+        .m_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::RAGE));
     let captured_jolt = action
         .m_targets
         .iter()
@@ -2442,6 +2458,7 @@ fn ApplyAttackForPlayers(
     // Trip resolves both rerolls first and consumes attacking Jolt below.
     if !is_trip {
         ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
+        ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
     // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
     // that did not participate, and finally a Trip target.
@@ -2462,6 +2479,7 @@ fn ApplyAttackForPlayers(
             RollScheduledDie(game, target_player, target, rng);
         }
         ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
+        ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
 
     // Time and Space is a post-roll effect. It applies even when a Trip fails,
@@ -2485,8 +2503,10 @@ fn ApplyAttackForPlayers(
         }
     }
 
+    let mut created_rage_replacement = false;
     for (removed, original_target) in action.m_targets.iter().enumerate() {
         let target = original_target - removed;
+        let rage_replacement = CreateAndRollRageReplacement(game, target_player, target, rng);
         let own_score = game.m_player[target_player].m_die[target].GetScore(true);
         game.m_player[target_player].m_score -= own_score;
         if null_attacker {
@@ -2498,8 +2518,15 @@ fn ApplyAttackForPlayers(
         let captured_score = game.m_player[target_player].m_die[target].GetScore(false);
         game.m_player[attacker_player].m_score += captured_score;
         OnDieLost(&mut game.m_player[target_player], target);
+        if let Some(replacement) = rage_replacement {
+            AddRageReplacement(game, target_player, replacement);
+            created_rage_replacement = true;
+        }
     }
     OptimizeDice(&mut game.m_player[attacker_player]);
+    if created_rage_replacement {
+        OptimizeDice(&mut game.m_player[target_player]);
+    }
     attacking_jolt || captured_jolt || time_and_space_extra_turn
 }
 
@@ -2584,6 +2611,63 @@ fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: BMC_DieIn
     for attacker in attackers.iter() {
         game.m_player[player].m_die[attacker].m_properties &= !property::JOLT;
     }
+}
+
+fn ConsumeAttackingRage(
+    game: &mut BMC_Game,
+    player: usize,
+    attackers: BMC_DieIndexSet,
+    participated_with_rage: bool,
+) {
+    if !participated_with_rage {
+        return;
+    }
+    for attacker in attackers.iter() {
+        game.m_player[player].m_die[attacker].m_properties &= !property::RAGE;
+    }
+}
+
+fn CreateAndRollRageReplacement(
+    game: &BMC_Game,
+    player: usize,
+    target: usize,
+    rng: &mut BMC_RNG,
+) -> Option<BMC_Die> {
+    let original = game.m_player[player].m_die[target];
+    if !original.HasProperty(property::RAGE) {
+        return None;
+    }
+    assert!(
+        game.m_player[player].m_die.len() < BMD_MAX_DICE,
+        "Rage replacement exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+    );
+    let used_indices = game.m_player[player]
+        .m_die
+        .iter()
+        .map(|die| die.m_original_index)
+        .collect::<BMC_DieIndexSet>();
+    let synthetic_index = (0..BMD_MAX_DICE)
+        .find(|index| !used_indices.contains(*index))
+        .expect("Rage replacement has no free stable die index");
+    let mut replacement = original;
+    replacement.m_properties &= !property::RAGE;
+    replacement.m_value_total = None;
+    replacement.m_captured = false;
+    replacement.m_notset = true;
+    replacement.m_dizzy = false;
+    replacement.m_original_index = synthetic_index;
+    // ButtonWeavers marks Rage replacements specially: Mighty and Weak do not
+    // change size on this initial roll, and Mood does not trigger because the
+    // newly cloned die has no value yet.
+    RollDie(&mut replacement, rng);
+    Some(replacement)
+}
+
+fn AddRageReplacement(game: &mut BMC_Game, player: usize, replacement: BMC_Die) {
+    game.m_player[player].m_rage_replacements |= 1 << replacement.m_original_index;
+    game.m_player[player].m_score += replacement.GetScore(true);
+    let available = AvailableDice(&game.m_player[player]);
+    game.m_player[player].m_die.insert(available, replacement);
 }
 
 fn ApplyAttackPlayerEffects(
@@ -2825,7 +2909,9 @@ pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
             .iter()
             .filter(|die| {
                 die.IsAvailable()
-                    && !die.HasProperty(property::TRIP | property::SLOW | property::STINGER)
+                    && !die.HasProperty(
+                        property::TRIP | property::SLOW | property::STINGER | property::RAGE,
+                    )
             })
             .map(BMC_Die::GetValueTotal)
             .collect();
@@ -3551,7 +3637,282 @@ mod tests {
             .attacks(POWER)
             .defender("GM7:7")
             .expect_attacker_dice(["MG7:7"])
+            .expect_defender_dice(["M7:7"])
+            .expect_captured_defender_dice(["MG7:7"])
+            .run();
+    }
+
+    #[test]
+    fn rage_dice_do_not_contribute_to_initiative() {
+        let game =
+            native_fixture_game("game\ninitiative\nplayer 0 1 0\nG20:20\nplayer 1 1 0\n6:6\n");
+        assert_eq!(CheckInitiative(&game), Some(1));
+    }
+
+    #[test]
+    fn rage_slow_die_is_still_excluded_from_initiative() {
+        let game =
+            native_fixture_game("game\ninitiative\nplayer 0 1 0\nGw20:20\nplayer 1 1 0\n6:6\n");
+        assert_eq!(CheckInitiative(&game), Some(1));
+    }
+
+    #[test]
+    fn rage_focus_die_cannot_be_used_for_focus() {
+        let game = native_fixture_game("game\nfocus\nplayer 0 1 0\nGf20:20\nplayer 1 1 0\n6:6\n");
+        assert_eq!(GenerateFocusMoves(&game, 0).len(), 1);
+        assert!(GenerateFocusMoves(&game, 0)[0].values.is_empty());
+    }
+
+    #[test]
+    fn attacking_rage_die_loses_rage() {
+        scenario()
+            .attacker("G6:6")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_attacker_dice(["6:5"])
             .expect_no_defender_dice()
+            .expect_next_round_attacker_dice(["G6:5"])
+            .run();
+    }
+
+    #[test]
+    fn only_participating_rage_dice_lose_rage() {
+        scenario()
+            .attackers(["G4:4", "G6:6", "8:8"])
+            .attacks(SKILL)
+            .defender("12:12")
+            .using([0, 2])
+            .expect_attacker_dice(["G6:6", "8:1", "4:1"])
+            .expect_no_defender_dice()
+            .run();
+    }
+
+    #[test]
+    fn unsuccessful_trip_consumes_attacking_rage_without_replacing_target() {
+        scenario()
+            .attacker("Gt6:1")
+            .attacks(TRIP)
+            .defender("G20:20")
+            .expect_attacker_dice(["t6:5"])
+            .expect_defender_dice(["G20:13"])
+            .run();
+    }
+
+    #[test]
+    fn successful_trip_captures_and_replaces_a_rage_target() {
+        scenario()
+            .attacker("Gt20:20")
+            .attacks(TRIP)
+            .defender("G6:1")
+            .expect_attacker_dice(["t20:1"])
+            .expect_defender_dice(["6:3"])
+            .expect_captured_defender_dice(["G6:1"])
+            .run();
+    }
+
+    #[test]
+    fn captured_rage_die_is_replaced_until_the_round_ends() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("G6:6")
+            .expect_attacker_dice(["20:1"])
+            .expect_defender_dice(["6:1"])
+            .expect_captured_defender_dice(["G6:6"])
+            .expect_scores(16.0, 3.0)
+            .expect_next_round_defender_dice(["G6:6"])
+            .run();
+    }
+
+    #[test]
+    fn rage_replacement_does_not_apply_mighty_before_its_initial_roll() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("GH6:6")
+            .expect_defender_dice(["H6:1"])
+            .expect_captured_defender_dice(["HG6:6"])
+            .run();
+    }
+
+    #[test]
+    fn rage_replacement_does_not_apply_weak_before_its_initial_roll() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("Gh10:10")
+            .expect_defender_dice(["h10:3"])
+            .expect_captured_defender_dice(["hG10:10"])
+            .run();
+    }
+
+    #[test]
+    fn rage_konstant_replacement_receives_an_initial_roll() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("Gk10:10")
+            .expect_defender_dice(["k10:3"])
+            .expect_captured_defender_dice(["kG10:10"])
+            .run();
+    }
+
+    #[test]
+    fn rage_replacement_keeps_jolt_and_captured_jolt_grants_an_extra_turn() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("GJ6:6")
+            .expect_extra_turn(true)
+            .expect_defender_dice(["J6:1"])
+            .expect_captured_defender_dice(["JG6:6"])
+            .run();
+    }
+
+    #[test]
+    fn time_and_space_on_a_rage_replacement_does_not_grant_an_extra_turn() {
+        scenario()
+            .attacker("20:20")
+            .attacks(POWER)
+            .defender("G^6:6")
+            .expect_extra_turn(false)
+            .expect_defender_dice(["^6:1"])
+            .expect_captured_defender_dice(["^G6:6"])
+            .run();
+    }
+
+    #[test]
+    fn attacking_rage_jolt_loses_both_skills_and_grants_one_extra_turn() {
+        scenario()
+            .attacker("GJ6:6")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["6:5"])
+            .run();
+    }
+
+    #[test]
+    fn null_capture_does_not_add_null_to_the_rage_replacement() {
+        scenario()
+            .attacker("n20:20")
+            .attacks(POWER)
+            .defender("G6:6")
+            .expect_defender_dice(["6:1"])
+            .expect_captured_defender_dice(["nG6:6"])
+            .run();
+    }
+
+    #[test]
+    fn value_capture_does_not_add_value_to_the_rage_replacement() {
+        scenario()
+            .attacker("v20:20")
+            .attacks(POWER)
+            .defender("G6:6")
+            .expect_defender_dice(["6:1"])
+            .expect_captured_defender_dice(["vG6:6"])
+            .run();
+    }
+
+    #[test]
+    fn multi_target_rage_replacement_keeps_radioactive_and_poison() {
+        scenario()
+            .attacker("z8:8")
+            .attacks(SPEED)
+            .defenders(["pG%7:7", "1:1"])
+            .targeting([0, 1])
+            .expect_defender_dice(["p%7:6"])
+            .expect_captured_defender_dice(["1:1", "p%G7:7"])
+            .run();
+    }
+
+    #[test]
+    fn rage_replacement_preserves_mood_sides_without_triggering_mood() {
+        scenario()
+            .attacker("30:30")
+            .attacks(POWER)
+            .defender("GX?-20:20")
+            .expect_defender_dice(["X-20?:13"])
+            .expect_captured_defender_dice(["GX-20?:20"])
+            .run();
+    }
+
+    #[test]
+    fn attacking_rage_time_and_space_loses_rage_and_can_grant_an_extra_turn() {
+        scenario()
+            .attacker("G^6:6")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["^6:5"])
+            .run();
+    }
+
+    #[test]
+    fn attacking_konstant_rage_loses_rage_without_rerolling() {
+        scenario()
+            .attackers(["Gk6:6", "8:8"])
+            .attacks(SKILL)
+            .defender("2:2")
+            .using([0, 1])
+            .expect_attacker_dice(["k6:6", "8:1"])
+            .run();
+    }
+
+    #[test]
+    fn rage_replacement_preserves_twin_and_turbo_abilities() {
+        scenario()
+            .attacker("30:30")
+            .attacks(POWER)
+            .defender("G(4,6)!:10")
+            .expect_defender_dice(["(4,6)!:4"])
+            .expect_captured_defender_dice(["G(4,6)!:10"])
+            .run();
+    }
+
+    #[test]
+    fn ten_captured_rage_dice_fit_the_bounded_twenty_die_round_pool() {
+        scenario()
+            .attacker("z10:10")
+            .attacks(SPEED)
+            .defenders(["G1:1"; 10])
+            .targeting(0..10)
+            .expect_defender_dice(["1:1"; 10])
+            .expect_captured_defender_dice(["G1:1"; 10])
+            .run();
+    }
+
+    #[test]
+    #[should_panic(expected = "Rage replacement exceeds the transformed dice capacity of 20")]
+    fn rage_replacement_reports_transformed_capacity_exhaustion() {
+        let mut game = BMC_Game::default();
+        let mut attacker = swing_die('P', 0, 0);
+        attacker.m_sides[0] = 20;
+        attacker.m_value_total = Some(20);
+        game.m_player[0].m_die.push(attacker);
+        for original_index in 0..BMD_MAX_DICE {
+            let mut target = swing_die('P', 0, original_index);
+            target.m_sides[0] = 1;
+            target.m_value_total = Some(1);
+            if original_index == 0 {
+                target.m_properties |= property::RAGE;
+            }
+            game.m_player[1].m_die.push(target);
+        }
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
+
+        ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+    }
+
+    #[test]
+    fn speed_attack_replaces_each_captured_rage_die() {
+        scenario()
+            .attacker("z10:10")
+            .attacks(SPEED)
+            .defenders(["G4:4", "G6:6"])
+            .targeting([0, 1])
+            .expect_defender_dice(["4:3", "6:1"])
+            .expect_captured_defender_dice(["G4:4", "G6:6"])
             .run();
     }
 

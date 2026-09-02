@@ -213,6 +213,8 @@ pub struct BMC_Player {
     pub m_round_transformed: u32,
     /// Synthetic Radioactive decay products removed before the next round.
     pub m_radioactive_products: u32,
+    /// Synthetic Rage replacements removed before the next round.
+    pub m_rage_replacements: u32,
 }
 
 impl BMC_Player {
@@ -348,9 +350,9 @@ pub struct BMC_Game {
 }
 
 // Original BMAI fixes each input player at ten dice. A successful
-// Radioactive+Doppelganger Power capture moves one active die from the defender
-// to the attacker, so twenty slots cover every distribution of the original
-// two-player pool while keeping move indices compact.
+// Transformations can temporarily expand one player's original ten-die pool.
+// Twenty slots cover both Radioactive+Doppelganger transfers and one Rage
+// replacement for every original die while keeping move indices compact.
 pub(crate) const BMD_MAX_INPUT_DICE: usize = 10;
 pub(crate) const BMD_MAX_DICE: usize = BMD_MAX_INPUT_DICE * 2;
 
