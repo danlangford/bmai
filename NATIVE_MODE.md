@@ -87,10 +87,11 @@ worker count to the number of tasks.
 
 Beginning with `bmair-native-stream-v2`, a simulation's initial consecutive
 bounded draws are stratified across mixed-radix outcome cells by canonical
-simulation index. This covers every face of an ordinary reroll evenly and can
-cover the complete Cartesian outcome space of small multi-die rerolls. Once
-culling leaves one candidate, native search continues evaluating that survivor
-through the declared simulation budget. Together these rules reduce
+simulation index. Each complete bound-sized block covers every face of an
+ordinary reroll once, and each complete product-sized block covers the
+Cartesian outcome space of its consecutive bounded draws. Once culling leaves
+one candidate, native search continues evaluating that survivor through the
+declared simulation budget. Together these rules reduce
 probability-estimate noise and prevent a larger configured budget from being
 ignored merely because move selection became certain. The coordinator still
 reduces results in canonical order, so worker count and completion order cannot

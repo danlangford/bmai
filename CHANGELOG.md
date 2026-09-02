@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Power capture and reports the position's 10% win probability in both legacy
   and native modes.
 - Corrected the native estimates for reconstructed ordinary-d10 and Twin-d6
-  endgames by covering their one- and two-die reroll distributions evenly.
+  endgames by stratifying their one- and two-die reroll distributions.
 - Applied complete-survivor probability sampling consistently to native fight,
   preround, Chance, and Focus searches; native reserve search already sampled
   every candidate through its full budget.
