@@ -36,7 +36,7 @@ pub(crate) struct Scenario {
 }
 
 impl Scenario {
-    pub(crate) fn during(mut self, phase: BME_PHASE) -> Self {
+    pub(crate) fn phase(mut self, phase: BME_PHASE) -> Self {
         self.phase = Some(phase);
         self
     }
@@ -388,7 +388,7 @@ mod tests {
     #[test]
     fn scenario_uses_production_legality_and_null_scoring() {
         scenario()
-            .during(FIGHT)
+            .phase(FIGHT)
             .attackers(["n30:27"])
             .attacks(POWER)
             .defenders(["20:19"])

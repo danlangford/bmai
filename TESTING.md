@@ -14,7 +14,7 @@ use crate::BME_ATTACK::POWER;
 use crate::BME_PHASE::FIGHT;
 
 scenario()
-    .during(FIGHT)
+    .phase(FIGHT)
     .attacker("n30:27")
     .attacks(POWER)
     .defender("20:19")

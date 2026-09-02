@@ -3447,7 +3447,7 @@ mod tests {
     #[test]
     fn doppelganger_power_attack_copies_the_captured_die_recipe() {
         scenario()
-            .during(FIGHT)
+            .phase(FIGHT)
             .attacker("tD20:20")
             .attacks(POWER)
             .defender("pM12:7")
