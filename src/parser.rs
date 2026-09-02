@@ -912,11 +912,8 @@ fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
 /// its leading digits. Postfix properties may appear before or after it.
 fn ParseDieDefinedSides(definition: &str) -> Option<u8> {
     let (_, suffix) = definition.split_once('-')?;
-    let digits = suffix
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect::<String>();
-    (!digits.is_empty()).then(|| digits.parse().ok()).flatten()
+    let digit_count = suffix.bytes().take_while(u8::is_ascii_digit).count();
+    suffix.get(..digit_count)?.parse().ok()
 }
 
 fn parse_side(chars: &[char], mut pos: usize) -> Result<(u8, Option<char>, usize), ParseError> {
