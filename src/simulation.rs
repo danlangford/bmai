@@ -2869,7 +2869,10 @@ mod scenario;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BME_PHASE;
+    use crate::BME_ACTION::{ATTACK, PASS};
+    use crate::BME_ATTACK::{BERSERK, POWER, SHADOW, SKILL, SPEED, TRIP};
+    use crate::BME_PHASE::FIGHT;
+    use crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1;
     use crate::model::{BMC_Die, BMC_DieIndexSet, BMC_Player};
     use scenario::scenario;
 
@@ -2896,7 +2899,7 @@ mod tests {
         for workers in [1, 2, available] {
             let result = SelectBMAIActionAtLevelNative(
                 &parser.m_game,
-                crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                LEGACY_PARK_MILLER_V1,
                 replay,
                 workers,
                 &settings,
@@ -2915,8 +2918,8 @@ mod tests {
         }
 
         let (action, probability) = expected.unwrap();
-        assert_eq!(action.m_action, BME_ACTION::ATTACK);
-        assert_eq!(action.m_attack, Some(BME_ATTACK::POWER));
+        assert_eq!(action.m_action, ATTACK);
+        assert_eq!(action.m_attack, Some(POWER));
         assert_eq!(action.m_attackers, vec![0]);
         assert_eq!(action.m_targets, vec![1]);
         assert_eq!(probability, 0.0);
@@ -2931,7 +2934,7 @@ mod tests {
         };
         let available = std::thread::available_parallelism().map_or(1, usize::from);
         let contexts = [1, 2, available].map(|workers| NativeEvaluation {
-            algorithm: crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            algorithm: LEGACY_PARK_MILLER_V1,
             replay,
             workers,
         });
@@ -3106,8 +3109,8 @@ mod tests {
         target.m_value_total = Some(6);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::POWER),
+            m_action: ATTACK,
+            m_attack: Some(POWER),
             m_attackers: vec![0].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3138,7 +3141,7 @@ mod tests {
             target.m_sides[0] = starting_sides;
             target.m_value_total = Some(starting_sides);
             game.m_player[1].m_die = vec![target];
-            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+            let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
 
             ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
             assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
@@ -3157,8 +3160,8 @@ mod tests {
         target.m_value_total = Some(1);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::POWER),
+            m_action: ATTACK,
+            m_attack: Some(POWER),
             m_attackers: vec![0].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3182,7 +3185,7 @@ mod tests {
         target.m_value_total = Some(1);
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         ApplyAttackPlayerEffects(&mut game, &action, 0, 1, 0, true);
         assert!(game.m_player[0].m_die[0].m_notset);
@@ -3204,8 +3207,8 @@ mod tests {
         target.m_value_total = Some(20);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::SKILL),
+            m_action: ATTACK,
+            m_attack: Some(SKILL),
             m_attackers: vec![0, 1].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3239,8 +3242,8 @@ mod tests {
         second.m_value_total = Some(5);
         game.m_player[1].m_die = vec![first, second];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::SPEED),
+            m_action: ATTACK,
+            m_attack: Some(SPEED),
             m_attackers: vec![0].into(),
             m_targets: vec![0, 1].into(),
             m_score: 0.0,
@@ -3323,7 +3326,7 @@ mod tests {
     fn cpp_value_attacker_score_retains_its_pre_reroll_value() {
         scenario()
             .attacker("v20:15")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("6:5")
             .with_scores(7.5, 3.0)
             .seed(1)
@@ -3382,7 +3385,7 @@ mod tests {
     fn cpp_konstant_target_retains_value_when_tripped() {
         scenario()
             .attacker("kt8:8")
-            .attacks(BME_ATTACK::TRIP)
+            .attacks(TRIP)
             .defender("k100:7")
             .seed(1)
             .expect_no_defender_dice()
@@ -3395,7 +3398,7 @@ mod tests {
     fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
         scenario()
             .attackers(["`k41:17", "11:11"])
-            .attacks(BME_ATTACK::SKILL)
+            .attacks(SKILL)
             .using([0, 1])
             .defender("20:28")
             .seed(1)
@@ -3425,8 +3428,8 @@ mod tests {
             game.m_player[0].m_die = vec![attacker];
             game.m_player[1].m_die = vec![target];
             let action = BMC_Move {
-                m_action: BME_ACTION::ATTACK,
-                m_attack: Some(BME_ATTACK::POWER),
+                m_action: ATTACK,
+                m_attack: Some(POWER),
                 m_attackers: vec![0].into(),
                 m_targets: vec![0].into(),
                 m_score: 0.0,
@@ -3444,9 +3447,9 @@ mod tests {
     #[test]
     fn doppelganger_power_attack_copies_the_captured_die_recipe() {
         scenario()
-            .during(BME_PHASE::FIGHT)
+            .during(FIGHT)
             .attacker("tD20:20")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("pM12:7")
             .expect_allowed(true)
             .expect_attacker_die(0, "pM12:12")
@@ -3459,7 +3462,7 @@ mod tests {
     fn doppelganger_does_not_copy_a_skill_attack_target() {
         scenario()
             .attackers(["Dk6:3", "k6:3"])
-            .attacks(BME_ATTACK::SKILL)
+            .attacks(SKILL)
             .using([0, 1])
             .defender("p(4,2):6")
             .expect_attacker_dice(["kD6:3", "k6:3"])
@@ -3484,7 +3487,7 @@ mod tests {
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
 
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
 
         let copied = &game.m_player[0].m_die[0];
@@ -3497,7 +3500,7 @@ mod tests {
     fn capturing_jolt_copies_and_retains_it_after_the_extra_turn_trigger() {
         scenario()
             .attacker("D20:20")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("JM5:5")
             .expect_extra_turn(true)
             .expect_attacker_dice(["MJ5:5"])
@@ -3509,7 +3512,7 @@ mod tests {
     fn copied_time_and_space_runs_after_the_doppelganger_reroll() {
         scenario()
             .attacker("D20:20")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("^kM5:5")
             .expect_extra_turn(true)
             .expect_attacker_dice(["^kM5:5"])
@@ -3521,7 +3524,7 @@ mod tests {
     fn copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll() {
         scenario()
             .attacker("D20:20")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("HM6!:6")
             .expect_attacker_dice(["HM6!:6"])
             .expect_no_defender_dice()
@@ -3532,7 +3535,7 @@ mod tests {
     fn radioactive_doppelganger_decays_before_both_products_copy_the_target() {
         scenario()
             .attacker("%DJ^17!?:17")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("pM8:8")
             .expect_extra_turn(true)
             .expect_attacker_dice(["pM8:8", "pM8:8"])
@@ -3545,7 +3548,7 @@ mod tests {
     fn doppelganger_that_captures_rage_retains_rage_after_transforming() {
         scenario()
             .attacker("D20:20")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("GM7:7")
             .expect_attacker_dice(["MG7:7"])
             .expect_no_defender_dice()
@@ -3578,7 +3581,7 @@ mod tests {
                 .iter()
                 .position(|die| die.HasProperty(property::RADIOACTIVE | property::DOPPELGANGER))
                 .expect("an untransformed Radioactive Doppelganger remains");
-            let action = BMC_Move::attack(BME_ATTACK::POWER, [attacker], [0], 0.0);
+            let action = BMC_Move::attack(POWER, [attacker], [0], 0.0);
             apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         }
 
@@ -3605,7 +3608,7 @@ mod tests {
                 .push(swing_die('P', properties, original_index));
         }
         game.m_player[1].m_die.push(swing_die('P', 0, 0));
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         ApplyRadioactiveDecay(&mut game, &action, 0, 1);
     }
@@ -3619,7 +3622,7 @@ mod tests {
             0,
         ));
         game.m_player[1].m_die.push(swing_die('P', 0, 0));
-        let action = BMC_Move::attack(BME_ATTACK::SHADOW, [0], [0], 0.0);
+        let action = BMC_Move::attack(SHADOW, [0], [0], 0.0);
 
         assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
         assert_eq!(game.m_player[0].m_die.len(), 1);
@@ -3636,7 +3639,7 @@ mod tests {
         target.m_sides = [2, 0];
         target.m_value_total = Some(2);
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
         assert_eq!(game.m_player[0].m_die.len(), 1);
@@ -3657,7 +3660,7 @@ mod tests {
 
         let mut game = template.clone();
         game.m_player[0].m_die[0].m_sides = [18, 0];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         assert_eq!(game.m_player[0].m_die[0].m_sides, [8, 10]);
 
@@ -3685,7 +3688,7 @@ mod tests {
         template.m_player[1].m_die = vec![first_target, second_target];
 
         let mut game = template.clone();
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
@@ -3713,7 +3716,7 @@ mod tests {
         template.m_player[1].m_die = vec![target];
 
         let mut game = template.clone();
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         RestoreDiceForNewRound(&mut game, &template);
 
@@ -3776,7 +3779,7 @@ mod tests {
             target.m_value_total = Some(3);
             game.m_player[0].m_die = vec![attacker];
             game.m_player[1].m_die = vec![target];
-            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+            let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
 
             let mut rng = BMC_RNG::default();
             rng.SRand(1);
@@ -3805,7 +3808,7 @@ mod tests {
 
             ApplyAttack(
                 &mut game,
-                &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+                &BMC_Move::attack(POWER, [0], [0], 0.0),
                 &mut BMC_RNG::default(),
             );
             let ornery = game.m_player[0]
@@ -3831,11 +3834,7 @@ mod tests {
         game.m_player[1].m_die = vec![target];
         let mut rng = BMC_RNG::default();
         rng.SRand(1);
-        ApplyAttack(
-            &mut game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
-            &mut rng,
-        );
+        ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
         let ornery = game.m_player[0]
             .m_die
             .iter()
@@ -3863,7 +3862,7 @@ mod tests {
         ApplyAttack(
             &mut pass_game,
             &BMC_Move {
-                m_action: BME_ACTION::PASS,
+                m_action: PASS,
                 m_attack: None,
                 m_attackers: BMC_DieIndexSet::default(),
                 m_targets: BMC_DieIndexSet::default(),
@@ -3893,7 +3892,7 @@ mod tests {
         rng.SRand(3);
         ApplyAttack(
             &mut attack_game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+            &BMC_Move::attack(POWER, [0], [0], 0.0),
             &mut rng,
         );
         let mood = attack_game.m_player[0]
@@ -3908,17 +3907,13 @@ mod tests {
     /// Ports both Konstant Time-and-Space no-extra-turn cases.
     #[test]
     fn pr82_konstant_time_and_space_never_grants_extra_turn() {
-        for attack in [BME_ATTACK::TRIP, BME_ATTACK::SKILL] {
+        for attack in [TRIP, SKILL] {
             let mut game = BMC_Game::default();
             let mut konstant = swing_die(
                 'P',
                 property::KONSTANT
                     | property::TIME_AND_SPACE
-                    | if attack == BME_ATTACK::TRIP {
-                        property::TRIP
-                    } else {
-                        0
-                    },
+                    | if attack == TRIP { property::TRIP } else { 0 },
                 0,
             );
             konstant.m_sides[0] = 6;
@@ -3928,7 +3923,7 @@ mod tests {
             target.m_sides[0] = 1;
             target.m_value_total = Some(1);
             game.m_player[1].m_die = vec![target];
-            let action = if attack == BME_ATTACK::TRIP {
+            let action = if attack == TRIP {
                 BMC_Move::attack(attack, [0], [0], 0.0)
             } else {
                 let mut ordinary = swing_die('P', 0, 1);
@@ -3957,11 +3952,7 @@ mod tests {
         game.m_player[1].m_die = vec![target];
         let mut rng = BMC_RNG::default();
         rng.SRand(3);
-        let extra_turn = ApplyAttack(
-            &mut game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
-            &mut rng,
-        );
+        let extra_turn = ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
         assert!(extra_turn);
     }
@@ -3970,7 +3961,7 @@ mod tests {
     fn attacking_jolt_grants_an_extra_turn_and_loses_jolt() {
         scenario()
             .attacker("JM6:6")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("1:1")
             .expect_extra_turn(true)
             .expect_attacker_dice(["M6:6"])
@@ -3997,7 +3988,7 @@ mod tests {
     fn every_attacking_jolt_loses_the_skill_but_grants_only_one_extra_turn() {
         scenario()
             .attackers(["JM2:2", "JM3:3"])
-            .attacks(BME_ATTACK::SKILL)
+            .attacks(SKILL)
             .using([0, 1])
             .defender("5:5")
             .expect_extra_turn(true)
@@ -4010,7 +4001,7 @@ mod tests {
     fn nonparticipating_jolt_keeps_the_skill_and_does_not_grant_an_extra_turn() {
         scenario()
             .attackers(["M6:6", "JM4:4"])
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .using([0])
             .defender("1:1")
             .expect_extra_turn(false)
@@ -4023,7 +4014,7 @@ mod tests {
     fn capturing_a_jolt_die_grants_the_capturer_an_extra_turn() {
         scenario()
             .attacker("M6:6")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("J1:1")
             .expect_extra_turn(true)
             .expect_no_defender_dice()
@@ -4035,7 +4026,7 @@ mod tests {
     fn unsuccessful_jolt_trip_still_grants_an_extra_turn_and_consumes_jolt() {
         scenario()
             .attacker("tJ6:6")
-            .attacks(BME_ATTACK::TRIP)
+            .attacks(TRIP)
             .defender("6:6")
             .seed(4)
             .expect_extra_turn(true)
@@ -4048,7 +4039,7 @@ mod tests {
     fn unsuccessful_trip_does_not_trigger_defending_jolt() {
         scenario()
             .attacker("t6:6")
-            .attacks(BME_ATTACK::TRIP)
+            .attacks(TRIP)
             .defender("J6:6")
             .seed(4)
             .expect_extra_turn(false)
@@ -4061,7 +4052,7 @@ mod tests {
     fn unsuccessful_time_and_space_trip_grants_an_extra_turn_after_odd_reroll() {
         scenario()
             .attacker("t^6:6")
-            .attacks(BME_ATTACK::TRIP)
+            .attacks(TRIP)
             .defender("6:6")
             .seed(4)
             .expect_extra_turn(true)
@@ -4074,7 +4065,7 @@ mod tests {
     fn jolt_and_time_and_space_still_produce_only_one_extra_turn() {
         scenario()
             .attacker("J^1:1")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("1:1")
             .expect_extra_turn(true)
             .expect_attacker_dice(["^1:1"])
@@ -4086,7 +4077,7 @@ mod tests {
     fn konstant_jolt_grants_an_extra_turn_without_rerolling() {
         scenario()
             .attackers(["Jk6:3", "2:2"])
-            .attacks(BME_ATTACK::SKILL)
+            .attacks(SKILL)
             .using([0, 1])
             .defender("5:5")
             .expect_extra_turn(true)
@@ -4112,7 +4103,7 @@ mod tests {
         morph_game.m_player[1].m_die = vec![target];
         ApplyAttack(
             &mut morph_game,
-            &BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0),
+            &BMC_Move::attack(SKILL, [0, 1], [0], 0.0),
             &mut BMC_RNG::default(),
         );
         let morph = morph_game.m_player[0]
@@ -4136,7 +4127,7 @@ mod tests {
         berserk_game.m_player[1].m_die = vec![first, second];
         ApplyAttack(
             &mut berserk_game,
-            &BMC_Move::attack(BME_ATTACK::BERSERK, [0], [0, 1], 0.0),
+            &BMC_Move::attack(BERSERK, [0], [0, 1], 0.0),
             &mut BMC_RNG::default(),
         );
         let berserk = &berserk_game.m_player[0].m_die[0];

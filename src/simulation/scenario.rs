@@ -382,13 +382,15 @@ fn format_side(die: &BMC_Die, side: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BME_ATTACK::POWER;
+    use crate::BME_PHASE::FIGHT;
 
     #[test]
     fn scenario_uses_production_legality_and_null_scoring() {
         scenario()
-            .during(BME_PHASE::FIGHT)
+            .during(FIGHT)
             .attackers(["n30:27"])
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defenders(["20:19"])
             .using([0])
             .targeting([0])
@@ -404,7 +406,7 @@ mod tests {
     fn scenario_can_assert_extra_turns_and_next_round_state() {
         scenario()
             .attacker("JM6:6")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("1:1")
             .expect_extra_turn(true)
             .expect_attacker_dice(["M6:6"])
@@ -416,7 +418,7 @@ mod tests {
     fn illegal_scenario_requires_an_explicit_expectation() {
         scenario()
             .attacker("6:1")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("20:20")
             .expect_allowed(false)
             .run();
@@ -427,7 +429,7 @@ mod tests {
         let failure = std::panic::catch_unwind(|| {
             scenario()
                 .attacker("M6:6")
-                .attacks(BME_ATTACK::POWER)
+                .attacks(POWER)
                 .defender("1:1")
                 .expect_attacker_dice(["M8:8"])
                 .run();
@@ -457,7 +459,7 @@ mod tests {
     fn scenario_selects_a_specific_turbo_branch() {
         scenario()
             .attacker("M6/10!-10:10")
-            .attacks(BME_ATTACK::POWER)
+            .attacks(POWER)
             .defender("1:1")
             .turbo(1)
             .expect_attacker_dice(["M6/10!:6"])

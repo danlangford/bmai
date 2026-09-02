@@ -10,10 +10,13 @@ script would obscure the rule being tested. A scenario reads like a Button Men
 position:
 
 ```rust
+use crate::BME_ATTACK::POWER;
+use crate::BME_PHASE::FIGHT;
+
 scenario()
-    .during(BME_PHASE::FIGHT)
+    .during(FIGHT)
     .attacker("n30:27")
-    .attacks(BME_ATTACK::POWER)
+    .attacks(POWER)
     .defender("20:19")
     .expect_allowed(true)
     .expect_scores(0.0, 0.0)
