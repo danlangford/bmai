@@ -277,6 +277,14 @@ mod tests {
                 stream: 6_360_158_390_379_539_643,
             }
         );
+        assert_eq!(
+            key.stratum(),
+            Some(NativeStratum {
+                index: 999,
+                offset: 13_862_872_699_400_720_889,
+                radix: 1,
+            })
+        );
     }
 
     #[test]
