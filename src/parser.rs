@@ -587,6 +587,7 @@ impl BMC_Parser {
             self.m_game.m_player[id].m_round_original_sides = [[0; 2]; crate::model::BMD_MAX_DICE];
             self.m_game.m_player[id].m_round_transformed = 0;
             self.m_game.m_player[id].m_radioactive_products = 0;
+            self.m_game.m_player[id].m_rage_replacements = 0;
             self.m_game.m_player[id].m_score = if matches!(
                 self.m_game.m_phase,
                 BME_PHASE::INITIATIVE | BME_PHASE::CHANCE | BME_PHASE::FOCUS

@@ -253,6 +253,7 @@ impl Capabilities {
                 "Ornery",
                 "Poison",
                 "Queer",
+                "Rage",
                 "Reserve",
                 "Shadow",
                 "Slow",
@@ -270,7 +271,7 @@ impl Capabilities {
                 "Warrior",
                 "Weak",
             ],
-            parsing_only_skills: &["Auxiliary", "Radioactive", "Rage"],
+            parsing_only_skills: &["Auxiliary", "Radioactive"],
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],
@@ -391,7 +392,7 @@ mod tests {
                 entry.name
             );
         }
-        assert_eq!(parsing_only_skills.len(), 3);
+        assert_eq!(parsing_only_skills.len(), 2);
         for entry in capabilities.die_notation.postfix_properties {
             assert!(implemented_skills.contains(entry.name));
         }
@@ -415,7 +416,7 @@ mod tests {
                 "token": "G",
                 "id": "rage",
                 "name": "Rage",
-                "support": "parsing_only"
+                "support": "implemented"
             })
         );
         assert_eq!(

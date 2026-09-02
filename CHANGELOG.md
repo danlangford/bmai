@@ -14,8 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Complete mechanics support for the three remaining parsing-only skills:
-  Auxiliary (`+`), Radioactive (`R`), and Rage (`G`).
+- Complete mechanics support for the remaining parsing-only skills:
+  Auxiliary (`+`) and Radioactive (`%`).
+- Add parser and mechanics support for Fire and Rush. Fire work must include
+  the documented Rage+Fire interaction: firing does not consume Rage.
+
+## [0.8.0] - 2026-09-01
+
+### Added
+
+- Implemented the ButtonWeavers Rage (`G`) skill. Rage dice are excluded from
+  initiative, lose Rage when they participate in an attack, and produce a
+  rolled same-recipe replacement without Rage when captured.
+- Added readable mechanics scenarios for every Rage rule and documented
+  Doppelganger interaction, plus Jolt, Time and Space, Konstant, Null, Value,
+  Poison, Radioactive, Mighty, Weak, Mood, Twin, Turbo, Speed, Trip, round
+  restoration, and transformed-capacity behavior.
+
+### Changed
+
+- Advertise Rage as implemented through machine-readable capabilities.
+- Track Rage replacements as bounded round-local dice and restore attacking
+  Rage properties when the next game round begins.
 
 ## [0.7.0] - 2026-09-01
 

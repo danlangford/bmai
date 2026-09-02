@@ -33,6 +33,7 @@ pub(crate) struct Scenario {
     expected_defender_dice: Option<Vec<String>>,
     expected_captured_defender_dice: Option<Vec<String>>,
     expected_next_round_attacker_dice: Option<Vec<String>>,
+    expected_next_round_defender_dice: Option<Vec<String>>,
 }
 
 impl Scenario {
@@ -160,6 +161,14 @@ impl Scenario {
         self
     }
 
+    pub(crate) fn expect_next_round_defender_dice(
+        mut self,
+        dice: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.expected_next_round_defender_dice = Some(dice.into_iter().map(Into::into).collect());
+        self
+    }
+
     #[track_caller]
     pub(crate) fn run(self) {
         let phase = self.phase.unwrap_or(BME_PHASE::FIGHT);
@@ -246,17 +255,30 @@ impl Scenario {
                 die.m_captured
             });
         }
-        if let Some(expected) = self.expected_next_round_attacker_dice {
+        if self.expected_next_round_attacker_dice.is_some()
+            || self.expected_next_round_defender_dice.is_some()
+        {
             RestoreDiceForNewRound(&mut game, &template);
-            assert_active_dice("next-round attacker", &game, 0, &expected);
-            assert_eq!(
-                game.m_player[0].m_round_transformed, 0,
-                "next-round attacker still has transformed-recipe bookkeeping"
-            );
-            assert_eq!(
-                game.m_player[0].m_radioactive_products, 0,
-                "next-round attacker still has Radioactive-product bookkeeping"
-            );
+            if let Some(expected) = self.expected_next_round_attacker_dice {
+                assert_round_dice("next-round attacker", &game, 0, &expected);
+            }
+            if let Some(expected) = self.expected_next_round_defender_dice {
+                assert_round_dice("next-round defender", &game, 1, &expected);
+            }
+            for (label, player) in [("attacker", 0), ("defender", 1)] {
+                assert_eq!(
+                    game.m_player[player].m_round_transformed, 0,
+                    "next-round {label} still has transformed-recipe bookkeeping"
+                );
+                assert_eq!(
+                    game.m_player[player].m_radioactive_products, 0,
+                    "next-round {label} still has Radioactive-product bookkeeping"
+                );
+                assert_eq!(
+                    game.m_player[player].m_rage_replacements, 0,
+                    "next-round {label} still has Rage-replacement bookkeeping"
+                );
+            }
         }
     }
 }
@@ -297,6 +319,11 @@ fn assert_active_dice(label: &str, game: &BMC_Game, player: usize, expected: &[S
     assert_dice_matching(label, game, player, expected, |die| {
         !die.m_captured && !die.m_in_reserve
     });
+}
+
+#[track_caller]
+fn assert_round_dice(label: &str, game: &BMC_Game, player: usize, expected: &[String]) {
+    assert_dice_matching(label, game, player, expected, |die| !die.m_in_reserve);
 }
 
 #[track_caller]
