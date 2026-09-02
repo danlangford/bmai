@@ -2864,9 +2864,17 @@ fn SwingRange(swing: char) -> (u8, u8) {
 }
 
 #[cfg(test)]
+mod scenario;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BME_ACTION::{ATTACK, PASS};
+    use crate::BME_ATTACK::{BERSERK, POWER, SHADOW, SKILL, SPEED, TRIP};
+    use crate::BME_PHASE::FIGHT;
+    use crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1;
     use crate::model::{BMC_Die, BMC_DieIndexSet, BMC_Player};
+    use scenario::scenario;
 
     #[test]
     fn native_fight_score_summary_is_stable() {
@@ -2891,7 +2899,7 @@ mod tests {
         for workers in [1, 2, available] {
             let result = SelectBMAIActionAtLevelNative(
                 &parser.m_game,
-                crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                LEGACY_PARK_MILLER_V1,
                 replay,
                 workers,
                 &settings,
@@ -2910,8 +2918,8 @@ mod tests {
         }
 
         let (action, probability) = expected.unwrap();
-        assert_eq!(action.m_action, BME_ACTION::ATTACK);
-        assert_eq!(action.m_attack, Some(BME_ATTACK::POWER));
+        assert_eq!(action.m_action, ATTACK);
+        assert_eq!(action.m_attack, Some(POWER));
         assert_eq!(action.m_attackers, vec![0]);
         assert_eq!(action.m_targets, vec![1]);
         assert_eq!(probability, 0.0);
@@ -2926,7 +2934,7 @@ mod tests {
         };
         let available = std::thread::available_parallelism().map_or(1, usize::from);
         let contexts = [1, 2, available].map(|workers| NativeEvaluation {
-            algorithm: crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            algorithm: LEGACY_PARK_MILLER_V1,
             replay,
             workers,
         });
@@ -3101,8 +3109,8 @@ mod tests {
         target.m_value_total = Some(6);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::POWER),
+            m_action: ATTACK,
+            m_attack: Some(POWER),
             m_attackers: vec![0].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3133,7 +3141,7 @@ mod tests {
             target.m_sides[0] = starting_sides;
             target.m_value_total = Some(starting_sides);
             game.m_player[1].m_die = vec![target];
-            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+            let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
 
             ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
             assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
@@ -3152,8 +3160,8 @@ mod tests {
         target.m_value_total = Some(1);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::POWER),
+            m_action: ATTACK,
+            m_attack: Some(POWER),
             m_attackers: vec![0].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3177,7 +3185,7 @@ mod tests {
         target.m_value_total = Some(1);
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         ApplyAttackPlayerEffects(&mut game, &action, 0, 1, 0, true);
         assert!(game.m_player[0].m_die[0].m_notset);
@@ -3199,8 +3207,8 @@ mod tests {
         target.m_value_total = Some(20);
         game.m_player[1].m_die = vec![target];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::SKILL),
+            m_action: ATTACK,
+            m_attack: Some(SKILL),
             m_attackers: vec![0, 1].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
@@ -3234,8 +3242,8 @@ mod tests {
         second.m_value_total = Some(5);
         game.m_player[1].m_die = vec![first, second];
         let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::SPEED),
+            m_action: ATTACK,
+            m_attack: Some(SPEED),
             m_attackers: vec![0].into(),
             m_targets: vec![0, 1].into(),
             m_score: 0.0,
@@ -3316,31 +3324,16 @@ mod tests {
 
     #[test]
     fn cpp_value_attacker_score_retains_its_pre_reroll_value() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::VALUE, 0);
-        attacker.m_sides[0] = 20;
-        attacker.m_value_total = Some(15);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[0].m_score = 7.5;
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 6;
-        target.m_value_total = Some(5);
-        game.m_player[1].m_die = vec![target];
-        game.m_player[1].m_score = 3.0;
-        let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::POWER),
-            m_attackers: vec![0].into(),
-            m_targets: vec![0].into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-        };
-        let mut rng = BMC_RNG::default();
-        rng.SRand(1);
-
-        ApplyAttack(&mut game, &action, &mut rng);
-        assert_ne!(game.m_player[0].m_die[0].GetValueTotal(), 15);
-        assert_eq!(game.m_player[0].m_score, 12.5);
+        scenario()
+            .attacker("v20:15")
+            .attacks(POWER)
+            .defender("6:5")
+            .with_scores(7.5, 3.0)
+            .seed(1)
+            .expect_scores(12.5, 0.0)
+            .expect_attacker_dice(["v20:20"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     /// Port of SkillTests.MaximumSkill's roll contract.
@@ -3390,63 +3383,28 @@ mod tests {
     /// Port of KonstantRetainsValueWhenTripped.
     #[test]
     fn cpp_konstant_target_retains_value_when_tripped() {
-        let mut game = BMC_Game::default();
-        let mut trip = swing_die('P', property::TRIP | property::KONSTANT, 0);
-        trip.m_sides[0] = 8;
-        trip.m_value_total = Some(8);
-        game.m_player[0].m_die = vec![trip];
-        let mut target = swing_die('P', property::KONSTANT, 0);
-        target.m_sides[0] = 100;
-        target.m_value_total = Some(7);
-        game.m_player[1].m_die = vec![target];
-        let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::TRIP),
-            m_attackers: vec![0].into(),
-            m_targets: vec![0].into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-        };
-        let mut rng = BMC_RNG::default();
-        rng.SRand(1);
-        ApplyAttack(&mut game, &action, &mut rng);
-        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 7);
-        assert!(game.m_player[1].m_die[0].m_captured);
+        scenario()
+            .attacker("kt8:8")
+            .attacks(TRIP)
+            .defender("k100:7")
+            .seed(1)
+            .expect_no_defender_dice()
+            .expect_captured_defender_dice(["k100:7"])
+            .run();
     }
 
     /// Port of KonstantWarriorRetainsValueWhenUsedInSkillAttack.
     #[test]
     fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
-        let mut game = BMC_Game::default();
-        let mut warrior = swing_die('P', property::WARRIOR | property::KONSTANT, 0);
-        warrior.m_sides[0] = 41;
-        warrior.m_value_total = Some(17);
-        let mut ordinary = swing_die('P', 0, 1);
-        ordinary.m_sides[0] = 11;
-        ordinary.m_value_total = Some(11);
-        game.m_player[0].m_die = vec![warrior, ordinary];
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 20;
-        target.m_value_total = Some(28);
-        game.m_player[1].m_die = vec![target];
-        let action = BMC_Move {
-            m_action: BME_ACTION::ATTACK,
-            m_attack: Some(BME_ATTACK::SKILL),
-            m_attackers: vec![0, 1].into(),
-            m_targets: vec![0].into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-        };
-        let mut rng = BMC_RNG::default();
-        rng.SRand(1);
-        ApplyAttack(&mut game, &action, &mut rng);
-        let warrior = game.m_player[0]
-            .m_die
-            .iter()
-            .find(|die| die.m_original_index == 0)
-            .unwrap();
-        assert_eq!(warrior.GetValueTotal(), 17);
-        assert!(!warrior.HasProperty(property::WARRIOR));
+        scenario()
+            .attackers(["`k41:17", "11:11"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("20:28")
+            .seed(1)
+            .expect_attacker_die(0, "k41:17")
+            .expect_no_defender_dice()
+            .run();
     }
 
     /// Port of MorphingSkill and MorphingTwinSkill in both directions.
@@ -3470,8 +3428,8 @@ mod tests {
             game.m_player[0].m_die = vec![attacker];
             game.m_player[1].m_die = vec![target];
             let action = BMC_Move {
-                m_action: BME_ACTION::ATTACK,
-                m_attack: Some(BME_ATTACK::POWER),
+                m_action: ATTACK,
+                m_attack: Some(POWER),
                 m_attackers: vec![0].into(),
                 m_targets: vec![0].into(),
                 m_score: 0.0,
@@ -3488,57 +3446,36 @@ mod tests {
 
     #[test]
     fn doppelganger_power_attack_copies_the_captured_die_recipe() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::DOPPELGANGER | property::TRIP, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        let mut target = swing_die('V', property::KONSTANT | property::POISON, 0);
-        target.m_sides = [12, 0];
-        target.m_value_total = Some(7);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        let copied = &game.m_player[0].m_die[0];
-        assert_eq!(copied.m_sides, [12, 0]);
-        assert_eq!(copied.m_swing_type, [Some('V'), None]);
-        assert!(copied.HasProperty(property::KONSTANT | property::POISON));
-        assert!(!copied.HasProperty(property::DOPPELGANGER | property::TRIP));
-        assert_eq!(copied.m_original_index, 0);
+        scenario()
+            .phase(FIGHT)
+            .attacker("tD20:20")
+            .attacks(POWER)
+            .defender("pM12:7")
+            .expect_allowed(true)
+            .expect_attacker_die(0, "pM12:12")
+            .expect_no_defender_dice()
+            .expect_next_round_attacker_dice(["tD20:20"])
+            .run();
     }
 
     #[test]
     fn doppelganger_does_not_copy_a_skill_attack_target() {
-        let mut game = BMC_Game::default();
-        let mut doppelganger = swing_die('P', property::DOPPELGANGER, 0);
-        doppelganger.m_sides = [6, 0];
-        doppelganger.m_value_total = Some(3);
-        let mut helper = swing_die('P', 0, 1);
-        helper.m_sides = [6, 0];
-        helper.m_value_total = Some(3);
-        let mut target = swing_die('P', property::TWIN | property::POISON, 0);
-        target.m_sides = [4, 2];
-        target.m_value_total = Some(6);
-        game.m_player[0].m_die = vec![doppelganger, helper];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
-        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        let original = game.m_player[0]
-            .m_die
-            .iter()
-            .find(|die| die.m_original_index == 0)
-            .unwrap();
-        assert_eq!(original.m_sides, [6, 0]);
-        assert!(original.HasProperty(property::DOPPELGANGER));
-        assert!(!original.HasProperty(property::TWIN | property::POISON));
+        scenario()
+            .attackers(["Dk6:3", "k6:3"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("p(4,2):6")
+            .expect_attacker_dice(["kD6:3", "k6:3"])
+            .expect_no_defender_dice()
+            .expect_captured_defender_dice(["p(4,2):6"])
+            .run();
     }
 
     #[test]
     fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
+        // This state cannot be expressed by one parser recipe because its two
+        // Twin swing types have independently selected sizes. Keep this as a
+        // lower-level test of the in-round transformation.
         let mut game = BMC_Game::default();
         let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
         attacker.m_sides = [20, 0];
@@ -3550,7 +3487,7 @@ mod tests {
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
 
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
 
         let copied = &game.m_player[0].m_die[0];
@@ -3561,142 +3498,61 @@ mod tests {
 
     #[test]
     fn capturing_jolt_copies_and_retains_it_after_the_extra_turn_trigger() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        let mut target = swing_die('P', property::JOLT | property::MAXIMUM, 0);
-        target.m_sides = [5, 0];
-        target.m_value_total = Some(5);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        assert!(game.m_player[0].m_die[0].HasProperty(property::JOLT));
+        scenario()
+            .attacker("D20:20")
+            .attacks(POWER)
+            .defender("JM5:5")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["MJ5:5"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn copied_time_and_space_runs_after_the_doppelganger_reroll() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        let mut target = swing_die(
-            'P',
-            property::TIME_AND_SPACE | property::KONSTANT | property::MAXIMUM,
-            0,
-        );
-        target.m_sides = [5, 0];
-        target.m_value_total = Some(5);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        let copied = &game.m_player[0].m_die[0];
-        assert!(extra_turn);
-        assert!(copied.HasProperty(property::TIME_AND_SPACE | property::KONSTANT));
-        assert_eq!(copied.GetValueTotal(), 5);
+        scenario()
+            .attacker("D20:20")
+            .attacks(POWER)
+            .defender("^kM5:5")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["^kM5:5"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        let mut target = swing_die(
-            'X',
-            property::MIGHTY | property::TURBO | property::MAXIMUM,
-            0,
-        );
-        target.m_sides = [6, 0];
-        target.m_value_total = Some(6);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        let copied = &game.m_player[0].m_die[0];
-        assert_eq!(copied.m_sides, [6, 0]);
-        assert_eq!(copied.GetValueTotal(), 6);
-        assert!(copied.HasProperty(property::MIGHTY | property::TURBO));
+        scenario()
+            .attacker("D20:20")
+            .attacks(POWER)
+            .defender("HM6!:6")
+            .expect_attacker_dice(["HM6!:6"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn radioactive_doppelganger_decays_before_both_products_copy_the_target() {
-        let mut template = BMC_Game::default();
-        let mut attacker = swing_die(
-            'P',
-            property::RADIOACTIVE
-                | property::DOPPELGANGER
-                | property::TURBO
-                | property::MOOD
-                | property::JOLT
-                | property::TIME_AND_SPACE,
-            0,
-        );
-        attacker.m_swing_type = [None, None];
-        attacker.m_sides = [17, 0];
-        attacker.m_value_total = Some(17);
-        let mut target = swing_die('P', property::POISON | property::MAXIMUM, 0);
-        target.m_swing_type = [None, None];
-        target.m_sides = [8, 0];
-        target.m_value_total = Some(8);
-        template.m_player[0].m_die = vec![attacker];
-        template.m_player[1].m_die = vec![target];
-        let mut game = template.clone();
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn, "Jolt triggers before Radioactive removes it");
-        assert_eq!(game.m_player[0].m_die.len(), 2);
-        for product in &game.m_player[0].m_die {
-            assert_eq!(product.m_sides, [8, 0]);
-            assert_eq!(product.GetValueTotal(), 8);
-            assert!(product.HasProperty(property::POISON | property::MAXIMUM));
-            assert!(!product.HasProperty(
-                property::RADIOACTIVE
-                    | property::DOPPELGANGER
-                    | property::TURBO
-                    | property::MOOD
-                    | property::JOLT
-                    | property::TIME_AND_SPACE
-            ));
-        }
-
-        RestoreDiceForNewRound(&mut game, &template);
-        assert_eq!(game.m_player[0].m_die.len(), 1);
-        assert_eq!(game.m_player[0].m_round_transformed, 0);
-        assert_eq!(game.m_player[0].m_die[0].m_sides, [17, 0]);
-        assert!(
-            game.m_player[0].m_die[0].HasProperty(property::RADIOACTIVE | property::DOPPELGANGER)
-        );
+        scenario()
+            .attacker("%DJ^17!?:17")
+            .attacks(POWER)
+            .defender("pM8:8")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["pM8:8", "pM8:8"])
+            .expect_no_defender_dice()
+            .expect_next_round_attacker_dice(["^JD%17!?:17"])
+            .run();
     }
 
     #[test]
     fn doppelganger_that_captures_rage_retains_rage_after_transforming() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
-        attacker.m_sides = [20, 0];
-        attacker.m_value_total = Some(20);
-        let mut target = swing_die('P', property::RAGE | property::MAXIMUM, 0);
-        target.m_sides = [7, 0];
-        target.m_value_total = Some(7);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(game.m_player[0].m_die[0].HasProperty(property::RAGE));
-        assert!(!game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
+        scenario()
+            .attacker("D20:20")
+            .attacks(POWER)
+            .defender("GM7:7")
+            .expect_attacker_dice(["MG7:7"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
@@ -3725,7 +3581,7 @@ mod tests {
                 .iter()
                 .position(|die| die.HasProperty(property::RADIOACTIVE | property::DOPPELGANGER))
                 .expect("an untransformed Radioactive Doppelganger remains");
-            let action = BMC_Move::attack(BME_ATTACK::POWER, [attacker], [0], 0.0);
+            let action = BMC_Move::attack(POWER, [attacker], [0], 0.0);
             apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         }
 
@@ -3752,7 +3608,7 @@ mod tests {
                 .push(swing_die('P', properties, original_index));
         }
         game.m_player[1].m_die.push(swing_die('P', 0, 0));
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         ApplyRadioactiveDecay(&mut game, &action, 0, 1);
     }
@@ -3766,7 +3622,7 @@ mod tests {
             0,
         ));
         game.m_player[1].m_die.push(swing_die('P', 0, 0));
-        let action = BMC_Move::attack(BME_ATTACK::SHADOW, [0], [0], 0.0);
+        let action = BMC_Move::attack(SHADOW, [0], [0], 0.0);
 
         assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
         assert_eq!(game.m_player[0].m_die.len(), 1);
@@ -3783,7 +3639,7 @@ mod tests {
         target.m_sides = [2, 0];
         target.m_value_total = Some(2);
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
         assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
         assert_eq!(game.m_player[0].m_die.len(), 1);
@@ -3804,7 +3660,7 @@ mod tests {
 
         let mut game = template.clone();
         game.m_player[0].m_die[0].m_sides = [18, 0];
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         assert_eq!(game.m_player[0].m_die[0].m_sides, [8, 10]);
 
@@ -3832,7 +3688,7 @@ mod tests {
         template.m_player[1].m_die = vec![first_target, second_target];
 
         let mut game = template.clone();
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
@@ -3860,7 +3716,7 @@ mod tests {
         template.m_player[1].m_die = vec![target];
 
         let mut game = template.clone();
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
+        let action = BMC_Move::attack(POWER, [0], [0], 0.0);
         apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
         RestoreDiceForNewRound(&mut game, &template);
 
@@ -3923,7 +3779,7 @@ mod tests {
             target.m_value_total = Some(3);
             game.m_player[0].m_die = vec![attacker];
             game.m_player[1].m_die = vec![target];
-            let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
+            let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
 
             let mut rng = BMC_RNG::default();
             rng.SRand(1);
@@ -3952,7 +3808,7 @@ mod tests {
 
             ApplyAttack(
                 &mut game,
-                &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+                &BMC_Move::attack(POWER, [0], [0], 0.0),
                 &mut BMC_RNG::default(),
             );
             let ornery = game.m_player[0]
@@ -3978,11 +3834,7 @@ mod tests {
         game.m_player[1].m_die = vec![target];
         let mut rng = BMC_RNG::default();
         rng.SRand(1);
-        ApplyAttack(
-            &mut game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
-            &mut rng,
-        );
+        ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
         let ornery = game.m_player[0]
             .m_die
             .iter()
@@ -4010,7 +3862,7 @@ mod tests {
         ApplyAttack(
             &mut pass_game,
             &BMC_Move {
-                m_action: BME_ACTION::PASS,
+                m_action: PASS,
                 m_attack: None,
                 m_attackers: BMC_DieIndexSet::default(),
                 m_targets: BMC_DieIndexSet::default(),
@@ -4040,7 +3892,7 @@ mod tests {
         rng.SRand(3);
         ApplyAttack(
             &mut attack_game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
+            &BMC_Move::attack(POWER, [0], [0], 0.0),
             &mut rng,
         );
         let mood = attack_game.m_player[0]
@@ -4055,17 +3907,13 @@ mod tests {
     /// Ports both Konstant Time-and-Space no-extra-turn cases.
     #[test]
     fn pr82_konstant_time_and_space_never_grants_extra_turn() {
-        for attack in [BME_ATTACK::TRIP, BME_ATTACK::SKILL] {
+        for attack in [TRIP, SKILL] {
             let mut game = BMC_Game::default();
             let mut konstant = swing_die(
                 'P',
                 property::KONSTANT
                     | property::TIME_AND_SPACE
-                    | if attack == BME_ATTACK::TRIP {
-                        property::TRIP
-                    } else {
-                        0
-                    },
+                    | if attack == TRIP { property::TRIP } else { 0 },
                 0,
             );
             konstant.m_sides[0] = 6;
@@ -4075,7 +3923,7 @@ mod tests {
             target.m_sides[0] = 1;
             target.m_value_total = Some(1);
             game.m_player[1].m_die = vec![target];
-            let action = if attack == BME_ATTACK::TRIP {
+            let action = if attack == TRIP {
                 BMC_Move::attack(attack, [0], [0], 0.0)
             } else {
                 let mut ordinary = swing_die('P', 0, 1);
@@ -4104,32 +3952,21 @@ mod tests {
         game.m_player[1].m_die = vec![target];
         let mut rng = BMC_RNG::default();
         rng.SRand(3);
-        let extra_turn = ApplyAttack(
-            &mut game,
-            &BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0),
-            &mut rng,
-        );
+        let extra_turn = ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
         assert!(extra_turn);
     }
 
     #[test]
     fn attacking_jolt_grants_an_extra_turn_and_loses_jolt() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::JOLT, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 1;
-        target.m_value_total = Some(1);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
+        scenario()
+            .attacker("JM6:6")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["M6:6"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
@@ -4149,192 +3986,104 @@ mod tests {
 
     #[test]
     fn every_attacking_jolt_loses_the_skill_but_grants_only_one_extra_turn() {
-        let mut game = BMC_Game::default();
-        let mut first = swing_die('P', property::JOLT, 0);
-        first.m_sides[0] = 2;
-        first.m_value_total = Some(2);
-        let mut second = swing_die('P', property::JOLT, 1);
-        second.m_sides[0] = 3;
-        second.m_value_total = Some(3);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 5;
-        target.m_value_total = Some(5);
-        game.m_player[0].m_die = vec![first, second];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        assert!(
-            game.m_player[0]
-                .m_die
-                .iter()
-                .all(|die| !die.HasProperty(property::JOLT))
-        );
+        scenario()
+            .attackers(["JM2:2", "JM3:3"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("5:5")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["M3:3", "M2:2"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn nonparticipating_jolt_keeps_the_skill_and_does_not_grant_an_extra_turn() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', 0, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut idle_jolt = swing_die('P', property::JOLT, 1);
-        idle_jolt.m_sides[0] = 4;
-        idle_jolt.m_value_total = Some(4);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 1;
-        target.m_value_total = Some(1);
-        game.m_player[0].m_die = vec![attacker, idle_jolt];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(!extra_turn);
-        let idle_jolt = game.m_player[0]
-            .m_die
-            .iter()
-            .find(|die| die.m_original_index == 1)
-            .unwrap();
-        assert!(idle_jolt.HasProperty(property::JOLT));
+        scenario()
+            .attackers(["M6:6", "JM4:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("1:1")
+            .expect_extra_turn(false)
+            .expect_attacker_dice(["M6:6", "MJ4:4"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn capturing_a_jolt_die_grants_the_capturer_an_extra_turn() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', 0, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut target = swing_die('P', property::JOLT, 0);
-        target.m_sides[0] = 1;
-        target.m_value_total = Some(1);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        assert!(game.m_player[1].m_die[0].m_captured);
-        assert!(game.m_player[1].m_die[0].HasProperty(property::JOLT));
+        scenario()
+            .attacker("M6:6")
+            .attacks(POWER)
+            .defender("J1:1")
+            .expect_extra_turn(true)
+            .expect_no_defender_dice()
+            .expect_captured_defender_dice(["J1:1"])
+            .run();
     }
 
     #[test]
     fn unsuccessful_jolt_trip_still_grants_an_extra_turn_and_consumes_jolt() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::JOLT | property::TRIP, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 6;
-        target.m_value_total = Some(6);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-        let mut rng = BMC_RNG::default();
-        rng.SRand(4);
-
-        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
-
-        assert!(extra_turn);
-        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
-        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
-        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
-        assert!(!game.m_player[1].m_die[0].m_captured);
+        scenario()
+            .attacker("tJ6:6")
+            .attacks(TRIP)
+            .defender("6:6")
+            .seed(4)
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["t6:1"])
+            .expect_defender_dice(["6:3"])
+            .run();
     }
 
     #[test]
     fn unsuccessful_trip_does_not_trigger_defending_jolt() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::TRIP, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut target = swing_die('P', property::JOLT, 0);
-        target.m_sides[0] = 6;
-        target.m_value_total = Some(6);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-        let mut rng = BMC_RNG::default();
-        rng.SRand(4);
-
-        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
-
-        assert!(!extra_turn);
-        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
-        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
-        assert!(!game.m_player[1].m_die[0].m_captured);
-        assert!(game.m_player[1].m_die[0].HasProperty(property::JOLT));
+        scenario()
+            .attacker("t6:6")
+            .attacks(TRIP)
+            .defender("J6:6")
+            .seed(4)
+            .expect_extra_turn(false)
+            .expect_attacker_dice(["t6:1"])
+            .expect_defender_dice(["J6:3"])
+            .run();
     }
 
     #[test]
     fn unsuccessful_time_and_space_trip_grants_an_extra_turn_after_odd_reroll() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::TRIP | property::TIME_AND_SPACE, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(6);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 6;
-        target.m_value_total = Some(6);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-        let mut rng = BMC_RNG::default();
-        rng.SRand(4);
-
-        let action = BMC_Move::attack(BME_ATTACK::TRIP, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut rng);
-
-        assert!(extra_turn);
-        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 1);
-        assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
-        assert!(!game.m_player[1].m_die[0].m_captured);
+        scenario()
+            .attacker("t^6:6")
+            .attacks(TRIP)
+            .defender("6:6")
+            .seed(4)
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["^t6:1"])
+            .expect_defender_dice(["6:3"])
+            .run();
     }
 
     #[test]
     fn jolt_and_time_and_space_still_produce_only_one_extra_turn() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::JOLT | property::TIME_AND_SPACE, 0);
-        attacker.m_sides[0] = 1;
-        attacker.m_value_total = Some(1);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 1;
-        target.m_value_total = Some(1);
-        game.m_player[0].m_die = vec![attacker];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::POWER, [0], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        let attacker = &game.m_player[0].m_die[0];
-        assert_eq!(attacker.GetValueTotal(), 1);
-        assert!(!attacker.HasProperty(property::JOLT));
-        assert!(attacker.HasProperty(property::TIME_AND_SPACE));
+        scenario()
+            .attacker("J^1:1")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["^1:1"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     #[test]
     fn konstant_jolt_grants_an_extra_turn_without_rerolling() {
-        let mut game = BMC_Game::default();
-        let mut attacker = swing_die('P', property::JOLT | property::KONSTANT, 0);
-        attacker.m_sides[0] = 6;
-        attacker.m_value_total = Some(3);
-        let mut companion = swing_die('P', 0, 1);
-        companion.m_sides[0] = 2;
-        companion.m_value_total = Some(2);
-        let mut target = swing_die('P', 0, 0);
-        target.m_sides[0] = 5;
-        target.m_value_total = Some(5);
-        game.m_player[0].m_die = vec![attacker, companion];
-        game.m_player[1].m_die = vec![target];
-
-        let action = BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0);
-        let extra_turn = apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
-
-        assert!(extra_turn);
-        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 3);
-        assert!(!game.m_player[0].m_die[0].HasProperty(property::JOLT));
+        scenario()
+            .attackers(["Jk6:3", "2:2"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("5:5")
+            .expect_extra_turn(true)
+            .expect_attacker_dice(["k6:3", "2:1"])
+            .expect_no_defender_dice()
+            .run();
     }
 
     /// Ports the Konstant Morphing and Berserk side-change regressions.
@@ -4354,7 +4103,7 @@ mod tests {
         morph_game.m_player[1].m_die = vec![target];
         ApplyAttack(
             &mut morph_game,
-            &BMC_Move::attack(BME_ATTACK::SKILL, [0, 1], [0], 0.0),
+            &BMC_Move::attack(SKILL, [0, 1], [0], 0.0),
             &mut BMC_RNG::default(),
         );
         let morph = morph_game.m_player[0]
@@ -4378,7 +4127,7 @@ mod tests {
         berserk_game.m_player[1].m_die = vec![first, second];
         ApplyAttack(
             &mut berserk_game,
-            &BMC_Move::attack(BME_ATTACK::BERSERK, [0], [0, 1], 0.0),
+            &BMC_Move::attack(BERSERK, [0], [0, 1], 0.0),
             &mut BMC_RNG::default(),
         );
         let berserk = &berserk_game.m_player[0].m_die[0];

@@ -14,10 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Add a human-readable Button Men scenario DSL for mechanics tests, with
-  domain-specific setup, expectations, and failure messages.
 - Complete mechanics support for the three remaining parsing-only skills:
   Auxiliary (`+`), Radioactive (`R`), and Rage (`G`).
+
+## [0.7.0] - 2026-09-01
+
+### Added
+
+- Added a dependency-free, human-readable Button Men scenario DSL for
+  mechanics tests. Scenarios use production parsing, attack enumeration, and
+  resolution while expressing setup and expectations as die recipes. Existing
+  scoring, Konstant, Jolt, Time and Space, Doppelganger, Turbo, Rage, and
+  Radioactive+Doppelganger cases exercise the DSL directly.
+
+### Changed
+
+- Moved scenario construction, canonical die formatting, and state assertions
+  into a dedicated test-only simulation module, keeping this testing API out
+  of release binaries and providing a focused home for future skill tests.
 
 ## [0.6.0] - 2026-09-01
 
@@ -156,7 +170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...HEAD
+[0.7.0]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...bmair-v0.7.0
 [0.6.0]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...bmair-v0.6.0
 [0.5.0]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...bmair-v0.5.0
 [0.4.1]: https://github.com/danlangford/bmai/compare/bmair-v0.4.0...bmair-v0.4.1

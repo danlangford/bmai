@@ -207,6 +207,13 @@ defender to the attacker, so twenty covers every distribution of the original
 two-player pool. Both the input and transformed limits fail explicitly rather
 than silently dropping dice or skill behavior.
 
+Mechanics scenarios in `src/simulation/scenario.rs` are a test-only adapter
+over the same production parser, C++-ordered legality enumeration, attack
+resolution, RNG, and round restoration used by the executable. The adapter
+does not provide an alternate rules implementation. Its canonical die-recipe
+state assertions make mechanics coverage reviewable while preserving the
+existing parity evidence and production control flow.
+
 ### Doppelganger interaction coverage
 
 The three distinct Doppelganger interaction notes in ButtonWeavers'
