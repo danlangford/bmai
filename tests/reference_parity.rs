@@ -6,14 +6,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Runs the expensive differential suite when `BMAI_CPP_REFERENCE` points at a
-/// C++ reference binary. The legacy executable's verbose diagnostic logging is
-/// not part of the protocol, so compare statistics, actions, and match results.
+/// Runs the expensive differential suite when `BMAI_CPP_REFERENCE` points at
+/// the adopted C++ Konstant reference (currently `4813530`) or a successor
+/// containing that behavior. The legacy executable's verbose diagnostic
+/// logging is not part of the protocol, so compare statistics, actions, and
+/// match results.
 #[test]
-#[ignore = "requires BMAI_CPP_REFERENCE and includes long BMAI3 simulations"]
+#[ignore = "requires the adopted Konstant BMAI_CPP_REFERENCE; long BMAI3 simulations"]
 fn every_input_fixture_matches_cpp_reference() {
     let reference = std::env::var_os("BMAI_CPP_REFERENCE")
-        .expect("set BMAI_CPP_REFERENCE to the C++ bmai executable");
+        .expect("set BMAI_CPP_REFERENCE to the adopted Konstant C++ bmai executable");
     let rust = env!("CARGO_BIN_EXE_bmair");
     let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
     let mut fixtures = input_fixtures(&fixture_dir);

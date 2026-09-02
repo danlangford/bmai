@@ -17,6 +17,7 @@ rust_binary="$repo_dir/target/release/bmair"
 
 usage() {
     echo "usage: $0 --cpp PATH [--cpp-build DIR] [--trace-cpp PATH] [--output DIR]"
+    echo "PATH must contain the adopted Konstant behavior (currently C++ 4813530)."
     echo "The same values may be supplied with BMAI_CPP_REFERENCE, BMAI_CPP_BUILD,"
     echo "BMAI_CPP_TRACE_REFERENCE, and BMAI_PARITY_OUTPUT."
 }
@@ -33,7 +34,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$cpp_binary" || ! -x "$cpp_binary" ]]; then
-    echo "--cpp must name an executable C++ reference binary" >&2
+    echo "--cpp must name an executable adopted-Konstant C++ reference binary" >&2
     exit 2
 fi
 

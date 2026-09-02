@@ -11,6 +11,11 @@ oracle even though that patch has not been merged upstream. Its implementation
 and regression suite were deliberately accepted as part of BMAIR's mechanics
 contract.
 
+The complete fixture differential must therefore use that adopted reference
+or a successor containing the same Konstant behavior. The older `1fcb826`
+binary remains useful for pre-Konstant parser cases, but it is not a valid
+oracle for the complete current fixture directory.
+
 The published `bmair-v0.4.1` legacy executable is the routine regression oracle
 for later releases: its complete C++ and adopted-Konstant parity was established
 before post-C++ mechanics such as Jolt were added. Current legacy builds should
@@ -21,7 +26,7 @@ not replace that historical evidence chain.
 
 ## Completion gates
 
-- [x] All 24 current `*in*.txt` fixtures have materially identical outputs.
+- [x] All current `*in*.txt` fixtures have materially identical outputs.
   Evidence: release differential passed on 2026-08-23; PR #82 differentials
   and the GitHub artifact comparison passed on 2026-08-27/28; seeded internal
   traces also matched the large preround/reserve searches.
@@ -173,7 +178,7 @@ case named in the final column.
 
 | C++ behavior | Rust implementation | Evidence | Status |
 |---|---|---|---|
-| `BMC_Parser::ParseDie*` | `parser::ParseDie`, `parse_side`, `prefix_property` | `parses_twin_option_and_properties`, every shipped fixture | covered |
+| `BMC_Parser::ParseDie*` | `parser::ParseDie`, `ParseDieDefinedSides`, `parse_side`, `prefix_property` | defined Twin Swing parser matrix, all advertised property prefixes, all phases and value/dizzy state, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
 | `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `BMC_Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
 | `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `BMC_Die::GetScore` | score branch tests and all upstream skill score ports | covered |
 | `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `GenerateValidAttacks`, `GenerateValidAttacksInCppOrder` | upstream attack/Stealth/Insult tests | covered |
@@ -210,12 +215,34 @@ pool and one round-local Rage replacement for every original die. Both the
 input and transformed limits fail explicitly rather than silently dropping
 dice or skill behavior.
 
-Mechanics scenarios in `src/simulation/scenario.rs` are a test-only adapter
-over the same production parser, C++-ordered legality enumeration, attack
-resolution, RNG, and round restoration used by the executable. The adapter
-does not provide an alternate rules implementation. Its canonical die-recipe
-state assertions make mechanics coverage reviewable while preserving the
-existing parity evidence and production control flow.
+Mechanics and search scenarios in `src/simulation/scenario.rs` are test-only
+adapters over the production parser, C++-ordered legality enumeration, attack
+resolution, RNG, search, and round restoration used by the executable. The
+adapters do not provide alternate rules or search implementations. Canonical
+die-recipe state assertions and protocol-level win-percentage ranges keep the
+coverage reviewable while preserving existing parity evidence and production
+control flow.
+
+## Defined Twin Swing forced-win regression
+
+The 2026-09-02 BMAIBagels incident exposed an uncovered parser branch: C++
+`ParseDieSides` applies a shared `-N` definition to every Swing half, while
+Rust applied it only to the first half. Rust therefore read `(T,T)-2:2` as
+`(2,0):2`, halving its score and capture value before search began.
+
+- `defined_swing_size_applies_to_every_swing_half_of_a_twin` covers repeated,
+  distinct, and fixed/Swing Twin combinations, with Turbo and Mood appearing
+  on either side of the shared definition.
+- `zero_does_not_lock_a_swing_definition` preserves C++'s `sides > 0` lock
+  condition.
+- `forced_win_is_reported_as_certain_in_legacy_and_native_search` drives the
+  production parser and search through legacy with and without a `workers`
+  command, plus native with its default and four workers. Every form must
+  report player 0 at exactly 100%.
+- `parity_defined_twin_swing_in.txt` keeps the original legacy wire input in
+  every material-output and RNG-fingerprint differential run;
+  `parity_defined_swing_postfix_in.txt` makes the postfix form affect a
+  terminal win result so that branch also has a C++ oracle.
 
 ### Doppelganger interaction coverage
 

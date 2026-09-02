@@ -570,11 +570,12 @@ impl BMC_Parser {
                 let die = ParseDie(definition, original_index)?;
                 if die.m_swing_type.iter().any(Option::is_some) || die.HasProperty(property::OPTION)
                 {
-                    swing_set = if definition
-                        .split_once(':')
-                        .map_or(definition, |(text, _)| text)
-                        .rsplit_once('-')
-                        .is_some_and(|(_, value)| value.parse::<u8>().is_ok())
+                    swing_set = if ParseDieDefinedSides(
+                        definition
+                            .split_once(':')
+                            .map_or(definition, |(text, _)| text),
+                    )
+                    .is_some_and(|value| value > 0)
                     {
                         BME_SWING_SET::LOCKED
                     } else {
@@ -873,12 +874,14 @@ fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
         }
         pos += 1;
     }
-    // Defined swing/option side follows '-'.
-    if let Some((_, defined)) = definition.rsplit_once('-')
-        && let Ok(value) = defined.parse::<u8>()
-    {
-        if swings[0].is_some() {
-            sides[0] = value;
+    // C++ ParseDieSides looks ahead to the shared `-N` suffix separately for
+    // every Swing side. This matters for Twin Swing dice such as `(T,T)-2`:
+    // both halves are d2, not only the first half.
+    if let Some(value) = ParseDieDefinedSides(definition).filter(|value| *value > 0) {
+        for side in 0..2 {
+            if swings[side].is_some() {
+                sides[side] = value;
+            }
         }
         if properties & property::OPTION != 0 && sides[1] == value {
             sides.swap(0, 1);
@@ -903,6 +906,14 @@ fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
         m_original_index: original_index,
         m_in_reserve: properties & property::RESERVE != 0,
     })
+}
+
+/// Mirrors C++ `ParseDieDefinedSides`: find the shared `-N` suffix and parse
+/// its leading digits. Postfix properties may appear before or after it.
+fn ParseDieDefinedSides(definition: &str) -> Option<u8> {
+    let (_, suffix) = definition.split_once('-')?;
+    let digit_count = suffix.bytes().take_while(u8::is_ascii_digit).count();
+    suffix.get(..digit_count)?.parse().ok()
 }
 
 fn parse_side(chars: &[char], mut pos: usize) -> Result<(u8, Option<char>, usize), ParseError> {
@@ -1251,6 +1262,9 @@ fn io_error(error: std::io::Error) -> ParseError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::BME_ATTACK::{POWER, SKILL};
+    use crate::BME_PHASE::{CHANCE, FOCUS};
+    use crate::simulation::scenario::{LEGACY, parser_scenario, search_scenario};
 
     /// Port of ParserTests.ParseString.
     #[test]
@@ -1523,28 +1537,130 @@ Seeding with 17\n"
         assert!(twin.HasProperty(property::TWIN));
         assert!(twin.HasProperty(property::POISON));
         assert_eq!(twin.m_sides, [4, 4]);
-        let option = ParseDie("zU?-30", 1).unwrap();
-        assert!(option.HasProperty(property::SPEED | property::MOOD));
-        assert_eq!(option.m_sides[0], 30);
-        let jolt = ParseDie("J^6:3", 2).unwrap();
+
+        let first_option = ParseDie("6/20-6:4", 1).unwrap();
+        assert!(first_option.HasProperty(property::OPTION));
+        assert_eq!(first_option.m_sides, [6, 20]);
+
+        let second_option = ParseDie("6/20-20:17", 2).unwrap();
+        assert!(second_option.HasProperty(property::OPTION));
+        assert_eq!(second_option.m_sides, [20, 6]);
+
+        let mood_swing = ParseDie("zU?-30", 3).unwrap();
+        assert!(mood_swing.HasProperty(property::SPEED | property::MOOD));
+        assert_eq!(mood_swing.m_sides[0], 30);
+
+        let jolt = ParseDie("J^6:3", 4).unwrap();
         assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
     }
 
     #[test]
-    fn initiative_chance_and_focus_use_bmai_search() {
-        for (phase, die, expected) in [
-            ("chance", "c10:10", "action\npass\n"),
-            ("focus", "f10:10", "action\npass\n"),
-        ] {
-            let input = format!(
-                "game 3\n{phase}\nplayer 0 1 0\n{die}\nplayer 1 1 0\n6:6\nply 1\nmax_sims 10\nmin_sims 1\nmaxbranch 20\ngetaction\nquit\n"
+    fn every_advertised_property_prefix_is_accepted_by_the_die_parser() {
+        for notation in crate::notation::DIE_PROPERTY_PREFIXES {
+            let recipe = format!("{}6", notation.token);
+            let die = ParseDie(&recipe, 0)
+                .unwrap_or_else(|error| panic!("{} did not parse: {error}", notation.name));
+            assert!(
+                die.HasProperty(notation.property),
+                "{} ({:?}) was not retained by {recipe}",
+                notation.name,
+                notation.token
             );
-            let mut output = Vec::new();
-            BMC_Parser::default()
-                .ParseString(&input, &mut output)
-                .unwrap();
-            let output = String::from_utf8(output).unwrap();
-            assert!(output.ends_with(expected), "{output}");
+        }
+    }
+
+    #[test]
+    fn every_wire_phase_name_maps_to_the_expected_game_phase() {
+        for (name, expected) in [
+            ("preround", BME_PHASE::PREROUND),
+            ("reserve", BME_PHASE::RESERVE),
+            ("initiative", BME_PHASE::INITIATIVE),
+            ("chance", BME_PHASE::CHANCE),
+            ("focus", BME_PHASE::FOCUS),
+            ("fight", BME_PHASE::FIGHT),
+            ("gameover", BME_PHASE::GAMEOVER),
+        ] {
+            let input = format!("game 5\n{name}\nplayer 0 0 0\nplayer 1 0 0\nquit\n");
+            let mut parser = BMC_Parser::default();
+            parser
+                .ParseString(&input, &mut Vec::new())
+                .unwrap_or_else(|error| panic!("{name} did not parse: {error}"));
+            assert_eq!(parser.m_game.m_phase, expected, "{name}");
+            assert_eq!(parser.m_game.m_target_wins, 5, "{name}");
+        }
+    }
+
+    #[test]
+    fn current_value_and_focus_dizzy_suffix_are_parsed_explicitly() {
+        let ready = ParseDie("6:4", 2).unwrap();
+        assert_eq!(ready.m_value_total, Some(4));
+        assert!(!ready.m_notset);
+        assert!(!ready.m_dizzy);
+        assert_eq!(ready.m_original_index, 2);
+
+        let dizzy = ParseDie("f12:7d", 4).unwrap();
+        assert_eq!(dizzy.m_value_total, Some(7));
+        assert!(!dizzy.m_notset);
+        assert!(dizzy.m_dizzy);
+        assert_eq!(dizzy.m_original_index, 4);
+    }
+
+    #[test]
+    fn defined_swing_size_applies_to_every_swing_half_of_a_twin() {
+        for (recipe, expected_sides) in [
+            ("(T,T)-2:2", [2, 2]),
+            ("(X,Y)-6:6", [6, 6]),
+            ("(T,4)-2:2", [2, 4]),
+            ("(4,T)-2:2", [4, 2]),
+            ("(T,T)-2!:2", [2, 2]),
+            ("(T,T)!-2:2", [2, 2]),
+            ("(T,T)-2?:2", [2, 2]),
+            ("(T,T)?-2:2", [2, 2]),
+        ] {
+            let die = ParseDie(recipe, 0).unwrap();
+            assert!(die.HasProperty(property::TWIN), "{recipe}");
+            assert_eq!(die.m_sides, expected_sides, "{recipe}");
+        }
+    }
+
+    #[test]
+    fn zero_does_not_lock_a_swing_definition() {
+        let input = "game 3\npreround\nplayer 0 1 0\nT-0\nplayer 1 1 0\n6\nquit\n";
+        let mut parser = BMC_Parser::default();
+        parser.ParseString(input, &mut Vec::new()).unwrap();
+        assert_eq!(parser.m_game.m_player[0].m_swing_set, BME_SWING_SET::NOT);
+    }
+
+    #[test]
+    fn positive_defined_swing_and_option_values_lock_player_state() {
+        for recipe in ["T-2", "(T,T)-2", "6/20-20"] {
+            let input =
+                format!("game 3\npreround\nplayer 0 1 0\n{recipe}\nplayer 1 1 0\n6\nquit\n");
+            let mut parser = BMC_Parser::default();
+            parser
+                .ParseString(&input, &mut Vec::new())
+                .unwrap_or_else(|error| panic!("{recipe} did not parse: {error}"));
+            assert_eq!(
+                parser.m_game.m_player[0].m_swing_set,
+                BME_SWING_SET::LOCKED,
+                "{recipe}"
+            );
+        }
+    }
+
+    #[test]
+    fn initiative_chance_and_focus_use_bmai_search() {
+        for (phase, die) in [(CHANCE, "c10:10"), (FOCUS, "f10:10")] {
+            search_scenario()
+                .phase(phase)
+                .player(0, 0.0, [die])
+                .player(1, 0.0, ["6:6"])
+                .ply(1)
+                .simulations(1, 10)
+                .max_branch(20)
+                .modes([LEGACY])
+                .expect_pass()
+                .run();
         }
     }
 
@@ -1580,13 +1696,11 @@ Seeding with 17\n"
 
     #[test]
     fn insult_fixture_emits_reference_protocol_action() {
-        let input = include_str!("../tests/fixtures/Insult_in.txt");
-        let mut output = Vec::new();
-        BMC_Parser::default()
-            .ParseString(input, &mut output)
-            .unwrap();
-        let output = String::from_utf8(output).unwrap();
-        assert!(output.ends_with("action\npower\n0\n1\n"), "{output}");
+        parser_scenario(include_str!("../tests/fixtures/Insult_in.txt"))
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([1])
+            .run();
     }
 
     #[test]
@@ -1594,90 +1708,80 @@ Seeding with 17\n"
         let cases = [
             (
                 include_str!("../tests/fixtures/Value1_in.txt"),
-                "action\nskill\n0 1\n1\n",
+                SKILL,
+                vec![0, 1],
+                vec![1],
             ),
             (
                 include_str!("../tests/fixtures/Value2_in.txt"),
-                "action\npower\n1\n0\n",
+                POWER,
+                vec![1],
+                vec![0],
             ),
         ];
-        for (input, expected) in cases {
-            let mut output = Vec::new();
-            BMC_Parser::default()
-                .ParseString(input, &mut output)
-                .unwrap();
-            let output = String::from_utf8(output).unwrap();
-            assert!(output.ends_with(expected), "{output}");
+        for (input, attack, attackers, targets) in cases {
+            parser_scenario(input)
+                .expect_attack(attack)
+                .using(attackers)
+                .targeting(targets)
+                .run();
         }
     }
 
     #[test]
     fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
-        let cases = [
-            (
-                include_str!("../tests/fixtures/bug55_a_in.txt"),
-                "action\nskill\n2 0\n0\n",
-            ),
-            (
-                include_str!("../tests/fixtures/bug55_b_in.txt"),
-                "action\nskill\n3 0 1\n2\n",
-            ),
-            (
-                include_str!("../tests/fixtures/bug105372_in.txt"),
-                "action\nskill\n2 1 0\n0\n",
-            ),
-            (
-                include_str!("../tests/fixtures/SurrenderDefault-Pass-in.txt"),
-                "action\nsurrender\n",
-            ),
-            (
-                include_str!("../tests/fixtures/SurrenderOff-Attack-in.txt"),
-                "action\npower\n0\n0\n",
-            ),
-            (
-                include_str!("../tests/fixtures/SurrenderOff-Pass-in.txt"),
-                "action\npass\n",
-            ),
-            (
-                include_str!("../tests/fixtures/SurrenderOn-Attack-in.txt"),
-                "action\nsurrender\n",
-            ),
-            (
-                include_str!("../tests/fixtures/SurrenderOn-Pass-in.txt"),
-                "action\nsurrender\n",
-            ),
-        ];
-        for (input, expected) in cases {
-            let mut output = Vec::new();
-            BMC_Parser::default()
-                .ParseString(input, &mut output)
-                .unwrap();
-            let output = String::from_utf8(output).unwrap();
-            assert!(output.ends_with(expected), "{output}");
-        }
+        parser_scenario(include_str!("../tests/fixtures/bug55_a_in.txt"))
+            .expect_attack(SKILL)
+            .using([2, 0])
+            .targeting([0])
+            .run();
+        parser_scenario(include_str!("../tests/fixtures/bug55_b_in.txt"))
+            .expect_attack(SKILL)
+            .using([3, 0, 1])
+            .targeting([2])
+            .run();
+        parser_scenario(include_str!("../tests/fixtures/bug105372_in.txt"))
+            .expect_attack(SKILL)
+            .using([2, 1, 0])
+            .targeting([0])
+            .run();
+        parser_scenario(include_str!("../tests/fixtures/SurrenderOff-Attack-in.txt"))
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .run();
+    }
+
+    #[test]
+    fn surrender_policy_fixtures_emit_reference_protocol_actions() {
+        parser_scenario(include_str!(
+            "../tests/fixtures/SurrenderDefault-Pass-in.txt"
+        ))
+        .expect_surrender()
+        .run();
+        parser_scenario(include_str!("../tests/fixtures/SurrenderOff-Pass-in.txt"))
+            .expect_pass()
+            .run();
+        parser_scenario(include_str!("../tests/fixtures/SurrenderOn-Attack-in.txt"))
+            .expect_surrender()
+            .run();
+        parser_scenario(include_str!("../tests/fixtures/SurrenderOn-Pass-in.txt"))
+            .expect_surrender()
+            .run();
     }
 
     #[test]
     #[ignore = "full BMAI3 searches; run in the release parity suite"]
     fn deeper_reference_fixtures_emit_reference_protocol_actions() {
-        let cases = [
-            (
-                include_str!("../tests/fixtures/bmai_in.txt"),
-                "action\npower\n1\n0\n",
-            ),
-            (
-                include_str!("../tests/fixtures/bug11_in.txt"),
-                "action\nswing T 2\nswing W 4\n",
-            ),
-        ];
-        for (input, expected) in cases {
-            let mut output = Vec::new();
-            BMC_Parser::default()
-                .ParseString(input, &mut output)
-                .unwrap();
-            let output = String::from_utf8(output).unwrap();
-            assert!(output.ends_with(expected), "{output}");
-        }
+        parser_scenario(include_str!("../tests/fixtures/bmai_in.txt"))
+            .expect_attack(POWER)
+            .using([1])
+            .targeting([0])
+            .run();
+
+        parser_scenario(include_str!("../tests/fixtures/bug11_in.txt"))
+            .expect_swings([('T', 2), ('W', 4)])
+            .run();
     }
 
     #[test]
@@ -1877,12 +1981,8 @@ Seeding with 17\n"
     #[test]
     #[ignore = "full reserve BMAI3 search; run in the release parity suite"]
     fn reserve_fixture_emits_reference_protocol_action() {
-        let input = include_str!("../tests/fixtures/bug16_in.txt");
-        let mut output = Vec::new();
-        BMC_Parser::default()
-            .ParseString(input, &mut output)
-            .unwrap();
-        let output = String::from_utf8(output).unwrap();
-        assert!(output.ends_with("action\nreserve 6\n"), "{output}");
+        parser_scenario(include_str!("../tests/fixtures/bug16_in.txt"))
+            .expect_reserve(Some(6))
+            .run();
     }
 }

@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add parser and mechanics support for Fire and Rush. Fire work must include
   the documented Rage+Fire interaction: firing does not consume Rage.
 
+## [0.8.1] - 2026-09-02
+
+### Added
+
+- Added parser/search scenario test DSLs that drive the production protocol,
+  assert typed and wire-format actions, and check exact or ranged win
+  percentages across execution modes and worker configurations.
+- Added the reported forced-win position as a permanent C++/Rust differential
+  fixture and exercised it in legacy and native modes.
+
+### Fixed
+
+- Applied a shared defined Swing size to every Swing half of a Twin die, so a
+  recipe such as `(T,T)-2` is parsed as `(2,2)` instead of `(2,0)`.
+- Preserved defined Swing sizes when Turbo or Mood postfix markers follow the
+  numeric size, matching the original C++ parser.
+- Kept a zero Swing suffix undefined instead of incorrectly locking it.
+
 ## [0.8.0] - 2026-09-01
 
 ### Added
@@ -190,7 +208,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...HEAD
+[0.8.1]: https://github.com/danlangford/bmai/compare/bmair-v0.8.0...bmair-v0.8.1
+[0.8.0]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...bmair-v0.8.0
 [0.7.0]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...bmair-v0.7.0
 [0.6.0]: https://github.com/danlangford/bmai/compare/bmair-v0.5.0...bmair-v0.6.0
 [0.5.0]: https://github.com/danlangford/bmai/compare/bmair-v0.4.1...bmair-v0.5.0
