@@ -247,22 +247,29 @@ mod tests {
             state: 123,
             stream: 456,
         };
-        let mut outcomes = [[0usize; 6]; 6];
-        for index in 0..36 {
-            let mut rng = BMC_RNG::FromNativeStream(
-                BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
-                seed,
-                Some(crate::native::NativeStratum {
-                    index,
-                    offset: 17,
-                    radix: 1,
-                }),
-            );
-            let first = rng.GetRandMax(6) as usize;
-            let second = rng.GetRandMax(6) as usize;
-            outcomes[first][second] += 1;
+        for (first_bound, second_bound) in [(6usize, 6usize), (4, 6), (6, 8)] {
+            for offset in [0, 17, u64::MAX] {
+                let mut outcomes = vec![vec![0usize; second_bound]; first_bound];
+                for index in 0..(first_bound * second_bound) {
+                    let mut rng = BMC_RNG::FromNativeStream(
+                        BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                        seed,
+                        Some(crate::native::NativeStratum {
+                            index: index as u64,
+                            offset,
+                            radix: 1,
+                        }),
+                    );
+                    let first = rng.GetRandMax(first_bound as u32) as usize;
+                    let second = rng.GetRandMax(second_bound as u32) as usize;
+                    outcomes[first][second] += 1;
+                }
+                assert!(
+                    outcomes.iter().flatten().all(|count| *count == 1),
+                    "{first_bound}x{second_bound} outcomes were not exhaustive at offset {offset}"
+                );
+            }
         }
-        assert_eq!(outcomes, [[1; 6]; 6]);
     }
 
     #[test]
