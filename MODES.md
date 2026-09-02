@@ -53,7 +53,7 @@ parallel search must version its stream partitioning and deterministic result
 reduction before it can claim reproducibility.
 
 The current partition is `bmair-native-stream-v2`. Version 2 stratifies a
-simulation's opening bounded random draw across canonical simulation indices
+simulation's initial consecutive bounded draws across mixed-radix outcome cells
 and completes the surviving candidate's configured simulation budget after
 culling. Recorded version 1 identities remain distinct as
 `bmair-native-stream-v1`; changing the sampling contract never silently reuses

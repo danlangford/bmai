@@ -23,10 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Advanced native replay partitioning to `bmair-native-stream-v2`. When a
-  simulation begins with a bounded random draw, native search now stratifies
-  that draw across canonical simulation indices, reducing sampling noise
-  without making results depend on worker count or completion order.
+- Advanced native replay partitioning to `bmair-native-stream-v2`. Native
+  search now stratifies a simulation's initial consecutive bounded draws
+  across mixed-radix outcome cells, reducing sampling noise for both ordinary
+  and multi-die rerolls without making results depend on worker count or
+  completion order.
 - Continue evaluating native search's surviving best candidate through the
   declared simulation budget after weaker candidates are culled. Legacy mode
   retains the original C++ early-stop behavior.
@@ -37,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endgame from ButtonWeavers game 119365. The exact input now selects the same
   Power capture and reports the position's 10% win probability in both legacy
   and native modes.
+- Corrected the native estimates for reconstructed ordinary-d10 and Twin-d6
+  endgames by covering their one- and two-die reroll distributions evenly.
 - Applied complete-survivor probability sampling consistently to native fight,
   preround, Chance, and Focus searches; native reserve search already sampled
   every candidate through its full budget.

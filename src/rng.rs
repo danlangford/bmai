@@ -145,12 +145,23 @@ impl BMC_RNG {
         let random = match self.m_algorithm {
             BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
         };
-        self.m_native_stratum
-            .take()
-            .map_or(random % upper, |stratum| {
-                let upper = u64::from(upper);
-                ((stratum.index % upper + stratum.offset % upper) % upper) as u32
-            })
+        let Some(stratum) = self.m_native_stratum.as_mut() else {
+            return random % upper;
+        };
+
+        let upper_u64 = u64::from(upper);
+        let Some(next_radix) = stratum.radix.checked_mul(upper_u64) else {
+            self.m_native_stratum = None;
+            return random % upper;
+        };
+        let position = ((u128::from(stratum.index % next_radix)
+            + u128::from(stratum.offset % next_radix))
+            % u128::from(next_radix)) as u64;
+        let base_digit = position / stratum.radix % upper_u64;
+        let lower_cell = position % stratum.radix;
+        let value = (base_digit + lower_cell % upper_u64) % upper_u64;
+        stratum.radix = next_radix;
+        value as u32
     }
 
     pub fn GetFRand(&mut self) -> f32 {
@@ -218,12 +229,40 @@ mod tests {
                 let mut rng = BMC_RNG::FromNativeStream(
                     BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
                     seed,
-                    Some(crate::native::NativeStratum { index, offset }),
+                    Some(crate::native::NativeStratum {
+                        index,
+                        offset,
+                        radix: 1,
+                    }),
                 );
                 counts[rng.GetRandMax(20) as usize] += 1;
             }
             assert_eq!(counts, [5; 20]);
         }
+    }
+
+    #[test]
+    fn native_strata_enumerate_two_die_outcomes_before_repeating() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        let mut outcomes = [[0usize; 6]; 6];
+        for index in 0..36 {
+            let mut rng = BMC_RNG::FromNativeStream(
+                BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                seed,
+                Some(crate::native::NativeStratum {
+                    index,
+                    offset: 17,
+                    radix: 1,
+                }),
+            );
+            let first = rng.GetRandMax(6) as usize;
+            let second = rng.GetRandMax(6) as usize;
+            outcomes[first][second] += 1;
+        }
+        assert_eq!(outcomes, [[1; 6]; 6]);
     }
 
     #[test]
@@ -238,6 +277,7 @@ mod tests {
             Some(crate::native::NativeStratum {
                 index: 999,
                 offset: 999,
+                radix: 1,
             }),
         );
         let mut ordinary =

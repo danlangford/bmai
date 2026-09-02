@@ -85,8 +85,10 @@ logical CPU parallelism available to the process and records that numeric value
 in session metadata. Individual evaluation batches still clamp their effective
 worker count to the number of tasks.
 
-Beginning with `bmair-native-stream-v2`, a simulation that begins with a
-bounded random draw stratifies that draw by canonical simulation index. Once
+Beginning with `bmair-native-stream-v2`, a simulation's initial consecutive
+bounded draws are stratified across mixed-radix outcome cells by canonical
+simulation index. This covers every face of an ordinary reroll evenly and can
+cover the complete Cartesian outcome space of small multi-die rerolls. Once
 culling leaves one candidate, native search continues evaluating that survivor
 through the declared simulation budget. Together these rules reduce
 probability-estimate noise and prevent a larger configured budget from being

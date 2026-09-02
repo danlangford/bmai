@@ -868,6 +868,76 @@ mod tests {
     }
 
     #[test]
+    fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 29.0, ["10:9"])
+            .player(1, 27.0, ["6:6", "X-6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([LEGACY])
+            .expect_player_win_percent(0, 47.0..=47.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .run();
+
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 29.0, ["10:9"])
+            .player(1, 27.0, ["6:6", "X-6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 40.0..=40.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([1])
+            .run();
+    }
+
+    #[test]
+    fn twin_d6_endgame_uses_the_full_two_die_distribution() {
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 48.0, ["8:8", "(6,6):9"])
+            .player(1, 66.0, ["q6:6", "q6:6"])
+            .ply(2)
+            .simulations(5, 36)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 29.2..=29.2)
+            .expect_attack(POWER)
+            .using([1])
+            .targeting([1])
+            .run();
+
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 48.0, ["8:8", "(6,6):9"])
+            .player(1, 66.0, ["q6:6", "q6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 28.0..=31.0)
+            .expect_attack(POWER)
+            .using([1])
+            .targeting([0])
+            .run();
+    }
+
+    #[test]
     fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
         for poison_roll in 1..=20 {
             let mut game = parse_game(

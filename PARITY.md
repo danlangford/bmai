@@ -202,10 +202,13 @@ Native search deliberately advances beyond C++ BMAI3's probability-reporting
 behavior under the versioned `bmair-native-stream-v2` replay contract. Culling
 still removes inferior candidates, but the survivor runs through its declared
 simulation budget; an opening bounded random draw is stratified across
-canonical simulation indices. The game 119365 regression proves that the
-shared Poison/Queer mechanics win only on d20 rerolls 5 and 6, while the search
+canonical simulation indices, and consecutive bounded draws traverse
+mixed-radix outcome cells. The game 119365 regression proves that the shared
+Poison/Queer mechanics win only on d20 rerolls 5 and 6, while the search
 scenario proves legacy and native both report 10% and select the same Power
-capture. Legacy C++-ordered RNG consumption and early culling remain unchanged.
+capture. Reconstructed ordinary-d10 and Twin-d6 endgames cover single- and
+multi-die distributions, including draw-as-half-win aggregation. Legacy
+C++-ordered RNG consumption and early culling remain unchanged.
 
 Parsing-only parity is intentional for `AUXILIARY` and `RADIOACTIVE`:
 upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and

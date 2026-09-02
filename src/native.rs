@@ -83,13 +83,16 @@ pub struct NativeStreamSeed {
     pub stream: u64,
 }
 
-/// One deterministic stratum used when a native simulation's first random
-/// event is a bounded draw. A candidate's simulations walk adjacent strata,
-/// while the offset keeps different candidates from sharing the same ordering.
+/// Deterministic strata for a simulation's initial consecutive bounded draws.
+///
+/// A candidate's simulations walk adjacent mixed-radix cells, while the offset
+/// keeps different candidates from sharing the same ordering. `radix` records
+/// the product of the bounds already sampled in this simulation.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct NativeStratum {
     pub index: u64,
     pub offset: u64,
+    pub radix: u64,
 }
 
 impl NativeStreamSeed {
@@ -125,6 +128,7 @@ impl NativeSimulationKey {
             NativeStreamVersion::V2 => Some(NativeStratum {
                 index: self.simulation_index,
                 offset: self.derive_v2_stratum_offset(),
+                radix: 1,
             }),
         }
     }
@@ -337,8 +341,10 @@ mod tests {
 
         assert_eq!(next_simulation.index, baseline.index + 1);
         assert_eq!(next_simulation.offset, baseline.offset);
+        assert_eq!(next_simulation.radix, 1);
         assert_eq!(next_batch.index, baseline.index);
         assert_eq!(next_batch.offset, baseline.offset);
+        assert_eq!(next_batch.radix, 1);
         assert!(
             NativeSimulationKey {
                 replay: NativeReplayKey {
