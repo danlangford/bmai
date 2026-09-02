@@ -235,7 +235,9 @@ Rust applied it only to the first half. Rust therefore read `(T,T)-2:2` as
   command, plus native with its default and four workers. Every form must
   report player 0 at exactly 100%.
 - `parity_defined_twin_swing_in.txt` keeps the original legacy wire input in
-  every material-output and RNG-fingerprint differential run.
+  every material-output and RNG-fingerprint differential run;
+  `parity_defined_swing_postfix_in.txt` makes the postfix form affect a
+  terminal win result so that branch also has a C++ oracle.
 
 ### Doppelganger interaction coverage
 
