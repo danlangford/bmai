@@ -159,6 +159,9 @@ impl BMC_RNG {
             % u128::from(next_radix)) as u64;
         let base_digit = position / stratum.radix % upper_u64;
         let lower_cell = position % stratum.radix;
+        // Shifting by the already-selected lower cell is a permutation of this
+        // draw's faces. A complete mixed-radix block therefore remains
+        // exhaustive, while short prefixes do not pin later draws to face 0.
         let value = (base_digit + lower_cell % upper_u64) % upper_u64;
         stratum.radix = next_radix;
         value as u32
