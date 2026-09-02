@@ -32,7 +32,7 @@ fn invalid_commands_match_cpp_exit_status_and_error() {
 
 #[test]
 #[ignore = "requires BMAI_CPP_REFERENCE"]
-fn defined_swing_forms_produce_the_same_cpp_search_result() {
+fn defined_swing_and_option_forms_produce_the_same_cpp_search_result() {
     let reference = std::env::var_os("BMAI_CPP_REFERENCE")
         .expect("set BMAI_CPP_REFERENCE to the C++ bmai executable");
     let rust = env!("CARGO_BIN_EXE_bmair");
@@ -59,7 +59,7 @@ fn defined_swing_forms_produce_the_same_cpp_search_result() {
         assert_eq!(
             run_material(&reference, &input),
             run_material(rust, &input),
-            "defined Swing form differs for {recipe}"
+            "defined Swing/Option form differs for {recipe}"
         );
     }
 }

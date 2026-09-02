@@ -1632,6 +1632,23 @@ Seeding with 17\n"
     }
 
     #[test]
+    fn positive_defined_swing_and_option_values_lock_player_state() {
+        for recipe in ["T-2", "(T,T)-2", "6/20-20"] {
+            let input =
+                format!("game 3\npreround\nplayer 0 1 0\n{recipe}\nplayer 1 1 0\n6\nquit\n");
+            let mut parser = BMC_Parser::default();
+            parser
+                .ParseString(&input, &mut Vec::new())
+                .unwrap_or_else(|error| panic!("{recipe} did not parse: {error}"));
+            assert_eq!(
+                parser.m_game.m_player[0].m_swing_set,
+                BME_SWING_SET::LOCKED,
+                "{recipe}"
+            );
+        }
+    }
+
+    #[test]
     fn initiative_chance_and_focus_use_bmai_search() {
         for (phase, die) in [(CHANCE, "c10:10"), (FOCUS, "f10:10")] {
             search_scenario()
