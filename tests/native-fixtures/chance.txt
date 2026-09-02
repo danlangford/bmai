@@ -3,9 +3,9 @@ rng legacy
 workers 3
 seed 17
 ply 1
-max_sims 2
+max_sims 100
 min_sims 1
-maxbranch 10
+maxbranch 5000
 game 1
 chance
 player 0 2 0

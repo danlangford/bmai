@@ -42,6 +42,7 @@ pub struct BMC_RNG {
     m_trace_hash: bool,
     m_trace_count: u64,
     m_trace_fingerprint: u64,
+    m_native_stratum: Option<crate::native::NativeStratum>,
 }
 
 impl Default for BMC_RNG {
@@ -53,6 +54,7 @@ impl Default for BMC_RNG {
             m_trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: None,
         }
     }
 }
@@ -66,12 +68,14 @@ impl BMC_RNG {
             m_trace_hash: false,
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: None,
         }
     }
 
     pub(crate) fn FromNativeStream(
         algorithm: BME_RNG_ALGORITHM,
         seed: crate::native::NativeStreamSeed,
+        stratum: Option<crate::native::NativeStratum>,
     ) -> Self {
         Self {
             m_algorithm: algorithm,
@@ -80,6 +84,7 @@ impl BMC_RNG {
             m_trace_hash: false,
             m_trace_count: 0,
             m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            m_native_stratum: stratum,
         }
     }
 
@@ -110,6 +115,7 @@ impl BMC_RNG {
     }
 
     pub fn GetRand(&mut self) -> u32 {
+        self.m_native_stratum = None;
         match self.m_algorithm {
             BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
         }
@@ -135,7 +141,30 @@ impl BMC_RNG {
     }
 
     pub fn GetRandMax(&mut self, upper: u32) -> u32 {
-        self.GetRand() % upper
+        assert!(upper > 0, "GetRandMax requires a nonzero upper bound");
+        let random = match self.m_algorithm {
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
+        };
+        let Some(stratum) = self.m_native_stratum.as_mut() else {
+            return random % upper;
+        };
+
+        let upper_u64 = u64::from(upper);
+        let Some(next_radix) = stratum.radix.checked_mul(upper_u64) else {
+            self.m_native_stratum = None;
+            return random % upper;
+        };
+        let position = ((u128::from(stratum.index % next_radix)
+            + u128::from(stratum.offset % next_radix))
+            % u128::from(next_radix)) as u64;
+        let base_digit = position / stratum.radix % upper_u64;
+        let lower_cell = position % stratum.radix;
+        // Shifting by the already-selected lower cell is a permutation of this
+        // draw's faces. A complete mixed-radix block therefore remains
+        // exhaustive, while short prefixes do not pin later draws to face 0.
+        let value = (base_digit + lower_cell % upper_u64) % upper_u64;
+        stratum.radix = next_radix;
+        value as u32
     }
 
     pub fn GetFRand(&mut self) -> f32 {
@@ -189,6 +218,83 @@ mod tests {
             (first, second),
             (uninterrupted.GetRand(), uninterrupted.GetRand())
         );
+    }
+
+    #[test]
+    fn native_strata_balance_the_first_bounded_sample() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        for offset in [0, 7, u64::MAX] {
+            let mut counts = [0usize; 20];
+            for index in 0..100 {
+                let mut rng = BMC_RNG::FromNativeStream(
+                    BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                    seed,
+                    Some(crate::native::NativeStratum {
+                        index,
+                        offset,
+                        radix: 1,
+                    }),
+                );
+                counts[rng.GetRandMax(20) as usize] += 1;
+            }
+            assert_eq!(counts, [5; 20]);
+        }
+    }
+
+    #[test]
+    fn native_strata_enumerate_two_die_outcomes_before_repeating() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        for (first_bound, second_bound) in [(6usize, 6usize), (4, 6), (6, 8)] {
+            for offset in [0, 17, u64::MAX] {
+                let mut outcomes = vec![vec![0usize; second_bound]; first_bound];
+                for index in 0..(first_bound * second_bound) {
+                    let mut rng = BMC_RNG::FromNativeStream(
+                        BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                        seed,
+                        Some(crate::native::NativeStratum {
+                            index: index as u64,
+                            offset,
+                            radix: 1,
+                        }),
+                    );
+                    let first = rng.GetRandMax(first_bound as u32) as usize;
+                    let second = rng.GetRandMax(second_bound as u32) as usize;
+                    outcomes[first][second] += 1;
+                }
+                assert!(
+                    outcomes.iter().flatten().all(|count| *count == 1),
+                    "{first_bound}x{second_bound} outcomes were not exhaustive at offset {offset}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn an_unbounded_native_draw_consumes_the_first_sample_stratum() {
+        let seed = crate::native::NativeStreamSeed {
+            state: 123,
+            stream: 456,
+        };
+        let mut stratified = BMC_RNG::FromNativeStream(
+            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            seed,
+            Some(crate::native::NativeStratum {
+                index: 999,
+                offset: 999,
+                radix: 1,
+            }),
+        );
+        let mut ordinary =
+            BMC_RNG::FromNativeStream(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1, seed, None);
+
+        assert_eq!(stratified.GetRand(), ordinary.GetRand());
+        assert_eq!(stratified.GetRandMax(20), ordinary.GetRandMax(20));
     }
 
     /// Port of LegacyMembers.TestRNG. The C++ test is statistical rather than

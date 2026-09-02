@@ -19,6 +19,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add parser and mechanics support for Fire and Rush. Fire work must include
   the documented Rage+Fire interaction: firing does not consume Rage.
 
+## [0.8.2] - 2026-09-02
+
+### Changed
+
+- Advanced native replay partitioning to `bmair-native-stream-v2`. Native
+  search now stratifies a simulation's initial consecutive bounded draws
+  across mixed-radix outcome cells, reducing sampling noise for both ordinary
+  and multi-die rerolls without making results depend on worker count or
+  completion order.
+- Continue evaluating native search's surviving best candidate through the
+  declared simulation budget after weaker candidates are culled. Legacy mode
+  retains the original C++ early-stop behavior.
+
+### Fixed
+
+- Corrected the native win estimate for the reported Poison-versus-Queer
+  endgame from ButtonWeavers game 119365. The exact input now selects the same
+  Power capture and reports the position's 10% win probability in both legacy
+  and native modes.
+- Corrected the native estimates for reconstructed ordinary-d10 and Twin-d6
+  endgames by stratifying their one- and two-die reroll distributions.
+- Applied complete-survivor probability sampling consistently to native fight,
+  preround, Chance, and Focus searches; native reserve search already sampled
+  every candidate through its full budget.
+
 ## [0.8.1] - 2026-09-02
 
 ### Added
@@ -208,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...HEAD
+[0.8.2]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...bmair-v0.8.2
 [0.8.1]: https://github.com/danlangford/bmai/compare/bmair-v0.8.0...bmair-v0.8.1
 [0.8.0]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...bmair-v0.8.0
 [0.7.0]: https://github.com/danlangford/bmai/compare/bmair-v0.6.0...bmair-v0.7.0

@@ -52,6 +52,13 @@ A seed without the RNG replay identifier is not a complete replay key. Native
 parallel search must version its stream partitioning and deterministic result
 reduction before it can claim reproducibility.
 
+The current partition is `bmair-native-stream-v2`. Version 2 stratifies a
+simulation's initial consecutive bounded draws across mixed-radix outcome cells
+and completes the surviving candidate's configured simulation budget after
+culling. Recorded version 1 identities remain distinct as
+`bmair-native-stream-v1`; changing the sampling contract never silently reuses
+an older replay identifier.
+
 The native decision index advances only when a native BMAI search actually
 runs. QAI actions and immediate protocol passes do not consume a replay key, so
 mixing policy types cannot silently shift later native simulation streams.

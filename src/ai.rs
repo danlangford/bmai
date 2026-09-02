@@ -135,6 +135,34 @@ impl BMC_BMAI3 {
         &mut self,
         moves: Vec<BMC_Move>,
         level: usize,
+        evaluate_batch: F,
+    ) -> BMC_Move
+    where
+        F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
+    {
+        self.EvaluateMovesBatchedInner(moves, level, false, evaluate_batch)
+    }
+
+    /// Native-mode evaluation keeps sampling the sole surviving candidate.
+    /// Culling still avoids work on weaker moves, while the reported win
+    /// probability uses the complete budget advertised to the caller.
+    pub(crate) fn EvaluateMovesBatchedToCompletion<F>(
+        &mut self,
+        moves: Vec<BMC_Move>,
+        level: usize,
+        evaluate_batch: F,
+    ) -> BMC_Move
+    where
+        F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
+    {
+        self.EvaluateMovesBatchedInner(moves, level, true, evaluate_batch)
+    }
+
+    fn EvaluateMovesBatchedInner<F>(
+        &mut self,
+        moves: Vec<BMC_Move>,
+        level: usize,
+        complete_survivor: bool,
         mut evaluate_batch: F,
     ) -> BMC_Move
     where
@@ -225,7 +253,11 @@ impl BMC_BMAI3 {
                 }
             }
             state.sims_run += check_sims;
-            if state.sims_run >= state.sims || !self.CullMoves(&mut state) {
+            if state.sims_run >= state.sims {
+                break;
+            }
+            let multiple_candidates_remain = self.CullMoves(&mut state);
+            if !multiple_candidates_remain && !complete_survivor {
                 break;
             }
         }
@@ -418,5 +450,35 @@ mod tests {
                 simulation_index: 10,
             }
         )));
+    }
+
+    #[test]
+    fn native_probability_evaluation_completes_the_surviving_candidate() {
+        let mut ai = BMC_BMAI3 {
+            m_max_sims: 100,
+            m_max_branch: 200,
+            m_min_sims: 5,
+            ..Default::default()
+        };
+        let mut evaluations = [0usize; 2];
+        let selected = ai.EvaluateMovesBatchedToCompletion(
+            vec![test_move(1.0), test_move(0.0)],
+            1,
+            |requests| {
+                requests
+                    .iter()
+                    .map(|request| {
+                        evaluations[request.coordinate.candidate_index] += 1;
+                        request.candidate.m_score
+                    })
+                    .collect()
+            },
+        );
+
+        assert_eq!(selected.m_score, 1.0);
+        assert_eq!(ai.m_last_sims_run, 100);
+        assert_eq!(ai.m_last_probability_win, 1.0);
+        assert_eq!(evaluations[0], 100);
+        assert!(evaluations[1] < evaluations[0]);
     }
 }

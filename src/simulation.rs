@@ -17,6 +17,10 @@ struct NativeEvaluation {
     workers: usize,
 }
 
+fn CompletesNativeProbabilitySample(native: Option<NativeEvaluation>) -> bool {
+    native.is_some_and(|context| context.replay.stream_version.completes_probability_sample())
+}
+
 struct NativeReplaySequence<'a> {
     algorithm: crate::BME_RNG_ALGORITHM,
     root_seed: u64,
@@ -27,7 +31,7 @@ struct NativeReplaySequence<'a> {
 impl NativeReplaySequence<'_> {
     fn next(&mut self) -> NativeEvaluation {
         let replay = crate::native::NativeReplayKey {
-            stream_version: crate::native::NativeStreamVersion::V1,
+            stream_version: crate::native::NativeStreamVersion::CURRENT,
             root_seed: self.root_seed,
             decision_index: *self.decision_index,
         };
@@ -728,7 +732,13 @@ fn SelectSwingAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || moves.len() == 1 || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.m_cull_moves {
+            break;
+        }
+        if moves.len() == 1 {
+            if CompletesNativeProbabilitySample(native) {
+                continue;
+            }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
@@ -753,7 +763,7 @@ fn SelectSwingAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 {
+        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
             break;
         }
     }
@@ -1193,7 +1203,13 @@ fn SelectChanceAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || moves.len() == 1 || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.m_cull_moves {
+            break;
+        }
+        if moves.len() == 1 {
+            if CompletesNativeProbabilitySample(native) {
+                continue;
+            }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
@@ -1218,7 +1234,7 @@ fn SelectChanceAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 {
+        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
             break;
         }
     }
@@ -1452,7 +1468,13 @@ fn SelectFocusAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || moves.len() == 1 || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.m_cull_moves {
+            break;
+        }
+        if moves.len() == 1 {
+            if CompletesNativeProbabilitySample(native) {
+                continue;
+            }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
@@ -1477,7 +1499,7 @@ fn SelectFocusAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 {
+        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
             break;
         }
     }
@@ -1932,7 +1954,7 @@ fn SelectBMAIActionAtLevelNativeWithStats(
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
-    let selected = evaluator.EvaluateMovesBatched(moves, 1, |requests| {
+    let mut evaluate_batch = |requests: &[crate::ai::EvaluationRequest<'_>]| {
         let tasks = requests
             .iter()
             .map(|request| (request.candidate.clone(), request.coordinate))
@@ -1956,7 +1978,12 @@ fn SelectBMAIActionAtLevelNativeWithStats(
                 false,
             )
         })
-    });
+    };
+    let selected = if replay.stream_version.completes_probability_sample() {
+        evaluator.EvaluateMovesBatchedToCompletion(moves, 1, &mut evaluate_batch)
+    } else {
+        evaluator.EvaluateMovesBatched(moves, 1, &mut evaluate_batch)
+    };
     let probability = evaluator.m_last_probability_win;
     let selected = if probability == 0.0 && game.m_surrender_allowed {
         BMC_Move {
@@ -1988,14 +2015,13 @@ fn NativeSimulationRng(
         .try_into()
         .ok()
         .expect("candidate index must fit in the replay format");
-    let stream_seed = crate::native::NativeSimulationKey {
+    let key = crate::native::NativeSimulationKey {
         replay,
         candidate_index,
         batch_index: batch_index as u64,
         simulation_index: simulation_index as u64,
-    }
-    .derive_stream_seed();
-    BMC_RNG::FromNativeStream(algorithm, stream_seed)
+    };
+    BMC_RNG::FromNativeStream(algorithm, key.derive_stream_seed(), key.stratum())
 }
 
 fn SelectBMAIActionAtLevel(

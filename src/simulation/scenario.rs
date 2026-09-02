@@ -826,7 +826,7 @@ fn format_side(die: &BMC_Die, side: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BME_ATTACK::POWER;
+    use crate::BME_ATTACK::{POWER, SHADOW};
     use crate::BME_PHASE::FIGHT;
 
     #[test]
@@ -846,6 +846,163 @@ mod tests {
             .using([1])
             .targeting([1])
             .run();
+    }
+
+    #[test]
+    fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 2.0, ["p20:14"])
+            .player(1, 47.0, ["q6:5", "q20:4"])
+            .ply(3)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([LEGACY, NATIVE, native(4)])
+            .expect_player_win_percent(0, 10.0..=10.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([1])
+            .run();
+    }
+
+    #[test]
+    fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 29.0, ["10:9"])
+            .player(1, 27.0, ["6:6", "X-6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([LEGACY])
+            .expect_player_win_percent(0, 47.0..=47.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .run();
+
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 29.0, ["10:9"])
+            .player(1, 27.0, ["6:6", "X-6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 40.0..=40.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([1])
+            .run();
+    }
+
+    #[test]
+    fn twin_d6_endgame_uses_the_full_two_die_distribution() {
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 48.0, ["8:8", "(6,6):9"])
+            .player(1, 66.0, ["q6:6", "q6:6"])
+            .ply(2)
+            .simulations(5, 36)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 29.2..=29.2)
+            .expect_attack(POWER)
+            .using([1])
+            .targeting([1])
+            .run();
+
+        search_scenario()
+            .phase(FIGHT)
+            .target_wins(3)
+            .player(0, 48.0, ["8:8", "(6,6):9"])
+            .player(1, 66.0, ["q6:6", "q6:6"])
+            .ply(2)
+            .simulations(5, 100)
+            .max_branch(400)
+            .surrender(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 28.0..=31.0)
+            .expect_attack(POWER)
+            .using([1])
+            .targeting([0])
+            .run();
+    }
+
+    #[test]
+    fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
+        for poison_roll in 1..=20 {
+            let mut game = parse_game(
+                &["p20:14".to_owned()],
+                &["q6:5".to_owned(), "q20:4".to_owned()],
+            );
+            game.m_phase = FIGHT;
+            game.m_player[0].m_score = 2.0;
+            game.m_player[1].m_score = 47.0;
+            let attacker = resolve_original_indices("attacker", &game.m_player[0].m_die, &[0]);
+            let target = resolve_original_indices("target", &game.m_player[1].m_die, &[1]);
+            let mut rng = BMC_RNG::default();
+            rng.SRand(seed_for_first_roll(poison_roll, 20));
+
+            ApplyAttack(
+                &mut game,
+                &BMC_Move::attack(POWER, attacker, target, 0.0),
+                &mut rng,
+            );
+            assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), poison_roll);
+            assert_eq!(
+                [game.m_player[0].m_score, game.m_player[1].m_score],
+                [22.0, 37.0]
+            );
+
+            game.m_player.swap(0, 1);
+            let queer_capture =
+                game.GenerateValidAttacksInCppOrder()
+                    .into_iter()
+                    .find(|candidate| {
+                        candidate.m_attack == Some(SHADOW)
+                            && candidate
+                                .m_attackers
+                                .iter()
+                                .any(|index| game.m_player[0].m_die[index].m_original_index == 0)
+                            && candidate
+                                .m_targets
+                                .iter()
+                                .any(|index| game.m_player[1].m_die[index].m_original_index == 0)
+                    });
+
+            if matches!(poison_roll, 5 | 6) {
+                ApplyAttack(&mut game, &queer_capture.unwrap(), &mut rng);
+                assert_eq!(
+                    [game.m_player[1].m_score, game.m_player[0].m_score],
+                    [42.0, 27.0],
+                    "unexpected final scores after Poison rolled {poison_roll}"
+                );
+            } else {
+                assert!(
+                    queer_capture.is_none(),
+                    "q6 unexpectedly captured Poison after it rolled {poison_roll}"
+                );
+            }
+        }
+    }
+
+    fn seed_for_first_roll(value: u16, sides: u32) -> u32 {
+        (1..=u32::MAX)
+            .find(|seed| {
+                let mut rng = BMC_RNG::default();
+                rng.SRand(*seed);
+                rng.GetRandMax(sides) + 1 == u32::from(value)
+            })
+            .expect("every die face must be reachable from the legacy RNG")
     }
 
     #[test]
