@@ -2950,7 +2950,7 @@ fn SwingRange(swing: char) -> (u8, u8) {
 }
 
 #[cfg(test)]
-mod scenario;
+pub(crate) mod scenario;
 
 #[cfg(test)]
 mod tests {

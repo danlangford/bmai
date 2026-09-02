@@ -23,9 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added a search-scenario test DSL that drives the production protocol and can
-  assert exact or ranged win percentages across execution modes and worker
-  configurations.
+- Added parser/search scenario test DSLs that drive the production protocol,
+  assert typed and wire-format actions, and check exact or ranged win
+  percentages across execution modes and worker configurations.
 - Added the reported forced-win position as a permanent C++/Rust differential
   fixture and exercised it in legacy and native modes.
 

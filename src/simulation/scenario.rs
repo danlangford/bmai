@@ -8,6 +8,7 @@
 //! and resolution goes through the production simulator.
 
 use super::{ApplyAttack, RestoreDiceForNewRound};
+use crate::protocol::{OptionSelection, ProtocolAction, SwingSelection};
 use crate::{BMC_Die, BMC_Game, BMC_Move, BMC_Parser, BMC_RNG, BME_ATTACK, BME_PHASE, property};
 use std::ops::RangeInclusive;
 
@@ -17,6 +18,186 @@ pub(crate) fn scenario() -> Scenario {
 
 pub(crate) fn search_scenario() -> SearchScenario {
     SearchScenario::default()
+}
+
+pub(crate) fn parser_scenario(input: impl Into<String>) -> ParserScenario {
+    ParserScenario {
+        input: input.into(),
+        ..Default::default()
+    }
+}
+
+#[derive(Default)]
+struct ActionExpectation {
+    action: Option<ExpectedAction>,
+    attackers: Option<Vec<usize>>,
+    targets: Option<Vec<usize>>,
+}
+
+enum ExpectedAction {
+    Pass,
+    Surrender,
+    Attack(BME_ATTACK),
+    Reserve(Option<usize>),
+    SetSwing {
+        swings: Vec<SwingSelection>,
+        options: Vec<OptionSelection>,
+    },
+}
+
+impl ActionExpectation {
+    fn pass(&mut self) {
+        self.action = Some(ExpectedAction::Pass);
+    }
+
+    fn surrender(&mut self) {
+        self.action = Some(ExpectedAction::Surrender);
+    }
+
+    fn attack(&mut self, attack: BME_ATTACK) {
+        self.action = Some(ExpectedAction::Attack(attack));
+    }
+
+    fn protocol_action(&self) -> Option<ProtocolAction> {
+        match self.action.as_ref()? {
+            ExpectedAction::Pass => Some(ProtocolAction::Pass),
+            ExpectedAction::Surrender => Some(ProtocolAction::Surrender),
+            ExpectedAction::Attack(attack) => Some(ProtocolAction::Attack {
+                attack_type: attack.protocol(),
+                attackers: self
+                    .attackers
+                    .clone()
+                    .expect("attack expectation has no attackers"),
+                targets: self
+                    .targets
+                    .clone()
+                    .expect("attack expectation has no targets"),
+                turbo: None,
+            }),
+            ExpectedAction::Reserve(die) => Some(ProtocolAction::Reserve { die: *die }),
+            ExpectedAction::SetSwing { swings, options } => Some(ProtocolAction::SetSwing {
+                swings: swings.clone(),
+                options: options.clone(),
+            }),
+        }
+    }
+}
+
+/// Runs existing wire input through the production parser while keeping action
+/// expectations in the vocabulary used by a game transcript.
+#[derive(Default)]
+pub(crate) struct ParserScenario {
+    input: String,
+    expected_action: ActionExpectation,
+}
+
+impl ParserScenario {
+    pub(crate) fn expect_pass(mut self) -> Self {
+        self.expected_action.pass();
+        self
+    }
+
+    pub(crate) fn expect_surrender(mut self) -> Self {
+        self.expected_action.surrender();
+        self
+    }
+
+    pub(crate) fn expect_attack(mut self, attack: BME_ATTACK) -> Self {
+        self.expected_action.attack(attack);
+        self
+    }
+
+    pub(crate) fn expect_reserve(mut self, die: Option<usize>) -> Self {
+        self.expected_action.action = Some(ExpectedAction::Reserve(die));
+        self
+    }
+
+    pub(crate) fn expect_swings(mut self, swings: impl IntoIterator<Item = (char, u8)>) -> Self {
+        self.expected_action.action = Some(ExpectedAction::SetSwing {
+            swings: swings
+                .into_iter()
+                .map(|(swing, value)| SwingSelection { swing, value })
+                .collect(),
+            options: Vec::new(),
+        });
+        self
+    }
+
+    pub(crate) fn using(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
+        self.expected_action.attackers = Some(dice.into_iter().collect());
+        self
+    }
+
+    pub(crate) fn targeting(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
+        self.expected_action.targets = Some(dice.into_iter().collect());
+        self
+    }
+
+    #[track_caller]
+    pub(crate) fn run(self) {
+        let expected = self
+            .expected_action
+            .protocol_action()
+            .expect("parser scenario has no expected action");
+        let mut parser = BMC_Parser::default();
+        let mut output = Vec::new();
+        parser
+            .ParseString(&self.input, &mut output)
+            .unwrap_or_else(|error| panic!("invalid parser scenario: {error}\n{}", self.input));
+        assert_eq!(
+            parser.last_action(),
+            Some(&expected),
+            "unexpected action for parser scenario:\n{}\n{}",
+            self.input,
+            String::from_utf8_lossy(&output)
+        );
+        let expected_wire = legacy_action_suffix(&expected);
+        let output = String::from_utf8(output).expect("protocol output must be UTF-8");
+        assert!(
+            output.ends_with(&expected_wire),
+            "parser scenario did not emit {expected_wire:?}:\n{output}"
+        );
+    }
+}
+
+fn legacy_action_suffix(action: &ProtocolAction) -> String {
+    match action {
+        ProtocolAction::Pass => "action\npass\n".into(),
+        ProtocolAction::Surrender => "action\nsurrender\n".into(),
+        ProtocolAction::Attack {
+            attack_type,
+            attackers,
+            targets,
+            turbo: None,
+        } => format!(
+            "action\n{attack_type}\n{}\n{}\n",
+            joined_indices(attackers),
+            joined_indices(targets)
+        ),
+        ProtocolAction::Reserve { die } => {
+            let die = die.map_or_else(|| "-1".into(), |value| value.to_string());
+            format!("action\nreserve {die}\n")
+        }
+        ProtocolAction::SetSwing { swings, options } => {
+            let mut output = String::from("action\n");
+            for selection in swings {
+                output.push_str(&format!("swing {} {}\n", selection.swing, selection.value));
+            }
+            for selection in options {
+                output.push_str(&format!("option {} {}\n", selection.die, selection.value));
+            }
+            output
+        }
+        _ => panic!("parser scenario cannot yet render {action:?}"),
+    }
+}
+
+fn joined_indices(indices: &[usize]) -> String {
+    indices
+        .iter()
+        .map(usize::to_string)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -51,6 +232,7 @@ pub(crate) struct SearchScenario {
     surrender: Option<bool>,
     expected_player: Option<usize>,
     expected_win_percent: Option<RangeInclusive<f32>>,
+    expected_action: ActionExpectation,
     modes: Vec<SearchMode>,
 }
 
@@ -115,31 +297,67 @@ impl SearchScenario {
         self
     }
 
+    pub(crate) fn expect_pass(mut self) -> Self {
+        self.expected_action.pass();
+        self
+    }
+
+    pub(crate) fn expect_attack(mut self, attack: BME_ATTACK) -> Self {
+        self.expected_action.attack(attack);
+        self
+    }
+
+    pub(crate) fn using(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
+        self.expected_action.attackers = Some(dice.into_iter().collect());
+        self
+    }
+
+    pub(crate) fn targeting(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
+        self.expected_action.targets = Some(dice.into_iter().collect());
+        self
+    }
+
     #[track_caller]
     pub(crate) fn run(self) {
-        let player = self
-            .expected_player
-            .expect("search scenario has no expected player");
-        assert_eq!(player, 0, "getaction reports the active player 0");
-        let expected = self
-            .expected_win_percent
-            .as_ref()
-            .expect("search scenario has no expected win percentage");
+        assert!(
+            self.expected_win_percent.is_some() || self.expected_action.action.is_some(),
+            "search scenario has no expectation"
+        );
         assert!(!self.modes.is_empty(), "search scenario has no modes");
 
         for mode in &self.modes {
             let input = self.protocol_input(*mode);
+            let mut parser = BMC_Parser::default();
             let mut output = Vec::new();
-            BMC_Parser::default()
+            parser
                 .ParseString(&input, &mut output)
                 .unwrap_or_else(|error| panic!("invalid search scenario: {error}\n{input}"));
             let output = String::from_utf8(output).expect("protocol output must be UTF-8");
-            let actual = reported_win_percent(&output)
-                .unwrap_or_else(|| panic!("search scenario reported no win percentage:\n{output}"));
-            assert!(
-                expected.contains(&actual),
-                "{mode:?} player {player} win percentage {actual} was outside {expected:?}\n{output}"
-            );
+            if let Some(expected) = &self.expected_win_percent {
+                let player = self
+                    .expected_player
+                    .expect("win percentage expectation has no player");
+                assert_eq!(player, 0, "getaction reports the active player 0");
+                let actual = reported_win_percent(&output).unwrap_or_else(|| {
+                    panic!("search scenario reported no win percentage:\n{output}")
+                });
+                assert!(
+                    expected.contains(&actual),
+                    "{mode:?} player {player} win percentage {actual} was outside {expected:?}\n{output}"
+                );
+            }
+            if let Some(expected) = self.expected_action.protocol_action() {
+                assert_eq!(
+                    parser.last_action(),
+                    Some(&expected),
+                    "{mode:?} selected an unexpected action:\n{output}"
+                );
+                let expected_wire = legacy_action_suffix(&expected);
+                assert!(
+                    output.ends_with(&expected_wire),
+                    "{mode:?} did not emit {expected_wire:?}:\n{output}"
+                );
+            }
         }
     }
 
@@ -624,6 +842,9 @@ mod tests {
             .surrender(false)
             .modes([LEGACY, legacy_with_workers(4), NATIVE, native(4)])
             .expect_player_win_percent(0, 100.0..=100.0)
+            .expect_attack(crate::BME_ATTACK::POWER)
+            .using([1])
+            .targeting([1])
             .run();
     }
 

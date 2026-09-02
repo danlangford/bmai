@@ -173,7 +173,7 @@ case named in the final column.
 
 | C++ behavior | Rust implementation | Evidence | Status |
 |---|---|---|---|
-| `BMC_Parser::ParseDie*` | `parser::ParseDie`, `ParseDieDefinedSides`, `parse_side`, `prefix_property` | defined Twin Swing parser matrix, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
+| `BMC_Parser::ParseDie*` | `parser::ParseDie`, `ParseDieDefinedSides`, `parse_side`, `prefix_property` | defined Twin Swing parser matrix, all advertised property prefixes, all phases and value/dizzy state, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
 | `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `BMC_Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
 | `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `BMC_Die::GetScore` | score branch tests and all upstream skill score ports | covered |
 | `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `GenerateValidAttacks`, `GenerateValidAttacksInCppOrder` | upstream attack/Stealth/Insult tests | covered |
