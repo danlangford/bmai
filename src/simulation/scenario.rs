@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Human-readable mechanics scenarios.
+//! Human-readable mechanics and parser/search scenarios.
 //!
 //! This is deliberately a thin test adapter. Game setup goes through the
 //! production parser, legality goes through production attack enumeration,
