@@ -11,6 +11,11 @@ oracle even though that patch has not been merged upstream. Its implementation
 and regression suite were deliberately accepted as part of BMAIR's mechanics
 contract.
 
+The complete fixture differential must therefore use that adopted reference
+or a successor containing the same Konstant behavior. The older `1fcb826`
+binary remains useful for pre-Konstant parser cases, but it is not a valid
+oracle for the complete current fixture directory.
+
 The published `bmair-v0.4.1` legacy executable is the routine regression oracle
 for later releases: its complete C++ and adopted-Konstant parity was established
 before post-C++ mechanics such as Jolt were added. Current legacy builds should
