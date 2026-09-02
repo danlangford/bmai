@@ -1,0 +1,15 @@
+game 3
+fight
+player 0 2 30
+4:4
+p(6,6):11
+player 1 2 40
+(2,2):3
+(T,T)-2:2
+ply 2
+max_sims 100
+min_sims 5
+maxbranch 400
+surrender off
+getaction
+quit

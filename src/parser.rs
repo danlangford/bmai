@@ -570,11 +570,12 @@ impl BMC_Parser {
                 let die = ParseDie(definition, original_index)?;
                 if die.m_swing_type.iter().any(Option::is_some) || die.HasProperty(property::OPTION)
                 {
-                    swing_set = if definition
-                        .split_once(':')
-                        .map_or(definition, |(text, _)| text)
-                        .rsplit_once('-')
-                        .is_some_and(|(_, value)| value.parse::<u8>().is_ok())
+                    swing_set = if ParseDieDefinedSides(
+                        definition
+                            .split_once(':')
+                            .map_or(definition, |(text, _)| text),
+                    )
+                    .is_some_and(|value| value > 0)
                     {
                         BME_SWING_SET::LOCKED
                     } else {
@@ -873,12 +874,14 @@ fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
         }
         pos += 1;
     }
-    // Defined swing/option side follows '-'.
-    if let Some((_, defined)) = definition.rsplit_once('-')
-        && let Ok(value) = defined.parse::<u8>()
-    {
-        if swings[0].is_some() {
-            sides[0] = value;
+    // C++ ParseDieSides looks ahead to the shared `-N` suffix separately for
+    // every Swing side. This matters for Twin Swing dice such as `(T,T)-2`:
+    // both halves are d2, not only the first half.
+    if let Some(value) = ParseDieDefinedSides(definition).filter(|value| *value > 0) {
+        for side in 0..2 {
+            if swings[side].is_some() {
+                sides[side] = value;
+            }
         }
         if properties & property::OPTION != 0 && sides[1] == value {
             sides.swap(0, 1);
@@ -903,6 +906,17 @@ fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
         m_original_index: original_index,
         m_in_reserve: properties & property::RESERVE != 0,
     })
+}
+
+/// Mirrors C++ `ParseDieDefinedSides`: find the shared `-N` suffix and parse
+/// its leading digits. Postfix properties may appear before or after it.
+fn ParseDieDefinedSides(definition: &str) -> Option<u8> {
+    let (_, suffix) = definition.split_once('-')?;
+    let digits = suffix
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>();
+    (!digits.is_empty()).then(|| digits.parse().ok()).flatten()
 }
 
 fn parse_side(chars: &[char], mut pos: usize) -> Result<(u8, Option<char>, usize), ParseError> {
@@ -1528,6 +1542,32 @@ Seeding with 17\n"
         assert_eq!(option.m_sides[0], 30);
         let jolt = ParseDie("J^6:3", 2).unwrap();
         assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
+    }
+
+    #[test]
+    fn defined_swing_size_applies_to_every_swing_half_of_a_twin() {
+        for (recipe, expected_sides) in [
+            ("(T,T)-2:2", [2, 2]),
+            ("(X,Y)-6:6", [6, 6]),
+            ("(T,4)-2:2", [2, 4]),
+            ("(4,T)-2:2", [4, 2]),
+            ("(T,T)-2!:2", [2, 2]),
+            ("(T,T)!-2:2", [2, 2]),
+            ("(T,T)-2?:2", [2, 2]),
+            ("(T,T)?-2:2", [2, 2]),
+        ] {
+            let die = ParseDie(recipe, 0).unwrap();
+            assert!(die.HasProperty(property::TWIN), "{recipe}");
+            assert_eq!(die.m_sides, expected_sides, "{recipe}");
+        }
+    }
+
+    #[test]
+    fn zero_does_not_lock_a_swing_definition() {
+        let input = "game 3\npreround\nplayer 0 1 0\nT-0\nplayer 1 1 0\n6\nquit\n";
+        let mut parser = BMC_Parser::default();
+        parser.ParseString(input, &mut Vec::new()).unwrap();
+        assert_eq!(parser.m_game.m_player[0].m_swing_set, BME_SWING_SET::NOT);
     }
 
     #[test]
