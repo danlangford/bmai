@@ -24,7 +24,7 @@ jobs:
       version: ${{ steps.plan.outputs.version }}
     steps:
       - name: Check out release source and tags
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Validate release
@@ -72,7 +72,7 @@ jobs:
       contents: write
     steps:
       - name: Check out release source and tags
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Create release tag
