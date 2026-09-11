@@ -38,6 +38,7 @@ pub mod property {
     pub const INSULT: u64 = 0x1_0000_0000;
     pub const VALUE: u64 = 0x2_0000_0000;
     pub const JOLT: u64 = 0x4_0000_0000;
+    pub const FIRE: u64 = 0x8_0000_0000;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -172,7 +173,7 @@ impl BMC_Die {
         }
         match attack {
             BME_ATTACK::POWER => {
-                !self.HasProperty(property::SHADOW | property::KONSTANT)
+                !self.HasProperty(property::SHADOW | property::KONSTANT | property::FIRE)
                     && !(self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1)
             }
             BME_ATTACK::SKILL => !self.HasProperty(property::UNSKILLED | property::BERSERK),
@@ -251,6 +252,37 @@ pub struct BMC_Move {
     /// C++ BMC_MoveAttack::m_turbo_option. -1 means no Turbo decision;
     /// option dice use 0/1 and swing dice store the selected side count.
     pub m_turbo_option: i16,
+    pub m_fire: BMC_FireAdjustment,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BMC_FireAdjustment {
+    /// Points added to each participating attacker before the attack resolves.
+    pub m_increases: [u8; BMD_MAX_DICE],
+    /// Points removed from each nonparticipating Fire die.
+    pub m_reductions: [u8; BMD_MAX_DICE],
+}
+
+impl Default for BMC_FireAdjustment {
+    fn default() -> Self {
+        Self {
+            m_increases: [0; BMD_MAX_DICE],
+            m_reductions: [0; BMD_MAX_DICE],
+        }
+    }
+}
+
+impl BMC_FireAdjustment {
+    pub fn is_empty(&self) -> bool {
+        self.m_reductions.iter().all(|amount| *amount == 0)
+    }
+
+    pub fn total(&self) -> u16 {
+        self.m_reductions
+            .iter()
+            .map(|amount| u16::from(*amount))
+            .sum()
+    }
 }
 
 impl BMC_Move {
@@ -267,6 +299,7 @@ impl BMC_Move {
             m_targets: targets.into(),
             m_score: score,
             m_turbo_option: -1,
+            m_fire: BMC_FireAdjustment::default(),
         }
     }
 }
@@ -480,6 +513,15 @@ fn SkillStackCanHit(
     available: &BMC_AvailableDice<'_>,
     target: u16,
 ) -> bool {
+    SkillStackCanHitWithFire(stack, available, target, &[0; BMD_MAX_DICE])
+}
+
+fn SkillStackCanHitWithFire(
+    stack: &BMC_DieIndexStack,
+    available: &BMC_AvailableDice<'_>,
+    target: u16,
+    increases: &[u8; BMD_MAX_DICE],
+) -> bool {
     let subtractable = stack
         .values()
         .iter()
@@ -494,8 +536,8 @@ fn SkillStackCanHit(
         let mut maximum = 0i32;
         let mut sign_bit = 0usize;
         for position in stack.values() {
-            let die = available[*position].1;
-            let value = i32::from(die.GetValueTotal());
+            let (die_index, die) = available[*position];
+            let value = i32::from(die.GetValueTotal()) + i32::from(increases[die_index]);
             let is_konstant = die.HasProperty(property::KONSTANT);
             let variable_stinger =
                 die.HasProperty(property::STINGER) && !die.HasProperty(property::WARRIOR);
@@ -528,6 +570,165 @@ fn SkillStackCanHit(
         }
     }
     false
+}
+
+fn FireHelperCapacities(player: &BMC_Player, attackers: BMC_DieIndexSet) -> Vec<(usize, u8)> {
+    player
+        .m_die
+        .iter()
+        .enumerate()
+        .filter(|(index, die)| {
+            !attackers.contains(*index) && die.IsAvailable() && die.HasProperty(property::FIRE)
+        })
+        .filter_map(|(index, die)| {
+            let minimum = DieCount(die) as u16;
+            let capacity = die.GetValueTotal().saturating_sub(minimum);
+            (capacity > 0).then_some((index, capacity as u8))
+        })
+        .collect()
+}
+
+fn AttackerFireCapacities(player: &BMC_Player, attackers: BMC_DieIndexSet) -> Vec<(usize, u8)> {
+    attackers
+        .iter()
+        .filter_map(|index| {
+            let die = &player.m_die[index];
+            let capacity = die
+                .GetSidesMax()
+                .min(u16::from(u8::MAX))
+                .saturating_sub(die.GetValueTotal());
+            (capacity > 0).then_some((index, capacity as u8))
+        })
+        .collect()
+}
+
+fn FireAllocations(entries: &[(usize, u8)], total: u16) -> Vec<[u8; BMD_MAX_DICE]> {
+    fn visit(
+        entries: &[(usize, u8)],
+        position: usize,
+        remaining: u16,
+        allocation: &mut [u8; BMD_MAX_DICE],
+        results: &mut Vec<[u8; BMD_MAX_DICE]>,
+    ) {
+        if position == entries.len() {
+            if remaining == 0 {
+                results.push(*allocation);
+            }
+            return;
+        }
+        let remaining_capacity: u16 = entries[position + 1..]
+            .iter()
+            .map(|(_, capacity)| u16::from(*capacity))
+            .sum();
+        let (index, capacity) = entries[position];
+        let minimum = remaining.saturating_sub(remaining_capacity);
+        let maximum = remaining.min(u16::from(capacity));
+        for amount in minimum..=maximum {
+            allocation[index] = amount as u8;
+            visit(
+                entries,
+                position + 1,
+                remaining - amount,
+                allocation,
+                results,
+            );
+        }
+        allocation[index] = 0;
+    }
+
+    if entries.is_empty() {
+        return Vec::new();
+    }
+    let capacity: u16 = entries
+        .iter()
+        .map(|(_, capacity)| u16::from(*capacity))
+        .sum();
+    if total == 0 || total > capacity {
+        return Vec::new();
+    }
+    let mut results = Vec::new();
+    visit(entries, 0, total, &mut [0; BMD_MAX_DICE], &mut results);
+    results
+}
+
+fn FirePlansForPower(
+    player: &BMC_Player,
+    attacker: usize,
+    minimum: u16,
+) -> Vec<BMC_FireAdjustment> {
+    let attackers = BMC_DieIndexSet::from([attacker]);
+    let die = &player.m_die[attacker];
+    let attacker_capacity = die
+        .GetSidesMax()
+        .min(u16::from(u8::MAX))
+        .saturating_sub(die.GetValueTotal());
+    let helper_capacities = FireHelperCapacities(player, attackers);
+    let helper_capacity = helper_capacities
+        .iter()
+        .map(|(_, capacity)| u16::from(*capacity))
+        .sum::<u16>();
+    let maximum = attacker_capacity.min(helper_capacity);
+    if minimum == 0 || minimum > maximum {
+        return Vec::new();
+    }
+    let mut plans = Vec::new();
+    for amount in minimum..=maximum {
+        plans.extend(
+            FireAllocations(&helper_capacities, amount)
+                .into_iter()
+                .map(|reductions| {
+                    let mut increases = [0; BMD_MAX_DICE];
+                    increases[attacker] = amount as u8;
+                    BMC_FireAdjustment {
+                        m_increases: increases,
+                        m_reductions: reductions,
+                    }
+                }),
+        );
+    }
+    plans
+}
+
+fn FirePlansForSkill(
+    player: &BMC_Player,
+    available: &BMC_AvailableDice<'_>,
+    stack: &BMC_DieIndexStack,
+    target: u16,
+) -> Vec<BMC_FireAdjustment> {
+    let attackers = stack
+        .values()
+        .iter()
+        .map(|position| available[*position].0)
+        .collect::<BMC_DieIndexSet>();
+    let attacker_capacities = AttackerFireCapacities(player, attackers);
+    let helper_capacities = FireHelperCapacities(player, attackers);
+    let maximum: u16 = attacker_capacities
+        .iter()
+        .map(|(_, capacity)| u16::from(*capacity))
+        .sum::<u16>()
+        .min(
+            helper_capacities
+                .iter()
+                .map(|(_, capacity)| u16::from(*capacity))
+                .sum(),
+        );
+    let mut plans = Vec::new();
+    for amount in 1..=maximum {
+        let reductions = FireAllocations(&helper_capacities, amount);
+        if reductions.is_empty() {
+            continue;
+        }
+        for increases in FireAllocations(&attacker_capacities, amount) {
+            if !SkillStackCanHitWithFire(stack, available, target, &increases) {
+                continue;
+            }
+            plans.extend(reductions.iter().map(|reduction| BMC_FireAdjustment {
+                m_increases: increases,
+                m_reductions: *reduction,
+            }));
+        }
+    }
+    plans
 }
 
 impl Default for BMC_Game {
@@ -575,6 +776,9 @@ impl BMC_Game {
             !die.HasProperty(property::WARRIOR)
                 && die.HasProperty(property::STINGER | property::KONSTANT)
         });
+        let player_has_fire = available.iter().any(|(_, die)| {
+            die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
+        });
         let mut moves = Vec::with_capacity(32);
         for attacker_position in 0..available.len() {
             let (attacker_index, attacker_die) = available[attacker_position];
@@ -592,22 +796,39 @@ impl BMC_Game {
                             continue;
                         }
                         for (target_index, target_die) in targets.iter().rev() {
-                            let legal = target_die.CanBeAttacked(attack, 1)
-                                && match attack {
-                                    BME_ATTACK::POWER => {
-                                        attacker_die.GetValueTotal() >= target_die.GetValueTotal()
-                                    }
-                                    BME_ATTACK::SHADOW => {
-                                        attacker_die.GetValueTotal() <= target_die.GetValueTotal()
-                                            && attacker_die.GetSidesMax()
-                                                >= target_die.GetValueTotal()
-                                    }
-                                    BME_ATTACK::TRIP => {
-                                        attacker_die.HasProperty(property::TWIN)
-                                            || !target_die.HasProperty(property::TWIN)
-                                    }
-                                    _ => unreachable!(),
-                                };
+                            if !target_die.CanBeAttacked(attack, 1) {
+                                continue;
+                            }
+                            let legal = match attack {
+                                BME_ATTACK::POWER => {
+                                    attacker_die.GetValueTotal() >= target_die.GetValueTotal()
+                                }
+                                BME_ATTACK::SHADOW => {
+                                    attacker_die.GetValueTotal() <= target_die.GetValueTotal()
+                                        && attacker_die.GetSidesMax() >= target_die.GetValueTotal()
+                                }
+                                BME_ATTACK::TRIP => {
+                                    attacker_die.HasProperty(property::TWIN)
+                                        || !target_die.HasProperty(property::TWIN)
+                                }
+                                _ => unreachable!(),
+                            };
+                            if player_has_fire && attack == BME_ATTACK::POWER {
+                                let minimum = target_die
+                                    .GetValueTotal()
+                                    .saturating_sub(attacker_die.GetValueTotal())
+                                    .max(1);
+                                for fire in FirePlansForPower(attacker, attacker_index, minimum) {
+                                    let mut candidate = BMC_Move::attack(
+                                        attack,
+                                        [attacker_index],
+                                        [*target_index],
+                                        target_die.GetScore(false),
+                                    );
+                                    candidate.m_fire = fire;
+                                    moves.push(candidate);
+                                }
+                            }
                             if !legal {
                                 continue;
                             }
@@ -695,12 +916,13 @@ impl BMC_Game {
                                     } else {
                                         target_die.GetValueTotal() == stack.value_total
                                     };
-                                    if candidate_value
+                                    let direct = candidate_value
                                         && SkillStackCanHit(
                                             &stack,
                                             &available,
                                             target_die.GetValueTotal(),
-                                        )
+                                        );
+                                    if direct
                                         && target_die.CanBeAttacked(BME_ATTACK::SKILL, stack_len)
                                     {
                                         moves.push(BMC_Move::attack(
@@ -713,6 +935,30 @@ impl BMC_Game {
                                             [*target_index],
                                             target_die.GetScore(false),
                                         ));
+                                    }
+                                    if player_has_fire
+                                        && target_die.CanBeAttacked(BME_ATTACK::SKILL, stack_len)
+                                    {
+                                        let attacker_indices = stack
+                                            .values()
+                                            .iter()
+                                            .map(|position| available[*position].0)
+                                            .collect::<BMC_DieIndexSet>();
+                                        for fire in FirePlansForSkill(
+                                            attacker,
+                                            &available,
+                                            &stack,
+                                            target_die.GetValueTotal(),
+                                        ) {
+                                            let mut candidate = BMC_Move::attack(
+                                                attack,
+                                                attacker_indices,
+                                                [*target_index],
+                                                target_die.GetScore(false),
+                                            );
+                                            candidate.m_fire = fire;
+                                            moves.push(candidate);
+                                        }
                                     }
                                 }
                             }
@@ -814,6 +1060,7 @@ impl BMC_Game {
                 m_targets: Vec::new().into(),
                 m_score: 0.0,
                 m_turbo_option: -1,
+                m_fire: BMC_FireAdjustment::default(),
             };
         }
         if let Some(best) = moves.first() {
@@ -830,6 +1077,7 @@ impl BMC_Game {
             m_targets: Vec::new().into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: BMC_FireAdjustment::default(),
         }
     }
 

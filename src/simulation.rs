@@ -2144,6 +2144,7 @@ fn SelectBMAIActionAtLevelNativeWithStats(
             m_targets: Vec::new().into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     } else {
         selected
@@ -2231,6 +2232,7 @@ fn SelectBMAIActionAtLevelWithStats(
             m_targets: Vec::new().into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     } else {
         selected
@@ -2367,6 +2369,7 @@ fn PassMove() -> BMC_Move {
         m_targets: Vec::new().into(),
         m_score: 0.0,
         m_turbo_option: -1,
+        m_fire: crate::model::BMC_FireAdjustment::default(),
     }
 }
 
@@ -2560,6 +2563,7 @@ fn ApplyAttackForPlayers(
     target_player: usize,
     rng: &mut BMC_RNG,
 ) -> bool {
+    ApplyFireAdjustments(game, action, attacker_player);
     // C++ GetAvailableDice() is a cached boundary and does not shrink merely
     // because an attacker is marked NOTSET during this phase.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
@@ -2705,6 +2709,58 @@ fn ApplyAttackForPlayers(
         OptimizeDice(&mut game.m_player[target_player]);
     }
     attacking_jolt || captured_jolt || time_and_space_extra_turn
+}
+
+fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
+    if action.m_fire.is_empty() {
+        return;
+    }
+    assert_eq!(
+        action
+            .m_fire
+            .m_increases
+            .iter()
+            .map(|value| u16::from(*value))
+            .sum::<u16>(),
+        action.m_fire.total(),
+        "Fire increases and reductions must balance"
+    );
+    for index in 0..crate::model::BMD_MAX_DICE {
+        let increase = action.m_fire.m_increases[index];
+        let reduction = action.m_fire.m_reductions[index];
+        if increase == 0 && reduction == 0 {
+            continue;
+        }
+        assert!(
+            index < game.m_player[player].m_die.len(),
+            "invalid Fire die index"
+        );
+        assert!(
+            !(increase > 0 && reduction > 0),
+            "a die cannot attack and provide Fire assistance"
+        );
+        let die = &mut game.m_player[player].m_die[index];
+        let old_score = die.GetScore(true);
+        let value = die.GetValueTotal();
+        if increase > 0 {
+            assert!(action.m_attackers.contains(index));
+            let new_value = value + u16::from(increase);
+            assert!(new_value <= die.GetSidesMax() && new_value <= u16::from(u8::MAX));
+            die.m_value_total = Some(new_value as u8);
+        } else {
+            assert!(!action.m_attackers.contains(index));
+            assert!(die.HasProperty(property::FIRE));
+            let minimum = if die.HasProperty(property::TWIN) {
+                2
+            } else {
+                1
+            };
+            let new_value = value - u16::from(reduction);
+            assert!(new_value >= minimum);
+            die.m_value_total = Some(new_value as u8);
+        }
+        game.m_player[player].m_score += die.GetScore(true) - old_score;
+    }
 }
 
 fn ApplyRadioactiveDecay(
@@ -3415,6 +3471,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: 20,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         let mut rng = BMC_RNG::default();
@@ -3466,6 +3523,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3513,6 +3571,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3548,6 +3607,7 @@ mod tests {
             m_targets: vec![0, 1].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3734,6 +3794,7 @@ mod tests {
                 m_targets: vec![0].into(),
                 m_score: 0.0,
                 m_turbo_option: -1,
+                m_fire: crate::model::BMC_FireAdjustment::default(),
             };
             ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
             assert_eq!(game.m_player[0].m_die[0].m_sides, expected);
@@ -4443,6 +4504,7 @@ mod tests {
                 m_targets: BMC_DieIndexSet::default(),
                 m_score: 0.0,
                 m_turbo_option: -1,
+                m_fire: crate::model::BMC_FireAdjustment::default(),
             },
             &mut BMC_RNG::default(),
         );

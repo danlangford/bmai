@@ -1107,6 +1107,23 @@ fn SendAttack<W: Write>(
                         .map_err(io_error)?;
                 }
             }
+            for index in action
+                .m_fire
+                .m_reductions
+                .iter()
+                .enumerate()
+                .filter_map(|(index, reduction)| (*reduction > 0).then_some((index, *reduction)))
+            {
+                let (index, reduction) = index;
+                let die = &game.m_player[0].m_die[index];
+                writeln!(
+                    output,
+                    "fire {} {}",
+                    die.m_original_index,
+                    die.GetValueTotal() - u16::from(reduction)
+                )
+                .map_err(io_error)?;
+            }
             Ok(())
         }
         _ => Err(ParseError("invalid fight action".into())),
@@ -1154,11 +1171,26 @@ fn protocol_attack(
                         }
                     })
             };
+            let fire = action
+                .m_fire
+                .m_reductions
+                .iter()
+                .enumerate()
+                .filter(|(_, reduction)| **reduction > 0)
+                .map(|(index, reduction)| {
+                    let die = &game.m_player[0].m_die[index];
+                    crate::protocol::FireSelection {
+                        die: die.m_original_index,
+                        value: (die.GetValueTotal() - u16::from(*reduction)) as u8,
+                    }
+                })
+                .collect();
             Ok(crate::protocol::ProtocolAction::Attack {
                 attack_type,
                 attackers: original_indices(0, &action.m_attackers),
                 targets: original_indices(1, &action.m_targets),
                 turbo,
+                fire,
             })
         }
         _ => Err(ParseError("invalid fight action".into())),
