@@ -16,8 +16,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Complete mechanics support for the remaining parsing-only skills:
   Auxiliary (`+`) and Radioactive (`%`).
-- Add parser and mechanics support for Fire and Rush. Fire work must include
-  the documented Rage+Fire interaction: firing does not consume Rage.
+- Add parser and mechanics support for Rush.
+
+## [0.9.0] - 2026-09-11
+
+### Added
+
+- Implemented the ButtonWeavers Fire (`F`) skill for Power and Skill attacks,
+  including required assistance, optional Power overshooting, multiple Fire
+  dice, attacker maxima, and persistent Fire-die turndowns.
+- Added exact Fire adjustments to search moves so Konstant attackers retain
+  their fired-up values while ordinary attackers reroll normally.
+- Added `fire DIE VALUE` lines to assisted legacy actions and an optional
+  `fire` array to typed JSON attack actions.
+- Added readable mechanics scenarios for Fire with Stinger, Konstant, Mighty,
+  Weak, Rage, Jolt, Time and Space, Queer, Twin, and unsupported attack types.
+
+### Changed
+
+- Advertise Fire as implemented through machine-readable capabilities.
+
+### Known limitations
+
+- Wildcard dice remain unsupported by BMAIR. ButtonWeavers' unresolved
+  Wildcard-specific Fire behavior is therefore outside this release.
+- An odd Queer die cannot be fired to an even value to unlock a Power attack,
+  matching ButtonWeavers' current pre-assistance attack-type eligibility.
 
 ## [0.8.2] - 2026-09-02
 
@@ -233,7 +257,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...HEAD
+[0.9.0]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...bmair-v0.9.0
 [0.8.2]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...bmair-v0.8.2
 [0.8.1]: https://github.com/danlangford/bmai/compare/bmair-v0.8.0...bmair-v0.8.1
 [0.8.0]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...bmair-v0.8.0

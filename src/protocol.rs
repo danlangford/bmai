@@ -136,6 +136,13 @@ pub struct FocusSelection {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct FireSelection {
+    pub die: usize,
+    pub value: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 #[non_exhaustive]
 pub enum TurboSelection {
@@ -155,6 +162,8 @@ pub enum ProtocolAction {
         targets: Vec<usize>,
         #[serde(skip_serializing_if = "Option::is_none")]
         turbo: Option<TurboSelection>,
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        fire: Vec<FireSelection>,
     },
     Reserve {
         die: Option<usize>,
@@ -241,6 +250,7 @@ impl Capabilities {
                 "Chance",
                 "Doppelganger",
                 "Focus",
+                "Fire",
                 "Insult",
                 "Jolt",
                 "Konstant",
@@ -371,7 +381,7 @@ mod tests {
             tokens,
             vec![
                 '^', 'q', 't', 'z', 's', 'B', 'd', 'p', 'n', 'f', 'H', 'h', 'r', 'o', 'c', 'm',
-                '`', 'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', '+', 'D', '%', 'G'
+                '`', 'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', 'F', '+', 'D', '%', 'G'
             ]
         );
         assert_eq!(
@@ -420,6 +430,15 @@ mod tests {
             })
         );
         assert_eq!(
+            prefixes.iter().find(|entry| entry["token"] == "F").unwrap(),
+            &serde_json::json!({
+                "token": "F",
+                "id": "fire",
+                "name": "Fire",
+                "support": "implemented"
+            })
+        );
+        assert_eq!(
             value["die_notation"]["postfix_properties"],
             serde_json::json!([
                 {"token": "!", "id": "turbo", "name": "Turbo"},
@@ -445,6 +464,7 @@ mod tests {
                     swing: 'X',
                     value: 12,
                 }),
+                fire: Vec::new(),
             })
             .unwrap(),
             serde_json::to_value(ProtocolAction::Reserve { die: None }).unwrap(),
@@ -478,6 +498,32 @@ mod tests {
             ]
         );
         assert_eq!(actions[2]["turbo"]["kind"], "swing");
+    }
+
+    #[test]
+    fn fire_turndowns_are_an_additive_attack_field() {
+        let ordinary = serde_json::to_value(ProtocolAction::Attack {
+            attack_type: "power",
+            attackers: vec![0],
+            targets: vec![0],
+            turbo: None,
+            fire: Vec::new(),
+        })
+        .unwrap();
+        assert!(ordinary.get("fire").is_none());
+
+        let assisted = serde_json::to_value(ProtocolAction::Attack {
+            attack_type: "power",
+            attackers: vec![0],
+            targets: vec![0],
+            turbo: None,
+            fire: vec![FireSelection { die: 1, value: 1 }],
+        })
+        .unwrap();
+        assert_eq!(
+            assisted["fire"],
+            serde_json::json!([{"die": 1, "value": 1}])
+        );
     }
 
     #[test]

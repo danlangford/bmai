@@ -343,6 +343,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: score,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     }
 

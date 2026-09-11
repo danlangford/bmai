@@ -8,7 +8,7 @@
 //! and resolution goes through the production simulator.
 
 use super::{ApplyAttack, RestoreDiceForNewRound};
-use crate::protocol::{OptionSelection, ProtocolAction, SwingSelection};
+use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
 use crate::{BMC_Die, BMC_Game, BMC_Move, BMC_Parser, BMC_RNG, BME_ATTACK, BME_PHASE, property};
 use std::ops::RangeInclusive;
 
@@ -32,6 +32,7 @@ struct ActionExpectation {
     action: Option<ExpectedAction>,
     attackers: Option<Vec<usize>>,
     targets: Option<Vec<usize>>,
+    fire: Vec<FireSelection>,
 }
 
 enum ExpectedAction {
@@ -73,6 +74,7 @@ impl ActionExpectation {
                     .clone()
                     .expect("attack expectation has no targets"),
                 turbo: None,
+                fire: self.fire.clone(),
             }),
             ExpectedAction::Reserve(die) => Some(ProtocolAction::Reserve { die: *die }),
             ExpectedAction::SetSwing { swings, options } => Some(ProtocolAction::SetSwing {
@@ -169,10 +171,14 @@ fn legacy_action_suffix(action: &ProtocolAction) -> String {
             attackers,
             targets,
             turbo: None,
+            fire,
         } => format!(
-            "action\n{attack_type}\n{}\n{}\n",
+            "action\n{attack_type}\n{}\n{}\n{}",
             joined_indices(attackers),
-            joined_indices(targets)
+            joined_indices(targets),
+            fire.iter()
+                .map(|selection| format!("fire {} {}\n", selection.die, selection.value))
+                .collect::<String>()
         ),
         ProtocolAction::Reserve { die } => {
             let die = die.map_or_else(|| "-1".into(), |value| value.to_string());
@@ -317,6 +323,14 @@ impl SearchScenario {
         self
     }
 
+    pub(crate) fn firing(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
+        self.expected_action.fire = dice
+            .into_iter()
+            .map(|(die, value)| FireSelection { die, value })
+            .collect();
+        self
+    }
+
     #[track_caller]
     pub(crate) fn run(self) {
         assert!(
@@ -441,6 +455,8 @@ pub(crate) struct Scenario {
     attackers: Option<Vec<usize>>,
     targets: Option<Vec<usize>>,
     turbo_option: Option<i16>,
+    fire_values: Vec<(usize, u8)>,
+    boosted_values: Vec<(usize, u8)>,
     seed: Option<u32>,
     expected_allowed: Option<bool>,
     expected_extra_turn: Option<bool>,
@@ -504,6 +520,18 @@ impl Scenario {
     /// Selects an option-die branch (`0` or `1`) or a Turbo swing size.
     pub(crate) fn turbo(mut self, selection: i16) -> Self {
         self.turbo_option = Some(selection);
+        self
+    }
+
+    /// Selects the final displayed values of Fire dice assisting the attack.
+    pub(crate) fn firing(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
+        self.fire_values = dice.into_iter().collect();
+        self
+    }
+
+    /// Selects the values to which participating attackers are fired up.
+    pub(crate) fn boosting(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
+        self.boosted_values = dice.into_iter().collect();
         self
     }
 
@@ -620,6 +648,29 @@ impl Scenario {
         if let Some(selection) = self.turbo_option {
             move_to_apply.m_turbo_option = selection;
         }
+        for (original_index, new_value) in &self.fire_values {
+            let index =
+                resolve_original_indices("Fire", &game.m_player[0].m_die, &[*original_index])[0];
+            let old_value = game.m_player[0].m_die[index].GetValueTotal();
+            assert!(
+                u16::from(*new_value) < old_value,
+                "Fire dice must turn down"
+            );
+            move_to_apply.m_fire.m_reductions[index] = (old_value - u16::from(*new_value)) as u8;
+        }
+        for (original_index, new_value) in &self.boosted_values {
+            let index = resolve_original_indices(
+                "boosted attacker",
+                &game.m_player[0].m_die,
+                &[*original_index],
+            )[0];
+            let old_value = game.m_player[0].m_die[index].GetValueTotal();
+            assert!(
+                u16::from(*new_value) > old_value,
+                "fired attackers must turn up"
+            );
+            move_to_apply.m_fire.m_increases[index] = (u16::from(*new_value) - old_value) as u8;
+        }
         let allowed = game
             .GenerateValidAttacksInCppOrder()
             .iter()
@@ -628,6 +679,7 @@ impl Scenario {
                     && candidate.m_attackers == move_to_apply.m_attackers
                     && candidate.m_targets == move_to_apply.m_targets
                     && candidate.m_turbo_option == move_to_apply.m_turbo_option
+                    && candidate.m_fire == move_to_apply.m_fire
             });
 
         if let Some(expected) = self.expected_allowed {
@@ -826,7 +878,7 @@ fn format_side(die: &BMC_Die, side: usize) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::BME_ATTACK::{POWER, SHADOW};
+    use crate::BME_ATTACK::{BERSERK, POWER, SHADOW, SKILL, SPEED, TRIP};
     use crate::BME_PHASE::FIGHT;
 
     #[test]
@@ -1083,6 +1135,254 @@ mod tests {
             .defender("1:1")
             .turbo(1)
             .expect_attacker_dice(["M6/10!:6"])
+            .run();
+    }
+
+    #[test]
+    fn fire_dice_cannot_power_attack() {
+        scenario()
+            .attacker("F6:6")
+            .attacks(POWER)
+            .defender("1:1")
+            .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn fire_assists_a_power_attack_and_stays_turned_down() {
+        scenario()
+            .attackers(["6:2", "F6:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .targeting([0])
+            .boosting([(0, 5)])
+            .firing([(1, 1)])
+            .expect_attacker_die(1, "F6:1")
+            .run();
+    }
+
+    #[test]
+    fn fire_search_reports_the_required_turndown_in_legacy_and_json_actions() {
+        search_scenario()
+            .phase(FIGHT)
+            .player(0, 6.0, ["6:2", "F6:4"])
+            .player(1, 3.0, ["6:5"])
+            .ply(1)
+            .simulations(1, 4)
+            .max_branch(100)
+            .surrender(false)
+            .modes([LEGACY, NATIVE, native(4)])
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .firing([(1, 1)])
+            .run();
+    }
+
+    #[test]
+    fn fire_assists_a_skill_attack() {
+        scenario()
+            .attackers(["4:1", "4:1", "F6:4"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("8:5")
+            .boosting([(0, 4)])
+            .firing([(2, 1)])
+            .expect_attacker_die(2, "F6:1")
+            .run();
+    }
+
+    #[test]
+    fn fire_cannot_raise_an_attacker_past_its_maximum() {
+        scenario()
+            .attackers(["4:4", "F6:6"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn fire_at_its_minimum_cannot_assist() {
+        scenario()
+            .attackers(["6:2", "F6:1"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:3")
+            .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn fire_may_overshoot_an_already_legal_power_attack() {
+        scenario()
+            .attackers(["6:2", "F6:5"])
+            .attacks(POWER)
+            .using([0])
+            .defender("1:1")
+            .boosting([(0, 3)])
+            .firing([(1, 4)])
+            .expect_allowed(true)
+            .expect_attacker_die(1, "F6:4")
+            .run();
+    }
+
+    #[test]
+    fn fire_does_not_assist_nonstandard_attack_types() {
+        for (attack, attacker) in [
+            (BERSERK, "B6:2"),
+            (SPEED, "z6:2"),
+            (SHADOW, "s6:2"),
+            (TRIP, "t6:2"),
+        ] {
+            scenario()
+                .attackers([attacker, "F6:2"])
+                .attacks(attack)
+                .using([0])
+                .defender("2:2")
+                .targeting([0])
+                .boosting([(0, 3)])
+                .firing([(1, 1)])
+                .expect_allowed(false)
+                .run();
+        }
+    }
+
+    #[test]
+    fn a_fire_die_can_participate_in_a_skill_attack_but_cannot_assist_itself() {
+        scenario()
+            .attacker("F6:4")
+            .attacks(SKILL)
+            .defender("6:4")
+            .expect_allowed(true)
+            .run();
+
+        scenario()
+            .attacker("F6:4")
+            .attacks(SKILL)
+            .defender("6:5")
+            .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn multiple_fire_dice_can_split_assistance() {
+        scenario()
+            .attackers(["6:2", "F6:3", "F8:5"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:6")
+            .boosting([(0, 6)])
+            .firing([(1, 1), (2, 3)])
+            .expect_attacker_die(1, "F6:1")
+            .expect_attacker_die(2, "F8:3")
+            .run();
+    }
+
+    #[test]
+    fn mighty_fire_does_not_grow_when_it_only_assists() {
+        scenario()
+            .attackers(["6:2", "HF6:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .boosting([(0, 5)])
+            .firing([(1, 1)])
+            .expect_attacker_die(1, "HF6:1")
+            .run();
+    }
+
+    #[test]
+    fn weak_fire_does_not_shrink_when_it_only_assists() {
+        scenario()
+            .attackers(["6:2", "hF6:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .boosting([(0, 5)])
+            .firing([(1, 1)])
+            .expect_attacker_die(1, "hF6:1")
+            .run();
+    }
+
+    #[test]
+    fn rage_fire_keeps_rage_when_it_only_assists() {
+        scenario()
+            .attackers(["6:2", "GF6:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .boosting([(0, 5)])
+            .firing([(1, 1)])
+            .expect_attacker_die(1, "FG6:1")
+            .run();
+    }
+
+    #[test]
+    fn assisting_jolt_and_time_and_space_dice_do_not_grant_an_extra_turn() {
+        for helper in ["JF6:4", "^F6:4"] {
+            scenario()
+                .attackers(["6:2", helper])
+                .attacks(POWER)
+                .using([0])
+                .defender("6:5")
+                .boosting([(0, 5)])
+                .firing([(1, 1)])
+                .expect_extra_turn(false)
+                .run();
+        }
+    }
+
+    #[test]
+    fn fired_up_konstant_keeps_its_new_value_after_a_skill_attack() {
+        scenario()
+            .attackers(["k10:3", "4:1", "F6:4"])
+            .attacks(SKILL)
+            .using([0, 1])
+            .defender("10:7")
+            .boosting([(0, 6)])
+            .firing([(2, 1)])
+            .expect_attacker_die(0, "k10:6")
+            .expect_attacker_die(2, "F6:1")
+            .run();
+    }
+
+    #[test]
+    fn fire_extends_a_stinger_skill_attack_from_its_current_value() {
+        scenario()
+            .attackers(["g6:2", "F6:3"])
+            .attacks(SKILL)
+            .using([0])
+            .defender("6:4")
+            .boosting([(0, 4)])
+            .firing([(1, 1)])
+            .expect_allowed(true)
+            .run();
+    }
+
+    #[test]
+    fn odd_queer_cannot_be_fired_even_to_unlock_a_power_attack() {
+        scenario()
+            .attackers(["q6:3", "F6:2"])
+            .attacks(POWER)
+            .using([0])
+            .defender("4:4")
+            .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn twin_fire_cannot_turn_down_below_one_per_component() {
+        scenario()
+            .attackers(["6:2", "F(6,6):3"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:3")
+            .boosting([(0, 3)])
+            .firing([(1, 2)])
+            .expect_attacker_die(1, "F(6,6):2")
             .run();
     }
 }
