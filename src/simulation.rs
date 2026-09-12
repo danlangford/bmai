@@ -2564,47 +2564,44 @@ fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
     if action.m_fire.is_empty() {
         return;
     }
+    let (increase_total, reduction_total) = action.m_fire.m_amounts.iter().enumerate().fold(
+        (0u16, 0u16),
+        |(increases, reductions), (index, amount)| {
+            if action.m_attackers.contains(index) {
+                (increases + u16::from(*amount), reductions)
+            } else {
+                (increases, reductions + u16::from(*amount))
+            }
+        },
+    );
     assert_eq!(
-        action
-            .m_fire
-            .m_increases
-            .iter()
-            .map(|value| u16::from(*value))
-            .sum::<u16>(),
-        action.m_fire.total(),
+        increase_total, reduction_total,
         "Fire increases and reductions must balance"
     );
     for index in 0..crate::model::BMD_MAX_DICE {
-        let increase = action.m_fire.m_increases[index];
-        let reduction = action.m_fire.m_reductions[index];
-        if increase == 0 && reduction == 0 {
+        let amount = action.m_fire.m_amounts[index];
+        if amount == 0 {
             continue;
         }
         assert!(
             index < game.m_player[player].m_die.len(),
             "invalid Fire die index"
         );
-        assert!(
-            !(increase > 0 && reduction > 0),
-            "a die cannot attack and provide Fire assistance"
-        );
         let die = &mut game.m_player[player].m_die[index];
         let old_score = die.GetScore(true);
         let value = die.GetValueTotal();
-        if increase > 0 {
-            assert!(action.m_attackers.contains(index));
-            let new_value = value + u16::from(increase);
+        if action.m_attackers.contains(index) {
+            let new_value = value + u16::from(amount);
             assert!(new_value <= die.GetSidesMax() && new_value <= u16::from(u8::MAX));
             die.m_value_total = Some(new_value as u8);
         } else {
-            assert!(!action.m_attackers.contains(index));
             assert!(die.HasProperty(property::FIRE));
             let minimum = if die.HasProperty(property::TWIN) {
                 2
             } else {
                 1
             };
-            let new_value = value - u16::from(reduction);
+            let new_value = value - u16::from(amount);
             assert!(new_value >= minimum);
             die.m_value_total = Some(new_value as u8);
         }

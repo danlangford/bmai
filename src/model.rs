@@ -255,31 +255,32 @@ pub struct BMC_Move {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BMC_FireAdjustment {
-    /// Points added to each participating attacker before the attack resolves.
-    pub m_increases: [u8; BMD_MAX_DICE],
-    /// Points removed from each nonparticipating Fire die.
-    pub m_reductions: [u8; BMD_MAX_DICE],
+    /// Per-die Fire deltas. Entries for attackers are increases; entries for
+    /// nonattacking Fire dice are reductions.
+    pub m_amounts: [u8; BMD_MAX_DICE],
 }
 
 impl Default for BMC_FireAdjustment {
     fn default() -> Self {
         Self {
-            m_increases: [0; BMD_MAX_DICE],
-            m_reductions: [0; BMD_MAX_DICE],
+            m_amounts: [0; BMD_MAX_DICE],
         }
     }
 }
 
 impl BMC_FireAdjustment {
     pub fn is_empty(&self) -> bool {
-        self.m_reductions.iter().all(|amount| *amount == 0)
+        self.m_amounts.iter().all(|amount| *amount == 0)
     }
 
-    pub fn total(&self) -> u16 {
-        self.m_reductions
-            .iter()
-            .map(|amount| u16::from(*amount))
-            .sum()
+    fn from_allocations(mut increases: [u8; BMD_MAX_DICE], reductions: [u8; BMD_MAX_DICE]) -> Self {
+        for index in 0..BMD_MAX_DICE {
+            debug_assert!(increases[index] == 0 || reductions[index] == 0);
+            increases[index] += reductions[index];
+        }
+        Self {
+            m_amounts: increases,
+        }
     }
 }
 
@@ -677,10 +678,7 @@ fn FirePlansForPower(
                 .map(|reductions| {
                     let mut increases = [0; BMD_MAX_DICE];
                     increases[attacker] = amount as u8;
-                    BMC_FireAdjustment {
-                        m_increases: increases,
-                        m_reductions: reductions,
-                    }
+                    BMC_FireAdjustment::from_allocations(increases, reductions)
                 }),
         );
     }
@@ -720,10 +718,11 @@ fn FirePlansForSkill(
             if !SkillStackCanHitWithFire(stack, available, target, &increases) {
                 continue;
             }
-            plans.extend(reductions.iter().map(|reduction| BMC_FireAdjustment {
-                m_increases: increases,
-                m_reductions: *reduction,
-            }));
+            plans.extend(
+                reductions
+                    .iter()
+                    .map(|reduction| BMC_FireAdjustment::from_allocations(increases, *reduction)),
+            );
         }
     }
     plans
@@ -811,6 +810,29 @@ impl BMC_Game {
                                 }
                                 _ => unreachable!(),
                             };
+                            if legal {
+                                let score = match attack {
+                                    BME_ATTACK::POWER => {
+                                        target_die.GetScore(false)
+                                            - if attacker_die.HasProperty(property::VALUE) {
+                                                attacker_die.GetValueTotal() as f32 * 0.02
+                                            } else {
+                                                0.0
+                                            }
+                                    }
+                                    BME_ATTACK::TRIP => target_die.GetScore(false) * 0.2,
+                                    BME_ATTACK::SHADOW => target_die.GetScore(false),
+                                    _ => unreachable!(),
+                                };
+                                // Keep the ordinary attack ahead of optional Fire
+                                // overshoots when both choices capture the same die.
+                                moves.push(BMC_Move::attack(
+                                    attack,
+                                    [attacker_index],
+                                    [*target_index],
+                                    score,
+                                ));
+                            }
                             if player_has_fire && attack == BME_ATTACK::POWER {
                                 let minimum = target_die
                                     .GetValueTotal()
@@ -827,28 +849,6 @@ impl BMC_Game {
                                     moves.push(candidate);
                                 }
                             }
-                            if !legal {
-                                continue;
-                            }
-                            let score = match attack {
-                                BME_ATTACK::POWER => {
-                                    target_die.GetScore(false)
-                                        - if attacker_die.HasProperty(property::VALUE) {
-                                            attacker_die.GetValueTotal() as f32 * 0.02
-                                        } else {
-                                            0.0
-                                        }
-                                }
-                                BME_ATTACK::TRIP => target_die.GetScore(false) * 0.2,
-                                BME_ATTACK::SHADOW => target_die.GetScore(false),
-                                _ => unreachable!(),
-                            };
-                            moves.push(BMC_Move::attack(
-                                attack,
-                                [attacker_index],
-                                [*target_index],
-                                score,
-                            ));
                         }
                     }
                     BME_ATTACK::SKILL => {
@@ -1138,12 +1138,20 @@ fn ExpandTurboMoves(player: &BMC_Player, accuracy: f32, moves: &mut Vec<BMC_Move
         }
         if turbo_die.HasProperty(property::OPTION) {
             moves[move_index].m_turbo_option = 0;
+            // Fire capacities were calculated for the current Turbo size.
+            // Reusing that plan after changing size can exceed the new maximum.
+            if !moves[move_index].m_fire.is_empty() {
+                continue;
+            }
             let mut changed = moves[move_index].clone();
             changed.m_turbo_option = 1;
             moves.push(changed);
         } else if let Some(swing) = turbo_die.m_swing_type[0] {
             let current = i16::from(turbo_die.m_sides[0]);
             moves[move_index].m_turbo_option = current;
+            if !moves[move_index].m_fire.is_empty() {
+                continue;
+            }
             let (minimum, maximum) = turbo_swing_range(swing);
             let mut choices = vec![minimum, maximum];
             let step = if accuracy <= 0.0 {
@@ -1654,6 +1662,59 @@ mod tests {
             .rposition(|action| action.m_turbo_option < 0 || action.m_turbo_option == 10)
             .unwrap();
         assert!(first_alternative > last_base);
+    }
+
+    #[test]
+    fn ordinary_power_attack_precedes_optional_fire_overshoots() {
+        let mut attacker = die(0);
+        attacker.m_value_total = Some(8);
+        let mut helper = die(property::FIRE);
+        helper.m_sides[0] = 6;
+        helper.m_value_total = Some(5);
+        helper.m_original_index = 1;
+        let mut target = die(0);
+        target.m_sides[0] = 6;
+        target.m_value_total = Some(5);
+        let game = game_with(vec![attacker, helper], vec![target]);
+
+        let matching = game
+            .GenerateValidAttacks()
+            .into_iter()
+            .filter(|action| {
+                action.m_attack == Some(BME_ATTACK::POWER)
+                    && action.m_attackers == BMC_DieIndexSet::from([0])
+                    && action.m_targets == BMC_DieIndexSet::from([0])
+            })
+            .collect::<Vec<_>>();
+
+        assert!(matching.len() > 1, "expected optional Fire choices");
+        assert!(matching[0].m_fire.is_empty());
+        assert!(matching[1..].iter().all(|action| !action.m_fire.is_empty()));
+    }
+
+    #[test]
+    fn fire_plan_is_not_reused_for_a_different_turbo_option_size() {
+        let mut turbo = die(property::TURBO | property::OPTION);
+        turbo.m_sides = [20, 6];
+        turbo.m_value_total = Some(10);
+        let mut helper = die(property::FIRE);
+        helper.m_sides[0] = 6;
+        helper.m_value_total = Some(3);
+        helper.m_original_index = 1;
+        let mut target = die(0);
+        target.m_value_total = Some(12);
+        let game = game_with(vec![turbo, helper], vec![target]);
+
+        let assisted = game
+            .GenerateValidAttacksInCppOrder()
+            .into_iter()
+            .filter(|action| {
+                action.m_attack == Some(BME_ATTACK::POWER) && !action.m_fire.is_empty()
+            })
+            .collect::<Vec<_>>();
+
+        assert!(!assisted.is_empty());
+        assert!(assisted.iter().all(|action| action.m_turbo_option == 0));
     }
 
     #[test]
