@@ -315,16 +315,16 @@ explicit scenarios:
 | Mighty+Fire grows only when rolling, not when firing | `mighty_fire_does_not_grow_when_it_only_assists` |
 | Weak+Fire shrinks only when rolling, not when firing | `weak_fire_does_not_shrink_when_it_only_assists` |
 | A fired-up Konstant die retains the changed value | `fired_up_konstant_keeps_its_new_value_after_a_skill_attack` |
-| An Ornery Fire helper did not participate and therefore still rerolls | `assisting_ornery_fire_die_still_rerolls_after_the_attack` |
 
 Additional scenarios cover multiple Fire helpers, optional Power overshooting,
 Stinger's flexible current-value contribution, Rage retention, nonparticipating
 Jolt and Time-and-Space, Fire participating in Skill attacks, current
-ButtonWeavers Queer eligibility, Ornery rerolls, the initial Turbo boundary,
-and both legacy and typed action output. Fire-assisted attacks involving an
-attacking Turbo die currently use its displayed size; alternate Turbo sizes
-are an explicit follow-up rather than reusing a plan calculated for a different
-maximum.
+ButtonWeavers Queer eligibility, the Ornery helper reroll in
+`assisting_ornery_fire_die_still_rerolls_after_the_attack`, the initial Turbo
+boundary, and both legacy and typed action output. Fire-assisted attacks
+involving an attacking Turbo die currently use its displayed size; alternate
+Turbo sizes are an explicit follow-up rather than reusing a plan calculated
+for a different maximum.
 
 ## New differential coverage
 

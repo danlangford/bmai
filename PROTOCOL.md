@@ -135,9 +135,10 @@ Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
 winning score and numeric win percentage used by historical subprocess
 consumers. Recursive search diagnostics remain internal.
-After the attacker and target index lines, an assisted attack emits one
-`fire DIE VALUE` line per assisting Fire die. `DIE` is its original input index
-and `VALUE` is the final displayed value to submit to ButtonWeavers.
+After the attacker and target index lines and any Turbo selection, an assisted
+attack emits one `fire DIE VALUE` line per assisting Fire die. `DIE` is its
+original input index and `VALUE` is the final displayed value to submit to
+ButtonWeavers.
 
 The stable command forms are:
 
