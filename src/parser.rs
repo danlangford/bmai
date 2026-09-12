@@ -1109,10 +1109,12 @@ fn SendAttack<W: Write>(
             }
             for index in action
                 .m_fire
-                .m_reductions
+                .m_amounts
                 .iter()
                 .enumerate()
-                .filter_map(|(index, reduction)| (*reduction > 0).then_some((index, *reduction)))
+                .filter_map(|(index, amount)| {
+                    (!action.m_attackers.contains(index) && *amount > 0).then_some((index, *amount))
+                })
             {
                 let (index, reduction) = index;
                 let die = &game.m_player[0].m_die[index];
@@ -1173,10 +1175,10 @@ fn protocol_attack(
             };
             let fire = action
                 .m_fire
-                .m_reductions
+                .m_amounts
                 .iter()
                 .enumerate()
-                .filter(|(_, reduction)| **reduction > 0)
+                .filter(|(index, amount)| !action.m_attackers.contains(*index) && **amount > 0)
                 .map(|(index, reduction)| {
                     let die = &game.m_player[0].m_die[index];
                     crate::protocol::FireSelection {

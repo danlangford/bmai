@@ -673,7 +673,7 @@ impl Scenario {
                 u16::from(*new_value) < old_value,
                 "Fire dice must turn down"
             );
-            move_to_apply.m_fire.m_reductions[index] = (old_value - u16::from(*new_value)) as u8;
+            move_to_apply.m_fire.m_amounts[index] = (old_value - u16::from(*new_value)) as u8;
         }
         for (original_index, new_value) in &self.boosted_values {
             let index = resolve_original_indices(
@@ -686,7 +686,7 @@ impl Scenario {
                 u16::from(*new_value) > old_value,
                 "fired attackers must turn up"
             );
-            move_to_apply.m_fire.m_increases[index] = (u16::from(*new_value) - old_value) as u8;
+            move_to_apply.m_fire.m_amounts[index] = (u16::from(*new_value) - old_value) as u8;
         }
         let allowed = game
             .GenerateValidAttacksInCppOrder()
@@ -1350,6 +1350,20 @@ mod tests {
                 .expect_extra_turn(false)
                 .run();
         }
+    }
+
+    #[test]
+    fn assisting_ornery_fire_die_still_rerolls_after_the_attack() {
+        scenario()
+            .attackers(["6:2", "oF6:4"])
+            .attacks(POWER)
+            .using([0])
+            .defender("6:5")
+            .boosting([(0, 5)])
+            .firing([(1, 1)])
+            .seed(1)
+            .expect_attacker_die(1, "oF6:2")
+            .run();
     }
 
     #[test]

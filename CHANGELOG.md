@@ -42,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Wildcard-specific Fire behavior is therefore outside this release.
 - An odd Queer die cannot be fired to an even value to unlock a Power attack,
   matching ButtonWeavers' current pre-assistance attack-type eligibility.
+- Fire-assisted attacks involving an attacking Turbo die currently use its
+  displayed size; alternate Turbo sizes are not searched for that attack.
 
 ## [0.9.0] - 2026-09-16
 
