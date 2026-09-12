@@ -23,8 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Implemented the ButtonWeavers Fire (`F`) skill for Power and Skill attacks,
-  including required assistance, optional Power overshooting, multiple Fire
-  dice, attacker maxima, and persistent Fire-die turndowns.
+  including required assistance, multiple Fire dice, attacker maxima, and
+  persistent Fire-die turndowns.
 - Added exact Fire adjustments to search moves so Konstant attackers retain
   their fired-up values while ordinary attackers reroll normally.
 - Added `fire DIE VALUE` lines to assisted legacy actions and an optional
@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Wildcard-specific Fire behavior is therefore outside this release.
 - An odd Queer die cannot be fired to an even value to unlock a Power attack,
   matching ButtonWeavers' current pre-assistance attack-type eligibility.
+- BMAIR follows ButtonWeavers' default `fire_overshooting = false` behavior.
+  Searching optional Fire adjustments for otherwise-legal attacks requires a
+  future player-preference input.
 - Fire-assisted attacks involving an attacking Turbo die currently use its
   displayed size; alternate Turbo sizes are not searched for that attack.
 

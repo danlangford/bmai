@@ -1216,7 +1216,7 @@ mod tests {
     }
 
     #[test]
-    fn fire_may_overshoot_an_already_legal_power_attack() {
+    fn fire_overshooting_requires_an_explicit_player_preference() {
         scenario()
             .attackers(["6:2", "F6:5"])
             .attacks(POWER)
@@ -1224,8 +1224,7 @@ mod tests {
             .defender("1:1")
             .boosting([(0, 3)])
             .firing([(1, 4)])
-            .expect_allowed(true)
-            .expect_attacker_die(1, "F6:4")
+            .expect_allowed(false)
             .run();
     }
 

@@ -824,8 +824,6 @@ impl BMC_Game {
                                     BME_ATTACK::SHADOW => target_die.GetScore(false),
                                     _ => unreachable!(),
                                 };
-                                // Keep the ordinary attack ahead of optional Fire
-                                // overshoots when both choices capture the same die.
                                 moves.push(BMC_Move::attack(
                                     attack,
                                     [attacker_index],
@@ -833,11 +831,10 @@ impl BMC_Game {
                                     score,
                                 ));
                             }
-                            if player_has_fire && attack == BME_ATTACK::POWER {
+                            if player_has_fire && attack == BME_ATTACK::POWER && !legal {
                                 let minimum = target_die
                                     .GetValueTotal()
-                                    .saturating_sub(attacker_die.GetValueTotal())
-                                    .max(1);
+                                    .saturating_sub(attacker_die.GetValueTotal());
                                 for fire in FirePlansForPower(attacker, attacker_index, minimum) {
                                     let mut candidate = BMC_Move::attack(
                                         attack,
@@ -935,6 +932,7 @@ impl BMC_Game {
                                         ));
                                     }
                                     if player_has_fire
+                                        && !direct
                                         && target_die.CanBeAttacked(BME_ATTACK::SKILL, stack_len)
                                     {
                                         let attacker_indices = stack
@@ -1665,7 +1663,7 @@ mod tests {
     }
 
     #[test]
-    fn ordinary_power_attack_precedes_optional_fire_overshoots() {
+    fn already_legal_power_attack_does_not_offer_unrequested_fire_overshoot() {
         let mut attacker = die(0);
         attacker.m_value_total = Some(8);
         let mut helper = die(property::FIRE);
@@ -1687,9 +1685,8 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        assert!(matching.len() > 1, "expected optional Fire choices");
+        assert_eq!(matching.len(), 1);
         assert!(matching[0].m_fire.is_empty());
-        assert!(matching[1..].iter().all(|action| !action.m_fire.is_empty()));
     }
 
     #[test]

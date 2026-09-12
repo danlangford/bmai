@@ -316,10 +316,10 @@ explicit scenarios:
 | Weak+Fire shrinks only when rolling, not when firing | `weak_fire_does_not_shrink_when_it_only_assists` |
 | A fired-up Konstant die retains the changed value | `fired_up_konstant_keeps_its_new_value_after_a_skill_attack` |
 
-Additional scenarios cover multiple Fire helpers, optional Power overshooting,
-Stinger's flexible current-value contribution, Rage retention, nonparticipating
-Jolt and Time-and-Space, Fire participating in Skill attacks, current
-ButtonWeavers Queer eligibility, the Ornery helper reroll in
+Additional scenarios cover multiple Fire helpers, ButtonWeavers' default-off
+Fire-overshooting preference, Stinger's flexible current-value contribution,
+Rage retention, nonparticipating Jolt and Time-and-Space, Fire participating in
+Skill attacks, current ButtonWeavers Queer eligibility, the Ornery helper reroll in
 `assisting_ornery_fire_die_still_rerolls_after_the_attack`, the initial Turbo
 boundary, and both legacy and typed action output. Fire-assisted attacks
 involving an attacking Turbo die currently use its displayed size; alternate
