@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Auxiliary (`+`) and Radioactive (`%`).
 - Add parser and mechanics support for Rush.
 
-## [0.9.0] - 2026-09-12
+## [0.9.0] - 2026-09-13
 
 ### Added
 
@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fire` array to typed JSON attack actions.
 - Added readable mechanics scenarios for Fire with Stinger, Konstant, Mighty,
   Weak, Rage, Jolt, Time and Space, Queer, Twin, and unsupported attack types.
+- Bound assisted-candidate construction to the search budget before allocating
+  every possible Fire distribution on large buttons.
 
 ### Changed
 

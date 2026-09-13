@@ -506,8 +506,12 @@ fn PlayRoundWithPolicies(
                 }
             }
             BMC_AI_POLICY::QAI => SelectQAIAction(&oriented, rng),
-            BMC_AI_POLICY::RANDOM => SelectRandomAction(&oriented, rng),
-            BMC_AI_POLICY::MAXIMIZE => SelectMaximizeAction(&oriented, rng),
+            BMC_AI_POLICY::RANDOM => {
+                SelectRandomAction(&oriented, rng, BMC_BMAI3::default().FireCandidateLimit())
+            }
+            BMC_AI_POLICY::MAXIMIZE => {
+                SelectMaximizeAction(&oriented, rng, BMC_BMAI3::default().FireCandidateLimit())
+            }
         };
         if action.m_action == BME_ACTION::SURRENDER {
             game.m_player[phase_player].m_score = -1000.0;
@@ -1948,7 +1952,7 @@ fn SelectBMAIActionAtLevelNativeWithStats(
     workers: usize,
     settings: &BMC_BMAI3,
 ) -> BMC_SearchResult {
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
     if moves.is_empty() {
         moves.push(PassMove());
     }
@@ -2046,7 +2050,7 @@ fn SelectBMAIActionAtLevelWithStats(
 ) -> BMC_SearchResult {
     let trace = TraceSettings().bmai_attack;
     let trace_evaluation = TraceSettings().attack_eval;
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
     if moves.is_empty() {
         moves.push(PassMove());
     }
@@ -2239,21 +2243,21 @@ fn WinProbability(game: &BMC_Game) -> f32 {
     }
 }
 
-fn MovesIncludingPass(game: &BMC_Game) -> Vec<BMC_Move> {
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+fn MovesIncludingPass(game: &BMC_Game, fire_limit: usize) -> Vec<BMC_Move> {
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(fire_limit);
     if moves.is_empty() {
         moves.push(PassMove());
     }
     moves
 }
 
-fn SelectRandomAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
-    let moves = MovesIncludingPass(game);
+fn SelectRandomAction(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
+    let moves = MovesIncludingPass(game, fire_limit);
     moves[rng.GetRandMax(moves.len() as u32) as usize].clone()
 }
 
-fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
-    let moves = MovesIncludingPass(game);
+fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
+    let moves = MovesIncludingPass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
     let mut simulation = game.clone();
@@ -2274,18 +2278,22 @@ fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
 
 fn SelectRolloutAction(game: &BMC_Game, rng: &mut BMC_RNG, ai: &BMC_BMAI3) -> BMC_Move {
     match ai.m_rollout_policy {
-        BME_ROLLOUT_POLICY::QAI => SelectQAIAction(game, rng),
+        BME_ROLLOUT_POLICY::QAI => SelectQAIActionWithFireLimit(game, rng, ai.FireCandidateLimit()),
         BME_ROLLOUT_POLICY::MAXIMIZE_OR_RANDOM(probability) => {
             if rng.GetFRand() < probability {
-                SelectMaximizeAction(game, rng)
+                SelectMaximizeAction(game, rng, ai.FireCandidateLimit())
             } else {
-                SelectRandomAction(game, rng)
+                SelectRandomAction(game, rng, ai.FireCandidateLimit())
             }
         }
     }
 }
 
 pub(crate) fn SelectQAIAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
+    SelectQAIActionWithFireLimit(game, rng, BMC_BMAI3::default().FireCandidateLimit())
+}
+
+fn SelectQAIActionWithFireLimit(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
     let traces = TraceSettings();
     let trace = traces.qai;
     let trace_rng = traces.rng;
@@ -2303,7 +2311,7 @@ pub(crate) fn SelectQAIAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
     // Match C++'s `BMC_Game sim(true); sim = *_game` lifecycle while letting
     // Vec::clone_from reuse the players' dice allocations safely.
     let mut simulation = game.clone();
-    for candidate in game.GenerateValidAttacksInCppOrder() {
+    for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
         move_count += 1;
         if trace_rng {
             eprintln!(

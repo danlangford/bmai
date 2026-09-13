@@ -621,8 +621,10 @@ impl BMC_Parser {
     fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
         match self.m_game.m_phase {
             BME_PHASE::FIGHT => {
-                let moves = self.m_game.GenerateValidAttacks();
                 if self.m_ai_type[0] != 1 {
+                    let moves = self.m_game.GenerateValidAttacksInCppOrderForSearch(
+                        self.m_player_ai[0].FireCandidateLimit(),
+                    );
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",

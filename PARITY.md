@@ -324,7 +324,11 @@ Skill attacks, current ButtonWeavers Queer eligibility, the Ornery helper reroll
 boundary, and both legacy and typed action output. Fire-assisted attacks
 involving an attacking Turbo die currently use its displayed size; alternate
 Turbo sizes are an explicit follow-up rather than reusing a plan calculated
-for a different maximum.
+for a different maximum. Search materializes at most
+`max(1, maxbranch / min_sims)` Fire-assisted candidates per state so a large
+button cannot exhaust time and memory enumerating allocations before its
+configured branch budget applies; `fire_candidate_construction_obeys_the_search_budget`
+covers that boundary.
 
 ## New differential coverage
 
