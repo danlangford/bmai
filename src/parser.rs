@@ -621,8 +621,10 @@ impl BMC_Parser {
     fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
         match self.m_game.m_phase {
             BME_PHASE::FIGHT => {
-                let moves = self.m_game.GenerateValidAttacks();
                 if self.m_ai_type[0] != 1 {
+                    let moves = self.m_game.GenerateValidAttacksInCppOrderForSearch(
+                        self.m_player_ai[0].FireCandidateLimit(),
+                    );
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",
@@ -1017,6 +1019,25 @@ fn SendAttack<W: Write>(
                         .map_err(io_error)?;
                 }
             }
+            for index in action
+                .m_fire
+                .m_amounts
+                .iter()
+                .enumerate()
+                .filter_map(|(index, amount)| {
+                    (!action.m_attackers.contains(index) && *amount > 0).then_some((index, *amount))
+                })
+            {
+                let (index, reduction) = index;
+                let die = &game.m_player[0].m_die[index];
+                writeln!(
+                    output,
+                    "fire {} {}",
+                    die.m_original_index,
+                    die.GetValueTotal() - u16::from(reduction)
+                )
+                .map_err(io_error)?;
+            }
             Ok(())
         }
         _ => Err(ParseError("invalid fight action".into())),
@@ -1064,11 +1085,26 @@ fn protocol_attack(
                         }
                     })
             };
+            let fire = action
+                .m_fire
+                .m_amounts
+                .iter()
+                .enumerate()
+                .filter(|(index, amount)| !action.m_attackers.contains(*index) && **amount > 0)
+                .map(|(index, reduction)| {
+                    let die = &game.m_player[0].m_die[index];
+                    crate::protocol::FireSelection {
+                        die: die.m_original_index,
+                        value: (die.GetValueTotal() - u16::from(*reduction)) as u8,
+                    }
+                })
+                .collect();
             Ok(crate::protocol::ProtocolAction::Attack {
                 attack_type,
                 attackers: original_indices(0, &action.m_attackers),
                 targets: original_indices(1, &action.m_targets),
                 turbo,
+                fire,
             })
         }
         _ => Err(ParseError("invalid fight action".into())),

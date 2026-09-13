@@ -506,8 +506,12 @@ fn PlayRoundWithPolicies(
                 }
             }
             BMC_AI_POLICY::QAI => SelectQAIAction(&oriented, rng),
-            BMC_AI_POLICY::RANDOM => SelectRandomAction(&oriented, rng),
-            BMC_AI_POLICY::MAXIMIZE => SelectMaximizeAction(&oriented, rng),
+            BMC_AI_POLICY::RANDOM => {
+                SelectRandomAction(&oriented, rng, BMC_BMAI3::default().FireCandidateLimit())
+            }
+            BMC_AI_POLICY::MAXIMIZE => {
+                SelectMaximizeAction(&oriented, rng, BMC_BMAI3::default().FireCandidateLimit())
+            }
         };
         if action.m_action == BME_ACTION::SURRENDER {
             game.m_player[phase_player].m_score = -1000.0;
@@ -1948,7 +1952,7 @@ fn SelectBMAIActionAtLevelNativeWithStats(
     workers: usize,
     settings: &BMC_BMAI3,
 ) -> BMC_SearchResult {
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
     if moves.is_empty() {
         moves.push(PassMove());
     }
@@ -1993,6 +1997,7 @@ fn SelectBMAIActionAtLevelNativeWithStats(
             m_targets: Vec::new().into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     } else {
         selected
@@ -2045,7 +2050,7 @@ fn SelectBMAIActionAtLevelWithStats(
 ) -> BMC_SearchResult {
     let trace = TraceSettings().bmai_attack;
     let trace_evaluation = TraceSettings().attack_eval;
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
     if moves.is_empty() {
         moves.push(PassMove());
     }
@@ -2080,6 +2085,7 @@ fn SelectBMAIActionAtLevelWithStats(
             m_targets: Vec::new().into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     } else {
         selected
@@ -2216,6 +2222,7 @@ fn PassMove() -> BMC_Move {
         m_targets: Vec::new().into(),
         m_score: 0.0,
         m_turbo_option: -1,
+        m_fire: crate::model::BMC_FireAdjustment::default(),
     }
 }
 
@@ -2236,21 +2243,21 @@ fn WinProbability(game: &BMC_Game) -> f32 {
     }
 }
 
-fn MovesIncludingPass(game: &BMC_Game) -> Vec<BMC_Move> {
-    let mut moves = game.GenerateValidAttacksInCppOrder();
+fn MovesIncludingPass(game: &BMC_Game, fire_limit: usize) -> Vec<BMC_Move> {
+    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(fire_limit);
     if moves.is_empty() {
         moves.push(PassMove());
     }
     moves
 }
 
-fn SelectRandomAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
-    let moves = MovesIncludingPass(game);
+fn SelectRandomAction(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
+    let moves = MovesIncludingPass(game, fire_limit);
     moves[rng.GetRandMax(moves.len() as u32) as usize].clone()
 }
 
-fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
-    let moves = MovesIncludingPass(game);
+fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
+    let moves = MovesIncludingPass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
     let mut simulation = game.clone();
@@ -2271,18 +2278,22 @@ fn SelectMaximizeAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
 
 fn SelectRolloutAction(game: &BMC_Game, rng: &mut BMC_RNG, ai: &BMC_BMAI3) -> BMC_Move {
     match ai.m_rollout_policy {
-        BME_ROLLOUT_POLICY::QAI => SelectQAIAction(game, rng),
+        BME_ROLLOUT_POLICY::QAI => SelectQAIActionWithFireLimit(game, rng, ai.FireCandidateLimit()),
         BME_ROLLOUT_POLICY::MAXIMIZE_OR_RANDOM(probability) => {
             if rng.GetFRand() < probability {
-                SelectMaximizeAction(game, rng)
+                SelectMaximizeAction(game, rng, ai.FireCandidateLimit())
             } else {
-                SelectRandomAction(game, rng)
+                SelectRandomAction(game, rng, ai.FireCandidateLimit())
             }
         }
     }
 }
 
 pub(crate) fn SelectQAIAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
+    SelectQAIActionWithFireLimit(game, rng, BMC_BMAI3::default().FireCandidateLimit())
+}
+
+fn SelectQAIActionWithFireLimit(game: &BMC_Game, rng: &mut BMC_RNG, fire_limit: usize) -> BMC_Move {
     let traces = TraceSettings();
     let trace = traces.qai;
     let trace_rng = traces.rng;
@@ -2300,7 +2311,7 @@ pub(crate) fn SelectQAIAction(game: &BMC_Game, rng: &mut BMC_RNG) -> BMC_Move {
     // Match C++'s `BMC_Game sim(true); sim = *_game` lifecycle while letting
     // Vec::clone_from reuse the players' dice allocations safely.
     let mut simulation = game.clone();
-    for candidate in game.GenerateValidAttacksInCppOrder() {
+    for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
         move_count += 1;
         if trace_rng {
             eprintln!(
@@ -2409,6 +2420,7 @@ fn ApplyAttackForPlayers(
     target_player: usize,
     rng: &mut BMC_RNG,
 ) -> bool {
+    ApplyFireAdjustments(game, action, attacker_player);
     // C++ GetAvailableDice() is a cached boundary and does not shrink merely
     // because an attacker is marked NOTSET during this phase.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
@@ -2554,6 +2566,55 @@ fn ApplyAttackForPlayers(
         OptimizeDice(&mut game.m_player[target_player]);
     }
     attacking_jolt || captured_jolt || time_and_space_extra_turn
+}
+
+fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
+    if action.m_fire.is_empty() {
+        return;
+    }
+    let (increase_total, reduction_total) = action.m_fire.m_amounts.iter().enumerate().fold(
+        (0u16, 0u16),
+        |(increases, reductions), (index, amount)| {
+            if action.m_attackers.contains(index) {
+                (increases + u16::from(*amount), reductions)
+            } else {
+                (increases, reductions + u16::from(*amount))
+            }
+        },
+    );
+    assert_eq!(
+        increase_total, reduction_total,
+        "Fire increases and reductions must balance"
+    );
+    for index in 0..crate::model::BMD_MAX_DICE {
+        let amount = action.m_fire.m_amounts[index];
+        if amount == 0 {
+            continue;
+        }
+        assert!(
+            index < game.m_player[player].m_die.len(),
+            "invalid Fire die index"
+        );
+        let die = &mut game.m_player[player].m_die[index];
+        let old_score = die.GetScore(true);
+        let value = die.GetValueTotal();
+        if action.m_attackers.contains(index) {
+            let new_value = value + u16::from(amount);
+            assert!(new_value <= die.GetSidesMax() && new_value <= u16::from(u8::MAX));
+            die.m_value_total = Some(new_value as u8);
+        } else {
+            assert!(die.HasProperty(property::FIRE));
+            let minimum = if die.HasProperty(property::TWIN) {
+                2
+            } else {
+                1
+            };
+            let new_value = value - u16::from(amount);
+            assert!(new_value >= minimum);
+            die.m_value_total = Some(new_value as u8);
+        }
+        game.m_player[player].m_score += die.GetScore(true) - old_score;
+    }
 }
 
 fn ApplyRadioactiveDecay(
@@ -3227,6 +3288,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: 20,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         let mut rng = BMC_RNG::default();
@@ -3278,6 +3340,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3325,6 +3388,7 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3360,6 +3424,7 @@ mod tests {
             m_targets: vec![0, 1].into(),
             m_score: 0.0,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         };
 
         ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
@@ -3546,6 +3611,7 @@ mod tests {
                 m_targets: vec![0].into(),
                 m_score: 0.0,
                 m_turbo_option: -1,
+                m_fire: crate::model::BMC_FireAdjustment::default(),
             };
             ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
             assert_eq!(game.m_player[0].m_die[0].m_sides, expected);
@@ -4255,6 +4321,7 @@ mod tests {
                 m_targets: BMC_DieIndexSet::default(),
                 m_score: 0.0,
                 m_turbo_option: -1,
+                m_fire: crate::model::BMC_FireAdjustment::default(),
             },
             &mut BMC_RNG::default(),
         );

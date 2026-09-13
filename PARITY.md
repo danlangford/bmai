@@ -190,6 +190,7 @@ case named in the final column.
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
+| ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `BMC_FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
@@ -219,6 +220,12 @@ is implemented, including decay-product replacement and round restoration;
 unrelated Radioactive mechanics remain parsing-only. Rage is also an intentional
 post-C++ extension based on the ButtonWeavers engine at the same pinned source
 revision and its live skill contract.
+Fire is an intentional post-C++ extension based on that pinned ButtonWeavers
+source. Unlike ButtonWeavers' aggregate-only `firingAmount`, BMAIR records exact
+attacker increases so the documented Fire+Konstant value retention has an
+unambiguous simulation state. Wildcard Fire is excluded because BMAIR does not
+implement Wildcard dice. Odd Queer attack-type eligibility follows the current
+ButtonWeavers ordering and is tested explicitly.
 `UNSKILLED` is marked TODO upstream but both engines enforce its existing
 no-Skill-attack behavior. Rust accepts the legacy C++ maximum of ten input dice
 per player and uses a compact 20-bit in-round index space. Twenty slots cover
@@ -280,19 +287,48 @@ mapped explicitly:
 | A participating Rage attacker loses Rage | `attacking_rage_die_loses_rage`, `only_participating_rage_dice_lose_rage` |
 | A captured Rage die produces a rolled same-ability replacement without Rage | `captured_rage_die_is_replaced_until_the_round_ends` |
 | A Doppelganger capturing Rage retains Rage after transforming | `doppelganger_that_captures_rage_retains_rage_after_transforming` |
+| A Rage+Fire die does not lose Rage when it only fires | `rage_fire_keeps_rage_when_it_only_assists` |
 
 Additional ButtonWeavers-source and edge-case coverage exercises failed Trip,
 Speed multi-capture, Jolt, Time and Space, Konstant, Null, Value, Poison,
 Radioactive, Mighty, Weak, Mood, Twin, Turbo, next-round restoration, and the
 ten-original-to-twenty-round-dice capacity boundary. The older Rage issue
 clarifications for Slow, Focus, and the initial roll of a Konstant replacement
-also have direct tests. Rage+Fire (firing does not consume Rage) and Rage gained
-during a Chaotic attacking reroll are recorded as deferred because BMAIR does
-not yet parse or implement Fire or Chaotic. Single-attacker/single-target
+also have direct tests. Rage gained during a Chaotic attacking reroll remains
+deferred because BMAIR does not implement Chaotic. Single-attacker/single-target
 Radioactive+Rage ordering remains part of the explicitly parsing-only
 Radioactive work; the current Rage test uses a multi-target Speed attack, where
 Radioactive does not trigger, to prove the replacement retains its other
 properties without pretending that standalone Radioactive is complete.
+
+### Fire rule and interaction coverage
+
+The ButtonWeavers Fire description and interaction metadata are mapped to
+explicit scenarios:
+
+| Documented behavior | Rust evidence |
+|---|---|
+| Fire cannot Power Attack | `fire_dice_cannot_power_attack` |
+| Fire can assist ordinary Power and Skill attacks by transferring displayed value | `fire_assists_a_power_attack_and_stays_turned_down`, `fire_assists_a_skill_attack` |
+| Fire cannot assist other attack types | `fire_does_not_assist_nonstandard_attack_types` |
+| Neither helper nor attacker may leave its normal value range | `fire_at_its_minimum_cannot_assist`, `fire_cannot_raise_an_attacker_past_its_maximum`, `twin_fire_cannot_turn_down_below_one_per_component` |
+| Mighty+Fire grows only when rolling, not when firing | `mighty_fire_does_not_grow_when_it_only_assists` |
+| Weak+Fire shrinks only when rolling, not when firing | `weak_fire_does_not_shrink_when_it_only_assists` |
+| A fired-up Konstant die retains the changed value | `fired_up_konstant_keeps_its_new_value_after_a_skill_attack` |
+
+Additional scenarios cover multiple Fire helpers, ButtonWeavers' default-off
+Fire-overshooting preference, Stinger's flexible current-value contribution,
+Rage retention, nonparticipating Jolt and Time-and-Space, Fire participating in
+Skill attacks, current ButtonWeavers Queer eligibility, the Ornery helper reroll in
+`assisting_ornery_fire_die_still_rerolls_after_the_attack`, the initial Turbo
+boundary, and both legacy and typed action output. Fire-assisted attacks
+involving an attacking Turbo die currently use its displayed size; alternate
+Turbo sizes are an explicit follow-up rather than reusing a plan calculated
+for a different maximum. Search materializes at most
+`max(1, maxbranch / min_sims)` Fire-assisted candidates per state so a large
+button cannot exhaust time and memory enumerating allocations before its
+configured branch budget applies; `fire_candidate_construction_obeys_the_search_budget`
+covers that boundary.
 
 ## New differential coverage
 

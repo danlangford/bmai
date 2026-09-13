@@ -99,6 +99,10 @@ impl Default for BMC_BMAI3 {
 }
 
 impl BMC_BMAI3 {
+    pub(crate) fn FireCandidateLimit(&self) -> usize {
+        (self.m_max_branch / self.m_min_sims.max(1)).max(1)
+    }
+
     pub fn ComputeNumberSims(&self, moves: usize, level: usize) -> usize {
         assert!(moves > 0);
         assert!(level > 0);
@@ -343,12 +347,14 @@ mod tests {
             m_targets: vec![0].into(),
             m_score: score,
             m_turbo_option: -1,
+            m_fire: crate::model::BMC_FireAdjustment::default(),
         }
     }
 
     #[test]
     fn simulation_count_matches_cpp_decay_and_clamps() {
         let ai = BMC_BMAI3::default();
+        assert_eq!(ai.FireCandidateLimit(), 500);
         assert_eq!(ai.ComputeNumberSims(1, 1), 500);
         assert_eq!(ai.ComputeNumberSims(12, 1), 416);
         assert_eq!(ai.ComputeNumberSims(12, 2), 208);
