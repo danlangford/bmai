@@ -38,6 +38,10 @@ from the starting dice when a scoring rule needs a specific baseline.
 `.expect_attacker_die(index, recipe)` checks one surviving die by declaration
 index when other rerolled dice are irrelevant to the rule under test.
 `.expect_no_defender_dice()` keeps an empty defending side equally readable.
+For Fire attacks, `.boosting([(die, value)])` names each participating die's
+fired-up value and `.firing([(die, value)])` names each assisting Fire die's
+final value. Both use recipe declaration indices, making the transferred points
+and the persistent state visible in the scenario.
 
 The DSL is deliberately test-only and dependency-free. It is not a second game
 implementation: setup is parsed by `BMC_Parser`, legality comes from

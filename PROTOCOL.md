@@ -33,8 +33,8 @@ dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-and `G` as Rage. Consumers should use this metadata instead of maintaining a
-parallel token-to-skill table.
+`F` as Fire, and `G` as Rage. Consumers should use this metadata instead of
+maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
 
@@ -105,6 +105,9 @@ An attack may include `turbo`. Option Turbo is
 `{"kind":"option","die":0,"value":20}`; swing Turbo is
 `{"kind":"swing","swing":"X","value":12}`. Die numbers are original
 wire-protocol indices, even when internal dice storage is optimized.
+An assisted attack includes `"fire":[{"die":1,"value":3}]`, naming the
+final displayed value of each Fire die turned down for the attack. The field is
+omitted for attacks without Fire assistance.
 
 Stable error codes in v1 are `invalid_json`, `invalid_request`,
 `unsupported_protocol`, `invalid_params`, `method_not_found`, and
@@ -133,6 +136,10 @@ Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
 winning score and numeric win percentage used by historical subprocess
 consumers. Recursive search diagnostics remain internal.
+After the attacker and target index lines and any Turbo selection, an assisted
+attack emits one `fire DIE VALUE` line per assisting Fire die. `DIE` is its
+original input index and `VALUE` is the final displayed value to submit to
+ButtonWeavers.
 
 The stable command forms are:
 
@@ -147,7 +154,7 @@ The stable command forms are:
 | `ply [PLAYER] N` | Set global or per-player BMAI depth. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
-| `maxbranch [PLAYER] N` | Set global or per-player branch budget. |
+| `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
