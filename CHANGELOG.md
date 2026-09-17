@@ -280,7 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.10.0...HEAD
+[0.10.0]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...bmair-v0.10.0
 [0.9.0]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...bmair-v0.9.0
 [0.8.2]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...bmair-v0.8.2
 [0.8.1]: https://github.com/danlangford/bmai/compare/bmair-v0.8.0...bmair-v0.8.1

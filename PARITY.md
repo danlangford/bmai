@@ -257,7 +257,7 @@ control flow.
 | Initiative | Parsed and simulated automatically; it has no direct `getaction` decision. |
 | Game over | Parsed terminal state; it has no direct `getaction` decision. |
 | Turbo selection | Returned atomically as part of a Fight attack rather than exposed as a separate phase. |
-| Fire adjustment | Not supported on this branch; Fire remains planned and requires its own mechanics work. |
+| Fire adjustment | Generated and applied atomically with Fight actions; legacy and typed outputs include each assisting die's final value. |
 
 ButtonWeavers' server orchestration states—joining games, custom recipes,
 loading buttons, starting/ending rounds and turns, and committing attacks—are
