@@ -626,6 +626,9 @@ fn SelectSwingAction(
     level: usize,
     native: Option<NativeEvaluation>,
 ) -> (SwingMove, f32) {
+    if game.m_player[player].m_swing_set != BME_SWING_SET::NOT {
+        return (CurrentSwingMove(&game.m_player[player]), 0.0);
+    }
     let traces = TraceSettings();
     let trace_list = level == 1 && traces.swing_list;
     let trace_candidate = traces.swing_candidate;
@@ -1944,6 +1947,30 @@ fn NeedsSetSwing(player: &crate::model::BMC_Player) -> bool {
         .iter()
         .filter(|die| !die.m_in_reserve)
         .any(|d| d.m_swing_type.iter().any(Option::is_some) || d.HasProperty(property::OPTION))
+}
+
+fn CurrentSwingMove(player: &crate::model::BMC_Player) -> SwingMove {
+    let mut action = SwingMove::empty();
+    let mut seen = [false; 26];
+    for (index, die) in player.m_die.iter().enumerate() {
+        if die.m_in_reserve {
+            continue;
+        }
+        for side in 0..2 {
+            if let Some(swing @ 'A'..='Z') = die.m_swing_type[side] {
+                let seen_index = (swing as u8 - b'A') as usize;
+                if !seen[seen_index] {
+                    action.push_value((swing, die.m_sides[side]));
+                    seen[seen_index] = true;
+                }
+            }
+        }
+        if die.HasProperty(property::OPTION) {
+            // ParseDie keeps the selected option in slot zero.
+            action.push_option((index, false));
+        }
+    }
+    action
 }
 
 fn GenerateSwingMoves(player: &crate::model::BMC_Player) -> Vec<SwingMove> {

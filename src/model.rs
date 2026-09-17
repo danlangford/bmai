@@ -908,7 +908,12 @@ impl BMC_Game {
                                 && available[stack.values()[0]]
                                     .1
                                     .HasProperty(property::KONSTANT);
-                            if dice_legal && warriors <= 1 && !single_konstant {
+                            // ButtonWeavers requires a non-Warrior participant.
+                            if dice_legal
+                                && warriors <= 1
+                                && warriors < stack_len
+                                && !single_konstant
+                            {
                                 let stack_has_stinger = stack.values().iter().any(|position| {
                                     let die = available[*position].1;
                                     !die.HasProperty(property::WARRIOR)
@@ -1372,6 +1377,14 @@ mod tests {
                 target: 10,
                 target_properties: property::STEALTH,
                 selected: &[0, 1, 2],
+                expected: false,
+            },
+            Case {
+                name: "WarriorCannotAttackWithoutParticipatingNonWarrior",
+                dice: &[(5, W)],
+                target: 5,
+                target_properties: 0,
+                selected: &[0],
                 expected: false,
             },
             Case {
