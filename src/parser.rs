@@ -1434,6 +1434,58 @@ getaction\n";
     }
 
     #[test]
+    fn preround_returns_already_selected_swing_without_resimulating_it() {
+        let input = "game\n\
+preround\n\
+player 0 5 0\n\
+6:4\n\
+8:6\n\
+8:7\n\
+12:1\n\
+X-4:3\n\
+player 1 5 0\n\
+4\n\
+12\n\
+20\n\
+20\n\
+X\n\
+getaction\n";
+        let mut output = Vec::new();
+
+        BMC_Parser::default()
+            .ParseString(input, &mut output)
+            .unwrap();
+
+        assert!(
+            String::from_utf8(output)
+                .unwrap()
+                .ends_with("action\nswing X 4\n")
+        );
+    }
+
+    #[test]
+    fn preround_returns_already_selected_option_without_resimulating_it() {
+        let input = "game\n\
+preround\n\
+player 0 1 0\n\
+4/8-8:3\n\
+player 1 1 0\n\
+6\n\
+getaction\n";
+        let mut output = Vec::new();
+
+        BMC_Parser::default()
+            .ParseString(input, &mut output)
+            .unwrap();
+
+        assert!(
+            String::from_utf8(output)
+                .unwrap()
+                .ends_with("action\noption 0 8\n")
+        );
+    }
+
+    #[test]
     fn whole_line_comments_are_ignored_between_top_level_commands() {
         let game = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 1 1\n1:1\n";
         let plain = format!("{game}seed 17\nsurrender off\nquit\n");

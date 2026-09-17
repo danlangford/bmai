@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Radioactive (`%`).
 - Add parser and mechanics support for Rush.
 
+## [0.10.1] - 2026-09-17
+
+### Fixed
+
+- Prevented Warrior dice from making a Skill attack unless at least one
+  non-Warrior die participates, matching ButtonWeavers validation.
+- Returned locked preround Swing and Option selections directly instead of
+  attempting to apply them again to already-rolled dice.
+
 ## [0.10.0] - 2026-09-16
 
 ### Added
