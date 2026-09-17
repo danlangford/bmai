@@ -149,6 +149,9 @@ pub enum TurboSelection {
 pub enum ProtocolAction {
     Pass,
     Surrender,
+    Auxiliary {
+        die: Option<usize>,
+    },
     Attack {
         attack_type: &'static str,
         attackers: Vec<usize>,
@@ -217,6 +220,7 @@ impl Capabilities {
                 "quit",
             ],
             phases: &[
+                "aux",
                 "preround",
                 "reserve",
                 "initiative",
@@ -227,6 +231,7 @@ impl Capabilities {
             ],
             actions: &[
                 "attack",
+                "auxiliary",
                 "chance",
                 "focus",
                 "pass",
@@ -237,6 +242,7 @@ impl Capabilities {
             attack_types: &["power", "skill", "berserk", "speed", "trip", "shadow"],
             ai_policies: &["bmai", "qai", "bmai3"],
             skills: &[
+                "Auxiliary",
                 "Berserk",
                 "Chance",
                 "Doppelganger",
@@ -271,7 +277,7 @@ impl Capabilities {
                 "Warrior",
                 "Weak",
             ],
-            parsing_only_skills: &["Auxiliary", "Radioactive"],
+            parsing_only_skills: &["Radioactive"],
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],
@@ -338,6 +344,7 @@ mod tests {
             value["actions"],
             serde_json::json!([
                 "attack",
+                "auxiliary",
                 "chance",
                 "focus",
                 "pass",
@@ -347,10 +354,14 @@ mod tests {
             ])
         );
         assert!(
-            value["parsing_only_skills"]
+            value["skills"]
                 .as_array()
                 .unwrap()
                 .contains(&"Auxiliary".into())
+        );
+        assert_eq!(
+            value["parsing_only_skills"],
+            serde_json::json!(["Radioactive"])
         );
     }
 
@@ -392,7 +403,7 @@ mod tests {
                 entry.name
             );
         }
-        assert_eq!(parsing_only_skills.len(), 2);
+        assert_eq!(parsing_only_skills.len(), 1);
         for entry in capabilities.die_notation.postfix_properties {
             assert!(implemented_skills.contains(entry.name));
         }
@@ -437,6 +448,7 @@ mod tests {
         let actions = [
             serde_json::to_value(ProtocolAction::Pass).unwrap(),
             serde_json::to_value(ProtocolAction::Surrender).unwrap(),
+            serde_json::to_value(ProtocolAction::Auxiliary { die: Some(1) }).unwrap(),
             serde_json::to_value(ProtocolAction::Attack {
                 attack_type: "skill",
                 attackers: vec![0, 2],
@@ -470,6 +482,7 @@ mod tests {
             [
                 "pass",
                 "surrender",
+                "auxiliary",
                 "attack",
                 "reserve",
                 "set_swing",
@@ -477,7 +490,8 @@ mod tests {
                 "focus"
             ]
         );
-        assert_eq!(actions[2]["turbo"]["kind"], "swing");
+        assert_eq!(actions[2]["die"], 1);
+        assert_eq!(actions[3]["turbo"]["kind"], "swing");
     }
 
     #[test]

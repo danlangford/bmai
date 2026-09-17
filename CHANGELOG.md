@@ -15,9 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Complete mechanics support for the remaining parsing-only skills:
-  Auxiliary (`+`) and Radioactive (`%`).
+  Radioactive (`%`).
 - Add parser and mechanics support for Fire and Rush. Fire work must include
   the documented Rage+Fire interaction: firing does not consume Rage.
+
+## [0.9.0] - 2026-09-16
+
+### Added
+
+- Implemented the ButtonWeavers Auxiliary (`+`) lifecycle and `aux` phase.
+- Added mutual accept/decline resolution, courtesy Auxiliary copies when only
+  one button supplies the die, and legacy `aux DIE`/`aux -1` actions.
+- Added deterministic native Auxiliary evaluation across worker counts and an
+  `auxiliary` typed action.
+- Added readable parser and mechanics regressions derived from the
+  ButtonWeavers Auxiliary engine tests.
+
+### Changed
+
+- Advertise Auxiliary as implemented rather than parsing-only.
 
 ## [0.8.2] - 2026-09-02
 

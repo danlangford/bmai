@@ -99,7 +99,7 @@ pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
     die_property!('I', "insult", "Insult", Implemented, INSULT),
     die_property!('v', "value", "Value", Implemented, VALUE),
     die_property!('J', "jolt", "Jolt", Implemented, JOLT),
-    die_property!('+', "auxiliary", "Auxiliary", ParsingOnly, AUXILIARY),
+    die_property!('+', "auxiliary", "Auxiliary", Implemented, AUXILIARY),
     die_property!(
         'D',
         "doppelganger",

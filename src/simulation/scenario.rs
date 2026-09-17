@@ -37,6 +37,7 @@ struct ActionExpectation {
 enum ExpectedAction {
     Pass,
     Surrender,
+    Auxiliary(Option<usize>),
     Attack(BME_ATTACK),
     Reserve(Option<usize>),
     SetSwing {
@@ -62,6 +63,7 @@ impl ActionExpectation {
         match self.action.as_ref()? {
             ExpectedAction::Pass => Some(ProtocolAction::Pass),
             ExpectedAction::Surrender => Some(ProtocolAction::Surrender),
+            ExpectedAction::Auxiliary(die) => Some(ProtocolAction::Auxiliary { die: *die }),
             ExpectedAction::Attack(attack) => Some(ProtocolAction::Attack {
                 attack_type: attack.protocol(),
                 attackers: self
@@ -109,6 +111,11 @@ impl ParserScenario {
 
     pub(crate) fn expect_reserve(mut self, die: Option<usize>) -> Self {
         self.expected_action.action = Some(ExpectedAction::Reserve(die));
+        self
+    }
+
+    pub(crate) fn expect_auxiliary(mut self, die: Option<usize>) -> Self {
+        self.expected_action.action = Some(ExpectedAction::Auxiliary(die));
         self
     }
 
@@ -164,6 +171,10 @@ fn legacy_action_suffix(action: &ProtocolAction) -> String {
     match action {
         ProtocolAction::Pass => "action\npass\n".into(),
         ProtocolAction::Surrender => "action\nsurrender\n".into(),
+        ProtocolAction::Auxiliary { die } => {
+            let die = die.map_or_else(|| "-1".into(), |value| value.to_string());
+            format!("action\naux {die}\n")
+        }
         ProtocolAction::Attack {
             attack_type,
             attackers,
@@ -307,6 +318,11 @@ impl SearchScenario {
         self
     }
 
+    pub(crate) fn expect_auxiliary(mut self, die: Option<usize>) -> Self {
+        self.expected_action.action = Some(ExpectedAction::Auxiliary(die));
+        self
+    }
+
     pub(crate) fn using(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
         self.expected_action.attackers = Some(dice.into_iter().collect());
         self
@@ -414,6 +430,7 @@ impl SearchScenario {
 
 fn phase_name(phase: BME_PHASE) -> &'static str {
     match phase {
+        BME_PHASE::AUXILIARY => "aux",
         BME_PHASE::PREROUND => "preround",
         BME_PHASE::INITIATIVE => "initiative",
         BME_PHASE::CHANCE => "chance",
