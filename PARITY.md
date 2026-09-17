@@ -192,6 +192,7 @@ case named in the final column.
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, Unique unit test | covered |
+| ButtonWeavers Auxiliary mutual accept/decline lifecycle and courtesy copy | `PrepareAuxiliaryPhase`, `ApplyAuxiliaryDecision`, legacy/native Auxiliary selectors | readable wire-protocol, mechanics, invalid-input, and worker-independence tests | covered Rust extension |
 | reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | policy dispatch, `SelectRandomAction`, `SelectMaximizeAction`, `SelectQAIAction`, fixed/culling evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `EvaluateMove`, `PlayFightQAI`, `BMC_BMAI3::EvaluateMoves`/`CullMoves` | exact ply-2 and full bug16 traces, evaluator tests | covered |
@@ -210,9 +211,14 @@ capture. Reconstructed ordinary-d10 and Twin-d6 endgames cover single- and
 multi-die distributions, including draw-as-half-win aggregation. Legacy
 C++-ordered RNG consumption and early culling remain unchanged.
 
-Parsing-only parity is intentional for `AUXILIARY` and `RADIOACTIVE`:
-upstream C++ only assigns their property bits in `BMC_Parser::ParseDie` and
-implements no game behavior. Doppelganger is an intentional post-C++ extension
+The C++ source assigns the `AUXILIARY` property and declares an Auxiliary AI
+action, but does not implement the phase or selector. BMAIR's complete
+Auxiliary lifecycle is therefore an intentional post-C++ extension based on
+the ButtonWeavers engine at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
+The wire state has no button identity, so site-specific eligibility such as
+Gordo's restriction remains the caller's responsibility. Parsing-only parity
+remains intentional for unrelated `RADIOACTIVE` behavior: upstream C++ only
+assigns its property bit and implements no game behavior. Doppelganger is an intentional post-C++ extension
 based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
 The Radioactive decay path required by its documented Doppelganger interaction
 is implemented, including decay-product replacement and round restoration;
@@ -234,6 +240,22 @@ adapters do not provide alternate rules or search implementations. Canonical
 die-recipe state assertions and protocol-level win-percentage ranges keep the
 coverage reviewable while preserving existing parity evidence and production
 control flow.
+
+## Phase coverage inventory
+
+| Phase or decision | BMAIR status |
+|---|---|
+| Auxiliary (`aux`) | Full parser, lifecycle, legacy/native search, text action, and typed action support. |
+| Preround, Reserve, Chance, Focus, Fight | Full action-selection and simulation support. |
+| Initiative | Parsed and simulated automatically; it has no direct `getaction` decision. |
+| Game over | Parsed terminal state; it has no direct `getaction` decision. |
+| Turbo selection | Returned atomically as part of a Fight attack rather than exposed as a separate phase. |
+| Fire adjustment | Not supported on this branch; Fire remains planned and requires its own mechanics work. |
+
+ButtonWeavers' server orchestration states—joining games, custom recipes,
+loading buttons, starting/ending rounds and turns, and committing attacks—are
+not independent BMAIR decision phases. The caller supplies the resulting game
+state, while BMAIR performs the applicable rules transition during simulation.
 
 ## Defined Twin Swing forced-win regression
 

@@ -33,8 +33,8 @@ dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-and `G` as the parsing-only Rage property. Consumers should use this metadata
-instead of maintaining a parallel token-to-skill table.
+and `G` as Rage. Consumers should use this metadata instead of maintaining a
+parallel token-to-skill table.
 
 ## JSON Lines v1
 
@@ -94,6 +94,7 @@ Actions use a `type` discriminator:
 
 - `{"type":"pass"}`
 - `{"type":"surrender"}`
+- `{"type":"auxiliary","die":1}`; `die` is null when Auxiliary is declined
 - `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
@@ -155,12 +156,20 @@ The stable command forms are:
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
 
-Phases are `preround`, `reserve`, `initiative`, `chance`, `focus`, `fight`, and
-`gameover`. `getaction` is defined for preround, reserve, Chance, Focus, and
-fight; initiative/gameover are state-description phases rather than direct
-action requests. Legacy parser errors terminate the process with a nonzero exit
-status. JSONL converts those same errors into recoverable `execution_error`
-responses and rolls back the request.
+Phases are `aux`, `preround`, `reserve`, `initiative`, `chance`, `focus`,
+`fight`, and `gameover`. `getaction` is defined for Auxiliary, preround,
+reserve, Chance, Focus, and fight; initiative/gameover are state-description
+phases rather than direct action requests. In an Auxiliary state, the action is
+`aux DIE` to accept the indexed die or `aux -1` to decline. When only one
+player supplies an Auxiliary die, BMAIR creates ButtonWeavers' courtesy copy
+for the other player before evaluating the choice.
+
+Button-specific eligibility such as Gordo's restriction is not represented in
+the BMAIR game-state protocol. Callers must provide a site-legal Auxiliary
+state; BMAIR validates the engine-level limit of one Auxiliary die per player.
+Legacy parser errors terminate the process with a nonzero exit status. JSONL
+converts those same errors into recoverable `execution_error` responses and
+rolls back the request.
 
 Game-state syntax and multiline action examples live in
 [`tests/fixtures/`](tests/fixtures/); deterministic native examples live in

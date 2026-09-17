@@ -127,6 +127,23 @@ pub(crate) struct ChanceMove {
     pub(crate) reroll: Vec<usize>,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct AuxiliarySearchResult {
+    pub(crate) die: Option<usize>,
+    pub(crate) score: f32,
+    pub(crate) simulations: usize,
+}
+
+impl AuxiliarySearchResult {
+    pub(crate) fn probability(&self) -> f32 {
+        if self.simulations == 0 {
+            0.0
+        } else {
+            self.score / self.simulations as f32
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum InitiativeStage {
     Chance,
@@ -861,6 +878,140 @@ pub(crate) fn SelectBMAIReserveAction(
         }
     }
     best
+}
+
+fn AuxiliaryDie(player: &crate::model::BMC_Player) -> Option<usize> {
+    player
+        .m_die
+        .iter()
+        .position(|die| die.HasProperty(property::AUXILIARY))
+}
+
+/// Resolve ButtonWeavers' mutual Auxiliary choice for a simulation. If both
+/// players agree, each selected die becomes an ordinary die for the game. A
+/// decline by either player removes every Auxiliary die from both buttons.
+pub(crate) fn ApplyAuxiliaryDecision(game: &mut BMC_Game, accepted: bool) {
+    for player in &mut game.m_player {
+        let selected = accepted.then(|| AuxiliaryDie(player)).flatten();
+        let mut index = 0;
+        player.m_die.retain_mut(|die| {
+            let keep = !die.HasProperty(property::AUXILIARY) || Some(index) == selected;
+            if keep && die.HasProperty(property::AUXILIARY) {
+                die.m_properties &= !property::AUXILIARY;
+                die.m_value_total = None;
+                die.m_notset = true;
+            }
+            index += 1;
+            keep
+        });
+    }
+}
+
+fn EvaluateAuxiliaryDecision(game: &BMC_Game, accepted: bool, rng: &mut BMC_RNG) -> f32 {
+    let mut simulation = game.clone();
+    ApplyAuxiliaryDecision(&mut simulation, accepted);
+    // Auxiliary is a pregame choice. Compare the resulting buttons over one
+    // complete round with the inexpensive deterministic QAI rollout policy;
+    // recursively invoking BMAI here would nest a new search at every move.
+    let (winner, _) = PlayRoundWithPolicies(
+        &mut simulation,
+        rng,
+        &[BMC_AI_POLICY::QAI, BMC_AI_POLICY::QAI],
+        None,
+    );
+    match winner {
+        Some(0) => 1.0,
+        None => 0.5,
+        Some(1) => 0.0,
+        Some(_) => unreachable!("Button Men has exactly two players"),
+    }
+}
+
+pub(crate) fn SelectBMAIAuxiliaryAction(
+    game: &BMC_Game,
+    rng: &mut BMC_RNG,
+    ai: &BMC_BMAI3,
+) -> AuxiliarySearchResult {
+    let Some(auxiliary) = AuxiliaryDie(&game.m_player[0]) else {
+        return AuxiliarySearchResult {
+            die: None,
+            score: 0.0,
+            simulations: 0,
+        };
+    };
+    let simulations = ai.ComputeNumberSims(2, 1);
+    let candidates = [Some(auxiliary), None];
+    let mut best = AuxiliarySearchResult {
+        die: None,
+        score: -1.0,
+        simulations,
+    };
+    for candidate in candidates {
+        let score = (0..simulations)
+            .map(|_| EvaluateAuxiliaryDecision(game, candidate.is_some(), rng))
+            .sum();
+        if score > best.score {
+            best.die = candidate;
+            best.score = score;
+        }
+    }
+    best
+}
+
+pub(crate) fn SelectNativeBMAIAuxiliaryAction(
+    game: &BMC_Game,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    workers: usize,
+    ai: &BMC_BMAI3,
+) -> AuxiliarySearchResult {
+    let Some(auxiliary) = AuxiliaryDie(&game.m_player[0]) else {
+        return AuxiliarySearchResult {
+            die: None,
+            score: 0.0,
+            simulations: 0,
+        };
+    };
+    let simulations = ai.ComputeNumberSims(2, 1);
+    let candidates = [Some(auxiliary), None];
+    let tasks = candidates
+        .iter()
+        .copied()
+        .enumerate()
+        .flat_map(|(candidate_index, candidate)| {
+            (0..simulations)
+                .map(move |simulation_index| (candidate_index, candidate, simulation_index))
+        })
+        .collect();
+    let results = crate::native::ordered_parallel_map(
+        tasks,
+        workers,
+        |(candidate_index, candidate, simulation_index)| {
+            let mut simulation_rng =
+                NativeSimulationRng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            EvaluateAuxiliaryDecision(game, candidate.is_some(), &mut simulation_rng)
+        },
+    );
+    let mut best = AuxiliarySearchResult {
+        die: None,
+        score: -1.0,
+        simulations,
+    };
+    for (candidate, scores) in candidates
+        .into_iter()
+        .zip(results.chunks_exact(simulations))
+    {
+        let score = scores.iter().sum();
+        if score > best.score {
+            best.die = candidate;
+            best.score = score;
+        }
+    }
+    best
+}
+
+pub(crate) fn SelectQAIAuxiliaryAction(game: &BMC_Game) -> Option<usize> {
+    AuxiliaryDie(&game.m_player[0])
 }
 
 pub(crate) fn SelectNativeBMAIReserveAction(
@@ -2987,6 +3138,43 @@ mod tests {
     use crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1;
     use crate::model::{BMC_Die, BMC_DieIndexSet, BMC_Player};
     use scenario::scenario;
+
+    fn auxiliary_game() -> BMC_Game {
+        let input = "game 3\naux\nplayer 0 2 0\n6\n+Y\nplayer 1 2 0\n8\n+p12\nquit\n";
+        let mut parser = crate::BMC_Parser::default();
+        parser.ParseString(input, &mut Vec::new()).unwrap();
+        parser.m_game
+    }
+
+    #[test]
+    fn mutual_auxiliary_acceptance_keeps_each_die_and_removes_the_skill() {
+        let mut game = auxiliary_game();
+
+        ApplyAuxiliaryDecision(&mut game, true);
+
+        assert_eq!(game.m_player[0].m_die.len(), 2);
+        assert_eq!(game.m_player[1].m_die.len(), 2);
+        assert!(game.m_player.iter().all(|player| {
+            player
+                .m_die
+                .iter()
+                .all(|die| !die.HasProperty(property::AUXILIARY))
+        }));
+        assert_eq!(game.m_player[0].m_die[1].m_swing_type[0], Some('Y'));
+        assert!(game.m_player[1].m_die[1].HasProperty(property::POISON));
+    }
+
+    #[test]
+    fn either_auxiliary_decline_removes_both_dice() {
+        let mut game = auxiliary_game();
+
+        ApplyAuxiliaryDecision(&mut game, false);
+
+        assert_eq!(game.m_player[0].m_die.len(), 1);
+        assert_eq!(game.m_player[1].m_die.len(), 1);
+        assert_eq!(game.m_player[0].m_die[0].GetSidesMax(), 6);
+        assert_eq!(game.m_player[1].m_die[0].GetSidesMax(), 8);
+    }
 
     #[test]
     fn native_fight_score_summary_is_stable() {

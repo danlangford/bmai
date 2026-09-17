@@ -6,14 +6,16 @@ use std::fmt;
 use std::io::{BufRead, Write};
 
 use crate::model::{
-    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BME_ACTION, BME_PHASE, BME_SWING_SET, property,
+    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMD_MAX_DICE, BME_ACTION, BME_PHASE,
+    BME_SWING_SET, property,
 };
 use crate::simulation::{
     BMC_AI_POLICY, PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies,
-    PlayGamesWithPoliciesNative, SelectBMAIActionWithStats, SelectBMAIChanceAction,
-    SelectBMAIFocusAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
-    SelectNativeBMAIActionWithStats, SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction,
-    SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
+    PlayGamesWithPoliciesNative, SelectBMAIActionWithStats, SelectBMAIAuxiliaryAction,
+    SelectBMAIChanceAction, SelectBMAIFocusAction, SelectBMAIReserveAction,
+    SelectBMAISetSwingAction, SelectNativeBMAIActionWithStats, SelectNativeBMAIAuxiliaryAction,
+    SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction, SelectNativeBMAIReserveAction,
+    SelectNativeBMAISetSwingAction, SelectQAIAction, SelectQAIAuxiliaryAction,
     SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
@@ -610,6 +612,9 @@ impl BMC_Parser {
                 output,
             )?;
         }
+        if self.m_game.m_phase == BME_PHASE::AUXILIARY {
+            PrepareAuxiliaryPhase(&mut self.m_game)?;
+        }
         // BMC_Parser::ParseGame always restores both game AI pointers to the
         // global BMAI3 instance, while retaining its global search settings.
         self.m_ai_type = [2, 2];
@@ -620,6 +625,46 @@ impl BMC_Parser {
 
     fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
         match self.m_game.m_phase {
+            BME_PHASE::AUXILIARY => {
+                let (die, search) = if self.m_ai_type[0] == 1 {
+                    (SelectQAIAuxiliaryAction(&self.m_game), None)
+                } else if self.m_execution_mode == ExecutionMode::Native {
+                    let replay = self.NextNativeReplay();
+                    let result = SelectNativeBMAIAuxiliaryAction(
+                        &self.m_game,
+                        self.m_rng.Algorithm(),
+                        replay,
+                        self.m_native_workers,
+                        &self.m_player_ai[0],
+                    );
+                    let summary = (result.score, result.probability());
+                    (result.die, Some(summary))
+                } else {
+                    let result = SelectBMAIAuxiliaryAction(
+                        &self.m_game,
+                        &mut self.m_rng,
+                        &self.m_player_ai[0],
+                    );
+                    let summary = (result.score, result.probability());
+                    (result.die, Some(summary))
+                };
+                let original =
+                    die.map(|index| self.m_game.m_player[0].m_die[index].m_original_index);
+                self.m_last_action =
+                    Some(crate::protocol::ProtocolAction::Auxiliary { die: original });
+                if let Some((score, probability)) = search {
+                    writeln!(
+                        output,
+                        "l1 p0 best move ({score:.1} points, {:.1}% win)",
+                        probability * 100.0
+                    )
+                    .map_err(io_error)?;
+                }
+                self.SendStats(output)?;
+                writeln!(output, "action").map_err(io_error)?;
+                writeln!(output, "aux {}", original.map_or(-1, |index| index as i32))
+                    .map_err(io_error)
+            }
             BME_PHASE::FIGHT => {
                 let moves = self.m_game.GenerateValidAttacks();
                 if self.m_ai_type[0] != 1 {
@@ -818,6 +863,51 @@ impl BMC_Parser {
         )
         .map_err(io_error)
     }
+}
+
+fn PrepareAuxiliaryPhase(game: &mut BMC_Game) -> Result<(), ParseError> {
+    let auxiliary = game.m_player.each_ref().map(|player| {
+        player
+            .m_die
+            .iter()
+            .filter(|die| die.HasProperty(property::AUXILIARY))
+            .count()
+    });
+    for (player, count) in auxiliary.into_iter().enumerate() {
+        if count > 1 {
+            return Err(ParseError(format!(
+                "player {player} has {count} Auxiliary dice; ButtonWeavers permits one"
+            )));
+        }
+    }
+    match auxiliary {
+        [1, 0] => AddCourtesyAuxiliary(game, 0, 1),
+        [0, 1] => AddCourtesyAuxiliary(game, 1, 0),
+        _ => Ok(()),
+    }
+}
+
+fn AddCourtesyAuxiliary(
+    game: &mut BMC_Game,
+    source_player: usize,
+    target_player: usize,
+) -> Result<(), ParseError> {
+    if game.m_player[target_player].m_die.len() >= BMD_MAX_DICE {
+        return Err(ParseError(format!(
+            "courtesy Auxiliary die exceeds player {target_player} capacity {BMD_MAX_DICE}"
+        )));
+    }
+    let mut die = *game.m_player[source_player]
+        .m_die
+        .iter()
+        .find(|die| die.HasProperty(property::AUXILIARY))
+        .expect("source player has one Auxiliary die");
+    die.m_original_index = game.m_player[target_player].m_die.len();
+    die.m_value_total = None;
+    die.m_notset = true;
+    game.m_player[target_player].m_die.push(die);
+    game.m_player[target_player].m_swing_set = BME_SWING_SET::NOT;
+    Ok(())
 }
 
 fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
@@ -1141,6 +1231,7 @@ fn protocol_focus(
 
 fn phase_protocol(phase: BME_PHASE) -> &'static str {
     match phase {
+        BME_PHASE::AUXILIARY => "aux",
         BME_PHASE::PREROUND => "preround",
         BME_PHASE::RESERVE => "reserve",
         BME_PHASE::INITIATIVE => "initiative",
@@ -1153,6 +1244,7 @@ fn phase_protocol(phase: BME_PHASE) -> &'static str {
 
 fn parse_phase(phase: &str) -> Result<BME_PHASE, ParseError> {
     match phase {
+        "aux" => Ok(BME_PHASE::AUXILIARY),
         "preround" => Ok(BME_PHASE::PREROUND),
         "reserve" => Ok(BME_PHASE::RESERVE),
         "initiative" => Ok(BME_PHASE::INITIATIVE),
@@ -1263,7 +1355,7 @@ fn io_error(error: std::io::Error) -> ParseError {
 mod tests {
     use super::*;
     use crate::BME_ATTACK::{POWER, SKILL};
-    use crate::BME_PHASE::{CHANCE, FOCUS};
+    use crate::BME_PHASE::{AUXILIARY, CHANCE, FOCUS};
     use crate::simulation::scenario::{LEGACY, parser_scenario, search_scenario};
 
     /// Port of ParserTests.ParseString.
@@ -1572,6 +1664,7 @@ Seeding with 17\n"
     #[test]
     fn every_wire_phase_name_maps_to_the_expected_game_phase() {
         for (name, expected) in [
+            ("aux", BME_PHASE::AUXILIARY),
             ("preround", BME_PHASE::PREROUND),
             ("reserve", BME_PHASE::RESERVE),
             ("initiative", BME_PHASE::INITIATIVE),
@@ -1588,6 +1681,62 @@ Seeding with 17\n"
             assert_eq!(parser.m_game.m_phase, expected, "{name}");
             assert_eq!(parser.m_game.m_target_wins, 5, "{name}");
         }
+    }
+
+    #[test]
+    fn auxiliary_qai_emits_the_buttonweavers_action_contract() {
+        parser_scenario(
+            "game 3\naux\nplayer 0 2 0\n6\n+20\nplayer 1 2 0\n6\n+4\nai 0 1\ngetaction\nquit\n",
+        )
+        .expect_auxiliary(Some(1))
+        .run();
+    }
+
+    #[test]
+    fn auxiliary_phase_adds_the_buttonweavers_courtesy_copy() {
+        parser_scenario(
+            "game 3\naux\nplayer 0 1 0\n6\nplayer 1 2 0\n6\n+12\nai 0 1\ngetaction\nquit\n",
+        )
+        .expect_auxiliary(Some(1))
+        .run();
+    }
+
+    #[test]
+    fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
+        parser_scenario("game 3\naux\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\nquit\n")
+            .expect_auxiliary(None)
+            .run();
+    }
+
+    #[test]
+    fn auxiliary_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
+        let error = BMC_Parser::default()
+            .ParseString(
+                "game 3\naux\nplayer 0 2 0\n+6\n+8\nplayer 1 1 0\n+6\nquit\n",
+                &mut Vec::new(),
+            )
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "player 0 has 2 Auxiliary dice; ButtonWeavers permits one"
+        );
+    }
+
+    #[test]
+    fn native_auxiliary_search_is_worker_count_independent() {
+        search_scenario()
+            .phase(AUXILIARY)
+            .player(0, 0.0, ["6", "+M100"])
+            .player(1, 0.0, ["6", "+pM100"])
+            .ply(1)
+            .simulations(10, 40)
+            .max_branch(80)
+            .modes([
+                crate::simulation::scenario::NATIVE,
+                crate::simulation::scenario::native(4),
+            ])
+            .expect_auxiliary(None)
+            .run();
     }
 
     #[test]

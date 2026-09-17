@@ -42,6 +42,7 @@ pub mod property {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BME_PHASE {
+    AUXILIARY,
     PREROUND,
     RESERVE,
     INITIATIVE,
@@ -53,6 +54,7 @@ pub enum BME_PHASE {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BME_ACTION {
+    USE_AUXILIARY,
     SET_SWING_AND_OPTION,
     USE_RESERVE,
     ATTACK,
