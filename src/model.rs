@@ -383,9 +383,7 @@ pub struct BMC_Game {
     pub m_surrender_allowed: bool,
     pub m_target_wins: u8,
     pub m_turbo_accuracy: f32,
-    /// Whether otherwise-legal Power attacks may spend Fire to improve the
-    /// resulting position. This search-wide option applies to both sides of
-    /// simulated continuations.
+    /// Allows optional Fire use on otherwise-legal Power attacks throughout search.
     pub m_fire_overshooting: bool,
 }
 
@@ -814,9 +812,7 @@ impl BMC_Game {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
         let mut moves = Vec::with_capacity(32);
-        // Required Fire assistance is part of the legal attack set. Optional
-        // overshoots are appended only after every required candidate has had
-        // first claim on the bounded Fire budget.
+        // Reserve the bounded Fire budget for required attacks before optional overshoots.
         let mut optional_fire_moves = Vec::new();
         let mut optional_fire_remaining = fire_limit;
         let mut fire_remaining = fire_limit;
