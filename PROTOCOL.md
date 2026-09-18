@@ -119,7 +119,8 @@ Run `bmair [FILE]` or pipe text to stdin. The startup banner and all parser
 output are part of this human-oriented interface. The command set is:
 
 `game`, phase names, `player`, `ai`, `mode`, `rng`, `workers`, `seed`, `ply`,
-`max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `surrender`, `getaction`,
+`max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `fire_overshooting`,
+`surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
 Standard input is incremental. BMAIR flushes the four-line banner before
@@ -156,6 +157,7 @@ The stable command forms are:
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
+| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |

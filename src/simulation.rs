@@ -2585,6 +2585,7 @@ fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
     simulation.m_surrender_allowed = source.m_surrender_allowed;
     simulation.m_target_wins = source.m_target_wins;
     simulation.m_turbo_accuracy = source.m_turbo_accuracy;
+    simulation.m_fire_overshooting = source.m_fire_overshooting;
 }
 
 pub(crate) fn ApplyAttack(game: &mut BMC_Game, action: &BMC_Move, rng: &mut BMC_RNG) -> bool {

@@ -247,6 +247,7 @@ pub(crate) struct SearchScenario {
     max_sims: Option<usize>,
     max_branch: Option<usize>,
     surrender: Option<bool>,
+    fire_overshooting: Option<bool>,
     expected_player: Option<usize>,
     expected_win_percent: Option<RangeInclusive<f32>>,
     expected_action: ActionExpectation,
@@ -293,6 +294,11 @@ impl SearchScenario {
 
     pub(crate) fn surrender(mut self, allowed: bool) -> Self {
         self.surrender = Some(allowed);
+        self
+    }
+
+    pub(crate) fn fire_overshooting(mut self, enabled: bool) -> Self {
+        self.fire_overshooting = Some(enabled);
         self
     }
 
@@ -437,6 +443,13 @@ impl SearchScenario {
                 "surrender off\n"
             });
         }
+        if let Some(enabled) = self.fire_overshooting {
+            input.push_str(if enabled {
+                "fire_overshooting on\n"
+            } else {
+                "fire_overshooting off\n"
+            });
+        }
         input.push_str("getaction\nquit\n");
         input
     }
@@ -474,6 +487,7 @@ pub(crate) struct Scenario {
     turbo_option: Option<i16>,
     fire_values: Vec<(usize, u8)>,
     boosted_values: Vec<(usize, u8)>,
+    fire_overshooting: bool,
     seed: Option<u32>,
     expected_allowed: Option<bool>,
     expected_extra_turn: Option<bool>,
@@ -549,6 +563,11 @@ impl Scenario {
     /// Selects the values to which participating attackers are fired up.
     pub(crate) fn boosting(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
         self.boosted_values = dice.into_iter().collect();
+        self
+    }
+
+    pub(crate) fn fire_overshooting(mut self, enabled: bool) -> Self {
+        self.fire_overshooting = enabled;
         self
     }
 
@@ -646,6 +665,7 @@ impl Scenario {
         let attack = self.attack.expect("scenario has no attack type");
         let mut game = parse_game(&self.attacker_dice, &self.defender_dice);
         game.m_phase = phase;
+        game.m_fire_overshooting = self.fire_overshooting;
         if let Some(scores) = self.scores {
             game.m_player[0].m_score = scores[0];
             game.m_player[1].m_score = scores[1];
@@ -1198,6 +1218,42 @@ mod tests {
     }
 
     #[test]
+    fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
+        search_scenario()
+            .phase(FIGHT)
+            .player(0, 15.0, ["~10:1", "F20:20"])
+            .player(1, 10.5, ["1:1", "s20:15"])
+            .ply(2)
+            .simulations(20, 200)
+            .max_branch(1_000)
+            .surrender(false)
+            .fire_overshooting(false)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 25.0..=40.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .run();
+
+        search_scenario()
+            .phase(FIGHT)
+            .player(0, 15.0, ["~10:1", "F20:20"])
+            .player(1, 10.5, ["1:1", "s20:15"])
+            .ply(2)
+            .simulations(20, 200)
+            .max_branch(1_000)
+            .surrender(false)
+            .fire_overshooting(true)
+            .modes([NATIVE, native(4)])
+            .expect_player_win_percent(0, 100.0..=100.0)
+            .expect_attack(POWER)
+            .using([0])
+            .targeting([0])
+            .firing([(1, 14)])
+            .run();
+    }
+
+    #[test]
     fn fire_assists_a_skill_attack() {
         scenario()
             .attackers(["4:1", "4:1", "F6:4"])
@@ -1242,6 +1298,20 @@ mod tests {
             .boosting([(0, 3)])
             .firing([(1, 4)])
             .expect_allowed(false)
+            .run();
+    }
+
+    #[test]
+    fn fire_overshooting_is_available_when_the_player_enables_it() {
+        scenario()
+            .attackers(["6:2", "F6:5"])
+            .attacks(POWER)
+            .using([0])
+            .defender("1:1")
+            .boosting([(0, 3)])
+            .firing([(1, 4)])
+            .fire_overshooting(true)
+            .expect_allowed(true)
             .run();
     }
 

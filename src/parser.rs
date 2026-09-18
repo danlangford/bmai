@@ -96,6 +96,7 @@ impl BMC_Parser {
             target_wins: self.m_game.m_target_wins,
             surrender_allowed: self.m_game.m_surrender_allowed,
             turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.m_game.m_turbo_accuracy),
+            fire_overshooting: self.m_game.m_fire_overshooting,
             execution_mode: self.m_execution_mode.as_str(),
             rng: self.m_rng.ReplayId(),
             native_root_seed: self.m_native_root_seed,
@@ -327,6 +328,18 @@ impl BMC_Parser {
                     output,
                     "Setting turbo accuracy to {:.6}",
                     self.m_game.m_turbo_accuracy
+                )
+                .map_err(io_error)?;
+            } else if let Some(value) = line.strip_prefix("fire_overshooting ") {
+                self.m_game.m_fire_overshooting = parse_on_off("fire_overshooting", value)?;
+                writeln!(
+                    output,
+                    "Setting Fire overshooting {}",
+                    if self.m_game.m_fire_overshooting {
+                        "on"
+                    } else {
+                        "off"
+                    }
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("surrender ") {
@@ -1032,6 +1045,16 @@ fn read_stream_line<R: BufRead>(input: &mut R) -> Result<Option<String>, ParseEr
     match input.read_line(&mut line).map_err(io_error)? {
         0 => Ok(None),
         _ => Ok(Some(line)),
+    }
+}
+
+fn parse_on_off(command: &str, value: &str) -> Result<bool, ParseError> {
+    match value {
+        "on" => Ok(true),
+        "off" => Ok(false),
+        _ => Err(ParseError(format!(
+            "invalid {command} setting: {value} (expected on or off)"
+        ))),
     }
 }
 
@@ -2074,6 +2097,33 @@ Seeding with 17\n"
         assert_eq!(
             rng.to_string(),
             "invalid RNG algorithm: xoshiro (expected legacy or park-miller)"
+        );
+    }
+
+    #[test]
+    fn fire_overshooting_is_explicit_default_off_session_state() {
+        let mut parser = BMC_Parser::default();
+        assert!(!parser.m_game.m_fire_overshooting);
+
+        let mut output = Vec::new();
+        parser
+            .ParseString(
+                "fire_overshooting on\nfire_overshooting off\nquit\n",
+                &mut output,
+            )
+            .unwrap();
+        assert!(!parser.m_game.m_fire_overshooting);
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "Setting Fire overshooting on\nSetting Fire overshooting off\n"
+        );
+
+        let error = parser
+            .ParseString("fire_overshooting maybe\n", &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "invalid fire_overshooting setting: maybe (expected on or off)"
         );
     }
 
