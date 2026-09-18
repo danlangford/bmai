@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Radioactive (`%`).
 - Add parser and mechanics support for Rush.
 
+## [0.11.0] - 2026-09-18
+
+### Added
+
+- Added the default-off `fire_overshooting on|off` client option. When enabled,
+  BMAIR may spend Fire on a Power attack that was already legal, allowing the
+  search to value both the stronger attacker and the safer turned-down Fire
+  dice.
+- Added paired mechanics, parser, and search regressions for disabled and
+  enabled Fire overshooting.
+
 ## [0.10.1] - 2026-09-17
 
 ### Fixed
@@ -289,7 +300,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.10.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.11.0...HEAD
+[0.11.0]: https://github.com/danlangford/bmai/compare/bmair-v0.10.1...bmair-v0.11.0
+[0.10.1]: https://github.com/danlangford/bmai/compare/bmair-v0.10.0...bmair-v0.10.1
 [0.10.0]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...bmair-v0.10.0
 [0.9.0]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...bmair-v0.9.0
 [0.8.2]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...bmair-v0.8.2

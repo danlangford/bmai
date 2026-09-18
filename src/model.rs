@@ -383,6 +383,10 @@ pub struct BMC_Game {
     pub m_surrender_allowed: bool,
     pub m_target_wins: u8,
     pub m_turbo_accuracy: f32,
+    /// Whether otherwise-legal Power attacks may spend Fire to improve the
+    /// resulting position. This search-wide option applies to both sides of
+    /// simulated continuations.
+    pub m_fire_overshooting: bool,
 }
 
 // Original BMAI fixes each input player at ten dice. A successful
@@ -777,6 +781,7 @@ impl Default for BMC_Game {
             m_surrender_allowed: true,
             m_target_wins: 3,
             m_turbo_accuracy: 1.0,
+            m_fire_overshooting: false,
         }
     }
 }
@@ -809,6 +814,11 @@ impl BMC_Game {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
         let mut moves = Vec::with_capacity(32);
+        // Required Fire assistance is part of the legal attack set. Optional
+        // overshoots are appended only after every required candidate has had
+        // first claim on the bounded Fire budget.
+        let mut optional_fire_moves = Vec::new();
+        let mut optional_fire_remaining = fire_limit;
         let mut fire_remaining = fire_limit;
         for attacker_position in 0..available.len() {
             let (attacker_index, attacker_die) = available[attacker_position];
@@ -867,7 +877,8 @@ impl BMC_Game {
                             if player_has_fire && attack == BME_ATTACK::POWER && !legal {
                                 let minimum = target_die
                                     .GetValueTotal()
-                                    .saturating_sub(attacker_die.GetValueTotal());
+                                    .saturating_sub(attacker_die.GetValueTotal())
+                                    .max(1);
                                 for fire in FirePlansForPower(
                                     attacker,
                                     attacker_index,
@@ -883,6 +894,26 @@ impl BMC_Game {
                                     candidate.m_fire = fire;
                                     moves.push(candidate);
                                     fire_remaining -= 1;
+                                }
+                            } else if player_has_fire
+                                && attack == BME_ATTACK::POWER
+                                && self.m_fire_overshooting
+                            {
+                                for fire in FirePlansForPower(
+                                    attacker,
+                                    attacker_index,
+                                    1,
+                                    optional_fire_remaining,
+                                ) {
+                                    let mut candidate = BMC_Move::attack(
+                                        attack,
+                                        [attacker_index],
+                                        [*target_index],
+                                        target_die.GetScore(false),
+                                    );
+                                    candidate.m_fire = fire;
+                                    optional_fire_moves.push(candidate);
+                                    optional_fire_remaining -= 1;
                                 }
                             }
                         }
@@ -1070,6 +1101,8 @@ impl BMC_Game {
                 }
             }
         }
+        optional_fire_moves.truncate(fire_remaining);
+        moves.extend(optional_fire_moves);
         moves
     }
 
@@ -1754,6 +1787,33 @@ mod tests {
 
         assert_eq!(matching.len(), 1);
         assert!(matching[0].m_fire.is_empty());
+    }
+
+    #[test]
+    fn optional_overshoots_cannot_exhaust_the_required_fire_budget() {
+        let mut attacker = die(0);
+        attacker.m_sides[0] = 10;
+        attacker.m_value_total = Some(5);
+        let mut helper = die(property::FIRE);
+        helper.m_sides[0] = 20;
+        helper.m_value_total = Some(20);
+        helper.m_original_index = 1;
+        let mut high_target = die(0);
+        high_target.m_value_total = Some(8);
+        let mut low_target = die(0);
+        low_target.m_value_total = Some(4);
+        low_target.m_original_index = 1;
+        let mut game = game_with(vec![attacker, helper], vec![high_target, low_target]);
+        game.m_fire_overshooting = true;
+
+        let assisted = game
+            .GenerateValidAttacksInCppOrderForSearch(1)
+            .into_iter()
+            .filter(|action| !action.m_fire.is_empty())
+            .collect::<Vec<_>>();
+
+        assert_eq!(assisted.len(), 1);
+        assert_eq!(assisted[0].m_targets, BMC_DieIndexSet::from([0]));
     }
 
     #[test]
