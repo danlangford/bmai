@@ -50,7 +50,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 
 - [x] All PR #82 signed-Konstant generation cases (including the four
   parameterized signed targets) and the ten-Konstant upper bound map to
-  `model::tests::pr82_signed_konstant_skill_attack_matrix` and
+  `game::tests::pr82_signed_konstant_skill_attack_matrix` and
   `pr82_variable_skill_stack_disables_legacy_value_pruning`.
 - [x] Konstant/Stinger/Warrior range, sign, gap, full-value, later-target, and
   unused-pool cases are individually named in the table-driven Rust test, so
@@ -60,7 +60,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   `pr82_trip_target_before_roll_effect_triggers_once`, and
   `pr82_chance_effects_run_once_while_konstant_retains_value`.
 - [x] Participating/nonparticipating Ornery, Konstant Mighty/Weak, Mood, and
-  pass behavior maps to the four `simulation::tests::pr82_*ornery*` tests;
+  pass behavior maps to the four `search::tests::parity::pr82_*ornery*` tests;
   `OrdinarySideChangeInvalidatesValue` maps to
   `pr82_ordinary_side_change_invalidates_value`.
 - [x] Konstant Time-and-Space, Morphing, Berserk, Skill, Trip, and Warrior
@@ -77,9 +77,9 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   its reference suite to 108.
 - [x] `LegacyMembers.TestRNG` -> `rng::tests::cpp_legacy_rng_distribution`.
 - [x] `PlayerTests.CopyConstructor` ->
-  `model::tests::cpp_player_copy_constructor_is_independent`.
+  `game::tests::cpp_player_copy_constructor_is_independent`.
 - [x] `ParserTests.ParseString` ->
-  `parser::tests::cpp_parser_multiline_fight_string`.
+  `protocol::legacy::tests::cpp_parser_multiline_fight_string`.
 - [x] NoSkill, MultiDieSkillAttack, SingleDieSkillAttack,
   KonstantSingleDieSkillAttack, StealthSingleDieSkillAttack, and
   StealthMultiDieSkillAttack -> `cpp_basic_power_and_skill_attack_generation`
@@ -87,9 +87,9 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] MaximumSkill -> `cpp_maximum_die_always_rolls_its_maximum` and
   `cpp_speed_generation_and_property_score_combinations`.
 - [x] Konstant Trip, Chance, Skill, and Warrior tests -> the four
-  `simulation::tests::cpp_konstant_*`/`copied_cpp_konstant_*` tests.
+  `search::tests::core::cpp_konstant_*`/`copied_cpp_konstant_*` tests.
 - [x] Insult and all nine Stealth tests ->
-  `model::tests::cpp_insult_and_stealth_restrictions` plus basic generation.
+  `game::tests::cpp_insult_and_stealth_restrictions` plus basic generation.
 - [x] Null, Value, NullValue, Poison, PoisonValue, and PoisonNull ->
   `score_matches_cpp_property_branches` and
   `cpp_speed_generation_and_property_score_combinations`.
@@ -178,10 +178,10 @@ case named in the final column.
 
 | C++ behavior | Rust implementation | Evidence | Status |
 |---|---|---|---|
-| `BMC_Parser::ParseDie*` | `parser::ParseDie`, `ParseDieDefinedSides`, `parse_side`, `prefix_property` | defined Twin Swing parser matrix, all advertised property prefixes, all phases and value/dizzy state, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
+| `BMC_Parser::ParseDie*` | `protocol::legacy::die` | defined Twin Swing parser matrix, all advertised property prefixes, all phases and value/dizzy state, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
 | `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `BMC_Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
 | `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `BMC_Die::GetScore` | score branch tests and all upstream skill score ports | covered |
-| `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `GenerateValidAttacks`, `GenerateValidAttacksInCppOrder` | upstream attack/Stealth/Insult tests | covered |
+| `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `game::attack` direct ordered enumeration | upstream attack/Stealth/Insult tests | covered |
 | Konstant, Stealth, Warrior, Stinger, Unskilled, Queer attack restrictions | `CanDoAttack`, `CanBeAttacked`, direct stack enumeration plus `SkillStackCanHit` signed intervals | PR #82's complete signed-Konstant/Stinger/Warrior matrix, Stealth+Insult regressions, differentials | covered |
 | `BMC_Die::OnApplyAttackPlayer` Berserk, Mighty, Weak, Morphing, Turbo, Warrior and Ornery scheduling | `ApplyAttackPlayerEffects`, cached attack-phase available boundary | PR #82 participating/nonparticipating Ornery, Morphing/Twin/Speed, Turbo, Warrior tests | covered |
 | `OnBeforeRollInGame`, nature rerolls, Mood, and Trip's single before-roll pass | `ApplyBeforeRollEffects`, `ApplyMood`, `ApplyAttackerNatureRoll`, `RollScheduledDie` | PR #82 Trip/Chance/Ornery/Konstant effect and pass tests plus seeded differentials | covered |
@@ -191,13 +191,13 @@ case named in the final column.
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
 | ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `BMC_FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
-| `CheckInitiative`, Chance chain, Focus values, dizzy state | `CheckInitiative`, `ApplyChanceMove`, `ApplyFocusMove`, initiative evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
-| simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `GenerateSwingMoves`, `EvaluateSwingMove`, `ApplySwingMove` | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
+| `CheckInitiative`, Chance chain, Focus values, dizzy state | `game::mechanics` initiative plus `search::initiative` evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
+| simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `search::preround` generation, evaluation, and application | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
 | ButtonWeavers Auxiliary mutual accept/decline lifecycle and courtesy copy | `PrepareAuxiliaryPhase`, `ApplyAuxiliaryDecision`, legacy/native Auxiliary selectors | readable wire-protocol, mechanics, invalid-input, and worker-independence tests | covered Rust extension |
-| reserve activation and BMAI/BMAI3 evaluation | `ApplyUseReserve`, `SelectBMAIReserveAction`, post-round dispatch in `PlayMatchWithPolicies` | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
-| base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | policy dispatch, `SelectRandomAction`, `SelectMaximizeAction`, `SelectQAIAction`, fixed/culling evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
-| max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `EvaluateMove`, `PlayFightQAI`, `BMC_BMAI3::EvaluateMoves`/`CullMoves` | exact ply-2 and full bug16 traces, evaluator tests | covered |
-| round/match standings including ties, loser swing reset, initiative fairness matrix | `PlayRoundWithPolicies`, `PlayMatchWithPolicies`, `PlayGames`, `PlayFairGames` | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
+| reserve activation and BMAI/BMAI3 evaluation | `search::preround` selection plus `search::match_play` dispatch | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
+| base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | `search::fight` policy dispatch and `search::ai` evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
+| max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `search::fight` rollout control plus `search::ai` batching/culling | exact ply-2 and full bug16 traces, evaluator tests | covered |
+| round/match standings including ties, loser swing reset, initiative fairness matrix | `search::match_play` round, match, and fairness orchestration | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Native search deliberately advances beyond C++ BMAI3's probability-reporting
@@ -240,7 +240,7 @@ pool and one round-local Rage replacement for every original die. Both the
 input and transformed limits fail explicitly rather than silently dropping
 dice or skill behavior.
 
-Mechanics and search scenarios in `src/simulation/scenario.rs` are test-only
+Mechanics and search scenarios in `src/search/test_support/` are test-only
 adapters over the production parser, C++-ordered legality enumeration, attack
 resolution, RNG, search, and round restoration used by the executable. The
 adapters do not provide alternate rules or search implementations. Canonical

@@ -73,6 +73,8 @@ mise exec -- cargo build --release --locked
 
 Open this repository directly in RustRover. `Cargo.toml` is at the repository
 root and the Rust sources follow the standard Cargo layout under `src/`.
+[`ARCHITECTURE.md`](ARCHITECTURE.md) explains the game, search, protocol, and
+runtime boundaries and where new behavior belongs.
 
 Existing protocol samples are retained under `tests/fixtures/` for parity and
 differential tests against the C++ implementation.

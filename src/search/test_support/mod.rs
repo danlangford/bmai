@@ -1,0 +1,103 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+
+//! Human-readable mechanics and parser/search scenarios.
+//!
+//! This is deliberately a thin test adapter. Game setup goes through the
+//! production parser, legality goes through production attack enumeration,
+//! and resolution goes through the production simulator.
+
+use super::{ApplyAttack, RestoreDiceForNewRound};
+use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
+use crate::{BMC_Die, BMC_Game, BMC_Move, BMC_Parser, BMC_RNG, BME_ATTACK, BME_PHASE, property};
+use std::ops::RangeInclusive;
+
+pub(crate) fn scenario() -> Scenario {
+    Scenario::default()
+}
+
+pub(crate) fn search_scenario() -> SearchScenario {
+    SearchScenario::default()
+}
+
+pub(crate) fn parser_scenario(input: impl Into<String>) -> ParserScenario {
+    ParserScenario {
+        input: input.into(),
+        ..Default::default()
+    }
+}
+
+#[derive(Default)]
+struct ActionExpectation {
+    action: Option<ExpectedAction>,
+    attackers: Option<Vec<usize>>,
+    targets: Option<Vec<usize>>,
+    fire: Vec<FireSelection>,
+}
+
+enum ExpectedAction {
+    Pass,
+    Surrender,
+    Auxiliary(Option<usize>),
+    Attack(BME_ATTACK),
+    Reserve(Option<usize>),
+    SetSwing {
+        swings: Vec<SwingSelection>,
+        options: Vec<OptionSelection>,
+    },
+}
+
+impl ActionExpectation {
+    fn pass(&mut self) {
+        self.action = Some(ExpectedAction::Pass);
+    }
+
+    fn surrender(&mut self) {
+        self.action = Some(ExpectedAction::Surrender);
+    }
+
+    fn attack(&mut self, attack: BME_ATTACK) {
+        self.action = Some(ExpectedAction::Attack(attack));
+    }
+
+    fn protocol_action(&self) -> Option<ProtocolAction> {
+        match self.action.as_ref()? {
+            ExpectedAction::Pass => Some(ProtocolAction::Pass),
+            ExpectedAction::Surrender => Some(ProtocolAction::Surrender),
+            ExpectedAction::Auxiliary(die) => Some(ProtocolAction::Auxiliary { die: *die }),
+            ExpectedAction::Attack(attack) => Some(ProtocolAction::Attack {
+                attack_type: attack.protocol(),
+                attackers: self
+                    .attackers
+                    .clone()
+                    .expect("attack expectation has no attackers"),
+                targets: self
+                    .targets
+                    .clone()
+                    .expect("attack expectation has no targets"),
+                turbo: None,
+                fire: self.fire.clone(),
+            }),
+            ExpectedAction::Reserve(die) => Some(ProtocolAction::Reserve { die: *die }),
+            ExpectedAction::SetSwing { swings, options } => Some(ProtocolAction::SetSwing {
+                swings: swings.clone(),
+                options: options.clone(),
+            }),
+        }
+    }
+}
+
+/// Runs existing wire input through the production parser while keeping action
+/// expectations in the vocabulary used by a game transcript.
+mod mechanics;
+mod parser;
+mod search;
+
+pub(crate) use mechanics::Scenario;
+use mechanics::{parse_game, resolve_original_indices};
+pub(crate) use parser::ParserScenario;
+use parser::legacy_action_suffix;
+pub(crate) use search::{LEGACY, NATIVE, SearchScenario, legacy_with_workers, native};
+
+#[cfg(test)]
+mod tests;
