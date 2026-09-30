@@ -543,7 +543,7 @@ optimized storage indices back to original protocol die indices.
   seconds); every fixture RNG fingerprint matched (469.60 seconds); and all
   three extended Release tests passed (207.99 seconds).
 
-## 0.12 selected-move probability reporting
+## 0.13 selected-move probability reporting
 
 - [x] `report_sims N` is an opt-in Rust-native extension. Its default of zero
   preserves the C++ move-selection budget, candidate ordering, RNG use, action,

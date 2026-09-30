@@ -18,6 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Radioactive (`%`).
 - Add parser and mechanics support for Rush.
 
+## [0.13.0] - 2026-09-30
+
+### Added
+
+- Added opt-in `report_sims N` selected-move probability reporting for native
+  BMAI fight search. Normal bounded search still chooses the move; the chosen
+  move is then evaluated with exactly `N` fresh samples on a reserved,
+  deterministic stream.
+- Added a typed JSONL `evaluation` result containing the evaluated player,
+  probability, simulation count, and whether the estimate came from move
+  selection or selected-move resampling.
+- Added reconstructed regressions for ButtonWeavers games 120810 and 120813,
+  including their exact 50/50 and 70/30 bounded-roll endgames.
+
+### Changed
+
+- Preserved the historical legacy `best move` diagnostic and emit a separate
+  `selected move report` diagnostic only when resampling is requested.
+
 ## [0.12.0] - 2026-09-20
 
 ### Changed

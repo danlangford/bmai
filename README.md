@@ -126,7 +126,8 @@ release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
-`min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
+`min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
+`debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
 Whole lines whose first non-whitespace character is `#` may be used as comments
 between top-level commands. Inline comments and comments inside `game` blocks
@@ -137,7 +138,8 @@ are not supported.
 Long-lived clients should start `bmair --protocol jsonl-v1` and exchange one
 request and response per line. This interface has request IDs, typed actions,
 structured recoverable errors, capability discovery, transactional session
-updates, and native replay metadata; it emits no human banner on stdout.
+updates, native replay metadata, and structured probability evaluations; it
+emits no human banner on stdout.
 
 The complete wire contract and compatibility policy are in
 [`PROTOCOL.md`](PROTOCOL.md). A dependency-free persistent Python client is in
@@ -162,6 +164,13 @@ Native search defaults to `workers 1`. Set an explicit positive count or use
 `workers auto` to resolve the logical CPU parallelism available to the process.
 The resolved count is reported and included in replay metadata; worker settings
 do not affect legacy search.
+
+For a user-visible probability estimate, `report_sims N` keeps normal bounded
+search responsible for choosing the fight move, then evaluates only that move
+with exactly `N` fresh native samples. It defaults to zero, requires native
+BMAI fight search to produce a report, and does not change the selected action
+or consume a later decision stream. Clients should discover the command through
+capabilities before using it.
 
 `rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
 16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`
