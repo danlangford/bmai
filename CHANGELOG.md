@@ -18,6 +18,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Radioactive (`%`).
 - Add parser and mechanics support for Rush.
 
+## [0.12.0] - 2026-09-20
+
+### Changed
+
+- Organized the Rust source by game, search, and protocol responsibilities
+  while preserving the public API, protocol output, search order, and RNG use.
+- Isolated each search phase, each protocol adapter, and test-only scenario
+  support into focused modules.
+- Added an architecture guide documenting dependency direction and where new
+  rules, search behavior, protocols, and tests belong.
+
 ## [0.11.0] - 2026-09-18
 
 ### Added

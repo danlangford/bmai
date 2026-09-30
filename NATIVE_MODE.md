@@ -38,7 +38,7 @@ and completion order are therefore absent from the result.
 
 1. **Implemented:** Add a native replay key and deterministic stream derivation
    with known-answer tests. No threads or legacy-search changes were added. See
-   `src/native.rs`; its versioned stream-partition contract deliberately
+   `src/native/mod.rs`; its versioned stream-partition contract deliberately
    excludes worker identity.
 2. **Implemented:** Run native search sequentially with one independent stream
    per simulation. Every direct `getaction` phase has a deterministic input and

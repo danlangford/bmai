@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::model::property;
+use crate::game::property;
 
 /// Whether a die property is fully implemented or accepted only for upstream
 /// notation compatibility.
