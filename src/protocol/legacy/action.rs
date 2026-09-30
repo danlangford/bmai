@@ -48,6 +48,14 @@ impl BMC_Parser {
                     .map_err(io_error)
             }
             BME_PHASE::FIGHT => {
+                if self.m_report_sims > 0 && self.m_execution_mode != ExecutionMode::Native {
+                    return Err(ParseError(
+                        "report_sims requires native execution mode".into(),
+                    ));
+                }
+                if self.m_report_sims > 0 && self.m_ai_type[0] == 1 {
+                    return Err(ParseError("report_sims requires BMAI search".into()));
+                }
                 if self.m_ai_type[0] != 1 {
                     let moves = self.m_game.GenerateValidAttacksInCppOrderForSearch(
                         self.m_player_ai[0].FireCandidateLimit(),
@@ -60,8 +68,8 @@ impl BMC_Parser {
                     )
                     .map_err(io_error)?;
                 }
-                let (action, search) = if self.m_ai_type[0] == 1 {
-                    (SelectQAIAction(&self.m_game, &mut self.m_rng), None)
+                let (action, search, report) = if self.m_ai_type[0] == 1 {
+                    (SelectQAIAction(&self.m_game, &mut self.m_rng), None, None)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
                     let result = SelectNativeBMAIActionWithStats(
@@ -71,23 +79,68 @@ impl BMC_Parser {
                         self.m_native_workers,
                         &self.m_player_ai[0],
                     );
-                    let summary = (result.m_best_score, result.ProbabilityWin());
-                    (result.m_move, Some(summary))
+                    let summary = (
+                        result.m_best_score,
+                        result.ProbabilityWin(),
+                        result.m_sims_run,
+                    );
+                    let report = if self.m_report_sims == 0 {
+                        None
+                    } else {
+                        let estimate = EvaluateSelectedNativeBMAIMove(
+                            &self.m_game,
+                            &result.m_move,
+                            self.m_rng.Algorithm(),
+                            replay,
+                            self.m_native_workers,
+                            &self.m_player_ai[0],
+                            self.m_report_sims,
+                        );
+                        Some(estimate)
+                    };
+                    (result.m_move, Some(summary), report)
                 } else {
                     let result = SelectBMAIActionWithStats(
                         &self.m_game,
                         &mut self.m_rng,
                         &self.m_player_ai[0],
                     );
-                    let summary = (result.m_best_score, result.ProbabilityWin());
-                    (result.m_move, Some(summary))
+                    let summary = (
+                        result.m_best_score,
+                        result.ProbabilityWin(),
+                        result.m_sims_run,
+                    );
+                    (result.m_move, Some(summary), None)
                 };
                 self.m_last_action = Some(protocol_attack(&self.m_game, &action)?);
-                if let Some((best_score, probability_win)) = search {
+                if let Some((best_score, probability_win, simulations)) = search {
+                    self.m_last_evaluation = Some(crate::protocol::ProbabilityEstimate {
+                        player: 0,
+                        probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
+                        simulations,
+                        source: "move_selection",
+                    });
                     writeln!(
                         output,
                         "l1 p0 best move ({:.1} points, {:.1}% win)",
                         best_score,
+                        probability_win * 100.0
+                    )
+                    .map_err(io_error)?;
+                }
+                if let Some(estimate) = report {
+                    let probability_win = estimate.ProbabilityWin();
+                    self.m_last_evaluation = Some(crate::protocol::ProbabilityEstimate {
+                        player: 0,
+                        probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
+                        simulations: estimate.simulations,
+                        source: "selected_move_resample",
+                    });
+                    writeln!(
+                        output,
+                        "l1 p0 selected move report ({:.1}/{}, {:.1}% win)",
+                        estimate.score,
+                        estimate.simulations,
                         probability_win * 100.0
                     )
                     .map_err(io_error)?;

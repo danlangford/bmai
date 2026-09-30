@@ -32,6 +32,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "max_sims",
             "min_sims",
             "maxbranch",
+            "report_sims",
             "turbo_accuracy",
             "fire_overshooting",
             "surrender",
@@ -255,4 +256,19 @@ fn protocol_floats_preserve_non_finite_legacy_settings_without_invalid_json() {
         serde_json::to_value(ProtocolFloat::from_f32(f32::INFINITY)).unwrap(),
         "infinity"
     );
+}
+
+#[test]
+fn probability_estimate_has_a_stable_structured_shape() {
+    let value = serde_json::to_value(ProbabilityEstimate {
+        player: 0,
+        probability: ProtocolFloat::Finite(0.7),
+        simulations: 1000,
+        source: "selected_move_resample",
+    })
+    .unwrap();
+    assert_eq!(value["player"], 0);
+    assert_eq!(value["simulations"], 1000);
+    assert_eq!(value["source"], "selected_move_resample");
+    assert!((value["probability"].as_f64().unwrap() - 0.7).abs() < 1e-6);
 }

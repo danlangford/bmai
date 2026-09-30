@@ -78,7 +78,10 @@ success result contains:
   worker count, global settings, and per-player AI/search settings after
   execution;
 - `replay`: the native stream partition, root seed, and decision index actually
-  used by the last native BMAI search, or null when no native search ran.
+  used by the last native BMAI search, or null when no native search ran;
+- `evaluation`: the last fight-search probability estimate, or null. It contains
+  `player`, a zero-to-one `probability`, `simulations`, and a `source` of
+  `move_selection` or `selected_move_resample`.
 
 Replay metadata describes the top-level decision. Candidate/batch/simulation
 coordinates are deterministically derived inside the versioned partition.
@@ -119,7 +122,7 @@ Run `bmair [FILE]` or pipe text to stdin. The startup banner and all parser
 output are part of this human-oriented interface. The command set is:
 
 `game`, phase names, `player`, `ai`, `mode`, `rng`, `workers`, `seed`, `ply`,
-`max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `fire_overshooting`,
+`max_sims`, `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
 `surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
@@ -136,7 +139,9 @@ Inline comments and comments within a `game` phase/player/die block are invalid.
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
 winning score and numeric win percentage used by historical subprocess
-consumers. Recursive search diagnostics remain internal.
+consumers. When `report_sims` is nonzero, a separate `l1 p0 selected move
+report` diagnostic follows it with the fresh score, sample count, and win
+percentage. Recursive search diagnostics remain internal.
 After the attacker and target index lines and any Turbo selection, an assisted
 attack emits one `fire DIE VALUE` line per assisting Fire die. `DIE` is its
 original input index and `VALUE` is the final displayed value to submit to
@@ -156,6 +161,7 @@ The stable command forms are:
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
+| `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |
 | `surrender on\|off` | Enable or disable surrender selection. |
@@ -179,6 +185,15 @@ state; BMAIR validates the engine-level limit of one Auxiliary die per player.
 Legacy parser errors terminate the process with a nonzero exit status. JSONL
 converts those same errors into recoverable `execution_error` responses and
 rolls back the request.
+
+`report_sims` is a Rust-native extension rather than part of the frozen C++
+contract. A nonzero value produces a report only for `mode native` BMAI or
+BMAI3 fight search; QAI and legacy fight requests reject it, while other phases
+retain the setting without producing an evaluation. The reporting samples use
+the same versioned native mechanics and rollout policy as root candidate
+evaluation, but a reserved stream keeps them independent from move selection.
+The selected action and next decision replay key are therefore identical with
+reporting on or off.
 
 Game-state syntax and multiline action examples live in
 [`tests/fixtures/`](tests/fixtures/); deterministic native examples live in

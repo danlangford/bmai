@@ -10,13 +10,13 @@ use crate::game::{
     BME_SWING_SET, property,
 };
 use crate::search::{
-    BMC_AI_POLICY, PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies,
-    PlayGamesWithPoliciesNative, SelectBMAIActionWithStats, SelectBMAIAuxiliaryAction,
-    SelectBMAIChanceAction, SelectBMAIFocusAction, SelectBMAIReserveAction,
-    SelectBMAISetSwingAction, SelectNativeBMAIActionWithStats, SelectNativeBMAIAuxiliaryAction,
-    SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction, SelectNativeBMAIReserveAction,
-    SelectNativeBMAISetSwingAction, SelectQAIAction, SelectQAIAuxiliaryAction,
-    SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
+    BMC_AI_POLICY, EvaluateSelectedNativeBMAIMove, PlayFairGames, PlayFairGamesNative,
+    PlayGamesWithPolicies, PlayGamesWithPoliciesNative, SelectBMAIActionWithStats,
+    SelectBMAIAuxiliaryAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
+    SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIActionWithStats,
+    SelectNativeBMAIAuxiliaryAction, SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction,
+    SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
+    SelectQAIAuxiliaryAction, SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
 };
 use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
 
@@ -37,6 +37,7 @@ pub struct BMC_Parser {
     m_min_sims: usize,
     m_max_sims: usize,
     m_max_branch: usize,
+    m_report_sims: usize,
     m_execution_mode: ExecutionMode,
     m_native_root_seed: u64,
     m_native_decision_index: u64,
@@ -50,6 +51,7 @@ pub struct BMC_Parser {
     m_logging: [bool; 8],
     m_last_action: Option<crate::protocol::ProtocolAction>,
     m_last_replay: Option<crate::protocol::ReplayMetadata>,
+    m_last_evaluation: Option<crate::protocol::ProbabilityEstimate>,
 }
 
 impl Default for BMC_Parser {
@@ -60,6 +62,7 @@ impl Default for BMC_Parser {
             m_min_sims: 10,
             m_max_sims: 500,
             m_max_branch: 5000,
+            m_report_sims: 0,
             m_execution_mode: ExecutionMode::default(),
             m_native_root_seed: 78_904_497,
             m_native_decision_index: 0,
@@ -73,6 +76,7 @@ impl Default for BMC_Parser {
             m_logging: [true; 8],
             m_last_action: None,
             m_last_replay: None,
+            m_last_evaluation: None,
         }
     }
 }
@@ -106,6 +110,7 @@ impl BMC_Parser {
             min_simulations: self.m_min_sims,
             max_simulations: self.m_max_sims,
             max_branch: self.m_max_branch,
+            report_simulations: self.m_report_sims,
             players: std::array::from_fn(|player| {
                 let ai = &self.m_player_ai[player];
                 crate::protocol::PlayerAiMetadata {
@@ -134,9 +139,14 @@ impl BMC_Parser {
         self.m_last_replay.as_ref()
     }
 
+    pub fn last_evaluation(&self) -> Option<&crate::protocol::ProbabilityEstimate> {
+        self.m_last_evaluation.as_ref()
+    }
+
     pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
         self.m_last_action = None;
         self.m_last_replay = None;
+        self.m_last_evaluation = None;
         self.ParseStringCommands(data, output)
     }
 
@@ -151,6 +161,7 @@ impl BMC_Parser {
     ) -> Result<(), ParseError> {
         self.m_last_action = None;
         self.m_last_replay = None;
+        self.m_last_evaluation = None;
 
         while let Some(line) = read_stream_line(input)? {
             let command = line.trim();

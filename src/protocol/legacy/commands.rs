@@ -127,6 +127,14 @@ impl BMC_Parser {
                 self.SyncDefaultAI(|ai| ai.m_max_branch = setting);
                 writeln!(output, "Setting max branch to {}", self.m_max_branch)
                     .map_err(io_error)?;
+            } else if let Some(value) = argument(line, "report_sims") {
+                self.m_report_sims = value?;
+                writeln!(
+                    output,
+                    "Setting selected-move report simulations to {}",
+                    self.m_report_sims
+                )
+                .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("turbo_accuracy ") {
                 self.m_game.m_turbo_accuracy = value
                     .parse::<f32>()

@@ -97,6 +97,15 @@ ignored merely because move selection became certain. The coordinator still
 reduces results in canonical order, so worker count and completion order cannot
 affect output.
 
+Selected-move reporting reserves a candidate coordinate outside root candidate
+enumeration. `report_sims N` first completes ordinary bounded search, then
+evaluates only its chosen fight move for exactly `N` fresh samples on that
+coordinate. It reuses the same ordered worker runtime and mixed-radix strata,
+so complete one- or two-roll outcome blocks are exhaustive while positions
+with later conditional randomness remain deterministic stratified estimates.
+Because the report does not advance the top-level replay sequence, enabling it
+cannot change the action or a later decision stream.
+
 ## Explicit non-goals for the first experiment
 
 - no changes to legacy RNG, enumeration, simulation counts, or output;

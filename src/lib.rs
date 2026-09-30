@@ -24,8 +24,8 @@ pub use protocol::notation::{
     CapabilitySupport, DieNotationCapabilities, DiePostfixNotation, DiePropertyNotation,
 };
 pub use protocol::{
-    BuildIdentity, Capabilities, PlayerAiMetadata, ProtocolAction, ProtocolFloat, ProtocolVersion,
-    ReplayMetadata, SessionMetadata,
+    BuildIdentity, Capabilities, PlayerAiMetadata, ProbabilityEstimate, ProtocolAction,
+    ProtocolFloat, ProtocolVersion, ReplayMetadata, SessionMetadata,
 };
 pub use rng::{BMC_RNG, BME_RNG_ALGORITHM};
 pub use search::ai::{BMC_BMAI3, BMC_Stats, BME_ROLLOUT_POLICY, EvaluationCoordinate};

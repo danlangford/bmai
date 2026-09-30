@@ -6,7 +6,7 @@
 
 pub(crate) mod ai;
 
-use self::ai::{BMC_BMAI3, BME_ROLLOUT_POLICY};
+use self::ai::{BMC_BMAI3, BME_ROLLOUT_POLICY, EvaluationCoordinate};
 use crate::game::{
     ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice, BMC_Die, BMC_Game,
     BMC_Move, BME_ACTION, BME_SWING_SET, CheckInitiative, InitiativeWinner, OptimizeDice,
@@ -52,6 +52,10 @@ impl NativeReplaySequence<'_> {
 }
 
 const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
+// Reserved candidate coordinate for a fresh selected-move probability sample.
+// Search candidates always use their zero-based position, so this stream is
+// disjoint from every sample consumed while choosing the move.
+const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
 use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
@@ -198,7 +202,8 @@ use match_play::*;
 use preround::*;
 
 pub(crate) use fight::{
-    SelectBMAIActionWithStats, SelectNativeBMAIActionWithStats, SelectQAIAction,
+    EvaluateSelectedNativeBMAIMove, SelectBMAIActionWithStats, SelectNativeBMAIActionWithStats,
+    SelectQAIAction,
 };
 pub(crate) use initiative::{
     SelectBMAIChanceAction, SelectBMAIFocusAction, SelectNativeBMAIChanceAction,

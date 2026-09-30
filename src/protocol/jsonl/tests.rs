@@ -302,6 +302,48 @@ fn native_typed_actions_and_replay_keys_are_worker_count_independent() {
 }
 
 #[test]
+fn selected_move_report_is_structured_and_does_not_change_the_action() {
+    let position = "mode native\nworkers 2\ngame 3\nfight\nplayer 0 1 20\npX!-20:5\nplayer 1 3 56.5\n20:19\nfsv13:5\ngvz30:6\nply 3\nmax_sims 100\nmin_sims 5\nmaxbranch 400\nsurrender off\nseed 1\n";
+    let baseline = BmairSession::default()
+        .execute(&format!("{position}getaction\n"))
+        .unwrap();
+    let reported = BmairSession::default()
+        .execute(&format!("{position}report_sims 20\ngetaction\n"))
+        .unwrap();
+
+    assert_eq!(reported.action, baseline.action);
+    assert!(baseline.legacy_output.contains("l1 p0 best move ("));
+    assert!(!baseline.legacy_output.contains("selected move report"));
+    let best_line = reported
+        .legacy_output
+        .find("l1 p0 best move (")
+        .expect("historical move-selection diagnostic");
+    let report_line = reported
+        .legacy_output
+        .find("l1 p0 selected move report (14.0/20, 70.0% win)")
+        .expect("fresh selected-move diagnostic");
+    assert!(best_line < report_line);
+    let evaluation = reported.evaluation.unwrap();
+    assert_eq!(evaluation.player, 0);
+    assert_eq!(evaluation.simulations, 20);
+    assert_eq!(evaluation.source, "selected_move_resample");
+    assert_eq!(evaluation.probability, crate::ProtocolFloat::Finite(0.7));
+}
+
+#[test]
+fn game_120810_selected_move_report_captures_the_fifty_fifty_endgame() {
+    let result = BmairSession::default()
+        .execute(
+            "mode native\nworkers 2\ngame 3\nfight\nplayer 0 3 12\n8:6\nV?-12:4\npX!-20:19\nplayer 1 2 44\nz6:5\nzT-2:2\nply 3\nmax_sims 100\nmin_sims 5\nmaxbranch 400\nreport_sims 20\nsurrender off\nseed 1\ngetaction\n",
+        )
+        .unwrap();
+
+    let evaluation = result.evaluation.unwrap();
+    assert_eq!(evaluation.simulations, 20);
+    assert_eq!(evaluation.probability, crate::ProtocolFloat::Finite(0.5));
+}
+
+#[test]
 fn phase_specific_declines_have_unambiguous_typed_results() {
     let reserve = BmairSession::default()
         .execute("game\nreserve\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\n")

@@ -102,7 +102,17 @@ pub struct SessionMetadata {
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
+    pub report_simulations: usize,
     pub players: [PlayerAiMetadata; 2],
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct ProbabilityEstimate {
+    pub player: usize,
+    pub probability: ProtocolFloat,
+    pub simulations: usize,
+    pub source: &'static str,
 }
 
 /// Complete identity of the native decision stream used by the most recent
@@ -218,6 +228,7 @@ impl Capabilities {
                 "max_sims",
                 "min_sims",
                 "maxbranch",
+                "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",
                 "surrender",
