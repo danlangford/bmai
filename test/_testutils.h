@@ -7,6 +7,7 @@
 #include <cstdarg>
 #include <cstdio>
 #include <iostream>
+#include <memory>
 
 #include "../src/BMC_Die.h"
 #include "../src/BMC_Game.h"
@@ -38,7 +39,6 @@ public:
 // lets us collect what is being sent to Send for inspection during tests
 class TEST_Parser : public BMC_Parser {
 public:
-
 	std::string tm_third_to_last_fmt;
 	std::string tm_next_to_last_fmt;
 	std::string tm_last_fmt;
@@ -73,6 +73,41 @@ public:
 class TEST_Util
 {
 public:
+	struct PhaseContext
+	{
+		std::unique_ptr<TEST_Parser> parser;
+		BMC_Game *game = nullptr;
+		BMC_Move chosen_move;
+
+		BMC_Game* Game() const
+		{
+			return game;
+		}
+
+		std::vector<BMC_Move> ValidAttacks() const
+		{
+			BMC_MoveList movelist;
+			Game()->GenerateValidAttacks(movelist);
+
+			std::vector<BMC_Move> moves;
+			for (int i = 0; i < movelist.Size(); ++i)
+				moves.push_back(*movelist.Get(i));
+			return moves;
+		}
+
+		std::vector<BMC_Move> ValidChance() const
+		{
+			BMC_MoveList movelist;
+			Game()->GenerateValidChance(movelist);
+
+			std::vector<BMC_Move> moves;
+			for (int i = 0; i < movelist.Size(); ++i)
+				moves.push_back(*movelist.Get(i));
+			return moves;
+		}
+	};
+	using FightContext = PhaseContext;
+
 	TEST_Parser parser;
 
 	BMC_Move ParseFightGetAttack(std::string d0, std::string d1)
@@ -91,6 +126,38 @@ public:
 		ss << "ply 1\nsurrender off\ngetaction\n";
 		parser.ParseString(ss.str());
 		return parser.last_attack;
+	}
+
+	PhaseContext ParsePhaseContext(std::string phase, std::string d0, std::string d1)
+	{
+		PhaseContext context;
+		context.parser = std::make_unique<TEST_Parser>();
+		auto dice0 = split(d0, ' ');
+		auto dice1 = split(d1, ' ');
+
+		std::stringstream ss;
+		ss << "game\n" << phase << "\n";
+		ss << "player 0 " << dice0.size() << " 0\n";
+		for (int i=0; i<dice0.size(); i++)
+			ss << dice0[i] << "\n";
+		ss << "player 1 " << dice1.size() << " 0\n";
+		for (int i=0; i<dice1.size(); i++)
+			ss << dice1[i] << "\n";
+		ss << "ply 1\nsurrender off\ngetaction\n";
+		context.parser->ParseString(ss.str());
+		context.game = context.parser->Game();
+		context.chosen_move = context.parser->last_attack;
+		return context;
+	}
+
+	FightContext ParseFightContext(std::string d0, std::string d1)
+	{
+		return ParsePhaseContext("fight", d0, d1);
+	}
+
+	PhaseContext ParseChanceContext(std::string d0, std::string d1)
+	{
+		return ParsePhaseContext("chance", d0, d1);
 	}
 
 	static std::vector<std::string> split(std::string &str, char delimiter)
@@ -140,6 +207,7 @@ public:
         BMC_Die die;
         die.SetDie(&die_data);
         die.SetState(BME_STATE_NOTSET);
+        die.Roll(); // populates Score and triggers a Recompute of Attacks and Vulns
         return die;
     }
 
