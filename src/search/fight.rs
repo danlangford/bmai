@@ -19,6 +19,18 @@ pub(crate) struct BMC_SearchResult {
     pub m_sims_run: usize,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BMC_ProbabilityEstimate {
+    pub score: f32,
+    pub simulations: usize,
+}
+
+impl BMC_ProbabilityEstimate {
+    pub fn ProbabilityWin(self) -> f32 {
+        self.score / self.simulations as f32
+    }
+}
+
 impl BMC_SearchResult {
     pub fn ProbabilityWin(&self) -> f32 {
         self.m_best_score / self.m_sims_run as f32
@@ -128,6 +140,48 @@ pub(super) fn SelectBMAIActionAtLevelNativeWithStats(
         m_move: selected,
         m_best_score: evaluator.m_last_best_score,
         m_sims_run: evaluator.m_last_sims_run,
+    }
+}
+
+pub(crate) fn EvaluateSelectedNativeBMAIMove(
+    game: &BMC_Game,
+    selected: &BMC_Move,
+    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    replay: crate::native::NativeReplayKey,
+    workers: usize,
+    settings: &BMC_BMAI3,
+    simulations: usize,
+) -> BMC_ProbabilityEstimate {
+    assert!(simulations > 0);
+    let tasks = (0..simulations)
+        .map(|simulation_index| EvaluationCoordinate {
+            candidate_index: NATIVE_REPORTING_STREAM,
+            batch_index: 0,
+            simulation_index,
+        })
+        .collect();
+    let scores = crate::native::ordered_parallel_map(tasks, workers, |coordinate| {
+        let mut simulation = game.clone();
+        let mut simulation_rng = NativeSimulationRng(
+            rng_algorithm,
+            replay,
+            coordinate.candidate_index,
+            coordinate.batch_index,
+            coordinate.simulation_index,
+        );
+        EvaluateMove(
+            &mut simulation,
+            selected,
+            &mut simulation_rng,
+            settings,
+            1,
+            false,
+            false,
+        )
+    });
+    BMC_ProbabilityEstimate {
+        score: scores.iter().sum(),
+        simulations,
     }
 }
 

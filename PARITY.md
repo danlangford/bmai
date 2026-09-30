@@ -542,3 +542,27 @@ optimized storage indices back to original protocol die indices.
   matched (517.75 seconds); representative raw RNG states matched (154.06
   seconds); every fixture RNG fingerprint matched (469.60 seconds); and all
   three extended Release tests passed (207.99 seconds).
+
+## 0.12 selected-move probability reporting
+
+- [x] `report_sims N` is an opt-in Rust-native extension. Its default of zero
+  preserves the C++ move-selection budget, candidate ordering, RNG use, action,
+  and legacy diagnostic output.
+- [x] When enabled in native BMAI fight search, the already-selected move is
+  evaluated on a reserved, architecture-stable native stream for exactly `N`
+  fresh samples. It does not repartition the move-selection budget or affect
+  the selected action.
+- [x] JSONL `session.execute` exposes the result as a typed `evaluation` with
+  player, probability, simulation count, and source. Legacy output retains its
+  historical best-move line for BMAIBagels compatibility.
+- [x] `selected_move_report_is_structured_and_does_not_change_the_action`
+  reconstructs game 120813, asserts the same action with reporting disabled and
+  enabled, and recovers ElihuRoot's 70/30 endgame. The game 120810 regression
+  recovers its 50/50 endgame.
+- [x] The native mixed-radix stream exhaustively enumerates one or two initial
+  bounded rolls whenever the sample count covers their outcome space. The
+  reporting path reuses that stream rather than adding a second rules engine;
+  `native_strata_enumerate_two_die_outcomes_before_repeating`,
+  `ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact`, and
+  `twin_d6_endgame_uses_the_full_two_die_distribution` cover the mechanism.
+  Positions with later conditional randomness remain stratified estimates.

@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    BMC_Parser, BuildIdentity, Capabilities, ParseError, ProtocolAction, ReplayMetadata,
-    SessionMetadata,
+    BMC_Parser, BuildIdentity, Capabilities, ParseError, ProbabilityEstimate, ProtocolAction,
+    ReplayMetadata, SessionMetadata,
 };
 
 pub const JSONL_PROTOCOL: &str = "jsonl-v1";
@@ -88,6 +88,7 @@ pub struct SessionExecuteResult {
     pub action: Option<ProtocolAction>,
     pub legacy_output: String,
     pub replay: Option<ReplayMetadata>,
+    pub evaluation: Option<ProbabilityEstimate>,
     pub session: SessionMetadata,
 }
 
@@ -104,6 +105,7 @@ impl BmairSession {
             action: self.parser.last_action().cloned(),
             legacy_output: String::from_utf8(output).expect("legacy protocol output is UTF-8"),
             replay: self.parser.last_replay().cloned(),
+            evaluation: self.parser.last_evaluation().cloned(),
             session: self.parser.session_metadata(),
         })
     }
