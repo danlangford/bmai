@@ -41,6 +41,7 @@ pub enum BME_ATTACK {
     SPEED,
     TRIP,
     SHADOW,
+    RUSH,
 }
 
 impl BME_ATTACK {
@@ -52,6 +53,7 @@ impl BME_ATTACK {
             Self::SPEED => "speed",
             Self::TRIP => "trip",
             Self::SHADOW => "shadow",
+            Self::RUSH => "rush",
         }
     }
 }

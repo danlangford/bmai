@@ -110,6 +110,7 @@ pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
     ),
     die_property!('%', "radioactive", "Radioactive", ParsingOnly, RADIOACTIVE),
     die_property!('G', "rage", "Rage", Implemented, RAGE),
+    die_property!('#', "rush", "Rush", Implemented, RUSH),
 ];
 
 const DIE_POSTFIX_PROPERTIES: &[DiePostfixNotation] = &[

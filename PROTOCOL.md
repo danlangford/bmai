@@ -33,7 +33,7 @@ dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-`F` as Fire, and `G` as Rage. Consumers should use this metadata instead of
+`F` as Fire, `G` as Rage, and `#` as Rush. Consumers should use this metadata instead of
 maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
@@ -98,7 +98,8 @@ Actions use a `type` discriminator:
 - `{"type":"pass"}`
 - `{"type":"surrender"}`
 - `{"type":"auxiliary","die":1}`; `die` is null when Auxiliary is declined
-- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`
+- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`;
+  `attack_type` is one of the advertised `attack_types`, including `rush`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
 - `{"type":"chance","dice":[0,2]}`
@@ -135,6 +136,8 @@ C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
 After trimming whitespace, a whole top-level line beginning with `#` is ignored.
 Inline comments and comments within a `game` phase/player/die block are invalid.
+Inside a `game` block every die line is a die definition, so a Rush die such as
+`#6:6` is never mistaken for a comment.
 
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated

@@ -93,6 +93,9 @@ impl BMC_Die {
                 self.HasProperty(property::SHADOW)
                     || self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1
             }
+            // Any non-Stealth, non-Warrior die may Rush. Whether a Rush die
+            // participates depends on the targets, so enumeration checks it.
+            BME_ATTACK::RUSH => true,
         }
     }
 

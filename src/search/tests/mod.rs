@@ -242,4 +242,5 @@ mod doppelganger;
 mod jolt;
 mod parity;
 mod rage;
+mod rush;
 mod transformations;
