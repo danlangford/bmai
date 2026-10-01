@@ -388,6 +388,9 @@ impl BMC_Game {
         let player_has_fire = available.iter().any(|(_, die)| {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
+        let targets_have_rush = targets
+            .iter()
+            .any(|(_, die)| die.HasProperty(property::RUSH));
         let mut moves = Vec::with_capacity(32);
         // Reserve the bounded Fire budget for required attacks before optional overshoots.
         let mut optional_fire_moves = Vec::new();
@@ -630,12 +633,13 @@ impl BMC_Game {
                     BME_ATTACK::RUSH => {
                         // A Speed die's two-target Speed attack already has the
                         // identical legality and resolution, so skip the duplicate.
-                        if !attacker_die.CanDoAttack(attack, 1)
+                        let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
+                        if !attacker_has_rush && !targets_have_rush
+                            || !attacker_die.CanDoAttack(attack, 1)
                             || attacker_die.CanDoAttack(BME_ATTACK::SPEED, 1)
                         {
                             continue;
                         }
-                        let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
                         for first in 0..targets.len() {
                             let (first_index, first_die) = targets[first];
                             if !first_die.CanBeAttacked(attack, 1) {

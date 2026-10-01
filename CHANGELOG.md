@@ -34,13 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Doppelganger, Radioactive, Jolt, Time and Space, Rage, Null, Value, Poison,
   Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, comment parsing, and
   legacy/native search.
-
-### Changed
-
 - A Speed die that is also a Rush die offers its two-target captures only as
   Speed attacks. Both attack types have identical legality and resolution, so
   this avoids searching duplicate candidates. Inputs without Rush dice keep
-  their candidate order, RNG consumption, and output.
+  their candidate order, RNG consumption, and output, and skip Rush pair
+  enumeration entirely.
 
 ## [0.13.0] - 2026-09-30
 

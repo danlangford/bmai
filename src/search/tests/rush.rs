@@ -52,6 +52,20 @@ fn any_die_may_rush_when_a_target_is_a_rush_die() {
 }
 
 #[test]
+fn a_rush_die_in_either_target_position_enables_the_attack() {
+    // Optimized order puts the larger target first, so cover both slots.
+    for defenders in [["#4:4", "2:2"], ["4:4", "#2:2"]] {
+        scenario()
+            .attacker("6:6")
+            .attacks(RUSH)
+            .defenders(defenders)
+            .targeting([0, 1])
+            .expect_no_defender_dice()
+            .run();
+    }
+}
+
+#[test]
 fn rush_requires_a_rush_attacker_or_target() {
     scenario()
         .attacker("6:6")
@@ -96,18 +110,24 @@ fn rush_requires_exactly_two_targets() {
 #[test]
 fn rush_enumerates_every_qualifying_target_pair_once() {
     let attacks = rush_attacks(&["#6:6"], &["1:1", "5:5", "2:2", "4:4", "3:3"]);
+    let game = native_fixture_game(
+        "game\nfight\nplayer 0 1 0\n#6:6\nplayer 1 5 0\n1:1\n5:5\n2:2\n4:4\n3:3\n",
+    );
     let mut pairs = attacks
         .iter()
         .map(|candidate| {
-            let mut pair = candidate.m_targets.iter().collect::<Vec<_>>();
-            pair.sort_unstable();
+            let mut pair = candidate
+                .m_targets
+                .iter()
+                .map(|index| game.m_player[1].m_die[index].GetValueTotal())
+                .collect::<Vec<_>>();
+            pair.sort_unstable_by(|a, b| b.cmp(a));
             pair
         })
         .collect::<Vec<_>>();
     pairs.sort();
-    // Optimized defender order is 5, 4, 3, 2, 1. Pairs (5,1) and (4,2)
-    // sum to six; three cannot pair with itself.
-    assert_eq!(pairs, vec![vec![0, 4], vec![1, 3]]);
+    // Three cannot pair with itself.
+    assert_eq!(pairs, vec![vec![4, 2], vec![5, 1]]);
 }
 
 // Attack-type eligibility shared with ButtonWeavers' Speed validation.
@@ -151,6 +171,24 @@ fn warrior_dice_cannot_rush_or_be_rushed() {
 }
 
 #[test]
+fn a_stealth_or_warrior_die_in_either_target_position_blocks_rush() {
+    for forbidden in ["d", "`"] {
+        for defenders in [
+            [format!("{forbidden}4:4"), "2:2".to_string()],
+            ["4:4".to_string(), format!("{forbidden}2:2")],
+        ] {
+            scenario()
+                .attacker("#6:6")
+                .attacks(RUSH)
+                .defenders(defenders)
+                .targeting([0, 1])
+                .expect_allowed(false)
+                .run();
+        }
+    }
+}
+
+#[test]
 fn dizzy_focus_die_cannot_rush() {
     scenario()
         .attacker("#f6:6d")
@@ -176,14 +214,20 @@ fn insult_and_dizzy_dice_can_be_rushed() {
 fn attack_restricted_skills_can_still_rush() {
     // Shadow, odd Queer, Konstant, and Fire forbid Power; Berserk and
     // Unskilled forbid Skill. None of them restricts Rush.
-    for attacker in [
-        "#s6:6", "#q8:5", "#k6:6", "#F6:6", "#B6:6", "#~6:6", "#t6:6", "#D6:6",
+    for (attacker, defenders) in [
+        ("#s6:6", ["2:2", "4:4"]),
+        ("#q8:5", ["2:2", "3:3"]),
+        ("#k6:6", ["2:2", "4:4"]),
+        ("#F6:6", ["2:2", "4:4"]),
+        ("#B6:6", ["2:2", "4:4"]),
+        ("#~6:6", ["2:2", "4:4"]),
+        ("#t6:6", ["2:2", "4:4"]),
+        ("#D6:6", ["2:2", "4:4"]),
     ] {
-        let value = if attacker == "#q8:5" { "3:3" } else { "4:4" };
         scenario()
             .attacker(attacker)
             .attacks(RUSH)
-            .defenders(["2:2", value])
+            .defenders(defenders)
             .targeting([0, 1])
             .expect_no_defender_dice()
             .run();
@@ -373,12 +417,13 @@ fn value_and_poison_scoring_apply_to_each_rushed_die() {
     scenario()
         .attacker("#v6:6")
         .attacks(RUSH)
-        .defenders(["2:2", "p4:4"])
+        .defenders(["6:4", "p8:2"])
         .targeting([0, 1])
-        .expect_captured_defender_dice(["v2:2", "pv4:4"])
-        // The Value attacker keeps its 3-point own score; a captured Value die
-        // is worth 2 and a captured Poison+Value die costs half its value.
-        .expect_scores(3.0, 0.0)
+        .expect_captured_defender_dice(["pv8:2", "v6:4"])
+        // The Value attacker keeps its 3-point own score. The captured Value
+        // die is worth its value, 4, and the captured Poison+Value die costs
+        // half its value, 1: 3 + 4 - 1 = 6. Size scoring would give 3 + 6 - 4.
+        .expect_scores(6.0, 0.0)
         .run();
 }
 
