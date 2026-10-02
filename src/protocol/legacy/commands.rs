@@ -71,61 +71,51 @@ impl BMC_Parser {
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                self.m_ai_type[player] = value;
-                self.m_ai_explicit[player] = true;
-                self.m_player_ai[player].m_cull_moves = value == 2;
+                self.m_player_ai[player] = BMC_AI_SLOT::TYPE(value);
                 writeln!(output, "Setting AI for player {player} to type {value}")
                     .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "ply")? {
-                if self.PlayerIsBMAI(player)? {
-                    self.m_player_ai[player].m_max_ply = value;
+                if self.SetPlayerAI(player, |ai| ai.m_max_ply = value)? {
                     writeln!(output, "Setting max ply for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "ply") {
-                self.m_max_ply = value?;
-                self.m_ai.m_max_ply = self.m_max_ply;
-                let setting = self.m_max_ply;
-                self.SyncDefaultAI(|ai| ai.m_max_ply = setting);
-                writeln!(output, "Setting max ply to {}", self.m_max_ply).map_err(io_error)?;
+                self.m_ai.m_max_ply = value?;
+                writeln!(output, "Setting max ply to {}", self.m_ai.m_max_ply).map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "max_sims")? {
-                if self.PlayerIsBMAI(player)? {
-                    self.m_player_ai[player].m_max_sims = value;
+                if self.SetPlayerAI(player, |ai| ai.m_max_sims = value)? {
                     writeln!(output, "Setting max sims for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "max_sims") {
-                self.m_max_sims = value?;
-                self.m_ai.m_max_sims = self.m_max_sims;
-                let setting = self.m_max_sims;
-                self.SyncDefaultAI(|ai| ai.m_max_sims = setting);
-                writeln!(output, "Setting max # simulations to {}", self.m_max_sims)
-                    .map_err(io_error)?;
+                self.m_ai.m_max_sims = value?;
+                writeln!(
+                    output,
+                    "Setting max # simulations to {}",
+                    self.m_ai.m_max_sims
+                )
+                .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "min_sims")? {
-                if self.PlayerIsBMAI(player)? {
-                    self.m_player_ai[player].m_min_sims = value;
+                if self.SetPlayerAI(player, |ai| ai.m_min_sims = value)? {
                     writeln!(output, "Setting min sims for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "min_sims") {
-                self.m_min_sims = value?;
-                self.m_ai.m_min_sims = self.m_min_sims;
-                let setting = self.m_min_sims;
-                self.SyncDefaultAI(|ai| ai.m_min_sims = setting);
-                writeln!(output, "Setting min # simulations to {}", self.m_min_sims)
-                    .map_err(io_error)?;
+                self.m_ai.m_min_sims = value?;
+                writeln!(
+                    output,
+                    "Setting min # simulations to {}",
+                    self.m_ai.m_min_sims
+                )
+                .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "maxbranch")? {
-                if self.PlayerIsBMAI(player)? {
-                    self.m_player_ai[player].m_max_branch = value;
+                if self.SetPlayerAI(player, |ai| ai.m_max_branch = value)? {
                     writeln!(output, "Setting max branch for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "maxbranch") {
-                self.m_max_branch = value?;
-                self.m_ai.m_max_branch = self.m_max_branch;
-                let setting = self.m_max_branch;
-                self.SyncDefaultAI(|ai| ai.m_max_branch = setting);
-                writeln!(output, "Setting max branch to {}", self.m_max_branch)
+                self.m_ai.m_max_branch = value?;
+                writeln!(output, "Setting max branch to {}", self.m_ai.m_max_branch)
                     .map_err(io_error)?;
             } else if let Some(value) = argument(line, "report_sims") {
                 self.m_report_sims = value?;
@@ -315,19 +305,42 @@ impl BMC_Parser {
         Ok(())
     }
 
-    pub(super) fn PlayerIsBMAI(&self, player: usize) -> Result<bool, ParseError> {
-        self.m_ai_type
-            .get(player)
-            .map(|kind| *kind != 1)
-            .ok_or_else(|| ParseError(format!("invalid setting for ai player number: {player}")))
+    /// The search settings C++ reads through `m_game.GetAI(player)`. Before any
+    /// `game` or `ai` command C++ holds NULL; BMAIR reports `g_ai` instead.
+    pub(super) fn PlayerAI(&self, player: usize) -> &BMC_BMAI3 {
+        match self.m_player_ai[player] {
+            BMC_AI_SLOT::UNBOUND | BMC_AI_SLOT::GLOBAL => &self.m_ai,
+            BMC_AI_SLOT::TYPE(ai_type) => &self.m_type_ai[ai_type],
+        }
     }
 
-    pub(super) fn SyncDefaultAI(&mut self, update: impl Fn(&mut BMC_BMAI3) + Copy) {
-        for player in 0..2 {
-            if !self.m_ai_explicit[player] {
-                update(&mut self.m_player_ai[player]);
-            }
+    pub(super) fn AIType(&self, player: usize) -> usize {
+        match self.m_player_ai[player] {
+            BMC_AI_SLOT::UNBOUND | BMC_AI_SLOT::GLOBAL => 2,
+            BMC_AI_SLOT::TYPE(ai_type) => ai_type,
         }
+    }
+
+    /// Applies a per-player setting to the shared AI object the player points
+    /// at and reports whether C++ would print its confirmation. QAI ignores it
+    /// silently. Before any `game` or `ai` command C++ dereferences NULL; BMAIR
+    /// prints the confirmation and changes nothing, matching earlier releases.
+    pub(super) fn SetPlayerAI(
+        &mut self,
+        player: usize,
+        update: impl FnOnce(&mut BMC_BMAI3),
+    ) -> Result<bool, ParseError> {
+        let slot = *self
+            .m_player_ai
+            .get(player)
+            .ok_or_else(|| ParseError(format!("invalid setting for ai player number: {player}")))?;
+        match slot {
+            BMC_AI_SLOT::UNBOUND => {}
+            BMC_AI_SLOT::GLOBAL => update(&mut self.m_ai),
+            BMC_AI_SLOT::TYPE(1) => return Ok(false),
+            BMC_AI_SLOT::TYPE(ai_type) => update(&mut self.m_type_ai[ai_type]),
+        }
+        Ok(true)
     }
 
     pub(super) fn RequirePreround(&self) -> Result<(), ParseError> {
@@ -339,14 +352,14 @@ impl BMC_Parser {
     }
 
     pub(super) fn Policies(&self) -> [BMC_AI_POLICY; 2] {
-        std::array::from_fn(|player| match self.m_ai_type[player] {
+        std::array::from_fn(|player| match self.AIType(player) {
             0 => {
-                let mut ai = self.m_player_ai[player].clone();
+                let mut ai = self.PlayerAI(player).clone();
                 ai.m_cull_moves = false;
                 BMC_AI_POLICY::BMAI(Box::new(ai))
             }
             1 => BMC_AI_POLICY::QAI,
-            2 => BMC_AI_POLICY::BMAI(Box::new(self.m_player_ai[player].clone())),
+            2 => BMC_AI_POLICY::BMAI(Box::new(self.PlayerAI(player).clone())),
             _ => unreachable!(),
         })
     }
@@ -443,11 +456,9 @@ impl BMC_Parser {
         if self.m_game.m_phase == BME_PHASE::AUXILIARY {
             PrepareAuxiliaryPhase(&mut self.m_game)?;
         }
-        // BMC_Parser::ParseGame always restores both game AI pointers to the
-        // global BMAI3 instance, while retaining its global search settings.
-        self.m_ai_type = [2, 2];
-        self.m_ai_explicit = [false, false];
-        self.m_player_ai = std::array::from_fn(|_| self.m_ai.clone());
+        // BMC_Parser::ParseGame always points both players at the shared global
+        // BMAI3. The `ai` type objects keep their settings for later selection.
+        self.m_player_ai = [BMC_AI_SLOT::GLOBAL; 2];
         Ok(pos)
     }
 }

@@ -160,10 +160,21 @@ The stable command forms are:
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
 | `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
-| `ply [PLAYER] N` | Set global or per-player BMAI depth. |
+| `ply [PLAYER] N` | Set global or per-player BMAI depth. Per-player settings change the AI object that player currently uses, as in C++; see below. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
+
+As in C++, players point at shared AI objects. Every `game` points both
+players at the global AI, which the unqualified commands and the `stats` line
+use. `ai PLAYER TYPE` points that player at the AI object for `TYPE`; those
+objects start with default settings, keep them across `game` blocks, and are
+shared by every player selecting the same type. A per-player command changes the
+object the player currently uses, so it can change the global settings or
+another player's search. QAI ignores per-player search settings without
+printing a confirmation. A per-player command before any `game` or `ai` command
+prints its confirmation but changes nothing (C++ dereferences a null AI there).
+JSONL session metadata reports the settings of the object each player uses.
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |

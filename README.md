@@ -131,7 +131,23 @@ The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
 Whole lines whose first non-whitespace character is `#` may be used as comments
 between top-level commands. Inline comments and comments inside `game` blocks
-are not supported.
+are not supported, so a Rush die line such as `#6:6` inside a `game` block is
+always a die.
+
+`ply`, `max_sims`, `min_sims`, and `maxbranch` take an optional player, as in
+C++. Without one they change the global AI. With one they change the AI that
+player currently uses, which is shared: every `game` points both players at the
+global AI, and `ai PLAYER TYPE` points one player at that type's AI, whose
+settings persist across games. A per-player setting therefore affects every
+player using the same AI, and the global `stats` line reports the global AI.
+
+### Skills
+
+BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
+the C++ engine predates: Auxiliary, Doppelganger, Fire, Jolt, Rage, and Rush.
+Radioactive is parsed but has no mechanics outside its Doppelganger
+interaction. Clients should discover the exact die tokens, skills, and attack
+types (including `rush`) through capabilities rather than hard-coding them.
 
 ### Python and service integration
 

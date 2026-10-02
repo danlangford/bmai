@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   example `max_sims 5` with the default minimum of 10) in both the legacy and
   JSONL protocols. Simulation counts now follow C++ `ComputeNumberSims`, which
   checks the minimum first, and a seeded fixture matches the C++ reference.
+- Matched C++ per-player search settings (`ply`, `max_sims`, `min_sims`,
+  `maxbranch` with a player). C++ players point at shared AI objects, so a
+  per-player setting changes the global AI after `game`, or the shared `ai`
+  type object, which keeps default settings of its own and persists across
+  games. BMAIR previously gave each player a private copy, so it diverged from
+  C++ whenever a script combined per-player settings with `game` or `ai`.
+  Seven scenarios now match the C++ reference, and JSONL session metadata
+  reports the shared objects. Scripts that use only global settings, including
+  BMAIBagels, are unchanged.
 
 ## [0.13.0] - 2026-09-30
 

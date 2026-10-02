@@ -30,23 +30,34 @@ impl fmt::Display for ParseError {
 }
 impl std::error::Error for ParseError {}
 
+/// Which C++ AI object a player's `BMC_Game::m_ai` pointer names. C++ shares
+/// these objects by pointer, so a per-player setting changes every player
+/// that points at the same object, and the objects outlive `game` blocks.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[allow(clippy::upper_case_acronyms)]
+enum BMC_AI_SLOT {
+    /// No `game` or `ai` command has set the pointer yet; C++ holds NULL.
+    UNBOUND,
+    /// `g_ai`, the global BMAI3 that `ParseGame` assigns to both players.
+    GLOBAL,
+    /// `c_ai_type[N]`: `g_bmai`, `g_qai2`, or `g_bmai3`.
+    TYPE(usize),
+}
+
 #[derive(Clone, Debug)]
 pub struct BMC_Parser {
     pub m_game: BMC_Game,
-    m_max_ply: usize,
-    m_min_sims: usize,
-    m_max_sims: usize,
-    m_max_branch: usize,
     m_report_sims: usize,
     m_execution_mode: ExecutionMode,
     m_native_root_seed: u64,
     m_native_decision_index: u64,
     m_native_workers: usize,
     m_rng: BMC_RNG,
+    /// C++ `g_ai`; its settings are the global settings reported by `stats`.
     m_ai: BMC_BMAI3,
-    m_player_ai: [BMC_BMAI3; 2],
-    m_ai_type: [usize; 2],
-    m_ai_explicit: [bool; 2],
+    /// C++ `c_ai_type`; the QAI entry carries no search settings.
+    m_type_ai: [BMC_BMAI3; 3],
+    m_player_ai: [BMC_AI_SLOT; 2],
     m_debug_ply: usize,
     m_logging: [bool; 8],
     m_last_action: Option<crate::protocol::ProtocolAction>,
@@ -58,10 +69,6 @@ impl Default for BMC_Parser {
     fn default() -> Self {
         Self {
             m_game: BMC_Game::default(),
-            m_max_ply: 1,
-            m_min_sims: 10,
-            m_max_sims: 500,
-            m_max_branch: 5000,
             m_report_sims: 0,
             m_execution_mode: ExecutionMode::default(),
             m_native_root_seed: 78_904_497,
@@ -69,9 +76,11 @@ impl Default for BMC_Parser {
             m_native_workers: 1,
             m_rng: BMC_RNG::default(),
             m_ai: BMC_BMAI3::default(),
-            m_player_ai: std::array::from_fn(|_| BMC_BMAI3::default()),
-            m_ai_type: [2, 2],
-            m_ai_explicit: [false, false],
+            m_type_ai: std::array::from_fn(|ai_type| BMC_BMAI3 {
+                m_cull_moves: ai_type == 2,
+                ..Default::default()
+            }),
+            m_player_ai: [BMC_AI_SLOT::UNBOUND; 2],
             m_debug_ply: 0,
             m_logging: [true; 8],
             m_last_action: None,
@@ -106,16 +115,16 @@ impl BMC_Parser {
             native_root_seed: self.m_native_root_seed,
             native_decision_index: self.m_native_decision_index,
             workers: self.m_native_workers,
-            max_ply: self.m_max_ply,
-            min_simulations: self.m_min_sims,
-            max_simulations: self.m_max_sims,
-            max_branch: self.m_max_branch,
+            max_ply: self.m_ai.m_max_ply,
+            min_simulations: self.m_ai.m_min_sims,
+            max_simulations: self.m_ai.m_max_sims,
+            max_branch: self.m_ai.m_max_branch,
             report_simulations: self.m_report_sims,
             players: std::array::from_fn(|player| {
-                let ai = &self.m_player_ai[player];
+                let ai = self.PlayerAI(player);
                 crate::protocol::PlayerAiMetadata {
-                    ai_type: self.m_ai_type[player],
-                    policy: match self.m_ai_type[player] {
+                    ai_type: self.AIType(player),
+                    policy: match self.AIType(player) {
                         0 => "bmai",
                         1 => "qai",
                         2 => "bmai3",

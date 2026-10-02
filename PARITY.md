@@ -137,6 +137,22 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] `ai <player> <type>`: type 0 legacy fixed-simulation BMAI, type 1 QAI,
   and type 2 batched/culling BMAI3 are wired for parser actions and games.
 - [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing/state.
+  `BMC_AI_SLOT` mirrors C++'s shared AI pointers: `g_ai` after `game`, and the
+  persistent `c_ai_type` objects selected by `ai`. Before 0.14.0 BMAIR copied
+  settings per player and diverged whenever per-player settings met `game` or
+  `ai`. `per_player_settings_change_the_shared_cpp_ai_object` asserts seven
+  C++-reference outputs, and `parity_shared_ai_settings_in.txt` adds the
+  global-stats case to the fixture differential. A per-player command before
+  any `game` or `ai` dereferences NULL in C++; BMAIR keeps its confirmation and
+  changes nothing.
+  Explicit exclusion: C++ `playfair` modes 0-3 leave both players pointing at
+  the playfair mode AIs (random, maximizer, or a non-culling BMAI with its own
+  rollout policy) until the next `game` or `ai`. BMAIR builds those policies
+  only for the `playfair` run and leaves the previous AI selection in place, so
+  a `getaction`, `playgame`, `compare`, or per-player command issued after
+  `playfair` and before the next `game` block differs. Matching it would add
+  random and maximizer `getaction` selectors for every phase; no known client
+  issues commands in that order.
 - [x] `debug` category validation/state and `debugply` parsing/state, including
   C++'s exact uppercase category and boolean-setting behavior.
 - [x] Error messages, invalid inputs, phase restrictions, and exit behavior:
@@ -399,6 +415,10 @@ Rush dice keep their C++ candidate order and RNG consumption.
   seeded game coverage (`parity_combined_mechanics_in.txt`).
 - [x] Time and Space extra-turn behavior (combined seeded fixture).
 - [x] Mood, Mighty, and Weak RNG/state ordering (combined seeded fixture).
+- [x] `min_sims` above `max_sims` follows C++ `ComputeNumberSims` minimum-first
+  ordering instead of panicking (`parity_min_sims_exceeds_max_sims_in.txt`).
+- [x] Per-player settings change the shared C++ AI object
+  (`parity_shared_ai_settings_in.txt` plus the seven-case parser test).
 
 ## Final verification
 

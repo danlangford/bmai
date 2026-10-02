@@ -210,6 +210,29 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
 }
 
 #[test]
+fn session_metadata_reports_the_shared_ai_objects_players_use() {
+    let mut session = BmairSession::default();
+    let game = "game\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\n";
+    let value = response(
+        &mut session,
+        json!({
+            "protocol": "jsonl-v1",
+            "id": 1,
+            "method": "session.execute",
+            "params": { "script": format!("{game}max_sims 1 3\nai 1 0\nmax_sims 1 7\n") }
+        }),
+    );
+    let session_state = &value["result"]["session"];
+    // Player 0 still points at g_ai, which player 1 changed before selecting
+    // its own `ai 1 0` object.
+    assert_eq!(session_state["max_simulations"], 3);
+    assert_eq!(session_state["players"][0]["max_simulations"], 3);
+    assert_eq!(session_state["players"][1]["ai_type"], 0);
+    assert_eq!(session_state["players"][1]["max_simulations"], 7);
+    assert_eq!(session_state["players"][1]["culls_moves"], false);
+}
+
+#[test]
 fn request_validation_has_stable_recoverable_error_codes() {
     let cases = [
         (
