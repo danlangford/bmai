@@ -3,8 +3,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::BME_ATTACK::SHADOW;
-use crate::game::ApplyRadioactiveDecay;
+use crate::game::SplitRadioactiveAttacker;
 
 #[test]
 fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
@@ -43,10 +42,8 @@ fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
 }
 
 #[test]
-#[should_panic(
-    expected = "Radioactive+Doppelganger decay exceeds the transformed dice capacity of 20"
-)]
-fn radioactive_doppelganger_reports_transformed_capacity_exhaustion() {
+#[should_panic(expected = "Radioactive decay exceeds the transformed dice capacity of 20")]
+fn radioactive_decay_reports_transformed_capacity_exhaustion() {
     let mut game = BMC_Game::default();
     for original_index in 0..20 {
         let properties = if original_index == 0 {
@@ -59,41 +56,8 @@ fn radioactive_doppelganger_reports_transformed_capacity_exhaustion() {
             .push(swing_die('P', properties, original_index));
     }
     game.m_player[1].m_die.push(swing_die('P', 0, 0));
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
 
-    ApplyRadioactiveDecay(&mut game, &action, 0, 1);
-}
-
-#[test]
-fn radioactive_doppelganger_decay_is_limited_to_power_attacks() {
-    let mut game = BMC_Game::default();
-    game.m_player[0].m_die.push(swing_die(
-        'P',
-        property::RADIOACTIVE | property::DOPPELGANGER | property::SHADOW,
-        0,
-    ));
-    game.m_player[1].m_die.push(swing_die('P', 0, 0));
-    let action = BMC_Move::attack(SHADOW, [0], [0], 0.0);
-
-    assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
-    assert_eq!(game.m_player[0].m_die.len(), 1);
-}
-
-#[test]
-fn standalone_radioactive_remains_parsing_only() {
-    let mut game = BMC_Game::default();
-    let mut attacker = swing_die('P', property::RADIOACTIVE, 0);
-    attacker.m_sides = [20, 0];
-    attacker.m_value_total = Some(20);
-    game.m_player[0].m_die = vec![attacker];
-    let mut target = swing_die('P', 0, 0);
-    target.m_sides = [2, 0];
-    target.m_value_total = Some(2);
-    game.m_player[1].m_die = vec![target];
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
-
-    assert!(ApplyRadioactiveDecay(&mut game, &action, 0, 1).is_none());
-    assert_eq!(game.m_player[0].m_die.len(), 1);
+    SplitRadioactiveAttacker(&mut game, 0, 0);
 }
 
 #[test]

@@ -77,10 +77,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "power", "skill", "berserk", "speed", "trip", "shadow", "rush"
         ])
     );
-    assert_eq!(
-        value["parsing_only_skills"],
-        serde_json::json!(["Radioactive"])
-    );
+    assert_eq!(value["parsing_only_skills"], serde_json::json!([]));
 }
 
 #[test]
@@ -121,7 +118,9 @@ fn die_notation_is_complete_unique_and_machine_readable() {
             entry.name
         );
     }
-    assert_eq!(parsing_only_skills.len(), 1);
+    // Every advertised die skill is now fully implemented.
+    assert!(parsing_only_skills.is_empty());
+    assert!(implemented_skills.contains("Radioactive"));
     for entry in capabilities.die_notation.postfix_properties {
         assert!(implemented_skills.contains(entry.name));
     }

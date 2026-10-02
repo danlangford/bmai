@@ -241,6 +241,7 @@ mod core;
 mod doppelganger;
 mod jolt;
 mod parity;
+mod radioactive;
 mod rage;
 mod rush;
 mod transformations;

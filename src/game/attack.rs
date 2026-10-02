@@ -728,7 +728,7 @@ impl BMC_Game {
 
     pub fn GenerateValidAttacksInCppOrder(&self) -> Vec<BMC_Move> {
         let mut moves = self.GenerateValidAttackCandidatesInCppOrder(usize::MAX);
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -739,7 +739,7 @@ impl BMC_Game {
                 .total_cmp(&a.m_score)
                 .then_with(|| attack_preference(a.m_attack).cmp(&attack_preference(b.m_attack)))
         });
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -748,7 +748,7 @@ impl BMC_Game {
         fire_limit: usize,
     ) -> Vec<BMC_Move> {
         let mut moves = self.GenerateValidAttackCandidatesInCppOrder(fire_limit);
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -833,13 +833,20 @@ fn MoveInvolvesDie(action: &BMC_Move, die: usize) -> bool {
     }
 }
 
-fn ExpandTurboMoves(player: &BMC_Player, accuracy: f32, moves: &mut Vec<BMC_Move>) {
+fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
+    let player = &game.m_player[0];
+    let accuracy = game.m_turbo_accuracy;
     let Some((turbo_index, turbo_die)) = FirstTurboDie(player) else {
         return;
     };
     let original_move_count = moves.len();
     for move_index in 0..original_move_count {
         if !MoveInvolvesDie(&moves[move_index], turbo_index) {
+            continue;
+        }
+        // A decaying attacker loses Turbo before its reroll, so every Turbo
+        // size would resolve identically; offer the move once, undecided.
+        if super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1) {
             continue;
         }
         if turbo_die.HasProperty(property::OPTION) {

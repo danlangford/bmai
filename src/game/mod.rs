@@ -20,7 +20,7 @@ pub(crate) use mechanics::{
     RollRoundDice, RollScheduledDie, SwingRange,
 };
 #[cfg(test)]
-pub(crate) use mechanics::{ApplyAttackPlayerEffects, ApplyRadioactiveDecay};
+pub(crate) use mechanics::{ApplyAttackPlayerEffects, SplitRadioactiveAttacker};
 pub use player::BMC_Player;
 pub use state::BMC_Game;
 pub(crate) use state::{BMD_MAX_DICE, BMD_MAX_INPUT_DICE};

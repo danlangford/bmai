@@ -37,17 +37,21 @@ pub(crate) fn ApplyAttackForPlayers(
         .m_targets
         .iter()
         .any(|index| game.m_player[target_player].m_die[index].HasProperty(property::JOLT));
+    // ButtonWeavers runs Null and Value from the attacking dice's original
+    // hooks, so they still apply after Doppelganger replaces the attacker.
+    let null_attacker = action
+        .m_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::NULL));
+    let value_attacker = action
+        .m_attackers
+        .iter()
+        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
     let mut actual_attackers = action.m_attackers;
-    let decayed = if let Some(decay_products) =
-        ApplyRadioactiveDecay(game, action, attacker_player, target_player)
-    {
-        actual_attackers = decay_products;
-        available_attackers += 1;
-        true
-    } else {
-        false
-    };
-    let jolt_dice_to_consume = if decayed {
+    let decays = RadioactiveDecayApplies(game, action, attacker_player, target_player);
+    // Decayed dice lose Jolt, so ButtonWeavers' earlier Jolt hook has already
+    // granted the extra turn and there is nothing left to consume.
+    let jolt_dice_to_consume = if decays {
         BMC_DieIndexSet::default()
     } else {
         attacking_jolt_dice
@@ -58,15 +62,16 @@ pub(crate) fn ApplyAttackForPlayers(
             !game.m_player[attacker_player].m_die[*index].HasProperty(property::KONSTANT)
         })
         .collect::<BMC_DieIndexSet>();
-    for attacker in actual_attackers.iter() {
-        ApplyAttackPlayerEffects(game, action, attacker_player, target_player, attacker, true);
+    if decays && !is_trip {
+        let attacker = action.m_attackers.first().expect("Radioactive attacker");
+        actual_attackers =
+            ApplyRadioactiveAttackEffects(game, action, attacker_player, target_player, attacker);
+        available_attackers += 1;
+    } else {
+        for attacker in actual_attackers.iter() {
+            ApplyAttackPlayerEffects(game, action, attacker_player, target_player, attacker, true);
+        }
     }
-    let null_attacker = actual_attackers
-        .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::NULL));
-    let value_attacker = actual_attackers
-        .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
 
     if is_trip {
         let target = action.m_targets.first().expect("Trip target");
@@ -130,9 +135,23 @@ pub(crate) fn ApplyAttackForPlayers(
     if is_trip {
         let target = action.m_targets.first().expect("Trip target");
         let attacker = action.m_attackers.first().expect("Trip attacker");
-        if game.m_player[attacker_player].m_die[attacker].GetValueTotal()
-            < game.m_player[target_player].m_die[target].GetValueTotal()
-        {
+        let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
+            < game.m_player[target_player].m_die[target].GetValueTotal();
+        if decays {
+            // ButtonWeavers resolves the Trip rolls before the capture hooks,
+            // so the attacker decays after its Trip roll, succeed or fail, and
+            // the decay products then roll fresh values.
+            let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
+            for product in products.iter() {
+                RollDie(&mut game.m_player[attacker_player].m_die[product], rng);
+            }
+            if trip_failed {
+                // Dice involved in a decay that remain in play lose Radioactive.
+                let die = &mut game.m_player[target_player].m_die[target];
+                die.m_properties &= !property::RADIOACTIVE;
+            }
+        }
+        if trip_failed {
             OptimizeDice(&mut game.m_player[attacker_player]);
             OptimizeDice(&mut game.m_player[target_player]);
             return attacking_jolt || time_and_space_extra_turn;
@@ -215,31 +234,86 @@ pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, playe
     }
 }
 
-pub(crate) fn ApplyRadioactiveDecay(
+/// ButtonWeavers decays the attacker of any attack with exactly one attacker
+/// and one target when either die is Radioactive.
+pub(crate) fn RadioactiveDecayApplies(
+    game: &BMC_Game,
+    action: &BMC_Move,
+    attacker_player: usize,
+    target_player: usize,
+) -> bool {
+    if action.m_attack.is_none() || action.m_attackers.len() != 1 || action.m_targets.len() != 1 {
+        return false;
+    }
+    let (Some(attacker), Some(target)) = (action.m_attackers.first(), action.m_targets.first())
+    else {
+        return false;
+    };
+    game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE)
+        || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE)
+}
+
+/// Attack-time effects for an attacker that decays, in ButtonWeavers' order.
+/// Berserk and Morphing transform the die first. A Radioactive attacker then
+/// decays before Doppelganger copies the target into both products; when only
+/// the target is Radioactive, its decay hook runs after every attacker hook,
+/// so the Doppelganger copy itself decays. The products then take their
+/// attack reroll, with Mighty and Weak resizing them unless they are Konstant.
+pub(crate) fn ApplyRadioactiveAttackEffects(
     game: &mut BMC_Game,
     action: &BMC_Move,
     attacker_player: usize,
     target_player: usize,
-) -> Option<BMC_DieIndexSet> {
-    if action.m_attack != Some(BME_ATTACK::POWER)
-        || action.m_attackers.len() != 1
-        || action.m_targets.len() != 1
+    attacker: usize,
+) -> BMC_DieIndexSet {
+    let target = action.m_targets.first().expect("Radioactive target");
+    let original = game.m_player[attacker_player].m_die[attacker];
+    let attacker_is_radioactive = original.HasProperty(property::RADIOACTIVE);
+    let copies_target =
+        action.m_attack == Some(BME_ATTACK::POWER) && original.HasProperty(property::DOPPELGANGER);
+
+    if action.m_attack == Some(BME_ATTACK::BERSERK) {
+        let die = &mut game.m_player[attacker_player].m_die[attacker];
+        let old_score = die.GetScore(true);
+        die.m_sides[0] = die.m_sides[0].div_ceil(2);
+        die.m_properties &= !property::BERSERK;
+        game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+    }
+    if !matches!(
+        action.m_attack,
+        Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
+    ) && original.HasProperty(property::MORPHING)
     {
-        return None;
+        MorphIntoTarget(game, attacker_player, target_player, attacker, target);
     }
-    let attacker = action.m_attackers.first()?;
-    let target = action.m_targets.first()?;
-    let doppelganger =
-        game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER);
-    let radioactive = game.m_player[attacker_player].m_die[attacker]
-        .HasProperty(property::RADIOACTIVE)
-        || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE);
-    if !doppelganger || !radioactive {
-        return None;
+    if copies_target && !attacker_is_radioactive {
+        CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
     }
+
+    let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
+    for product in products.iter() {
+        if copies_target && attacker_is_radioactive {
+            CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
+        } else if !original.HasProperty(property::KONSTANT) {
+            ApplyBeforeRollEffects(game, attacker_player, product);
+        }
+    }
+    products
+}
+
+/// Splits a decaying attacker into two as-near-equal dice that add up to its
+/// size, like ButtonWeavers `BMDie::split`: the original keeps the rounded-up
+/// half and the new die the rounded-down half. Twin halves alternate so each
+/// product gets one rounded-up subdie. Both products lose Radioactive, Turbo,
+/// Mood, Jolt, and Time and Space, and must reroll.
+pub(crate) fn SplitRadioactiveAttacker(
+    game: &mut BMC_Game,
+    attacker_player: usize,
+    attacker: usize,
+) -> BMC_DieIndexSet {
     assert!(
         game.m_player[attacker_player].m_die.len() < BMD_MAX_DICE,
-        "Radioactive+Doppelganger decay exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+        "Radioactive decay exceeds the transformed dice capacity of {BMD_MAX_DICE}"
     );
 
     let original = game.m_player[attacker_player].m_die[attacker];
@@ -251,7 +325,7 @@ pub(crate) fn ApplyRadioactiveDecay(
         .collect::<BMC_DieIndexSet>();
     let synthetic_index = (0..BMD_MAX_DICE)
         .find(|index| !used_indices.contains(*index))
-        .expect("Radioactive+Doppelganger decay has no free stable die index");
+        .expect("Radioactive decay has no free stable die index");
     let mut first = original;
     let mut second = original;
     let removed = property::RADIOACTIVE
@@ -262,8 +336,8 @@ pub(crate) fn ApplyRadioactiveDecay(
     first.m_properties &= !removed;
     second.m_properties &= !removed;
     if original.HasProperty(property::TWIN) {
-        first.m_sides = [original.m_sides[0] / 2, original.m_sides[1].div_ceil(2)];
-        second.m_sides = [original.m_sides[0].div_ceil(2), original.m_sides[1] / 2];
+        first.m_sides = [original.m_sides[0].div_ceil(2), original.m_sides[1] / 2];
+        second.m_sides = [original.m_sides[0] / 2, original.m_sides[1].div_ceil(2)];
     } else {
         first.m_sides[0] = original.m_sides[0].div_ceil(2);
         second.m_sides[0] = original.m_sides[0] / 2;
@@ -289,7 +363,54 @@ pub(crate) fn ApplyRadioactiveDecay(
         .insert(attacker + 1, second);
     let new_score = first.GetScore(true) + second.GetScore(true);
     game.m_player[attacker_player].m_score += new_score - old_score;
-    Some([attacker, attacker + 1].into())
+    [attacker, attacker + 1].into()
+}
+
+fn MorphIntoTarget(
+    game: &mut BMC_Game,
+    attacker_player: usize,
+    target_player: usize,
+    attacker: usize,
+    target: usize,
+) {
+    let target_die = game.m_player[target_player].m_die[target];
+    let die = &mut game.m_player[attacker_player].m_die[attacker];
+    let old_score = die.GetScore(true);
+    if target_die.HasProperty(property::TWIN) {
+        die.m_properties |= property::TWIN;
+        die.m_sides = target_die.m_sides;
+    } else {
+        die.m_properties &= !property::TWIN;
+        die.m_sides = [target_die.GetSidesMax() as u8, 0];
+    }
+    game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+}
+
+/// Replaces an attacking die with an exact copy of its Power-attack target,
+/// remembering the replaced recipe for restoration at the next round.
+fn CopyDoppelgangerTarget(
+    game: &mut BMC_Game,
+    attacker_player: usize,
+    target_player: usize,
+    attacker: usize,
+    target: usize,
+) {
+    let mut copied = game.m_player[target_player].m_die[target];
+    let original = game.m_player[attacker_player].m_die[attacker];
+    let original_index = original.m_original_index;
+    let old_score = original.GetScore(true);
+    let transformed = 1 << original_index;
+    if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
+        game.m_player[attacker_player].m_round_original_sides[original_index] = original.m_sides;
+        game.m_player[attacker_player].m_round_transformed |= transformed;
+    }
+    copied.m_captured = false;
+    copied.m_notset = true;
+    copied.m_dizzy = false;
+    copied.m_original_index = original_index;
+    copied.m_in_reserve = false;
+    game.m_player[attacker_player].m_die[attacker] = copied;
+    game.m_player[attacker_player].m_score += copied.GetScore(true) - old_score;
 }
 
 pub(super) fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: BMC_DieIndexSet) {
@@ -388,17 +509,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
     {
         let target = action.m_targets.first().expect("Morphing target");
-        let target_die = game.m_player[target_player].m_die[target];
-        let die = &mut game.m_player[attacker_player].m_die[attacker];
-        let old_score = die.GetScore(true);
-        if target_die.HasProperty(property::TWIN) {
-            die.m_properties |= property::TWIN;
-            die.m_sides = target_die.m_sides;
-        } else {
-            die.m_properties &= !property::TWIN;
-            die.m_sides = [target_die.GetSidesMax() as u8, 0];
-        }
-        game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+        MorphIntoTarget(game, attacker_player, target_player, attacker, target);
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::TURBO)
@@ -438,23 +549,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER)
     {
         let target = action.m_targets.first().expect("Doppelganger target");
-        let mut copied = game.m_player[target_player].m_die[target];
-        let original = game.m_player[attacker_player].m_die[attacker];
-        let original_index = original.m_original_index;
-        let old_score = original.GetScore(true);
-        let transformed = 1 << original_index;
-        if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
-            game.m_player[attacker_player].m_round_original_sides[original_index] =
-                original.m_sides;
-            game.m_player[attacker_player].m_round_transformed |= transformed;
-        }
-        copied.m_captured = false;
-        copied.m_notset = true;
-        copied.m_dizzy = false;
-        copied.m_original_index = original_index;
-        copied.m_in_reserve = false;
-        game.m_player[attacker_player].m_die[attacker] = copied;
-        game.m_player[attacker_player].m_score += copied.GetScore(true) - old_score;
+        CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {
