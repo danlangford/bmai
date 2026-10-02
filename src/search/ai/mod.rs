@@ -108,8 +108,7 @@ impl BMC_BMAI3 {
         assert!(level > 0);
         let decay = self.m_ply_decay.powi(level as i32 - 1);
         let sims = (self.m_max_branch as f32 * decay / moves as f32) as usize;
-        // C++ checks the minimum first, so it wins when `min_sims` exceeds
-        // `max_sims`; `clamp` would panic on that configuration instead.
+        // C++ lets the minimum win over a smaller maximum; `clamp` would panic.
         let minimum = ((self.m_min_sims as f32 * decay + 0.99) as usize).max(1);
         if sims < minimum {
             return minimum;

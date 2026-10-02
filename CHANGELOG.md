@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Planned
+
+- Add a per-player `special` protocol option for button-level rules, so
+  BMAIBagels can name them per button: unique swing values (Gordo,
+  Guillermo, Oregon), no Skill attacks (Largo, The Flying Squirrel), immunity
+  to Skill attacks (The Japanese Beetle), and no initiative (Giant).
+- Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
+- Allow non-Twin Trip dice to Trip Twin dice, as ButtonWeavers does.
+- Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
+  attack reroll.
+- Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
 ## [0.15.0] - 2026-10-02
 
 ### Added

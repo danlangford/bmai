@@ -211,9 +211,7 @@ Seeding with 17\n"
     );
 }
 
-/// Each case was run through the adopted C++ reference (`4813530`). C++
-/// players point at shared AI objects: `game` points both at `g_ai`, and
-/// `ai P T` points one at `c_ai_type[T]`, whose settings persist across games.
+/// Expected lines come from running each case through the C++ reference `4813530`.
 #[test]
 fn per_player_settings_change_the_shared_cpp_ai_object() {
     const GAME: &str = "game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";

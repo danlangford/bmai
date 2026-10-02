@@ -223,8 +223,7 @@ fn session_metadata_reports_the_shared_ai_objects_players_use() {
         }),
     );
     let session_state = &value["result"]["session"];
-    // Player 0 still points at g_ai, which player 1 changed before selecting
-    // its own `ai 1 0` object.
+    // Player 1 changed the shared g_ai before switching to its own `ai 1 0`.
     assert_eq!(session_state["max_simulations"], 3);
     assert_eq!(session_state["players"][0]["max_simulations"], 3);
     assert_eq!(session_state["players"][1]["ai_type"], 0);

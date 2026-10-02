@@ -631,8 +631,7 @@ impl BMC_Game {
                         }
                     }
                     BME_ATTACK::RUSH => {
-                        // A Speed die's two-target Speed attack already has the
-                        // identical legality and resolution, so skip the duplicate.
+                        // A Speed die's two-target Speed attack resolves identically.
                         let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
                         if !attacker_has_rush && !targets_have_rush
                             || !attacker_die.CanDoAttack(attack, 1)
@@ -844,8 +843,7 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
         if !MoveInvolvesDie(&moves[move_index], turbo_index) {
             continue;
         }
-        // A decaying attacker loses Turbo before its reroll, so every Turbo
-        // size would resolve identically; offer the move once, undecided.
+        // Decay strips Turbo before the reroll, so every size resolves the same.
         if super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1) {
             continue;
         }

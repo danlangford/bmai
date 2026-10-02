@@ -33,8 +33,6 @@ fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
         m_max_sims: 5,
         ..Default::default()
     };
-    // The default minimum is 10. C++ checks it first, so a crowded branch
-    // gets the minimum; otherwise the smaller maximum caps the count.
     assert_eq!(ai.ComputeNumberSims(1000, 1), 10);
     assert_eq!(ai.ComputeNumberSims(1, 1), 5);
 }

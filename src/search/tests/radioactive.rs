@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Radioactive (`%`) rules from the ButtonWeavers skills page and engine at
-//! `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`. Cases marked "responder log"
-//! reproduce the dice in ButtonWeavers' own responder test action logs.
+//! "Responder log" cases reproduce ButtonWeavers `responder0*Test.php` action
+//! logs, the closest thing to a rules oracle for decay ordering.
 
 use super::*;
 use crate::BME_ATTACK::{RUSH, SHADOW};
@@ -20,8 +19,6 @@ fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
     }
     native_fixture_game(&input).GenerateValidAttacksInCppOrder()
 }
-
-// Core decay rule.
 
 #[test]
 fn radioactive_attacker_decays_into_two_halves_that_sum_to_its_size() {
@@ -48,8 +45,7 @@ fn attacker_decays_when_only_the_target_is_radioactive_and_the_target_keeps_radi
 
 #[test]
 fn two_radioactive_dice_decay_the_attacker_only_once() {
-    // Responder log: %Ho(1,2):3 captures %Ho(1,2) and splits into Ho(1,1)
-    // and Ho(0,1), each then growing to Ho(2,2) and Ho(1,2).
+    // Responder log: %Ho(1,2) vs %Ho(1,2) -> Ho(2,2) and Ho(1,2).
     scenario()
         .attacker("%Ho(1,2):3")
         .attacks(POWER)
@@ -61,8 +57,7 @@ fn two_radioactive_dice_decay_the_attacker_only_once() {
 
 #[test]
 fn a_one_sided_die_decays_into_a_one_sided_and_a_zero_sided_die() {
-    // Responder log: (Y=1) captures Hog%(4) and splits into (Y=1) showing 1
-    // and (Y=0) showing 0.
+    // Responder log: (Y=1) vs Hog%(4) -> (Y=1):1 and (Y=0):0.
     scenario()
         .attacker("Y-1:1")
         .attacks(POWER)
@@ -73,8 +68,7 @@ fn a_one_sided_die_decays_into_a_one_sided_and_a_zero_sided_die() {
 
 #[test]
 fn twin_dice_decay_into_alternating_halves() {
-    // Responder log: t(T=1,T=1) captures Hog%(6) and splits into t(T=1,T=0)
-    // and t(T=0,T=1).
+    // Responder log: t(T=1,T=1) vs Hog%(6) -> t(T=1,T=0) and t(T=0,T=1).
     scenario()
         .attacker("t(T,T)-1:2")
         .attacks(POWER)
@@ -85,7 +79,7 @@ fn twin_dice_decay_into_alternating_halves() {
 
 #[test]
 fn odd_twin_halves_give_each_product_one_rounded_up_subdie() {
-    // The skills page example: %p(7,13) decays into p(4,6) and p(3,7).
+    // skills.html example.
     scenario()
         .attacker("%p(7,13):20")
         .attacks(POWER)
@@ -100,7 +94,7 @@ fn decay_products_score_as_two_smaller_dice() {
         .attacker("%7:7")
         .attacks(POWER)
         .defender("3:3")
-        // The attacker keeps 3.5 for its own dice (4 + 3 halved) and gains 3.
+        // Own dice score half: (4 + 3) / 2, plus the captured 3.
         .expect_scores(6.5, 0.0)
         .run();
 }
@@ -115,12 +109,9 @@ fn decay_products_return_to_the_original_recipe_next_round() {
         .run();
 }
 
-// Every attack with exactly one attacker and one target decays.
-
 #[test]
 fn single_die_skill_attack_decays() {
-    // Responder log: %Ho(1,4):4 Skill-attacks (X=6):4 and splits into
-    // Ho(1,2) and Ho(0,2), which grow into Ho(2,4) and Ho(1,4).
+    // Responder log: %Ho(1,4) Skill vs (X=6) -> Ho(2,4) and Ho(1,4).
     scenario()
         .attacker("%Ho(1,4):4")
         .attacks(SKILL)
@@ -131,8 +122,7 @@ fn single_die_skill_attack_decays() {
 
 #[test]
 fn shadow_attack_decays_and_keeps_shadow() {
-    // The skills page example: s(X=15)! decays into s(X=8) and s(X=7) and
-    // loses Turbo.
+    // skills.html example.
     scenario()
         .attacker("sX-15!:3")
         .attacks(SHADOW)
@@ -181,9 +171,8 @@ fn multi_target_and_multi_attacker_attacks_do_not_decay() {
 
 #[test]
 fn successful_trip_decays_after_the_trip_roll() {
-    // Responder log: t(T=2,T=2):3 Trips Hog%(4), captures it, and splits
-    // into two t(T=1,T=1) dice that roll fresh values. A d1 target makes the
-    // capture certain here.
+    // Responder log: t(T=2,T=2) Trips Hog%(4) -> two t(T=1,T=1). A d1 target
+    // makes the capture certain.
     scenario()
         .attacker("t(T,T)-2:3")
         .attacks(TRIP)
@@ -195,10 +184,9 @@ fn successful_trip_decays_after_the_trip_roll() {
 
 #[test]
 fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
-    // Responder log: t(4):1 Trips %Ho(1,2), fails to capture it, and splits
-    // into t(2) and t(2) while the target loses Radioactive. The log's target
-    // is Twin; BMAIR does not yet generate non-Twin Trips against Twin dice,
-    // so this uses a single Mighty target with the same growth.
+    // Responder log: t(4) fails to Trip %Ho(1,2) -> t(2), t(2), and Ho(2,4).
+    // BMAIR doesn't yet allow non-Twin Trips on Twin dice, so the target here
+    // is single.
     scenario()
         .attacker("t4:1")
         .attacks(TRIP)
@@ -208,12 +196,9 @@ fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
         .run();
 }
 
-// Interactions listed on the skills page.
-
 #[test]
 fn berserk_halves_before_it_decays() {
-    // Responder log: Bp(U=8) Berserk-attacks Hog%(6), changes to p(U=4), and
-    // splits into p(U=2) and p(U=2).
+    // Responder log: Bp(U=8) Berserk vs Hog%(6) -> p(U=4) -> two p(U=2).
     scenario()
         .attacker("BpU-8:5")
         .attacks(BERSERK)
@@ -244,8 +229,7 @@ fn radioactive_doppelganger_decays_before_each_product_copies_the_target() {
 
 #[test]
 fn doppelganger_copy_of_a_radioactive_target_decays() {
-    // Responder log: nD(R=9) captures Hog%(4), changes to Hog(4), and splits
-    // into Hog(2) and Hog(2), which each grow into Hog(4).
+    // Responder log: nD(R=9) vs Hog%(4) -> Hog(4) -> two Hog(2) that grow to Hog(4).
     scenario()
         .attacker("nDR-9:1")
         .attacks(POWER)
@@ -305,8 +289,6 @@ fn decay_removes_turbo_and_turbo_sizes_are_not_offered() {
         .expect_attacker_dice(["X-6:5", "X-6:1"])
         .run();
 
-    // The only legal attack is the Power capture, offered once with no Turbo
-    // decision. Without Radioactive, the same die offers every Turbo size.
     let turbo_sizes = attacks_by(&["%X!-12:12"], &["1:1"])
         .into_iter()
         .map(|candidate| candidate.m_turbo_option)
@@ -314,8 +296,6 @@ fn decay_removes_turbo_and_turbo_sizes_are_not_offered() {
     assert_eq!(turbo_sizes, vec![-1]);
     assert!(attacks_by(&["X!-12:12"], &["1:1"]).len() > 2);
 }
-
-// Other skills that act on the attack and its reroll.
 
 #[test]
 fn decay_removes_jolt_after_jolt_grants_its_extra_turn() {
@@ -362,8 +342,7 @@ fn rage_attacker_loses_rage_before_it_decays() {
 
 #[test]
 fn captured_radioactive_rage_target_is_replaced_and_still_decays_the_attacker() {
-    // Responder log: (X=17) captures pG%(7); p%(7) is added and the attacker
-    // splits into (X=9) and (X=8).
+    // Responder log: (X=17) vs pG%(7) -> p%(7) added; (X=9) and (X=8).
     scenario()
         .attacker("X-17:8")
         .attacks(POWER)

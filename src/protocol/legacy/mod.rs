@@ -30,17 +30,15 @@ impl fmt::Display for ParseError {
 }
 impl std::error::Error for ParseError {}
 
-/// Which C++ AI object a player's `BMC_Game::m_ai` pointer names. C++ shares
-/// these objects by pointer, so a per-player setting changes every player
-/// that points at the same object, and the objects outlive `game` blocks.
+/// C++ players share AI objects by pointer, so a per-player setting reaches
+/// every player using the same object.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[allow(clippy::upper_case_acronyms)]
 enum BMC_AI_SLOT {
-    /// No `game` or `ai` command has set the pointer yet; C++ holds NULL.
     UNBOUND,
-    /// `g_ai`, the global BMAI3 that `ParseGame` assigns to both players.
+    /// `g_ai`
     GLOBAL,
-    /// `c_ai_type[N]`: `g_bmai`, `g_qai2`, or `g_bmai3`.
+    /// `c_ai_type[N]`
     TYPE(usize),
 }
 
@@ -53,9 +51,9 @@ pub struct BMC_Parser {
     m_native_decision_index: u64,
     m_native_workers: usize,
     m_rng: BMC_RNG,
-    /// C++ `g_ai`; its settings are the global settings reported by `stats`.
+    /// C++ `g_ai`, which `stats` reports.
     m_ai: BMC_BMAI3,
-    /// C++ `c_ai_type`; the QAI entry carries no search settings.
+    /// C++ `c_ai_type`
     m_type_ai: [BMC_BMAI3; 3],
     m_player_ai: [BMC_AI_SLOT; 2],
     m_debug_ply: usize,

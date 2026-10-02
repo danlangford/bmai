@@ -37,8 +37,7 @@ pub(crate) fn ApplyAttackForPlayers(
         .m_targets
         .iter()
         .any(|index| game.m_player[target_player].m_die[index].HasProperty(property::JOLT));
-    // ButtonWeavers runs Null and Value from the attacking dice's original
-    // hooks, so they still apply after Doppelganger replaces the attacker.
+    // ButtonWeavers keeps these hooks even after Doppelganger replaces the attacker.
     let null_attacker = action
         .m_attackers
         .iter()
@@ -49,8 +48,7 @@ pub(crate) fn ApplyAttackForPlayers(
         .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
     let mut actual_attackers = action.m_attackers;
     let decays = RadioactiveDecayApplies(game, action, attacker_player, target_player);
-    // Decayed dice lose Jolt, so ButtonWeavers' earlier Jolt hook has already
-    // granted the extra turn and there is nothing left to consume.
+    // Decay strips Jolt after ButtonWeavers' Jolt hook has granted the turn.
     let jolt_dice_to_consume = if decays {
         BMC_DieIndexSet::default()
     } else {
@@ -138,15 +136,13 @@ pub(crate) fn ApplyAttackForPlayers(
         let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal();
         if decays {
-            // ButtonWeavers resolves the Trip rolls before the capture hooks,
-            // so the attacker decays after its Trip roll, succeed or fail, and
-            // the decay products then roll fresh values.
+            // Trip rolls resolve before ButtonWeavers' capture hooks, so decay
+            // happens after them, even when the Trip fails.
             let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
             for product in products.iter() {
                 RollDie(&mut game.m_player[attacker_player].m_die[product], rng);
             }
             if trip_failed {
-                // Dice involved in a decay that remain in play lose Radioactive.
                 let die = &mut game.m_player[target_player].m_die[target];
                 die.m_properties &= !property::RADIOACTIVE;
             }
@@ -234,8 +230,6 @@ pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, playe
     }
 }
 
-/// ButtonWeavers decays the attacker of any attack with exactly one attacker
-/// and one target when either die is Radioactive.
 pub(crate) fn RadioactiveDecayApplies(
     game: &BMC_Game,
     action: &BMC_Move,
@@ -253,12 +247,8 @@ pub(crate) fn RadioactiveDecayApplies(
         || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE)
 }
 
-/// Attack-time effects for an attacker that decays, in ButtonWeavers' order.
-/// Berserk and Morphing transform the die first. A Radioactive attacker then
-/// decays before Doppelganger copies the target into both products; when only
-/// the target is Radioactive, its decay hook runs after every attacker hook,
-/// so the Doppelganger copy itself decays. The products then take their
-/// attack reroll, with Mighty and Weak resizing them unless they are Konstant.
+/// ButtonWeavers runs a Radioactive target's decay hook after every attacker
+/// hook, so only a Radioactive attacker decays before Doppelganger copies.
 pub(crate) fn ApplyRadioactiveAttackEffects(
     game: &mut BMC_Game,
     action: &BMC_Move,
@@ -301,11 +291,8 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     products
 }
 
-/// Splits a decaying attacker into two as-near-equal dice that add up to its
-/// size, like ButtonWeavers `BMDie::split`: the original keeps the rounded-up
-/// half and the new die the rounded-down half. Twin halves alternate so each
-/// product gets one rounded-up subdie. Both products lose Radioactive, Turbo,
-/// Mood, Jolt, and Time and Space, and must reroll.
+/// Matches ButtonWeavers `BMDie::split` and `BMDieTwin::split`, whose order
+/// decides which product keeps each rounded-up half.
 pub(crate) fn SplitRadioactiveAttacker(
     game: &mut BMC_Game,
     attacker_player: usize,
@@ -386,8 +373,6 @@ fn MorphIntoTarget(
     game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
 }
 
-/// Replaces an attacking die with an exact copy of its Power-attack target,
-/// remembering the replaced recipe for restoration at the next round.
 fn CopyDoppelgangerTarget(
     game: &mut BMC_Game,
     attacker_player: usize,

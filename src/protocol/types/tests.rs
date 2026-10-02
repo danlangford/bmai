@@ -118,7 +118,6 @@ fn die_notation_is_complete_unique_and_machine_readable() {
             entry.name
         );
     }
-    // Every advertised die skill is now fully implemented.
     assert!(parsing_only_skills.is_empty());
     assert!(implemented_skills.contains("Radioactive"));
     for entry in capabilities.die_notation.postfix_properties {

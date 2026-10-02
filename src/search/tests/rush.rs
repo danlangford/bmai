@@ -21,8 +21,6 @@ fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move>
         .collect()
 }
 
-// Core rules from the ButtonWeavers skill description and BMAttackRush.
-
 #[test]
 fn rush_die_captures_two_dice_whose_values_sum_to_its_value() {
     scenario()
@@ -126,11 +124,8 @@ fn rush_enumerates_every_qualifying_target_pair_once() {
         })
         .collect::<Vec<_>>();
     pairs.sort();
-    // Three cannot pair with itself.
     assert_eq!(pairs, vec![vec![4, 2], vec![5, 1]]);
 }
-
-// Attack-type eligibility shared with ButtonWeavers' Speed validation.
 
 #[test]
 fn stealth_dice_cannot_rush_or_be_rushed() {
@@ -212,8 +207,7 @@ fn insult_and_dizzy_dice_can_be_rushed() {
 
 #[test]
 fn attack_restricted_skills_can_still_rush() {
-    // Shadow, odd Queer, Konstant, and Fire forbid Power; Berserk and
-    // Unskilled forbid Skill. None of them restricts Rush.
+    // Each of these forbids Power or Skill, but not Rush.
     for (attacker, defenders) in [
         ("#s6:6", ["2:2", "4:4"]),
         ("#q8:5", ["2:2", "3:3"]),
@@ -301,8 +295,6 @@ fn twin_values_are_summed_on_both_sides_of_a_rush() {
         .expect_no_defender_dice()
         .run();
 }
-
-// Attack-resolution interactions.
 
 #[test]
 fn konstant_rush_attacker_keeps_its_value_and_konstant_targets_are_captured() {
@@ -420,9 +412,7 @@ fn value_and_poison_scoring_apply_to_each_rushed_die() {
         .defenders(["6:4", "p8:2"])
         .targeting([0, 1])
         .expect_captured_defender_dice(["pv8:2", "v6:4"])
-        // The Value attacker keeps its 3-point own score. The captured Value
-        // die is worth its value, 4, and the captured Poison+Value die costs
-        // half its value, 1: 3 + 4 - 1 = 6. Size scoring would give 3 + 6 - 4.
+        // 3 own + 4 Value - 1 Poison Value; size scoring would give 5.
         .expect_scores(6.0, 0.0)
         .run();
 }
@@ -493,8 +483,6 @@ fn turbo_rush_attacker_offers_each_turbo_size() {
 fn reserve_rush_dice_are_not_targets() {
     assert!(rush_attacks(&["6:6"], &["#r2", "2:2", "4:4"]).is_empty());
 }
-
-// Protocol and search integration.
 
 #[test]
 fn rush_notation_inside_game_blocks_is_not_a_comment() {
