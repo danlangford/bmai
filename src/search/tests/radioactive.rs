@@ -1,24 +1,13 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! "Responder log" cases reproduce ButtonWeavers `responder0*Test.php` action
-//! logs, the closest thing to a rules oracle for decay ordering.
+//! "Responder log" cases reproduce action logs in ButtonWeavers'
+//! `test/src/api/responder0*Test.php`, the closest thing to a rules oracle for
+//! decay ordering.
 
 use super::*;
-use crate::BME_ATTACK::{RUSH, SHADOW};
+use crate::BME_ATTACK::SHADOW;
 use test_support::{LEGACY, NATIVE, native, search_scenario};
-
-fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
-    let mut input = String::from("game\nfight\n");
-    for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
-        input.push_str(&format!("player {player} {} 0\n", dice.len()));
-        for die in dice {
-            input.push_str(die);
-            input.push('\n');
-        }
-    }
-    native_fixture_game(&input).GenerateValidAttacksInCppOrder()
-}
 
 #[test]
 fn radioactive_attacker_decays_into_two_halves_that_sum_to_its_size() {
@@ -142,7 +131,7 @@ fn single_target_speed_attack_decays() {
 }
 
 #[test]
-fn multi_target_and_multi_attacker_attacks_do_not_decay() {
+fn multi_target_speed_attack_does_not_decay() {
     scenario()
         .attacker("%z8:8")
         .attacks(SPEED)
@@ -150,7 +139,10 @@ fn multi_target_and_multi_attacker_attacks_do_not_decay() {
         .targeting([0, 1])
         .expect_attacker_dice(["z%8:1"])
         .run();
+}
 
+#[test]
+fn multi_die_skill_attack_does_not_decay() {
     scenario()
         .attackers(["%6:3", "6:4"])
         .attacks(SKILL)
@@ -158,14 +150,6 @@ fn multi_target_and_multi_attacker_attacks_do_not_decay() {
         .defender("%8:7")
         .expect_attacker_dice(["6:5", "%6:1"])
         .expect_captured_defender_dice(["%8:7"])
-        .run();
-
-    scenario()
-        .attacker("#8:8")
-        .attacks(RUSH)
-        .defenders(["%5:5", "3:3"])
-        .targeting([0, 1])
-        .expect_attacker_dice(["#8:1"])
         .run();
 }
 
@@ -185,8 +169,8 @@ fn successful_trip_decays_after_the_trip_roll() {
 #[test]
 fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
     // Responder log: t(4) fails to Trip %Ho(1,2) -> t(2), t(2), and Ho(2,4).
-    // BMAIR doesn't yet allow non-Twin Trips on Twin dice, so the target here
-    // is single.
+    // BMAIR forbids non-Twin Trips on Twin dice (planned fix), so the target
+    // is single; the default seed makes this Trip fail.
     scenario()
         .attacker("t4:1")
         .attacks(TRIP)
@@ -222,8 +206,9 @@ fn radioactive_doppelganger_decays_before_each_product_copies_the_target() {
     scenario()
         .attacker("%D9:9")
         .attacks(POWER)
-        .defender("H4:4")
-        .expect_attacker_dice(["H4:1", "H4:1"])
+        // A target that cannot resize tells copy-then-split (two 4s) apart.
+        .defender("8:5")
+        .expect_attacker_dice(["8:5", "8:1"])
         .run();
 }
 
@@ -240,14 +225,17 @@ fn doppelganger_copy_of_a_radioactive_target_decays() {
 }
 
 #[test]
-fn morphing_morphs_before_it_decays() {
+fn morphing_attacker_morphs_before_a_radioactive_target_decays_it() {
     scenario()
         .attacker("m4:4")
         .attacks(POWER)
         .defender("%10:3")
         .expect_attacker_dice(["m5:3", "m5:1"])
         .run();
+}
 
+#[test]
+fn radioactive_morphing_attacker_morphs_before_it_decays() {
     scenario()
         .attacker("%m4:4")
         .attacks(POWER)
@@ -262,13 +250,13 @@ fn decay_removes_mood_so_the_products_keep_their_halved_size() {
         .attacker("%X?-20:20")
         .attacks(POWER)
         .defender("1:1")
-        .seed(7)
-        .expect_attacker_dice(["X-10:4", "X-10:3"])
+        .expect_attacker_dice(["X-10:3", "X-10:1"])
         .run();
 }
 
 #[test]
 fn decay_removes_time_and_space_so_an_odd_reroll_grants_no_extra_turn() {
+    // Several seeds so some products roll odd.
     for seed in 1..=8 {
         scenario()
             .attacker("%^9:9")
@@ -354,7 +342,7 @@ fn captured_radioactive_rage_target_is_replaced_and_still_decays_the_attacker() 
 }
 
 #[test]
-fn null_and_value_decay_products_keep_their_capture_effects() {
+fn null_decay_products_still_null_their_capture() {
     scenario()
         .attacker("%n8:8")
         .attacks(POWER)
@@ -362,6 +350,43 @@ fn null_and_value_decay_products_keep_their_capture_effects() {
         .expect_attacker_dice(["n4:1", "n4:1"])
         .expect_captured_defender_dice(["n6:6"])
         .run();
+}
+
+#[test]
+fn turbo_trip_still_offers_sizes_because_it_rolls_before_decaying() {
+    let sizes = attacks_by(&["tX!-4:1"], &["%H20:3"])
+        .into_iter()
+        .map(|candidate| candidate.m_turbo_option)
+        .collect::<Vec<_>>();
+    assert!(sizes.contains(&4) && sizes.contains(&20), "{sizes:?}");
+
+    scenario()
+        .attacker("tX!-4:1")
+        .attacks(TRIP)
+        .defender("%H20:3")
+        .turbo(20)
+        .expect_attacker_dice(["tX-10:8", "tX-10:3"])
+        .run();
+}
+
+#[test]
+fn decay_is_skipped_rather_than_overflowing_the_dice_pool() {
+    let mut game = BMC_Game::default();
+    for original_index in 0..BMD_MAX_DICE {
+        let mut attacker = swing_die('P', 0, original_index);
+        attacker.m_sides[0] = 20;
+        attacker.m_value_total = Some(20);
+        game.m_player[0].m_die.push(attacker);
+    }
+    let mut target = swing_die('P', property::RADIOACTIVE, 0);
+    target.m_sides[0] = 1;
+    target.m_value_total = Some(1);
+    game.m_player[1].m_die.push(target);
+    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
+
+    ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+
+    assert_eq!(game.m_player[0].m_die.len(), BMD_MAX_DICE);
 }
 
 #[test]

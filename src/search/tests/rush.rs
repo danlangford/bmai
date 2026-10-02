@@ -6,16 +6,7 @@ use crate::BME_ATTACK::{RUSH, SHADOW};
 use test_support::{LEGACY, NATIVE, native, search_scenario};
 
 fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
-    let mut input = String::from("game\nfight\n");
-    for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
-        input.push_str(&format!("player {player} {} 0\n", dice.len()));
-        for die in dice {
-            input.push_str(die);
-            input.push('\n');
-        }
-    }
-    native_fixture_game(&input)
-        .GenerateValidAttacksInCppOrder()
+    attacks_by(attacker_dice, defender_dice)
         .into_iter()
         .filter(|candidate| candidate.m_attack == Some(RUSH))
         .collect()

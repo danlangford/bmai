@@ -385,25 +385,29 @@ reproduce dice from ButtonWeavers' own `responder0*Test.php` action logs.
 | Doppelganger decays, then each product copies the target | `radioactive_doppelganger_decays_before_each_product_copies_the_target`, `radioactive_doppelganger_decays_before_both_products_copy_the_target`; the Radioactive-target order is `doppelganger_copy_of_a_radioactive_target_decays` (responder log) |
 | Mad is lost on decay | not applicable: BMAIR does not implement Mad, and BMAIBagels refuses Mad games |
 | Mood is lost on decay | `decay_removes_mood_so_the_products_keep_their_halved_size` |
-| Morphing morphs, then decays | `morphing_morphs_before_it_decays` |
+| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`, `radioactive_morphing_attacker_morphs_before_it_decays` |
 | Time and Space is lost on decay | `decay_removes_time_and_space_so_an_odd_reroll_grants_no_extra_turn` |
-| Turbo is lost on decay | `decay_removes_turbo_and_turbo_sizes_are_not_offered` |
+| Turbo is lost on decay | `decay_removes_turbo_and_turbo_sizes_are_not_offered`; Trip keeps its sizes because it rolls first: `turbo_trip_still_offers_sizes_because_it_rolls_before_decaying` |
 
 | Description rule | Rust evidence |
 |---|---|
 | The attacker splits into near-equal halves summing to its size | `radioactive_attacker_decays_into_two_halves_that_sum_to_its_size`, `a_one_sided_die_decays_into_a_one_sided_and_a_zero_sided_die` (responder log), `twin_dice_decay_into_alternating_halves` (responder log), `odd_twin_halves_give_each_product_one_rounded_up_subdie` (skills.html example) |
 | Either die being Radioactive triggers one decay | `attacker_decays_when_only_the_target_is_radioactive_and_the_target_keeps_radioactive_when_captured`, `two_radioactive_dice_decay_the_attacker_only_once` (responder log) |
-| Only attacks with one attacker and one target decay, of any type | `single_die_skill_attack_decays` (responder log), `shadow_attack_decays_and_keeps_shadow` (skills.html example), `single_target_speed_attack_decays`, `multi_target_and_multi_attacker_attacks_do_not_decay` |
+| Only attacks with one attacker and one target decay, of any type | `single_die_skill_attack_decays` (responder log), `shadow_attack_decays_and_keeps_shadow` (skills.html example), `single_target_speed_attack_decays`, `multi_target_speed_attack_does_not_decay`, `multi_die_skill_attack_does_not_decay` |
 | Involved dice remaining in play lose Radioactive | `failed_trip_still_decays_and_the_surviving_target_loses_radioactive` (responder log), `successful_trip_decays_after_the_trip_roll` (responder log) |
 | Decayed dice lose Jolt | `decay_removes_jolt_after_jolt_grants_its_extra_turn` |
 
 Further scenarios cover Konstant and Weak products, Rage on both sides, Null,
-scoring, next-round restoration, and legacy/native search. Two ButtonWeavers
-details are applied as source shows rather than as the summary text implies:
-decay products always roll fresh values, including Konstant and Trip
-attackers, and Mighty or Weak resize each product on that roll except for
-Konstant dice. Same-die Radioactive+Morphing, +Berserk, and +Doppelganger
-follow the documented interactions; no current button has those combinations.
+scoring, next-round restoration, the dice-pool limit, and legacy/native search.
+Decay products always roll fresh values, including Konstant and Trip
+attackers. Mighty and Weak resize the products of ordinary attackers and of a
+Doppelganger copy of a Radioactive target, but not Konstant products. The
+copies made by a Radioactive Doppelganger do not resize, matching BMAIR's
+existing Doppelganger rule; whether ButtonWeavers resizes copies is an open
+question in the CHANGELOG. Same-die Radioactive+Morphing, +Berserk, and
++Doppelganger follow the documented interactions; ButtonWeavers' by-reference
+attacker loop may differ there, and no current button has those combinations.
+A decay that would exceed the 20-die pool is skipped instead of panicking.
 
 ### Rush rule and interaction coverage
 

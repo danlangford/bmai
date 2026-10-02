@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to Skill attacks (The Japanese Beetle), and no initiative (Giant).
 - Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
 - Allow non-Twin Trip dice to Trip Twin dice, as ButtonWeavers does.
+- Let Morphing apply to Berserk and Speed attacks, and skip it after a failed
+  Trip, as ButtonWeavers does.
+- Check ButtonWeavers' by-reference attacker loop for same-die Radioactive
+  Doppelganger and Morphing dice against a running engine.
 - Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
   attack reroll.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
@@ -45,7 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Moves whose attacker will decay no longer expand into Turbo sizes, since the
-  decaying die loses Turbo before its reroll.
+  decaying die loses Turbo before its reroll. Trip keeps its sizes, because
+  ButtonWeavers rolls the Trip at the chosen size before the decay.
+- A decay that would exceed the 20-die pool is skipped rather than panicking.
 
 ### Fixed
 

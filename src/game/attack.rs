@@ -843,8 +843,11 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
         if !MoveInvolvesDie(&moves[move_index], turbo_index) {
             continue;
         }
-        // Decay strips Turbo before the reroll, so every size resolves the same.
-        if super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1) {
+        // Decay strips Turbo before the attack reroll, so sizes only matter for
+        // Trip, which ButtonWeavers rolls at the chosen size before decaying.
+        if moves[move_index].m_attack != Some(BME_ATTACK::TRIP)
+            && super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1)
+        {
             continue;
         }
         if turbo_die.HasProperty(property::OPTION) {

@@ -203,6 +203,18 @@ fn tied_round_has_no_loser() {
     assert_eq!(RoundWinner(&game), None);
 }
 
+fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
+    let mut input = String::from("game\nfight\n");
+    for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
+        input.push_str(&format!("player {player} {} 0\n", dice.len()));
+        for die in dice {
+            input.push_str(die);
+            input.push('\n');
+        }
+    }
+    native_fixture_game(&input).GenerateValidAttacksInCppOrder()
+}
+
 fn native_fixture_game(input: &str) -> BMC_Game {
     let setup = input.split_once("getaction").map_or(input, |parts| parts.0);
     let mut parser = crate::BMC_Parser::default();

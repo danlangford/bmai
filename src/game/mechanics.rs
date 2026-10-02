@@ -243,6 +243,11 @@ pub(crate) fn RadioactiveDecayApplies(
     else {
         return false;
     };
+    // Rage replacements and failed Trips can keep decay going past the
+    // 20-slot pool; skipping the split there beats panicking mid-search.
+    if game.m_player[attacker_player].m_die.len() >= BMD_MAX_DICE {
+        return false;
+    }
     game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE)
         || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE)
 }
@@ -262,18 +267,12 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     let copies_target =
         action.m_attack == Some(BME_ATTACK::POWER) && original.HasProperty(property::DOPPELGANGER);
 
+    // Warrior dice never attack alone, and decay strips Turbo before it
+    // could resize, so neither effect from ApplyAttackPlayerEffects applies.
     if action.m_attack == Some(BME_ATTACK::BERSERK) {
-        let die = &mut game.m_player[attacker_player].m_die[attacker];
-        let old_score = die.GetScore(true);
-        die.m_sides[0] = die.m_sides[0].div_ceil(2);
-        die.m_properties &= !property::BERSERK;
-        game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+        HalveBerserkAttacker(game, attacker_player, attacker);
     }
-    if !matches!(
-        action.m_attack,
-        Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
-    ) && original.HasProperty(property::MORPHING)
-    {
+    if MorphingApplies(action) && original.HasProperty(property::MORPHING) {
         MorphIntoTarget(game, attacker_player, target_player, attacker, target);
     }
     if copies_target && !attacker_is_radioactive {
@@ -284,6 +283,8 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     for product in products.iter() {
         if copies_target && attacker_is_radioactive {
             CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
+        // ButtonWeavers resets doesReroll on Doppelganger copies, so only the
+        // original die's Konstant can stop the resize.
         } else if !original.HasProperty(property::KONSTANT) {
             ApplyBeforeRollEffects(game, attacker_player, product);
         }
@@ -351,6 +352,22 @@ pub(crate) fn SplitRadioactiveAttacker(
     let new_score = first.GetScore(true) + second.GetScore(true);
     game.m_player[attacker_player].m_score += new_score - old_score;
     [attacker, attacker + 1].into()
+}
+
+fn HalveBerserkAttacker(game: &mut BMC_Game, attacker_player: usize, attacker: usize) {
+    let die = &mut game.m_player[attacker_player].m_die[attacker];
+    let old_score = die.GetScore(true);
+    die.m_sides[0] = die.m_sides[0].div_ceil(2);
+    die.m_properties &= !property::BERSERK;
+    game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+}
+
+fn MorphingApplies(action: &BMC_Move) -> bool {
+    action.m_targets.len() == 1
+        && !matches!(
+            action.m_attack,
+            Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
+        )
 }
 
 fn MorphIntoTarget(
@@ -474,11 +491,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
     }
 
     if actually_attacking && action.m_attack == Some(BME_ATTACK::BERSERK) {
-        let die = &mut game.m_player[attacker_player].m_die[attacker];
-        let old_score = die.GetScore(true);
-        die.m_sides[0] = die.m_sides[0].div_ceil(2);
-        die.m_properties &= !property::BERSERK;
-        game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+        HalveBerserkAttacker(game, attacker_player, attacker);
     }
 
     if game.m_player[attacker_player].m_die[attacker].m_notset {
@@ -486,11 +499,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
     }
 
     // Morphing is implemented by C++ only for its 1_1 and N_1 attack types.
-    if action.m_targets.len() == 1
-        && !matches!(
-            action.m_attack,
-            Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
-        )
+    if MorphingApplies(action)
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
     {
         let target = action.m_targets.first().expect("Morphing target");
