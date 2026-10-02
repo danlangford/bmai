@@ -41,8 +41,29 @@ fn every_slow_fixture_exists() {
     }
 }
 
+#[test]
+fn every_golden_output_has_a_fixture() {
+    let fixtures = input_fixtures();
+    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden");
+    for entry in fs::read_dir(directory).expect("read golden directory") {
+        let golden = entry.expect("golden entry").path();
+        assert!(
+            fixtures
+                .iter()
+                .any(|path| file_name(path) == file_name(&golden)),
+            "{} has no fixture; delete it",
+            golden.display()
+        );
+    }
+}
+
 fn check_fixtures(include: impl Fn(&str) -> bool) {
     let update = std::env::var_os("BMAIR_UPDATE_GOLDEN").is_some();
+    // Regenerating always passes, so it must never stand in for the CI check.
+    assert!(
+        !(update && std::env::var_os("CI").is_some()),
+        "BMAIR_UPDATE_GOLDEN must not be set in CI"
+    );
     let mut failures = Vec::new();
     for fixture in input_fixtures() {
         let name = file_name(&fixture);

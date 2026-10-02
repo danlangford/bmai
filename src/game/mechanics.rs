@@ -283,9 +283,9 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     for product in products.iter() {
         if copies_target && attacker_is_radioactive {
             CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
-        // ButtonWeavers resets doesReroll on Doppelganger copies, so only the
-        // original die's Konstant can stop the resize.
         } else if !original.HasProperty(property::KONSTANT) {
+            // ButtonWeavers resets doesReroll on Doppelganger copies, so only
+            // the original die's Konstant can stop the resize.
             ApplyBeforeRollEffects(game, attacker_player, product);
         }
     }
