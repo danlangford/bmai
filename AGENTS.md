@@ -1,5 +1,11 @@
 # Rust port parity contract
 
+The C++ port is complete. New and corrected skills follow the ButtonWeavers
+engine and skills page, even where C++ differs; a correct skill matters more
+than C++ parity. Regressions are caught by the golden outputs in
+`tests/golden/`, which an intentional rules change may update. The contract
+below records how the port itself was proven.
+
 The `rust` branch is a behavioral port of the C++ implementation on `main`.
 Do not call the port complete merely because the shipped fixtures select the
 same final actions.

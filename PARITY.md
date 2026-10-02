@@ -6,23 +6,19 @@ Konstant behavior until it lands upstream.
 
 ## Regression oracle policy
 
-The adopted Konstant reference at `4813530` remains the source-provenance
-oracle even though that patch has not been merged upstream. Its implementation
-and regression suite were deliberately accepted as part of BMAIR's mechanics
-contract.
+`tests/golden/` holds the expected output of every `tests/fixtures/*in*.txt`,
+checked by `tests/fixture_golden.rs`. Each file records the normalized
+protocol output, the exit status, and the RNG draw count and hash, so a change
+to candidate order, simulation counts, or randomness fails even when the final
+move survives it. The files were generated from the 0.14.0 source, whose
+fixtures had matched the C++ reference at `4813530`; that historical evidence
+is recorded below.
 
-The complete fixture differential must therefore use that adopted reference
-or a successor containing the same Konstant behavior. The older `1fcb826`
-binary remains useful for pre-Konstant parser cases, but it is not a valid
-oracle for the complete current fixture directory.
-
-The published `bmair-v0.4.1` legacy executable is the routine regression oracle
-for later releases: its complete C++ and adopted-Konstant parity was established
-before post-C++ mechanics such as Jolt were added. Current legacy builds should
-match it on every historical fixture. Re-run the C++ reference gates after
-changes to mechanics, parsing, RNG consumption, candidate generation, or search
-control flow, and periodically as a provenance audit; the Rust baseline does
-not replace that historical evidence chain.
+No reference binary is needed. The ordinary test run checks every fixture
+except the long searches in `SLOW_FIXTURES`, which CI checks for releases.
+When a change intentionally alters a fixture, regenerate the files with
+`BMAIR_UPDATE_GOLDEN=1` and review the diff in the pull request. New skills
+follow ButtonWeavers, not C++, so a correct rule may change a golden file.
 
 ## Completion gates
 
@@ -493,8 +489,10 @@ Rush dice keep their C++ candidate order and RNG consumption.
 
 ## Internal search proof
 
-- [x] `tests/reference_trace_parity.rs` compares raw RNG streams for a routine
-  representative gate and count+FNV fingerprints for every input fixture. The
+- [x] The retired `tests/reference_trace_parity.rs` compared raw RNG streams for a routine
+  representative gate and count+FNV fingerprints for every input fixture
+  against an instrumented C++ build; the golden files now carry those
+  fingerprints. The
   exhaustive 2026-08-27 run matched every stochastic fixture; its final
   intentional-error `test_in.txt` case was separately confirmed at exit status
   1 with the identical zero-event fingerprint after correcting the harness to

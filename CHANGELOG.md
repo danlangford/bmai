@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Replaced the reference-binary differential tests with golden outputs in
+  `tests/golden/`. Each records a fixture's normalized output and RNG
+  fingerprint, so no C++ or previous-release binary is needed. Most fixtures
+  run in every `cargo test`; the longest searches run in CI for releases.
 - Moves whose attacker will decay no longer expand into Turbo sizes, since the
   decaying die loses Turbo before its reroll. Trip keeps its sizes, because
   ButtonWeavers rolls the Trip at the chosen size before the decay.

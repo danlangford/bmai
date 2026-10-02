@@ -1,0 +1,15 @@
+exit 0
+--- stdout
+Seeding with 17
+Setting max # simulations to 5
+p0 s0.0 Dice (0)6:6 (0)8:5 (0)4:2
+p1 s0.0 Dice (0)10:7 (0)4:4 (0)3:3
+l1 p0 Valid Moves 5 Sims 5
+l1 p0 best move (5.0 points, 100.0% win)
+stats 1/10-5/5000/0.50
+action
+skill
+2 1
+2
+--- stderr
+RNG_HASH 626 12132632252781052539

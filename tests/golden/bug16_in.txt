@@ -1,0 +1,14 @@
+exit 0
+--- stdout
+target wins set to 3
+p0 s0.0 Dice
+p1 s0.0 Dice
+Setting max ply to 3
+Setting max # simulations to 100
+Setting min # simulations to 5
+Setting max branch to 400
+stats 3/5-100/400/0.50
+action
+reserve 6
+--- stderr
+RNG_HASH 1288868329 14276728477542502430
