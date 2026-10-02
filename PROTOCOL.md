@@ -33,7 +33,7 @@ dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-`F` as Fire, and `G` as Rage. Consumers should use this metadata instead of
+`F` as Fire, `G` as Rage, and `#` as Rush. Consumers should use this metadata instead of
 maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
@@ -98,7 +98,8 @@ Actions use a `type` discriminator:
 - `{"type":"pass"}`
 - `{"type":"surrender"}`
 - `{"type":"auxiliary","die":1}`; `die` is null when Auxiliary is declined
-- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`
+- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`;
+  `attack_type` is one of the advertised `attack_types`, including `rush`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
 - `{"type":"chance","dice":[0,2]}`
@@ -135,6 +136,8 @@ C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
 After trimming whitespace, a whole top-level line beginning with `#` is ignored.
 Inline comments and comments within a `game` phase/player/die block are invalid.
+Inside a `game` block every die line is a die definition, so a Rush die such as
+`#6:6` is never mistaken for a comment.
 
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
@@ -157,10 +160,21 @@ The stable command forms are:
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
 | `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
-| `ply [PLAYER] N` | Set global or per-player BMAI depth. |
+| `ply [PLAYER] N` | Set global or per-player BMAI depth. Per-player settings change the AI object that player currently uses, as in C++; see below. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
+
+As in C++, players point at shared AI objects. Every `game` points both
+players at the global AI, which the unqualified commands and the `stats` line
+use. `ai PLAYER TYPE` points that player at the AI object for `TYPE`; those
+objects start with default settings, keep them across `game` blocks, and are
+shared by every player selecting the same type. A per-player command changes the
+object the player currently uses, so it can change the global settings or
+another player's search. QAI ignores per-player search settings without
+printing a confirmation. A per-player command before any `game` or `ai` command
+prints its confirmation but changes nothing (C++ dereferences a null AI there).
+JSONL session metadata reports the settings of the object each player uses.
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |

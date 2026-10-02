@@ -193,11 +193,11 @@ fn cpp_parser_ai_and_per_player_search_settings() {
     let mut parser = BMC_Parser::default();
     let mut output = Vec::new();
     parser.ParseString(input, &mut output).unwrap();
-    assert_eq!(parser.m_ai_type[0], 2);
-    assert_eq!(parser.m_player_ai[0].m_max_ply, 3);
-    assert_eq!(parser.m_player_ai[0].m_max_sims, 40);
-    assert_eq!(parser.m_player_ai[0].m_min_sims, 4);
-    assert_eq!(parser.m_player_ai[0].m_max_branch, 400);
+    assert_eq!(parser.AIType(0), 2);
+    assert_eq!(parser.PlayerAI(0).m_max_ply, 3);
+    assert_eq!(parser.PlayerAI(0).m_max_sims, 40);
+    assert_eq!(parser.PlayerAI(0).m_min_sims, 4);
+    assert_eq!(parser.PlayerAI(0).m_max_branch, 400);
     assert_eq!(parser.m_debug_ply, 2);
     assert_eq!(
         String::from_utf8(output).unwrap(),
@@ -209,6 +209,72 @@ Setting max branch for player 0 to 400\n\
 Setting debug ply to 2\n\
 Seeding with 17\n"
     );
+}
+
+/// Each case was run through the adopted C++ reference (`4813530`). C++
+/// players point at shared AI objects: `game` points both at `g_ai`, and
+/// `ai P T` points one at `c_ai_type[T]`, whose settings persist across games.
+#[test]
+fn per_player_settings_change_the_shared_cpp_ai_object() {
+    const GAME: &str = "game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";
+    let cases: [(&str, String, &[&str]); 7] = [
+        (
+            "a player-1 setting after game also changes player 0 and the global stats",
+            format!("{GAME}max_sims 1 3\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/10-3/5000/0.50"],
+        ),
+        (
+            "an ai type keeps its own defaults instead of the global settings",
+            format!("ply 2\nmin_sims 2\n{GAME}ai 0 2\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 500", "stats 2/2-500/5000/0.50"],
+        ),
+        (
+            "game restores g_ai but the ai type object keeps its settings",
+            format!("min_sims 2\n{GAME}ai 0 2\nmax_sims 0 3\n{GAME}getaction\nai 0 2\ngetaction\n"),
+            &[
+                "l1 p0 Valid Moves 5 Sims 500",
+                "stats 1/2-500/5000/0.50",
+                "l1 p0 Valid Moves 5 Sims 3",
+                "stats 1/2-500/5000/0.50",
+            ],
+        ),
+        (
+            "players with the same ai type share one object",
+            format!("min_sims 2\n{GAME}ai 0 0\nai 1 0\nmax_sims 1 3\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-500/5000/0.50"],
+        ),
+        (
+            "QAI ignores per-player search settings silently",
+            format!("min_sims 2\n{GAME}ai 0 1\nmax_sims 0 3\ngetaction\n"),
+            &["stats 1/2-500/5000/0.50"],
+        ),
+        (
+            "global settings change only g_ai",
+            format!("min_sims 2\n{GAME}ai 0 2\nmax_sims 7\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 500", "stats 1/2-7/5000/0.50"],
+        ),
+        (
+            "an ai type selected before game keeps settings made before game",
+            format!("min_sims 2\nai 0 2\nmax_sims 0 3\n{GAME}ai 0 2\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-500/5000/0.50"],
+        ),
+    ];
+    for (name, input, expected) in cases {
+        let mut output = Vec::new();
+        BMC_Parser::default()
+            .ParseString(&format!("seed 17\n{input}"), &mut output)
+            .unwrap();
+        let output = String::from_utf8(output).unwrap();
+        let observed = output
+            .lines()
+            .filter(|line| line.contains("Valid Moves") || line.starts_with("stats "))
+            .collect::<Vec<_>>();
+        assert_eq!(observed, expected, "{name}\n{output}");
+        assert!(
+            !(name.starts_with("QAI") && output.contains("max sims for player")),
+            "{name}\n{output}"
+        );
+    }
 }
 
 #[test]
@@ -309,8 +375,7 @@ fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
     let mut parser = BMC_Parser::default();
     parser.ParseString(input, &mut Vec::new()).unwrap();
     assert_eq!(parser.m_game.m_phase, BME_PHASE::GAMEOVER);
-    assert_eq!(parser.m_ai_type, [2, 2]);
-    assert_eq!(parser.m_ai_explicit, [false, false]);
+    assert_eq!(parser.m_player_ai, [BMC_AI_SLOT::GLOBAL; 2]);
 }
 
 #[test]

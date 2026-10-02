@@ -137,6 +137,22 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] `ai <player> <type>`: type 0 legacy fixed-simulation BMAI, type 1 QAI,
   and type 2 batched/culling BMAI3 are wired for parser actions and games.
 - [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing/state.
+  `BMC_AI_SLOT` mirrors C++'s shared AI pointers: `g_ai` after `game`, and the
+  persistent `c_ai_type` objects selected by `ai`. Before 0.14.0 BMAIR copied
+  settings per player and diverged whenever per-player settings met `game` or
+  `ai`. `per_player_settings_change_the_shared_cpp_ai_object` asserts seven
+  C++-reference outputs, and `parity_shared_ai_settings_in.txt` adds the
+  global-stats case to the fixture differential. A per-player command before
+  any `game` or `ai` dereferences NULL in C++; BMAIR keeps its confirmation and
+  changes nothing.
+  Explicit exclusion: C++ `playfair` modes 0-3 leave both players pointing at
+  the playfair mode AIs (random, maximizer, or a non-culling BMAI with its own
+  rollout policy) until the next `game` or `ai`. BMAIR builds those policies
+  only for the `playfair` run and leaves the previous AI selection in place, so
+  a `getaction`, `playgame`, `compare`, or per-player command issued after
+  `playfair` and before the next `game` block differs. Matching it would add
+  random and maximizer `getaction` selectors for every phase; no known client
+  issues commands in that order.
 - [x] `debug` category validation/state and `debugply` parsing/state, including
   C++'s exact uppercase category and boolean-setting behavior.
 - [x] Error messages, invalid inputs, phase restrictions, and exit behavior:
@@ -191,6 +207,7 @@ case named in the final column.
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
 | ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `BMC_FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
+| ButtonWeavers Rush two-target attacks by or against Rush dice | `BME_ATTACK::RUSH` direct pair enumeration in `GenerateValidAttackCandidatesInCppOrder`, shared `CanDoAttack`/`CanBeAttacked` Speed restrictions, generic multi-target resolution | focused Rush rules plus Speed, Stealth, Warrior, Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing, Doppelganger/Radioactive, Jolt, Time-and-Space, Rage, Null, Value, Poison, Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, parser, and legacy/native search scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `game::mechanics` initiative plus `search::initiative` evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `search::preround` generation, evaluation, and application | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
 | ButtonWeavers Auxiliary mutual accept/decline lifecycle and courtesy copy | `PrepareAuxiliaryPhase`, `ApplyAuxiliaryDecision`, legacy/native Auxiliary selectors | readable wire-protocol, mechanics, invalid-input, and worker-independence tests | covered Rust extension |
@@ -353,6 +370,31 @@ button cannot exhaust time and memory enumerating allocations before its
 configured branch budget applies; `fire_candidate_construction_obeys_the_search_budget`
 covers that boundary.
 
+### Rush rule and interaction coverage
+
+Rush is an intentional post-C++ extension based on ButtonWeavers
+`BMSkillRush`, `BMAttackRush`, and its parent `BMAttackSpeed` at
+`a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`. The skill has no documented
+interactions, so the evidence below maps the description and the attack
+validator, then every implemented hook that could see a Rush attack.
+
+| ButtonWeavers behavior | Rust evidence |
+|---|---|
+| A Rush die captures exactly two dice whose values sum to its value | `rush_die_captures_two_dice_whose_values_sum_to_its_value`, `rush_targets_must_sum_exactly_to_the_attacker_value`, `rush_requires_exactly_two_targets`, `rush_enumerates_every_qualifying_target_pair_once` |
+| Any die may Rush when a target is a Rush die; otherwise Rush is illegal | `any_die_may_rush_when_a_target_is_a_rush_die`, `rush_requires_a_rush_attacker_or_target` |
+| Speed validation rejects Stealth and Warrior attackers and targets and dizzy attackers | `stealth_dice_cannot_rush_or_be_rushed`, `warrior_dice_cannot_rush_or_be_rushed`, `dizzy_focus_die_cannot_rush`, `insult_and_dizzy_dice_can_be_rushed` |
+| Only Power/Skill incompatibilities apply to other skills | `attack_restricted_skills_can_still_rush`, `shadow_rush_die_offers_both_attack_types` |
+| Fire assists only Power and Skill; Konstant and Stinger alter only Skill values | `fire_cannot_assist_a_rush_attack`, `stinger_rush_attacker_must_match_the_sum_exactly`, `konstant_rush_attacker_keeps_its_value_and_konstant_targets_are_captured` |
+| Berserk, Doppelganger, Morphing, and Radioactive capture hooks require their own type, Power, or a single defender | `berserk_rush_attacker_keeps_berserk_and_its_size`, `doppelganger_radioactive_rush_neither_copies_nor_decays`, `morphing_rush_attacker_does_not_morph_after_two_captures` |
+| Generic capture and reroll hooks apply to every Rush participant | Jolt, Time-and-Space, Rage, Null, Value/Poison, Mighty/Weak, Mood/Ornery, Maximum, Twin, and Turbo scenarios in `search::tests::rush` |
+
+ButtonWeavers lists Speed and Rush separately, but a Speed die's two-target
+Speed attack has exactly the same legality and resolution as its Rush attack.
+BMAIR therefore omits the duplicate Rush candidate for Speed dice
+(`speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush`).
+Rush candidates are enumerated after Shadow for each attacker, so inputs without
+Rush dice keep their C++ candidate order and RNG consumption.
+
 ## New differential coverage
 
 - [x] Turbo option and Turbo swing enumeration/application/protocol output
@@ -373,6 +415,10 @@ covers that boundary.
   seeded game coverage (`parity_combined_mechanics_in.txt`).
 - [x] Time and Space extra-turn behavior (combined seeded fixture).
 - [x] Mood, Mighty, and Weak RNG/state ordering (combined seeded fixture).
+- [x] `min_sims` above `max_sims` follows C++ `ComputeNumberSims` minimum-first
+  ordering instead of panicking (`parity_min_sims_exceeds_max_sims_in.txt`).
+- [x] Per-player settings change the shared C++ AI object
+  (`parity_shared_ai_settings_in.txt` plus the seven-case parser test).
 
 ## Final verification
 

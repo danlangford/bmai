@@ -6,9 +6,10 @@ use super::*;
 
 impl BMC_Parser {
     pub(super) fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
+        let player_ai = self.PlayerAI(0).clone();
         match self.m_game.m_phase {
             BME_PHASE::AUXILIARY => {
-                let (die, search) = if self.m_ai_type[0] == 1 {
+                let (die, search) = if self.AIType(0) == 1 {
                     (SelectQAIAuxiliaryAction(&self.m_game), None)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
@@ -17,16 +18,13 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     );
                     let summary = (result.score, result.probability());
                     (result.die, Some(summary))
                 } else {
-                    let result = SelectBMAIAuxiliaryAction(
-                        &self.m_game,
-                        &mut self.m_rng,
-                        &self.m_player_ai[0],
-                    );
+                    let result =
+                        SelectBMAIAuxiliaryAction(&self.m_game, &mut self.m_rng, &player_ai);
                     let summary = (result.score, result.probability());
                     (result.die, Some(summary))
                 };
@@ -53,22 +51,22 @@ impl BMC_Parser {
                         "report_sims requires native execution mode".into(),
                     ));
                 }
-                if self.m_report_sims > 0 && self.m_ai_type[0] == 1 {
+                if self.m_report_sims > 0 && self.AIType(0) == 1 {
                     return Err(ParseError("report_sims requires BMAI search".into()));
                 }
-                if self.m_ai_type[0] != 1 {
-                    let moves = self.m_game.GenerateValidAttacksInCppOrderForSearch(
-                        self.m_player_ai[0].FireCandidateLimit(),
-                    );
+                if self.AIType(0) != 1 {
+                    let moves = self
+                        .m_game
+                        .GenerateValidAttacksInCppOrderForSearch(player_ai.FireCandidateLimit());
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",
                         moves.len(),
-                        self.m_player_ai[0].ComputeNumberSims(moves.len().max(1), 1)
+                        player_ai.ComputeNumberSims(moves.len().max(1), 1)
                     )
                     .map_err(io_error)?;
                 }
-                let (action, search, report) = if self.m_ai_type[0] == 1 {
+                let (action, search, report) = if self.AIType(0) == 1 {
                     (SelectQAIAction(&self.m_game, &mut self.m_rng), None, None)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
@@ -77,7 +75,7 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     );
                     let summary = (
                         result.m_best_score,
@@ -93,18 +91,15 @@ impl BMC_Parser {
                             self.m_rng.Algorithm(),
                             replay,
                             self.m_native_workers,
-                            &self.m_player_ai[0],
+                            &player_ai,
                             self.m_report_sims,
                         );
                         Some(estimate)
                     };
                     (result.m_move, Some(summary), report)
                 } else {
-                    let result = SelectBMAIActionWithStats(
-                        &self.m_game,
-                        &mut self.m_rng,
-                        &self.m_player_ai[0],
-                    );
+                    let result =
+                        SelectBMAIActionWithStats(&self.m_game, &mut self.m_rng, &player_ai);
                     let summary = (
                         result.m_best_score,
                         result.ProbabilityWin(),
@@ -150,7 +145,7 @@ impl BMC_Parser {
                 SendAttack(&self.m_game, &action, output)
             }
             BME_PHASE::RESERVE => {
-                let reserve = if self.m_ai_type[0] == 1 {
+                let reserve = if self.AIType(0) == 1 {
                     SelectQAIReserveAction(&self.m_game)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
@@ -159,10 +154,10 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     )
                 } else {
-                    SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                    SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &player_ai)
                 };
                 self.m_last_action = Some(crate::protocol::ProtocolAction::Reserve {
                     die: reserve.map(|index| self.m_game.m_player[0].m_die[index].m_original_index),
@@ -181,7 +176,7 @@ impl BMC_Parser {
                 }
             }
             BME_PHASE::PREROUND => {
-                let action = if self.m_ai_type[0] == 1 {
+                let action = if self.AIType(0) == 1 {
                     SelectQAISetSwingAction(&self.m_game)
                 } else if self.m_execution_mode == ExecutionMode::Native {
                     let replay = self.NextNativeReplay();
@@ -190,10 +185,10 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     )
                 } else {
-                    SelectBMAISetSwingAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                    SelectBMAISetSwingAction(&self.m_game, &mut self.m_rng, &player_ai)
                 };
                 self.m_last_action = Some(protocol_swing(&self.m_game, &action));
                 self.SendStats(output)?;
@@ -201,7 +196,7 @@ impl BMC_Parser {
                 SendSetSwing(&self.m_game, &action, output)
             }
             BME_PHASE::CHANCE => {
-                if self.m_ai_type[0] == 1 {
+                if self.AIType(0) == 1 {
                     self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
@@ -214,10 +209,10 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     )
                 } else {
-                    SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                    SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &player_ai)
                 };
                 self.m_last_action = Some(protocol_chance(&self.m_game, &action));
                 self.SendStats(output)?;
@@ -237,7 +232,7 @@ impl BMC_Parser {
                 }
             }
             BME_PHASE::FOCUS => {
-                if self.m_ai_type[0] == 1 {
+                if self.AIType(0) == 1 {
                     self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
@@ -250,10 +245,10 @@ impl BMC_Parser {
                         self.m_rng.Algorithm(),
                         replay,
                         self.m_native_workers,
-                        &self.m_player_ai[0],
+                        &player_ai,
                     )
                 } else {
-                    SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &self.m_player_ai[0])
+                    SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &player_ai)
                 };
                 self.m_last_action = Some(protocol_focus(&self.m_game, &action));
                 self.SendStats(output)?;
@@ -296,7 +291,7 @@ impl BMC_Parser {
         writeln!(
             output,
             "stats {}/{}-{}/{}/0.50",
-            self.m_max_ply, self.m_min_sims, self.m_max_sims, self.m_max_branch
+            self.m_ai.m_max_ply, self.m_ai.m_min_sims, self.m_ai.m_max_sims, self.m_ai.m_max_branch
         )
         .map_err(io_error)
     }

@@ -72,6 +72,12 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             .contains(&"Auxiliary".into())
     );
     assert_eq!(
+        value["attack_types"],
+        serde_json::json!([
+            "power", "skill", "berserk", "speed", "trip", "shadow", "rush"
+        ])
+    );
+    assert_eq!(
         value["parsing_only_skills"],
         serde_json::json!(["Radioactive"])
     );
@@ -94,7 +100,7 @@ fn die_notation_is_complete_unique_and_machine_readable() {
         tokens,
         vec![
             '^', 'q', 't', 'z', 's', 'B', 'd', 'p', 'n', 'f', 'H', 'h', 'r', 'o', 'c', 'm', '`',
-            'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', 'F', '+', 'D', '%', 'G'
+            'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', 'F', '+', 'D', '%', 'G', '#'
         ]
     );
     assert_eq!(
@@ -139,6 +145,15 @@ fn die_notation_is_complete_unique_and_machine_readable() {
             "token": "G",
             "id": "rage",
             "name": "Rage",
+            "support": "implemented"
+        })
+    );
+    assert_eq!(
+        prefixes.iter().find(|entry| entry["token"] == "#").unwrap(),
+        &serde_json::json!({
+            "token": "#",
+            "id": "rush",
+            "name": "Rush",
             "support": "implemented"
         })
     );

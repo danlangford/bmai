@@ -388,6 +388,9 @@ impl BMC_Game {
         let player_has_fire = available.iter().any(|(_, die)| {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
+        let targets_have_rush = targets
+            .iter()
+            .any(|(_, die)| die.HasProperty(property::RUSH));
         let mut moves = Vec::with_capacity(32);
         // Reserve the bounded Fire budget for required attacks before optional overshoots.
         let mut optional_fire_moves = Vec::new();
@@ -402,6 +405,7 @@ impl BMC_Game {
                 BME_ATTACK::SPEED,
                 BME_ATTACK::TRIP,
                 BME_ATTACK::SHADOW,
+                BME_ATTACK::RUSH,
             ] {
                 match attack {
                     BME_ATTACK::POWER | BME_ATTACK::TRIP | BME_ATTACK::SHADOW => {
@@ -626,6 +630,43 @@ impl BMC_Game {
                             }
                         }
                     }
+                    BME_ATTACK::RUSH => {
+                        // A Speed die's two-target Speed attack already has the
+                        // identical legality and resolution, so skip the duplicate.
+                        let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
+                        if !attacker_has_rush && !targets_have_rush
+                            || !attacker_die.CanDoAttack(attack, 1)
+                            || attacker_die.CanDoAttack(BME_ATTACK::SPEED, 1)
+                        {
+                            continue;
+                        }
+                        for first in 0..targets.len() {
+                            let (first_index, first_die) = targets[first];
+                            if !first_die.CanBeAttacked(attack, 1) {
+                                continue;
+                            }
+                            for &(second_index, second_die) in targets.iter().skip(first + 1) {
+                                if first_die.GetValueTotal() + second_die.GetValueTotal()
+                                    != attacker_die.GetValueTotal()
+                                    || !second_die.CanBeAttacked(attack, 1)
+                                {
+                                    continue;
+                                }
+                                if !attacker_has_rush
+                                    && !first_die.HasProperty(property::RUSH)
+                                    && !second_die.HasProperty(property::RUSH)
+                                {
+                                    continue;
+                                }
+                                moves.push(BMC_Move::attack(
+                                    attack,
+                                    [attacker_index],
+                                    [first_index, second_index],
+                                    first_die.GetScore(false) + second_die.GetScore(false),
+                                ));
+                            }
+                        }
+                    }
                     BME_ATTACK::BERSERK | BME_ATTACK::SPEED => {
                         if !attacker_die.CanDoAttack(attack, 1) || targets.is_empty() {
                             continue;
@@ -784,7 +825,9 @@ fn FirstTurboDie(player: &BMC_Player) -> Option<(usize, &BMC_Die)> {
 fn MoveInvolvesDie(action: &BMC_Move, die: usize) -> bool {
     match action.m_attack {
         Some(BME_ATTACK::POWER | BME_ATTACK::SHADOW | BME_ATTACK::TRIP)
-        | Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED) => action.m_attackers.first() == Some(die),
+        | Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED | BME_ATTACK::RUSH) => {
+            action.m_attackers.first() == Some(die)
+        }
         Some(BME_ATTACK::SKILL) => action.m_attackers.contains(die),
         None => false,
     }
@@ -865,6 +908,7 @@ fn attack_preference(attack: Option<BME_ATTACK>) -> u8 {
         Some(BME_ATTACK::SPEED) => 3,
         Some(BME_ATTACK::TRIP) => 4,
         Some(BME_ATTACK::SHADOW) => 5,
-        None => 6,
+        Some(BME_ATTACK::RUSH) => 6,
+        None => 7,
     }
 }

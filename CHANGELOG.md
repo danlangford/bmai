@@ -16,7 +16,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Complete mechanics support for the remaining parsing-only skills:
   Radioactive (`%`).
-- Add parser and mechanics support for Rush.
+
+## [0.14.0] - 2026-10-01
+
+### Added
+
+- Implemented the ButtonWeavers Rush (`#`) skill. A die makes a `rush` attack
+  by capturing exactly two dice whose values sum to its value; the attacker or
+  at least one target must be a Rush die, so any die may Rush a Rush die.
+- Applied ButtonWeavers' shared Speed-attack restrictions: Stealth and Warrior
+  dice cannot make or receive Rush attacks, dizzy dice cannot Rush, and Fire
+  cannot assist. Skills that forbid only Power or Skill attacks still Rush.
+- Advertised Rush and the `rush` attack type through machine-readable
+  capabilities and emitted `rush` in legacy and typed actions.
+- Added Rush rule and interaction scenarios for Speed, Stealth, Warrior,
+  Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing,
+  Doppelganger, Radioactive, Jolt, Time and Space, Rage, Null, Value, Poison,
+  Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, comment parsing, and
+  legacy/native search.
+- A Speed die that is also a Rush die offers its two-target captures only as
+  Speed attacks. Both attack types have identical legality and resolution, so
+  this avoids searching duplicate candidates. Inputs without Rush dice keep
+  their candidate order, RNG consumption, and output, and skip Rush pair
+  enumeration entirely.
+
+### Fixed
+
+- Stopped search from panicking when `max_sims` is below `min_sims` (for
+  example `max_sims 5` with the default minimum of 10) in both the legacy and
+  JSONL protocols. Simulation counts now follow C++ `ComputeNumberSims`, which
+  checks the minimum first, and a seeded fixture matches the C++ reference.
+- Matched C++ per-player search settings (`ply`, `max_sims`, `min_sims`,
+  `maxbranch` with a player). C++ players point at shared AI objects, so a
+  per-player setting changes the global AI after `game`, or the shared `ai`
+  type object, which keeps default settings of its own and persists across
+  games. BMAIR previously gave each player a private copy, so it diverged from
+  C++ whenever a script combined per-player settings with `game` or `ai`.
+  Seven scenarios now match the C++ reference, and JSONL session metadata
+  reports the shared objects. Scripts that use only global settings, including
+  BMAIBagels, are unchanged.
 
 ## [0.13.0] - 2026-09-30
 
@@ -330,7 +368,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.11.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...HEAD
+[0.14.0]: https://github.com/danlangford/bmai/compare/bmair-v0.13.0...bmair-v0.14.0
+[0.13.0]: https://github.com/danlangford/bmai/compare/bmair-v0.12.0...bmair-v0.13.0
+[0.12.0]: https://github.com/danlangford/bmai/compare/bmair-v0.11.0...bmair-v0.12.0
 [0.11.0]: https://github.com/danlangford/bmai/compare/bmair-v0.10.1...bmair-v0.11.0
 [0.10.1]: https://github.com/danlangford/bmai/compare/bmair-v0.10.0...bmair-v0.10.1
 [0.10.0]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...bmair-v0.10.0

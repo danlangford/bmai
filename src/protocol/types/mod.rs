@@ -261,7 +261,9 @@ impl Capabilities {
                 "set_swing",
                 "surrender",
             ],
-            attack_types: &["power", "skill", "berserk", "speed", "trip", "shadow"],
+            attack_types: &[
+                "power", "skill", "berserk", "speed", "trip", "shadow", "rush",
+            ],
             ai_policies: &["bmai", "qai", "bmai3"],
             skills: &[
                 "Auxiliary",
@@ -284,6 +286,7 @@ impl Capabilities {
                 "Queer",
                 "Rage",
                 "Reserve",
+                "Rush",
                 "Shadow",
                 "Slow",
                 "Speed",
