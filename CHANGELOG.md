@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their candidate order, RNG consumption, and output, and skip Rush pair
   enumeration entirely.
 
+### Fixed
+
+- Stopped search from panicking when `max_sims` is below `min_sims` (for
+  example `max_sims 5` with the default minimum of 10) in both the legacy and
+  JSONL protocols. Simulation counts now follow C++ `ComputeNumberSims`, which
+  checks the minimum first, and a seeded fixture matches the C++ reference.
+
 ## [0.13.0] - 2026-09-30
 
 ### Added

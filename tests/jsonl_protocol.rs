@@ -56,6 +56,43 @@ fn jsonl_process_keeps_stdout_machine_clean_and_recovers_per_line() {
 }
 
 #[test]
+fn max_sims_below_the_default_min_sims_searches_instead_of_panicking() {
+    let script = include_str!("fixtures/parity_min_sims_exceeds_max_sims_in.txt");
+    let request = serde_json::json!({
+        "protocol": "jsonl-v1",
+        "id": "low-max",
+        "method": "session.execute",
+        "params": {"script": script},
+    });
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+        .args(["--protocol", "jsonl-v1"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    writeln!(child.stdin.as_mut().unwrap(), "{request}").unwrap();
+    drop(child.stdin.take());
+
+    let output = child.wait_with_output().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["ok"], true, "{response}");
+    assert_eq!(response["result"]["action"]["type"], "attack");
+    assert_eq!(response["result"]["action"]["attack_type"], "skill");
+    assert!(
+        response["result"]["legacy_output"]
+            .as_str()
+            .unwrap()
+            .contains("stats 1/10-5/5000/0.50")
+    );
+}
+
+#[test]
 fn documented_jsonl_session_fixture_runs_as_one_persistent_process() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
         .args(["--protocol", "jsonl-v1"])
