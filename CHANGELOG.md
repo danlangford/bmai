@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Search is about 1.6–2× faster with identical results. All golden RNG
-  fingerprints are unchanged.
+- Search is about 1.4–1.8× faster with identical results; see BENCHMARKS.md.
+  All golden RNG fingerprints are unchanged.
   - Rollouts reuse one scratch game per thread instead of cloning the
     dice for every step.
   - Die index sets iterate only their members.
