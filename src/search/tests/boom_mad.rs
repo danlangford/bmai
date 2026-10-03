@@ -350,7 +350,7 @@ fn chance_rerolls_resize_mood_dice() {
         .find(|die| die.m_original_index == 0)
         .unwrap();
     assert_ne!(die.m_sides[0], 13);
-    assert!([1, 2, 4, 6, 8, 10, 12].contains(&die.m_sides[0]));
+    assert!([4, 6, 8, 10, 12, 20].contains(&die.m_sides[0]));
 }
 
 #[test]
