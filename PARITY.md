@@ -405,6 +405,31 @@ question in the CHANGELOG. Same-die Radioactive+Morphing, +Berserk, and
 attacker loop may differ there, and no current button has those combinations.
 A decay that would exceed the 20-die pool is skipped instead of panicking.
 
+### Button specials and ButtonWeavers rule corrections
+
+Source: ButtonWeavers `BMBtnSkillUniqueSwing`, `BMBtnSkillGordo`,
+`BMBtnSkillLargo`, `BMBtnSkillTheFlyingSquirrel`, `BMAttackSkill::
+are_button_skills_compatible` (The Japanese Beetle), `BMBtnSkillGiant` with
+`BMGame::is_button_slow`, `BMAttackTrip::validate_attack`, and
+`BMSkillMorphing::capture`. Clients name specials with the `special` command
+because the wire state carries no button identity.
+
+| ButtonWeavers rule | Rust evidence |
+|---|---|
+| `special` sets, reports, validates, and resets per game | `special_command_sets_and_reports_each_players_specials`, `each_game_block_clears_specials`, `unknown_specials_and_players_are_rejected` |
+| Largo and The Flying Squirrel cannot Skill attack | `no_skill_attacks_removes_only_skill_attacks` |
+| The Japanese Beetle cannot be Skill attacked | `skill_immune_dice_cannot_be_skill_attacked` |
+| Giant cannot win initiative, even against a button without initiative dice | `no_initiative_loses_to_lower_dice_and_to_a_button_with_no_initiative_dice` |
+| Guillermo and Oregon assign different swing types different sizes | `unique_swing_assigns_different_swing_types_different_sizes` |
+| Gordo also avoids fixed die sizes and declines an Auxiliary swing die | `unique_sizes_also_avoids_fixed_die_sizes`, `unique_sizes_declines_an_auxiliary_swing_die_and_so_do_both_players` |
+| A Trip needs only to reach the target's minimum, with Konstant, Maximum, Mighty, and Turbo adjustments | `single_trip_dice_may_trip_twin_dice_they_can_reach`, `trip_must_be_able_to_reach_a_konstant_or_maximum_target`, `mighty_trip_dice_reach_further`, `turbo_trip_sizes_too_small_for_the_target_are_not_offered` |
+| Morphing applies to any single-target attack, and only after a successful one | `single_target_berserk_and_speed_attacks_morph`, `failed_trip_does_not_morph`, `successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls` |
+
+The Trip and Morphing rows intentionally depart from C++, which forbade a
+non-Twin Trip against a Twin die and limited Morphing to its 1_1 and N_1
+attack types. `parity_trip_morphing_in.txt`'s golden output changed
+accordingly in 0.16.0.
+
 ### Rush rule and interaction coverage
 
 Rush is an intentional post-C++ extension based on ButtonWeavers

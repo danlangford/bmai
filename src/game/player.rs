@@ -18,6 +18,8 @@ pub struct BMC_Player {
     pub m_radioactive_products: u32,
     /// Synthetic Rage replacements removed before the next round.
     pub m_rage_replacements: u32,
+    /// `game::special` flags for this player's button.
+    pub m_specials: u8,
 }
 
 impl BMC_Player {

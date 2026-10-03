@@ -123,7 +123,7 @@ Run `bmair [FILE]` or pipe text to stdin. The startup banner and all parser
 output are part of this human-oriented interface. The command set is:
 
 `game`, phase names, `player`, `ai`, `mode`, `rng`, `workers`, `seed`, `ply`,
-`max_sims`, `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
+`max_sims`, `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`, `special`,
 `surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
@@ -177,6 +177,7 @@ prints its confirmation but changes nothing (C++ dereferences a null AI there).
 JSONL session metadata reports the settings of the object each player uses.
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
+| `special PLAYER [ID...]` | Apply ButtonWeavers button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |

@@ -14,19 +14,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Add a per-player `special` protocol option for button-level rules, so
-  BMAIBagels can name them per button: unique swing values (Gordo,
-  Guillermo, Oregon), no Skill attacks (Largo, The Flying Squirrel), immunity
-  to Skill attacks (The Japanese Beetle), and no initiative (Giant).
 - Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
-- Allow non-Twin Trip dice to Trip Twin dice, as ButtonWeavers does.
-- Let Morphing apply to Berserk and Speed attacks, and skip it after a failed
-  Trip, as ButtonWeavers does.
 - Check ButtonWeavers' by-reference attacker loop for same-die Radioactive
   Doppelganger and Morphing dice against a running engine.
 - Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
   attack reroll.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
+## [0.16.0] - 2026-10-02
+
+### Added
+
+- Added the `special PLAYER [ID...]` command for ButtonWeavers button
+  specials, which the wire format cannot express per die:
+  - `unique_swing` (Guillermo, Oregon): different swing types take different
+    sizes.
+  - `unique_sizes` (Gordo): no two dice share a size, and an Auxiliary swing
+    die is declined.
+  - `no_skill_attacks` (Largo, The Flying Squirrel).
+  - `skill_immune` (The Japanese Beetle).
+  - `no_initiative` (Giant): ranked below every other button for initiative.
+- Advertised the specials, with the buttons that use them, in capabilities
+  `button_specials`.
+
+### Fixed
+
+- Trip legality now follows ButtonWeavers instead of C++: a Trip die may Trip
+  any die it can roll at least the minimum of, including Twin dice, and
+  Konstant and Maximum targets raise that bar. Turbo sizes too small for the
+  target are no longer offered.
+- Morphing now applies to single-target Berserk and Speed attacks.
+- A Trip die morphs only after a successful Trip: it rolls at its own size
+  first, then rerolls at the captured die's size. A failed Trip never morphs.
 
 ## [0.15.0] - 2026-10-02
 
@@ -416,7 +435,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...HEAD
+[0.16.0]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...bmair-v0.16.0
 [0.15.0]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...bmair-v0.15.0
 [0.14.0]: https://github.com/danlangford/bmai/compare/bmair-v0.13.0...bmair-v0.14.0
 [0.13.0]: https://github.com/danlangford/bmai/compare/bmair-v0.12.0...bmair-v0.13.0

@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-use crate::game::property;
+use crate::game::{property, special};
 
 /// Whether a die property is fully implemented or accepted only for upstream
 /// notation compatibility.
@@ -141,4 +141,55 @@ impl DieNotationCapabilities {
             dizzy_value_suffix: 'd',
         }
     }
+}
+
+/// One button special accepted by the `special` command.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct ButtonSpecialNotation {
+    pub id: &'static str,
+    pub buttons: &'static [&'static str],
+    pub rule: &'static str,
+    #[serde(skip)]
+    pub(crate) special: u8,
+}
+
+pub(crate) const BUTTON_SPECIALS: &[ButtonSpecialNotation] = &[
+    ButtonSpecialNotation {
+        id: "unique_swing",
+        buttons: &["Guillermo", "Oregon"],
+        rule: "Different swing types must be assigned unique values.",
+        special: special::UNIQUE_SWING,
+    },
+    ButtonSpecialNotation {
+        id: "unique_sizes",
+        buttons: &["Gordo"],
+        rule: "No two dice may be the same size, and no Auxiliary swing die may be added.",
+        special: special::UNIQUE_SIZES,
+    },
+    ButtonSpecialNotation {
+        id: "no_skill_attacks",
+        buttons: &["Largo", "The Flying Squirrel"],
+        rule: "Cannot perform skill attacks.",
+        special: special::NO_SKILL_ATTACKS,
+    },
+    ButtonSpecialNotation {
+        id: "skill_immune",
+        buttons: &["The Japanese Beetle"],
+        rule: "Cannot be attacked by skill attacks.",
+        special: special::SKILL_IMMUNE,
+    },
+    ButtonSpecialNotation {
+        id: "no_initiative",
+        buttons: &["Giant"],
+        rule: "Cannot win initiative.",
+        special: special::NO_INITIATIVE,
+    },
+];
+
+pub(crate) fn button_special(id: &str) -> Option<u8> {
+    BUTTON_SPECIALS
+        .iter()
+        .find(|special| special.id == id)
+        .map(|special| special.special)
 }

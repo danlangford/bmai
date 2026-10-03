@@ -207,6 +207,7 @@ pub struct Capabilities {
     pub ai_policies: &'static [&'static str],
     pub skills: &'static [&'static str],
     pub parsing_only_skills: &'static [&'static str],
+    pub button_specials: &'static [crate::protocol::notation::ButtonSpecialNotation],
     pub die_notation: DieNotationCapabilities,
     pub native: NativeCapabilities,
 }
@@ -231,6 +232,7 @@ impl Capabilities {
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",
+                "special",
                 "surrender",
                 "getaction",
                 "playgame",
@@ -305,6 +307,7 @@ impl Capabilities {
                 "Weak",
             ],
             parsing_only_skills: &[],
+            button_specials: crate::protocol::notation::BUTTON_SPECIALS,
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],

@@ -35,6 +35,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "report_sims",
             "turbo_accuracy",
             "fire_overshooting",
+            "special",
             "surrender",
             "getaction",
             "playgame",
@@ -78,6 +79,14 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
         ])
     );
     assert_eq!(value["parsing_only_skills"], serde_json::json!([]));
+    assert_eq!(
+        value["button_specials"][3],
+        serde_json::json!({
+            "id": "skill_immune",
+            "buttons": ["The Japanese Beetle"],
+            "rule": "Cannot be attacked by skill attacks."
+        })
+    );
 }
 
 #[test]

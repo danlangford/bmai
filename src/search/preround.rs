@@ -280,10 +280,27 @@ pub(super) fn AuxiliaryDie(player: &crate::game::BMC_Player) -> Option<usize> {
         .position(|die| die.HasProperty(property::AUXILIARY))
 }
 
+/// The Auxiliary die this player may accept. Gordo's button refuses a swing
+/// die of its own V-Z types, which would force two dice to share a size.
+fn AcceptableAuxiliaryDie(player: &crate::game::BMC_Player) -> Option<usize> {
+    AuxiliaryDie(player).filter(|index| {
+        player.m_specials & special::UNIQUE_SIZES == 0
+            || !player.m_die[*index]
+                .m_swing_type
+                .iter()
+                .flatten()
+                .any(|swing| ('V'..='Z').contains(swing))
+    })
+}
+
 /// Resolve ButtonWeavers' mutual Auxiliary choice for a simulation. If both
 /// players agree, each selected die becomes an ordinary die for the game. A
 /// decline by either player removes every Auxiliary die from both buttons.
 pub(crate) fn ApplyAuxiliaryDecision(game: &mut BMC_Game, accepted: bool) {
+    let accepted = accepted
+        && game.m_player.iter().all(|player| {
+            AuxiliaryDie(player).is_none() || AcceptableAuxiliaryDie(player).is_some()
+        });
     for player in &mut game.m_player {
         let selected = accepted.then(|| AuxiliaryDie(player)).flatten();
         let mut index = 0;
@@ -325,7 +342,7 @@ pub(crate) fn SelectBMAIAuxiliaryAction(
     rng: &mut BMC_RNG,
     ai: &BMC_BMAI3,
 ) -> AuxiliarySearchResult {
-    let Some(auxiliary) = AuxiliaryDie(&game.m_player[0]) else {
+    let Some(auxiliary) = AcceptableAuxiliaryDie(&game.m_player[0]) else {
         return AuxiliarySearchResult {
             die: None,
             score: 0.0,
@@ -358,7 +375,7 @@ pub(crate) fn SelectNativeBMAIAuxiliaryAction(
     workers: usize,
     ai: &BMC_BMAI3,
 ) -> AuxiliarySearchResult {
-    let Some(auxiliary) = AuxiliaryDie(&game.m_player[0]) else {
+    let Some(auxiliary) = AcceptableAuxiliaryDie(&game.m_player[0]) else {
         return AuxiliarySearchResult {
             die: None,
             score: 0.0,
@@ -404,7 +421,7 @@ pub(crate) fn SelectNativeBMAIAuxiliaryAction(
 }
 
 pub(crate) fn SelectQAIAuxiliaryAction(game: &BMC_Game) -> Option<usize> {
-    AuxiliaryDie(&game.m_player[0])
+    AcceptableAuxiliaryDie(&game.m_player[0])
 }
 
 pub(crate) fn SelectNativeBMAIReserveAction(
@@ -646,6 +663,22 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::BMC_Player) -> Vec<SwingM
             }
         }
         moves = next;
+    }
+    let unique_sizes = player.m_specials & special::UNIQUE_SIZES != 0;
+    if unique_sizes || player.m_specials & special::UNIQUE_SWING != 0 {
+        let fixed_sizes = player
+            .m_die
+            .iter()
+            .filter(|die| !die.m_in_reserve && die.m_swing_type.iter().all(Option::is_none))
+            .map(|die| die.GetSidesMax())
+            .collect::<Vec<_>>();
+        moves.retain(|candidate| {
+            let values = candidate.values();
+            values.iter().enumerate().all(|(index, (_, value))| {
+                !values[..index].iter().any(|(_, other)| other == value)
+                    && !(unique_sizes && fixed_sizes.contains(&u16::from(*value)))
+            })
+        });
     }
     // BMC_Game::ValidSetSwing enforces UNIQUE after enumerating each complete
     // swing/option setting. A Unique swing die may not use the same value as

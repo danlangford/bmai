@@ -8,6 +8,7 @@ pub(crate) struct Scenario {
     phase: Option<BME_PHASE>,
     attacker_dice: Vec<String>,
     defender_dice: Vec<String>,
+    specials: [Vec<&'static str>; 2],
     scores: Option<[f32; 2]>,
     attack: Option<BME_ATTACK>,
     attackers: Option<Vec<usize>>,
@@ -51,6 +52,18 @@ impl Scenario {
 
     pub(crate) fn defenders(mut self, dice: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.defender_dice.extend(dice.into_iter().map(Into::into));
+        self
+    }
+
+    /// Applies a `special` button rule to the attacking player.
+    pub(crate) fn attacker_special(mut self, special: &'static str) -> Self {
+        self.specials[0].push(special);
+        self
+    }
+
+    /// Applies a `special` button rule to the defending player.
+    pub(crate) fn defender_special(mut self, special: &'static str) -> Self {
+        self.specials[1].push(special);
         self
     }
 
@@ -191,7 +204,8 @@ impl Scenario {
             "scenario has no defender dice"
         );
         let attack = self.attack.expect("scenario has no attack type");
-        let mut game = parse_game(&self.attacker_dice, &self.defender_dice);
+        let mut game =
+            parse_game_with_specials(&self.attacker_dice, &self.defender_dice, &self.specials);
         game.m_phase = phase;
         game.m_fire_overshooting = self.fire_overshooting;
         if let Some(scores) = self.scores {
@@ -335,6 +349,14 @@ pub(super) fn resolve_original_indices(
 }
 
 pub(super) fn parse_game(attacker_dice: &[String], defender_dice: &[String]) -> BMC_Game {
+    parse_game_with_specials(attacker_dice, defender_dice, &[Vec::new(), Vec::new()])
+}
+
+fn parse_game_with_specials(
+    attacker_dice: &[String],
+    defender_dice: &[String],
+    specials: &[Vec<&'static str>; 2],
+) -> BMC_Game {
     // INITIATIVE makes the production parser derive scores from the dice. The
     // requested phase is applied by Scenario::run after parsing.
     let mut input = String::from("game\ninitiative\n");
@@ -343,6 +365,11 @@ pub(super) fn parse_game(attacker_dice: &[String], defender_dice: &[String]) -> 
         for die in dice {
             input.push_str(die);
             input.push('\n');
+        }
+    }
+    for (player, names) in specials.iter().enumerate() {
+        if !names.is_empty() {
+            input.push_str(&format!("special {player} {}\n", names.join(" ")));
         }
     }
     let mut parser = BMC_Parser::default();

@@ -595,6 +595,7 @@ pub(super) fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
             source.m_player[player].m_radioactive_products;
         simulation.m_player[player].m_rage_replacements =
             source.m_player[player].m_rage_replacements;
+        simulation.m_player[player].m_specials = source.m_player[player].m_specials;
     }
     simulation.m_phase = source.m_phase;
     simulation.m_surrender_allowed = source.m_surrender_allowed;

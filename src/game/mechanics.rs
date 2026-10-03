@@ -130,11 +130,26 @@ pub(crate) fn ApplyAttackForPlayers(
             && die.GetValueTotal() % 2 == 1
     });
 
+    let mut morph_extra_turn = false;
     if is_trip {
         let target = action.m_targets.first().expect("Trip target");
         let attacker = action.m_attackers.first().expect("Trip attacker");
         let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal();
+        if !trip_failed
+            && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
+        {
+            // ButtonWeavers morphs after the Trip roll and gives the new die
+            // no value, so it rerolls at the captured die's size.
+            MorphIntoTarget(game, attacker_player, target_player, attacker, target);
+            if !decays {
+                let die = &mut game.m_player[attacker_player].m_die[attacker];
+                die.m_notset = true;
+                RollDie(die, rng);
+                morph_extra_turn =
+                    die.HasProperty(property::TIME_AND_SPACE) && die.GetValueTotal() % 2 == 1;
+            }
+        }
         if decays {
             // Trip rolls resolve before ButtonWeavers' capture hooks, so decay
             // happens after them, even when the Trip fails.
@@ -178,7 +193,7 @@ pub(crate) fn ApplyAttackForPlayers(
     if created_rage_replacement {
         OptimizeDice(&mut game.m_player[target_player]);
     }
-    attacking_jolt || captured_jolt || time_and_space_extra_turn
+    attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
 
 pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
@@ -362,12 +377,9 @@ fn HalveBerserkAttacker(game: &mut BMC_Game, attacker_player: usize, attacker: u
     game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
 }
 
+/// Trip morphs only once its roll has succeeded, so it is handled separately.
 fn MorphingApplies(action: &BMC_Move) -> bool {
-    action.m_targets.len() == 1
-        && !matches!(
-            action.m_attack,
-            Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
-        )
+    action.m_targets.len() == 1 && action.m_attack != Some(BME_ATTACK::TRIP)
 }
 
 fn MorphIntoTarget(
@@ -498,7 +510,6 @@ pub(crate) fn ApplyAttackPlayerEffects(
         ApplyBeforeRollEffects(game, attacker_player, attacker);
     }
 
-    // Morphing is implemented by C++ only for its 1_1 and N_1 attack types.
     if MorphingApplies(action)
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
     {
@@ -700,6 +711,19 @@ pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
             .map(BMC_Die::GetValueTotal)
             .collect();
         output.sort_unstable();
+    }
+    // ButtonWeavers ranks a no-initiative button below every other button,
+    // even one with no initiative dice, by giving the others a sentinel.
+    let no_initiative =
+        [0, 1].map(|player| game.m_player[player].m_specials & super::special::NO_INITIATIVE != 0);
+    if no_initiative.contains(&true) {
+        for (player, output) in values.iter_mut().enumerate() {
+            if no_initiative[player] {
+                output.clear();
+            } else {
+                output.push(u16::MAX);
+            }
+        }
     }
     for index in 0..values[0].len().max(values[1].len()) {
         match (values[0].get(index), values[1].get(index)) {

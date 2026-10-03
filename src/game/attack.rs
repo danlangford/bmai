@@ -187,6 +187,50 @@ fn SkillStackCanHitWithFire(
     false
 }
 
+/// ButtonWeavers `BMAttackTrip::post_trip_roll_max`: the largest value the
+/// die can show after the resizing its Trip reroll triggers.
+fn TripRollMax(die: &BMC_Die, smallest_mood_size: bool) -> u16 {
+    if die.HasProperty(property::MOOD)
+        && !die.HasProperty(property::TWIN)
+        && let Some(swing) = die.m_swing_type[0]
+    {
+        let (minimum, maximum) = super::SwingRange(swing);
+        return u16::from(if smallest_mood_size { minimum } else { maximum });
+    }
+    let dice = DieCount(die) as usize;
+    die.m_sides[..dice]
+        .iter()
+        .map(|sides| {
+            let mut sides = *sides;
+            if die.HasProperty(property::WEAK) {
+                sides = super::mechanics::WeakSides(sides);
+            }
+            if die.HasProperty(property::MIGHTY) {
+                sides = super::mechanics::MightySides(sides);
+            }
+            u16::from(sides)
+        })
+        .sum()
+}
+
+/// ButtonWeavers `BMAttackTrip::validate_attack`: the attacker must be able
+/// to roll the target's minimum, and Konstant and Maximum targets raise that.
+fn TripCanCapture(attacker: &BMC_Die, target: &BMC_Die) -> bool {
+    let target_minimum = DieCount(target) as u16;
+    let attacker_maximum = if attacker.HasProperty(property::KONSTANT) {
+        attacker.GetValueTotal()
+    } else {
+        TripRollMax(attacker, false)
+    };
+    if target.HasProperty(property::KONSTANT) && attacker_maximum < target.GetValueTotal() {
+        return false;
+    }
+    if target.HasProperty(property::MAXIMUM) && attacker_maximum < TripRollMax(target, true) {
+        return false;
+    }
+    attacker_maximum >= target_minimum
+}
+
 fn FireHelperCapacities(player: &BMC_Player, attackers: BMC_DieIndexSet) -> Vec<(usize, u8)> {
     player
         .m_die
@@ -385,6 +429,8 @@ impl BMC_Game {
             !die.HasProperty(property::WARRIOR)
                 && die.HasProperty(property::STINGER | property::KONSTANT)
         });
+        let skill_attacks_allowed = attacker.m_specials & special::NO_SKILL_ATTACKS == 0
+            && target.m_specials & special::SKILL_IMMUNE == 0;
         let player_has_fire = available.iter().any(|(_, die)| {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
@@ -424,10 +470,7 @@ impl BMC_Game {
                                     attacker_die.GetValueTotal() <= target_die.GetValueTotal()
                                         && attacker_die.GetSidesMax() >= target_die.GetValueTotal()
                                 }
-                                BME_ATTACK::TRIP => {
-                                    attacker_die.HasProperty(property::TWIN)
-                                        || !target_die.HasProperty(property::TWIN)
-                                }
+                                BME_ATTACK::TRIP => TripCanCapture(attacker_die, target_die),
                                 _ => unreachable!(),
                             };
                             if legal {
@@ -495,6 +538,7 @@ impl BMC_Game {
                             }
                         }
                     }
+                    BME_ATTACK::SKILL if !skill_attacks_allowed => {}
                     BME_ATTACK::SKILL => {
                         let mut stack = BMC_DieIndexStack::new();
                         stack.push(attacker_position, &available);
@@ -879,6 +923,9 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
                 candidate += step;
             }
             for sides in choices {
+                if !TurboSizeKeepsTripLegal(game, &moves[move_index], turbo_die, sides) {
+                    continue;
+                }
                 let sides = i16::from(sides);
                 if sides == current {
                     continue;
@@ -889,6 +936,18 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             }
         }
     }
+}
+
+/// ButtonWeavers validates a Trip at the submitted Turbo size, so a size too
+/// small to reach the target makes the attack illegal.
+fn TurboSizeKeepsTripLegal(game: &BMC_Game, action: &BMC_Move, die: &BMC_Die, sides: u8) -> bool {
+    if action.m_attack != Some(BME_ATTACK::TRIP) {
+        return true;
+    }
+    let target = action.m_targets.first().expect("Trip target");
+    let mut resized = *die;
+    resized.m_sides[0] = sides;
+    TripCanCapture(&resized, &game.m_player[1].m_die[target])
 }
 
 fn turbo_swing_range(swing: char) -> (u8, u8) {

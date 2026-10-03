@@ -11,7 +11,7 @@ use crate::game::{
     ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice, BMC_Die, BMC_Game,
     BMC_Move, BME_ACTION, BME_SWING_SET, CheckInitiative, InitiativeWinner, OptimizeDice,
     RecoverDizzyDice, RestoreDiceForNewRound, RollDie, RollRoundDice, RollScheduledDie, SwingRange,
-    property,
+    property, special,
 };
 #[cfg(test)]
 use crate::game::{ApplyAttackPlayerEffects, BMD_MAX_DICE};
