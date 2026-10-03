@@ -115,3 +115,23 @@ fn doppelganger_that_captures_rage_retains_rage_after_transforming() {
         .expect_captured_defender_dice(["MG7:7"])
         .run();
 }
+
+#[test]
+fn null_doppelganger_still_nulls_its_capture_after_transforming() {
+    scenario()
+        .attacker("nD20:20")
+        .attacks(POWER)
+        .defender("6:6")
+        .expect_captured_defender_dice(["n6:6"])
+        .run();
+}
+
+#[test]
+fn value_doppelganger_still_values_its_capture_after_transforming() {
+    scenario()
+        .attacker("vD20:20")
+        .attacks(POWER)
+        .defender("6:6")
+        .expect_captured_defender_dice(["v6:6"])
+        .run();
+}

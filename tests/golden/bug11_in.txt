@@ -1,0 +1,14 @@
+exit 0
+--- stdout
+p0 s0.0 Dice (0)0 (480000)34 (0)0
+p1 s0.0 Dice (1)10 (20)11 (80)12 (10)13 (0)0
+Setting max ply to 3
+Setting max # simulations to 100
+Setting min # simulations to 5
+Setting max branch to 400
+stats 3/5-100/400/0.50
+action
+swing T 2
+swing W 4
+--- stderr
+RNG_HASH 218487363 17300131240066743270

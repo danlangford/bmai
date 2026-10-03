@@ -305,8 +305,7 @@ impl BMC_Parser {
         Ok(())
     }
 
-    /// The search settings C++ reads through `m_game.GetAI(player)`. Before any
-    /// `game` or `ai` command C++ holds NULL; BMAIR reports `g_ai` instead.
+    /// C++ holds NULL before any `game` or `ai`; `g_ai` is the closest stand-in.
     pub(super) fn PlayerAI(&self, player: usize) -> &BMC_BMAI3 {
         match self.m_player_ai[player] {
             BMC_AI_SLOT::UNBOUND | BMC_AI_SLOT::GLOBAL => &self.m_ai,
@@ -321,10 +320,8 @@ impl BMC_Parser {
         }
     }
 
-    /// Applies a per-player setting to the shared AI object the player points
-    /// at and reports whether C++ would print its confirmation. QAI ignores it
-    /// silently. Before any `game` or `ai` command C++ dereferences NULL; BMAIR
-    /// prints the confirmation and changes nothing, matching earlier releases.
+    /// Returns whether C++ prints a confirmation. Before any `game` or `ai`, C++
+    /// dereferences NULL; BMAIR keeps earlier releases' message-only behavior.
     pub(super) fn SetPlayerAI(
         &mut self,
         player: usize,
@@ -456,8 +453,7 @@ impl BMC_Parser {
         if self.m_game.m_phase == BME_PHASE::AUXILIARY {
             PrepareAuxiliaryPhase(&mut self.m_game)?;
         }
-        // BMC_Parser::ParseGame always points both players at the shared global
-        // BMAI3. The `ai` type objects keep their settings for later selection.
+        // The `ai` type objects keep their settings across games, as in C++.
         self.m_player_ai = [BMC_AI_SLOT::GLOBAL; 2];
         Ok(pos)
     }

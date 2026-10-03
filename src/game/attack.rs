@@ -631,8 +631,7 @@ impl BMC_Game {
                         }
                     }
                     BME_ATTACK::RUSH => {
-                        // A Speed die's two-target Speed attack already has the
-                        // identical legality and resolution, so skip the duplicate.
+                        // A Speed die's two-target Speed attack resolves identically.
                         let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
                         if !attacker_has_rush && !targets_have_rush
                             || !attacker_die.CanDoAttack(attack, 1)
@@ -728,7 +727,7 @@ impl BMC_Game {
 
     pub fn GenerateValidAttacksInCppOrder(&self) -> Vec<BMC_Move> {
         let mut moves = self.GenerateValidAttackCandidatesInCppOrder(usize::MAX);
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -739,7 +738,7 @@ impl BMC_Game {
                 .total_cmp(&a.m_score)
                 .then_with(|| attack_preference(a.m_attack).cmp(&attack_preference(b.m_attack)))
         });
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -748,7 +747,7 @@ impl BMC_Game {
         fire_limit: usize,
     ) -> Vec<BMC_Move> {
         let mut moves = self.GenerateValidAttackCandidatesInCppOrder(fire_limit);
-        ExpandTurboMoves(&self.m_player[0], self.m_turbo_accuracy, &mut moves);
+        ExpandTurboMoves(self, &mut moves);
         moves
     }
 
@@ -833,13 +832,22 @@ fn MoveInvolvesDie(action: &BMC_Move, die: usize) -> bool {
     }
 }
 
-fn ExpandTurboMoves(player: &BMC_Player, accuracy: f32, moves: &mut Vec<BMC_Move>) {
+fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
+    let player = &game.m_player[0];
+    let accuracy = game.m_turbo_accuracy;
     let Some((turbo_index, turbo_die)) = FirstTurboDie(player) else {
         return;
     };
     let original_move_count = moves.len();
     for move_index in 0..original_move_count {
         if !MoveInvolvesDie(&moves[move_index], turbo_index) {
+            continue;
+        }
+        // Decay strips Turbo before the attack reroll, so sizes only matter for
+        // Trip, which ButtonWeavers rolls at the chosen size before decaying.
+        if moves[move_index].m_attack != Some(BME_ATTACK::TRIP)
+            && super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1)
+        {
             continue;
         }
         if turbo_die.HasProperty(property::OPTION) {

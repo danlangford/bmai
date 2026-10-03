@@ -6,23 +6,19 @@ Konstant behavior until it lands upstream.
 
 ## Regression oracle policy
 
-The adopted Konstant reference at `4813530` remains the source-provenance
-oracle even though that patch has not been merged upstream. Its implementation
-and regression suite were deliberately accepted as part of BMAIR's mechanics
-contract.
+`tests/golden/` holds the expected output of every `tests/fixtures/*in*.txt`,
+checked by `tests/fixture_golden.rs`. Each file records the normalized
+protocol output, the exit status, and the RNG draw count and hash, so a change
+to candidate order, simulation counts, or randomness fails even when the final
+move survives it. The files were generated from the 0.14.0 source, whose
+fixtures had matched the C++ reference at `4813530`; that historical evidence
+is recorded below.
 
-The complete fixture differential must therefore use that adopted reference
-or a successor containing the same Konstant behavior. The older `1fcb826`
-binary remains useful for pre-Konstant parser cases, but it is not a valid
-oracle for the complete current fixture directory.
-
-The published `bmair-v0.4.1` legacy executable is the routine regression oracle
-for later releases: its complete C++ and adopted-Konstant parity was established
-before post-C++ mechanics such as Jolt were added. Current legacy builds should
-match it on every historical fixture. Re-run the C++ reference gates after
-changes to mechanics, parsing, RNG consumption, candidate generation, or search
-control flow, and periodically as a provenance audit; the Rust baseline does
-not replace that historical evidence chain.
+No reference binary is needed. The ordinary test run checks every fixture
+except the long searches in `SLOW_FIXTURES`, which CI checks for releases.
+When a change intentionally alters a fixture, regenerate the files with
+`BMAIR_UPDATE_GOLDEN=1` and review the diff in the pull request. New skills
+follow ButtonWeavers, not C++, so a correct rule may change a golden file.
 
 ## Completion gates
 
@@ -207,6 +203,7 @@ case named in the final column.
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
 | ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `BMC_FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
+| ButtonWeavers Radioactive decay of the attacker in every one-attacker, one-target attack | `RadioactiveDecayApplies`, `ApplyRadioactiveAttackEffects`, `SplitRadioactiveAttacker`, the Trip branch of `ApplyAttackForPlayers`, and Turbo-candidate suppression in `ExpandTurboMoves` | every skills.html interaction plus responder-log reproductions in `search::tests::radioactive` | covered Rust extension |
 | ButtonWeavers Rush two-target attacks by or against Rush dice | `BME_ATTACK::RUSH` direct pair enumeration in `GenerateValidAttackCandidatesInCppOrder`, shared `CanDoAttack`/`CanBeAttacked` Speed restrictions, generic multi-target resolution | focused Rush rules plus Speed, Stealth, Warrior, Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing, Doppelganger/Radioactive, Jolt, Time-and-Space, Rage, Null, Value, Poison, Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, parser, and legacy/native search scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `game::mechanics` initiative plus `search::initiative` evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `search::preround` generation, evaluation, and application | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
@@ -234,13 +231,12 @@ action, but does not implement the phase or selector. BMAIR's complete
 Auxiliary lifecycle is therefore an intentional post-C++ extension based on
 the ButtonWeavers engine at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
 The wire state has no button identity, so site-specific eligibility such as
-Gordo's restriction remains the caller's responsibility. Parsing-only parity
-remains intentional for unrelated `RADIOACTIVE` behavior: upstream C++ only
-assigns its property bit and implements no game behavior. Doppelganger is an intentional post-C++ extension
+Gordo's restriction remains the caller's responsibility. Upstream C++ only
+assigns the `RADIOACTIVE` property bit; BMAIR 0.15.0 implements the complete
+ButtonWeavers decay rule as an intentional post-C++ extension (see "Radioactive
+rule and interaction coverage" below). Doppelganger is an intentional post-C++ extension
 based on ButtonWeavers engine source at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`.
-The Radioactive decay path required by its documented Doppelganger interaction
-is implemented, including decay-product replacement and round restoration;
-unrelated Radioactive mechanics remain parsing-only. Rage is also an intentional
+Rage is also an intentional
 post-C++ extension based on the ButtonWeavers engine at the same pinned source
 revision and its live skill contract.
 Fire is an intentional post-C++ extension based on that pinned ButtonWeavers
@@ -335,10 +331,8 @@ ten-original-to-twenty-round-dice capacity boundary. The older Rage issue
 clarifications for Slow, Focus, and the initial roll of a Konstant replacement
 also have direct tests. Rage gained during a Chaotic attacking reroll remains
 deferred because BMAIR does not implement Chaotic. Single-attacker/single-target
-Radioactive+Rage ordering remains part of the explicitly parsing-only
-Radioactive work; the current Rage test uses a multi-target Speed attack, where
-Radioactive does not trigger, to prove the replacement retains its other
-properties without pretending that standalone Radioactive is complete.
+Radioactive+Rage ordering is covered by
+`captured_radioactive_rage_target_is_replaced_and_still_decays_the_attacker`.
 
 ### Fire rule and interaction coverage
 
@@ -369,6 +363,47 @@ for a different maximum. Search materializes at most
 button cannot exhaust time and memory enumerating allocations before its
 configured branch budget applies; `fire_candidate_construction_obeys_the_search_budget`
 covers that boundary.
+
+### Radioactive rule and interaction coverage
+
+Source: ButtonWeavers `BMSkillRadioactive`, `BMDie::split`, `BMDieTwin::split`,
+`BMAttack::commit_attack`, and the hook order in `BMSkill::skill_order_array`
+at `a2d2a1fac12bcffd3453bb0dfe1282b733d23a5b`. Decay comes from the attacker's
+`capture` hook or the target's `be_captured` hook, whichever die is
+Radioactive. Because the target hook runs after every attacker hook, a
+Radioactive attacker decays before Doppelganger copies, while a Doppelganger
+copy of a Radioactive target is itself what decays. Cases marked "responder log"
+reproduce dice from ButtonWeavers' own `responder0*Test.php` action logs.
+
+| skills.html interaction | Rust evidence |
+|---|---|
+| Berserk halves, then decays | `berserk_halves_before_it_decays` (responder log), `radioactive_berserk_attacker_halves_before_it_decays` |
+| Doppelganger decays, then each product copies the target | `radioactive_doppelganger_decays_before_each_product_copies_the_target`, `radioactive_doppelganger_decays_before_both_products_copy_the_target`; the Radioactive-target order is `doppelganger_copy_of_a_radioactive_target_decays` (responder log) |
+| Mad is lost on decay | not applicable: BMAIR does not implement Mad, and BMAIBagels refuses Mad games |
+| Mood is lost on decay | `decay_removes_mood_so_the_products_keep_their_halved_size` |
+| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`, `radioactive_morphing_attacker_morphs_before_it_decays` |
+| Time and Space is lost on decay | `decay_removes_time_and_space_so_an_odd_reroll_grants_no_extra_turn` |
+| Turbo is lost on decay | `decay_removes_turbo_and_turbo_sizes_are_not_offered`; Trip keeps its sizes because it rolls first: `turbo_trip_still_offers_sizes_because_it_rolls_before_decaying` |
+
+| Description rule | Rust evidence |
+|---|---|
+| The attacker splits into near-equal halves summing to its size | `radioactive_attacker_decays_into_two_halves_that_sum_to_its_size`, `a_one_sided_die_decays_into_a_one_sided_and_a_zero_sided_die` (responder log), `twin_dice_decay_into_alternating_halves` (responder log), `odd_twin_halves_give_each_product_one_rounded_up_subdie` (skills.html example) |
+| Either die being Radioactive triggers one decay | `attacker_decays_when_only_the_target_is_radioactive_and_the_target_keeps_radioactive_when_captured`, `two_radioactive_dice_decay_the_attacker_only_once` (responder log) |
+| Only attacks with one attacker and one target decay, of any type | `single_die_skill_attack_decays` (responder log), `shadow_attack_decays_and_keeps_shadow` (skills.html example), `single_target_speed_attack_decays`, `multi_target_speed_attack_does_not_decay`, `multi_die_skill_attack_does_not_decay` |
+| Involved dice remaining in play lose Radioactive | `failed_trip_still_decays_and_the_surviving_target_loses_radioactive` (responder log), `successful_trip_decays_after_the_trip_roll` (responder log) |
+| Decayed dice lose Jolt | `decay_removes_jolt_after_jolt_grants_its_extra_turn` |
+
+Further scenarios cover Konstant and Weak products, Rage on both sides, Null,
+scoring, next-round restoration, the dice-pool limit, and legacy/native search.
+Decay products always roll fresh values, including Konstant and Trip
+attackers. Mighty and Weak resize the products of ordinary attackers and of a
+Doppelganger copy of a Radioactive target, but not Konstant products. The
+copies made by a Radioactive Doppelganger do not resize, matching BMAIR's
+existing Doppelganger rule; whether ButtonWeavers resizes copies is an open
+question in the CHANGELOG. Same-die Radioactive+Morphing, +Berserk, and
++Doppelganger follow the documented interactions; ButtonWeavers' by-reference
+attacker loop may differ there, and no current button has those combinations.
+A decay that would exceed the 20-die pool is skipped instead of panicking.
 
 ### Rush rule and interaction coverage
 
@@ -454,8 +489,10 @@ Rush dice keep their C++ candidate order and RNG consumption.
 
 ## Internal search proof
 
-- [x] `tests/reference_trace_parity.rs` compares raw RNG streams for a routine
-  representative gate and count+FNV fingerprints for every input fixture. The
+- [x] The retired `tests/reference_trace_parity.rs` compared raw RNG streams for a routine
+  representative gate and count+FNV fingerprints for every input fixture
+  against an instrumented C++ build; the golden files now carry those
+  fingerprints. The
   exhaustive 2026-08-27 run matched every stochastic fixture; its final
   intentional-error `test_in.txt` case was separately confirmed at exit status
   1 with the identical zero-event fingerprint after correcting the harness to

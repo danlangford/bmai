@@ -76,8 +76,8 @@ root and the Rust sources follow the standard Cargo layout under `src/`.
 [`ARCHITECTURE.md`](ARCHITECTURE.md) explains the game, search, protocol, and
 runtime boundaries and where new behavior belongs.
 
-Existing protocol samples are retained under `tests/fixtures/` for parity and
-differential tests against the C++ implementation.
+Protocol samples under `tests/fixtures/` have golden outputs in
+`tests/golden/`, recording each fixture's output and RNG fingerprint.
 
 Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
@@ -144,10 +144,11 @@ player using the same AI, and the global `stats` line reports the global AI.
 ### Skills
 
 BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
-the C++ engine predates: Auxiliary, Doppelganger, Fire, Jolt, Rage, and Rush.
-Radioactive is parsed but has no mechanics outside its Doppelganger
-interaction. Clients should discover the exact die tokens, skills, and attack
-types (including `rush`) through capabilities rather than hard-coding them.
+the C++ engine predates or only parses: Auxiliary, Doppelganger, Fire, Jolt,
+Radioactive, Rage, and Rush. No advertised die skill is parsing-only; known
+gaps are listed under Planned in the CHANGELOG. Clients should discover the
+exact die tokens, skills, and attack types (including `rush`) through
+capabilities rather than hard-coding them.
 
 ### Python and service integration
 
@@ -204,8 +205,14 @@ candidate simulation while keeping legacy mode as the compatibility oracle.
 ## Verification
 
 The default Rust test suite includes unit, parser, game-mechanics, and structural
-search tests. Expensive reference-binary differential tests are marked ignored
-because they require separately supplied C++ reference executables; their setup
-and recorded evidence are documented in [`PARITY.md`](PARITY.md). New mechanics
+search tests, plus golden output for every fixture. The longest fixture
+searches are ignored by default and run in CI for releases:
+
+```shell
+cargo test --release --test fixture_golden -- --include-ignored
+```
+
+After an intentional behavior change, regenerate the golden files with
+`BMAIR_UPDATE_GOLDEN=1` and review their diff. New mechanics
 tests can use the recipe-based scenario DSL described in
 [`TESTING.md`](TESTING.md).

@@ -284,6 +284,7 @@ impl Capabilities {
                 "Ornery",
                 "Poison",
                 "Queer",
+                "Radioactive",
                 "Rage",
                 "Reserve",
                 "Rush",
@@ -303,7 +304,7 @@ impl Capabilities {
                 "Warrior",
                 "Weak",
             ],
-            parsing_only_skills: &["Radioactive"],
+            parsing_only_skills: &[],
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
                 execution_modes: &["legacy", "native"],

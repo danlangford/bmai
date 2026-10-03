@@ -14,8 +14,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Complete mechanics support for the remaining parsing-only skills:
-  Radioactive (`%`).
+- Add a per-player `special` protocol option for button-level rules, so
+  BMAIBagels can name them per button: unique swing values (Gordo,
+  Guillermo, Oregon), no Skill attacks (Largo, The Flying Squirrel), immunity
+  to Skill attacks (The Japanese Beetle), and no initiative (Giant).
+- Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
+- Allow non-Twin Trip dice to Trip Twin dice, as ButtonWeavers does.
+- Let Morphing apply to Berserk and Speed attacks, and skip it after a failed
+  Trip, as ButtonWeavers does.
+- Check ButtonWeavers' by-reference attacker loop for same-die Radioactive
+  Doppelganger and Morphing dice against a running engine.
+- Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
+  attack reroll.
+- Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
+## [0.15.0] - 2026-10-02
+
+### Added
+
+- Implemented the complete ButtonWeavers Radioactive (`%`) rule. In any attack
+  with exactly one attacker and one target, by any attack type, the attacker
+  decays into two near-equal dice when either die is Radioactive. Previously
+  only Radioactive Doppelganger Power attacks decayed.
+- Decay products lose Radioactive, Turbo, Mood, Jolt, and Time and Space, roll
+  fresh values, and resize for Mighty or Weak unless Konstant. A target that
+  survives a failed Trip loses Radioactive.
+- Applied ButtonWeavers' ordering: Berserk and Morphing transform the attacker
+  before it decays, a Radioactive Doppelganger decays before both products
+  copy the target, and a Doppelganger copy of a Radioactive target decays.
+- Advertised Radioactive as implemented; `parsing_only_skills` is now empty.
+- Added a scenario for every Radioactive interaction on the ButtonWeavers
+  skills page, plus reproductions of ButtonWeavers responder-test logs.
+
+### Changed
+
+- Replaced the reference-binary differential tests with golden outputs in
+  `tests/golden/`. Each records a fixture's normalized output and RNG
+  fingerprint, so no C++ or previous-release binary is needed. Most fixtures
+  run in every `cargo test`; the longest searches run in CI for releases.
+- Moves whose attacker will decay no longer expand into Turbo sizes, since the
+  decaying die loses Turbo before its reroll. Trip keeps its sizes, because
+  ButtonWeavers rolls the Trip at the chosen size before the decay.
+- A decay that would exceed the 20-die pool is skipped rather than panicking.
+
+### Fixed
+
+- A Null or Value attacker that transforms during the attack, such as a
+  Doppelganger, still makes its captured die Null or Value, as ButtonWeavers
+  runs those effects from the attacker's original skills.
+- Twin decay products now take ButtonWeavers' subdie order: the first product
+  keeps the rounded-up first half and the rounded-down second half.
 
 ## [0.14.0] - 2026-10-01
 
@@ -368,7 +416,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...HEAD
+[0.15.0]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...bmair-v0.15.0
 [0.14.0]: https://github.com/danlangford/bmai/compare/bmair-v0.13.0...bmair-v0.14.0
 [0.13.0]: https://github.com/danlangford/bmai/compare/bmair-v0.12.0...bmair-v0.13.0
 [0.12.0]: https://github.com/danlangford/bmai/compare/bmair-v0.11.0...bmair-v0.12.0
