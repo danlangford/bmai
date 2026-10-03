@@ -2,31 +2,29 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-use super::{
-    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMC_Player, BMD_MAX_DICE, BME_ATTACK, property,
-};
-use crate::rng::BMC_RNG;
+use super::{Attack, Die, DieIndexSet, Game, MAX_DICE, Move, Player, property};
+use crate::rng::Rng;
 
-pub(crate) fn ApplyAttack(game: &mut BMC_Game, action: &BMC_Move, rng: &mut BMC_RNG) -> bool {
+pub(crate) fn ApplyAttack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
     ApplyAttackForPlayers(game, action, 0, 1, rng)
 }
 
 pub(crate) fn ApplyAttackForPlayers(
-    game: &mut BMC_Game,
-    action: &BMC_Move,
+    game: &mut Game,
+    action: &Move,
     attacker_player: usize,
     target_player: usize,
-    rng: &mut BMC_RNG,
+    rng: &mut Rng,
 ) -> bool {
     ApplyFireAdjustments(game, action, attacker_player);
     // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
-    let is_trip = action.m_attack == Some(BME_ATTACK::TRIP);
+    let is_trip = action.m_attack == Some(Attack::Trip);
     let attacking_jolt_dice = action
         .m_attackers
         .iter()
         .filter(|index| game.m_player[attacker_player].m_die[*index].HasProperty(property::JOLT))
-        .collect::<BMC_DieIndexSet>();
+        .collect::<DieIndexSet>();
     let attacking_jolt = !attacking_jolt_dice.is_empty();
     let attacking_rage = action
         .m_attackers
@@ -49,7 +47,7 @@ pub(crate) fn ApplyAttackForPlayers(
     let decays = RadioactiveDecayApplies(game, action, attacker_player, target_player);
     // Decay strips Jolt after ButtonWeavers' Jolt hook has granted the turn.
     let jolt_dice_to_consume = if decays {
-        BMC_DieIndexSet::default()
+        DieIndexSet::default()
     } else {
         attacking_jolt_dice
     };
@@ -58,7 +56,7 @@ pub(crate) fn ApplyAttackForPlayers(
         .filter(|index| {
             !game.m_player[attacker_player].m_die[*index].HasProperty(property::KONSTANT)
         })
-        .collect::<BMC_DieIndexSet>();
+        .collect::<DieIndexSet>();
     if decays && !is_trip {
         let attacker = action.m_attackers.first().expect("Radioactive attacker");
         actual_attackers =
@@ -198,7 +196,7 @@ pub(crate) fn ApplyAttackForPlayers(
     attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
 
-pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
+pub(super) fn ApplyFireAdjustments(game: &mut Game, action: &Move, player: usize) {
     if action.m_fire.is_empty() {
         return;
     }
@@ -216,7 +214,7 @@ pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, playe
         increase_total, reduction_total,
         "Fire increases and reductions must balance"
     );
-    for index in 0..crate::game::BMD_MAX_DICE {
+    for index in 0..crate::game::MAX_DICE {
         let amount = action.m_fire.m_amounts[index];
         if amount == 0 {
             continue;
@@ -248,8 +246,8 @@ pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, playe
 }
 
 pub(crate) fn RadioactiveDecayApplies(
-    game: &BMC_Game,
-    action: &BMC_Move,
+    game: &Game,
+    action: &Move,
     attacker_player: usize,
     target_player: usize,
 ) -> bool {
@@ -262,7 +260,7 @@ pub(crate) fn RadioactiveDecayApplies(
     };
     // Rage replacements and failed Trips can keep decay going past the
     // 20-slot pool; skipping the split there beats panicking mid-search.
-    if game.m_player[attacker_player].m_die.len() >= BMD_MAX_DICE {
+    if game.m_player[attacker_player].m_die.len() >= MAX_DICE {
         return false;
     }
     game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE)
@@ -272,21 +270,21 @@ pub(crate) fn RadioactiveDecayApplies(
 /// ButtonWeavers runs a Radioactive target's decay hook after every attacker
 /// hook, so only a Radioactive attacker decays before Doppelganger copies.
 pub(crate) fn ApplyRadioactiveAttackEffects(
-    game: &mut BMC_Game,
-    action: &BMC_Move,
+    game: &mut Game,
+    action: &Move,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
-) -> BMC_DieIndexSet {
+) -> DieIndexSet {
     let target = action.m_targets.first().expect("Radioactive target");
     let original = game.m_player[attacker_player].m_die[attacker];
     let attacker_is_radioactive = original.HasProperty(property::RADIOACTIVE);
     let copies_target =
-        action.m_attack == Some(BME_ATTACK::POWER) && original.HasProperty(property::DOPPELGANGER);
+        action.m_attack == Some(Attack::Power) && original.HasProperty(property::DOPPELGANGER);
 
     // Warrior dice never attack alone, and decay strips Turbo before it
     // could resize, so neither effect from ApplyAttackPlayerEffects applies.
-    if action.m_attack == Some(BME_ATTACK::BERSERK) {
+    if action.m_attack == Some(Attack::Berserk) {
         HalveBerserkAttacker(game, attacker_player, attacker);
     }
     if MorphingApplies(action) && original.HasProperty(property::MORPHING) {
@@ -325,13 +323,13 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
 /// Matches ButtonWeavers `BMDie::split` and `BMDieTwin::split`, whose order
 /// decides which product keeps each rounded-up half.
 pub(crate) fn SplitRadioactiveAttacker(
-    game: &mut BMC_Game,
+    game: &mut Game,
     attacker_player: usize,
     attacker: usize,
-) -> BMC_DieIndexSet {
+) -> DieIndexSet {
     assert!(
-        game.m_player[attacker_player].m_die.len() < BMD_MAX_DICE,
-        "Radioactive decay exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+        game.m_player[attacker_player].m_die.len() < MAX_DICE,
+        "Radioactive decay exceeds the transformed dice capacity of {MAX_DICE}"
     );
 
     let original = game.m_player[attacker_player].m_die[attacker];
@@ -340,8 +338,8 @@ pub(crate) fn SplitRadioactiveAttacker(
         .m_die
         .iter()
         .map(|die| die.m_original_index)
-        .collect::<BMC_DieIndexSet>();
-    let synthetic_index = (0..BMD_MAX_DICE)
+        .collect::<DieIndexSet>();
+    let synthetic_index = (0..MAX_DICE)
         .find(|index| !used_indices.contains(*index))
         .expect("Radioactive decay has no free stable die index");
     let mut first = original;
@@ -384,7 +382,7 @@ pub(crate) fn SplitRadioactiveAttacker(
     [attacker, attacker + 1].into()
 }
 
-fn HalveBerserkAttacker(game: &mut BMC_Game, attacker_player: usize, attacker: usize) {
+fn HalveBerserkAttacker(game: &mut Game, attacker_player: usize, attacker: usize) {
     let die = &mut game.m_player[attacker_player].m_die[attacker];
     let old_score = die.GetScore(true);
     die.m_sides[0] = die.m_sides[0].div_ceil(2);
@@ -393,12 +391,12 @@ fn HalveBerserkAttacker(game: &mut BMC_Game, attacker_player: usize, attacker: u
 }
 
 /// Trip morphs only once its roll has succeeded, so it is handled separately.
-fn MorphingApplies(action: &BMC_Move) -> bool {
-    action.m_targets.len() == 1 && action.m_attack != Some(BME_ATTACK::TRIP)
+fn MorphingApplies(action: &Move) -> bool {
+    action.m_targets.len() == 1 && action.m_attack != Some(Attack::Trip)
 }
 
 fn MorphIntoTarget(
-    game: &mut BMC_Game,
+    game: &mut Game,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
@@ -418,7 +416,7 @@ fn MorphIntoTarget(
 }
 
 fn CopyDoppelgangerTarget(
-    game: &mut BMC_Game,
+    game: &mut Game,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
@@ -442,16 +440,16 @@ fn CopyDoppelgangerTarget(
     game.m_player[attacker_player].m_score += copied.GetScore(true) - old_score;
 }
 
-pub(super) fn ConsumeAttackingJolt(game: &mut BMC_Game, player: usize, attackers: BMC_DieIndexSet) {
+pub(super) fn ConsumeAttackingJolt(game: &mut Game, player: usize, attackers: DieIndexSet) {
     for attacker in attackers.iter() {
         game.m_player[player].m_die[attacker].m_properties &= !property::JOLT;
     }
 }
 
 pub(super) fn ConsumeAttackingRage(
-    game: &mut BMC_Game,
+    game: &mut Game,
     player: usize,
-    attackers: BMC_DieIndexSet,
+    attackers: DieIndexSet,
     participated_with_rage: bool,
 ) {
     if !participated_with_rage {
@@ -463,25 +461,25 @@ pub(super) fn ConsumeAttackingRage(
 }
 
 pub(super) fn CreateAndRollRageReplacement(
-    game: &BMC_Game,
+    game: &Game,
     player: usize,
     target: usize,
-    rng: &mut BMC_RNG,
-) -> Option<BMC_Die> {
+    rng: &mut Rng,
+) -> Option<Die> {
     let original = game.m_player[player].m_die[target];
     if !original.HasProperty(property::RAGE) {
         return None;
     }
     assert!(
-        game.m_player[player].m_die.len() < BMD_MAX_DICE,
-        "Rage replacement exceeds the transformed dice capacity of {BMD_MAX_DICE}"
+        game.m_player[player].m_die.len() < MAX_DICE,
+        "Rage replacement exceeds the transformed dice capacity of {MAX_DICE}"
     );
     let used_indices = game.m_player[player]
         .m_die
         .iter()
         .map(|die| die.m_original_index)
-        .collect::<BMC_DieIndexSet>();
-    let synthetic_index = (0..BMD_MAX_DICE)
+        .collect::<DieIndexSet>();
+    let synthetic_index = (0..MAX_DICE)
         .find(|index| !used_indices.contains(*index))
         .expect("Rage replacement has no free stable die index");
     let mut replacement = original;
@@ -496,7 +494,7 @@ pub(super) fn CreateAndRollRageReplacement(
     Some(replacement)
 }
 
-pub(super) fn AddRageReplacement(game: &mut BMC_Game, player: usize, replacement: BMC_Die) {
+pub(super) fn AddRageReplacement(game: &mut Game, player: usize, replacement: Die) {
     game.m_player[player].m_rage_replacements |= 1 << replacement.m_original_index;
     game.m_player[player].m_score += replacement.GetScore(true);
     let available = AvailableDice(&game.m_player[player]);
@@ -504,8 +502,8 @@ pub(super) fn AddRageReplacement(game: &mut BMC_Game, player: usize, replacement
 }
 
 pub(crate) fn ApplyAttackPlayerEffects(
-    game: &mut BMC_Game,
-    action: &BMC_Move,
+    game: &mut Game,
+    action: &Move,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
@@ -515,7 +513,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
         game.m_player[attacker_player].m_die[attacker].m_notset = true;
     }
 
-    if actually_attacking && action.m_attack == Some(BME_ATTACK::BERSERK) {
+    if actually_attacking && action.m_attack == Some(Attack::Berserk) {
         HalveBerserkAttacker(game, attacker_player, attacker);
     }
 
@@ -560,7 +558,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
     // ButtonWeavers copies before the attack reroll, so the copy's own Mighty
     // or Weak applies; Warrior is lost after.
     if actually_attacking
-        && action.m_attack == Some(BME_ATTACK::POWER)
+        && action.m_attack == Some(Attack::Power)
         && action.m_attackers.len() == 1
         && action.m_targets.len() == 1
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER)
@@ -579,7 +577,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
     }
 }
 
-pub(crate) fn ApplyBeforeRollEffects(game: &mut BMC_Game, player: usize, index: usize) {
+pub(crate) fn ApplyBeforeRollEffects(game: &mut Game, player: usize, index: usize) {
     let die = &mut game.m_player[player].m_die[index];
     let old_score = die.GetScore(true);
     let dice = if die.HasProperty(property::TWIN) {
@@ -600,12 +598,7 @@ pub(crate) fn ApplyBeforeRollEffects(game: &mut BMC_Game, player: usize, index: 
     game.m_player[player].m_score += die.GetScore(true) - old_score;
 }
 
-pub(super) fn ApplyAttackerNatureRoll(
-    game: &mut BMC_Game,
-    player: usize,
-    index: usize,
-    rng: &mut BMC_RNG,
-) {
+pub(super) fn ApplyAttackerNatureRoll(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
     let die = &mut game.m_player[player].m_die[index];
     let old_score = die.GetScore(true);
     ApplyMood(die, rng);
@@ -616,24 +609,19 @@ pub(super) fn ApplyAttackerNatureRoll(
     }
 }
 
-pub(crate) fn RollScheduledDie(
-    game: &mut BMC_Game,
-    player: usize,
-    index: usize,
-    rng: &mut BMC_RNG,
-) {
+pub(crate) fn RollScheduledDie(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
     let die = &mut game.m_player[player].m_die[index];
     RollDie(die, rng);
 }
 
-pub(super) fn OnDieLost(player: &mut crate::game::BMC_Player, index: usize) {
+pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
     let available = AvailableDice(player);
     let mut lost = player.m_die.remove(index);
     lost.m_captured = true;
     player.m_die.insert(available - 1, lost);
 }
 
-pub(super) fn ApplyMood(die: &mut BMC_Die, rng: &mut BMC_RNG) {
+pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
     if die.HasProperty(property::MOOD) {
         for index in 0..die.m_sides.len() {
             if let Some(swing) = die.m_swing_type[index] {
@@ -673,12 +661,12 @@ pub(super) fn WeakSides(sides: u8) -> u8 {
     }
 }
 
-pub(crate) fn OptimizeDice(player: &mut BMC_Player) {
+pub(crate) fn OptimizeDice(player: &mut Player) {
     player.OptimizeDice();
 }
 
-pub(crate) fn RollDie(die: &mut BMC_Die, rng: &mut BMC_RNG) {
-    assert!(die.m_notset, "BMC_Die::Roll requires NOTSET state");
+pub(crate) fn RollDie(die: &mut Die, rng: &mut Rng) {
+    assert!(die.m_notset, "Die::Roll requires NOTSET state");
     die.m_captured = false;
     die.m_notset = false;
     die.m_dizzy = false;
@@ -704,11 +692,11 @@ pub(crate) fn RollDie(die: &mut BMC_Die, rng: &mut BMC_RNG) {
     die.m_value_total = Some(value as u8);
 }
 
-pub(crate) fn InitiativeWinner(game: &BMC_Game) -> usize {
+pub(crate) fn InitiativeWinner(game: &Game) -> usize {
     CheckInitiative(game).unwrap_or(0)
 }
 
-pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
+pub(crate) fn CheckInitiative(game: &Game) -> Option<usize> {
     let mut values = [Vec::new(), Vec::new()];
     for (player, output) in values.iter_mut().enumerate() {
         *output = game.m_player[player]
@@ -720,7 +708,7 @@ pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
                         property::TRIP | property::SLOW | property::STINGER | property::RAGE,
                     )
             })
-            .map(BMC_Die::GetValueTotal)
+            .map(Die::GetValueTotal)
             .collect();
         output.sort_unstable();
     }
@@ -748,7 +736,7 @@ pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
     None
 }
 
-pub(crate) fn AvailableDice(player: &BMC_Player) -> usize {
+pub(crate) fn AvailableDice(player: &Player) -> usize {
     player.m_die.iter().filter(|die| die.IsAvailable()).count()
 }
 
@@ -769,7 +757,7 @@ pub(crate) fn SwingRange(swing: char) -> (u8, u8) {
     }
 }
 
-pub(crate) fn RestoreDiceForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
+pub(crate) fn RestoreDiceForNewRound(game: &mut Game, template: &Game) {
     for player in 0..game.m_player.len() {
         let products = game.m_player[player].m_radioactive_products
             | game.m_player[player].m_rage_replacements;
@@ -830,7 +818,7 @@ pub(crate) fn RestoreDiceForNewRound(game: &mut BMC_Game, template: &BMC_Game) {
     }
 }
 
-pub(crate) fn RollRoundDice(game: &mut BMC_Game, rng: &mut BMC_RNG) {
+pub(crate) fn RollRoundDice(game: &mut Game, rng: &mut Rng) {
     for player in &mut game.m_player {
         player.m_score = 0.0;
         for die in &mut player.m_die {
@@ -847,7 +835,7 @@ pub(crate) fn RollRoundDice(game: &mut BMC_Game, rng: &mut BMC_RNG) {
     }
 }
 
-pub(crate) fn RecoverDizzyDice(player: &mut BMC_Player) {
+pub(crate) fn RecoverDizzyDice(player: &mut Player) {
     for die in &mut player.m_die {
         die.m_dizzy = false;
     }

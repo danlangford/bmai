@@ -10,13 +10,13 @@ script would obscure the rule being tested. A scenario reads like a Button Men
 position:
 
 ```rust
-use crate::BME_ATTACK::POWER;
-use crate::BME_PHASE::FIGHT;
+use crate::Attack::Power;
+use crate::Phase::Fight;
 
 scenario()
-    .phase(FIGHT)
+    .phase(Fight)
     .attacker("n30:27")
-    .attacks(POWER)
+    .attacks(Power)
     .defender("20:19")
     .expect_allowed(true)
     .expect_scores(0.0, 0.0)
@@ -46,7 +46,7 @@ final value. Both use recipe declaration indices, making the transferred points
 and the persistent state visible in the scenario.
 
 The DSL is deliberately test-only and dependency-free. It is not a second game
-implementation: setup is parsed by `BMC_Parser`, legality comes from
+implementation: setup is parsed by `Parser`, legality comes from
 `GenerateValidAttacksInCppOrder`, resolution comes from `ApplyAttack`, and
 round restoration comes from `RestoreDiceForNewRound`. Expected dice are
 written using the protocol notation and failures show canonical expected and

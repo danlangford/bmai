@@ -2,10 +2,10 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-use super::{BME_ATTACK, property};
+use super::{Attack, property};
 
 #[derive(Clone, Copy, Debug)]
-pub struct BMC_Die {
+pub struct Die {
     pub m_properties: u64,
     pub m_sides: [u8; 2],
     pub m_swing_type: [Option<char>; 2],
@@ -17,7 +17,7 @@ pub struct BMC_Die {
     pub m_in_reserve: bool,
 }
 
-impl BMC_Die {
+impl Die {
     pub fn HasProperty(&self, property: u64) -> bool {
         self.m_properties & property != 0
     }
@@ -53,12 +53,12 @@ impl BMC_Die {
         }
     }
 
-    pub fn Roll(&mut self, rng: &mut crate::rng::BMC_RNG) {
+    pub fn Roll(&mut self, rng: &mut crate::rng::Rng) {
         super::RollDie(self, rng);
     }
 
     pub fn OnSwingSet(&mut self, swing: char, value: u8) {
-        assert!(self.m_notset, "BMC_Die::OnSwingSet requires NOTSET state");
+        assert!(self.m_notset, "Die::OnSwingSet requires NOTSET state");
         for side in 0..2 {
             if self.m_swing_type[side] == Some(swing) {
                 self.m_sides[side] = value;
@@ -70,43 +70,43 @@ impl BMC_Die {
         self.m_dizzy = false;
     }
 
-    pub(super) fn CanDoAttack(&self, attack: BME_ATTACK, skill_dice: usize) -> bool {
+    pub(super) fn CanDoAttack(&self, attack: Attack, skill_dice: usize) -> bool {
         if !self.IsAvailable() || self.m_dizzy {
             return false;
         }
         if self.HasProperty(property::WARRIOR) {
-            return attack == BME_ATTACK::SKILL;
+            return attack == Attack::Skill;
         }
         if self.HasProperty(property::STEALTH) {
-            return attack == BME_ATTACK::SKILL && skill_dice > 1;
+            return attack == Attack::Skill && skill_dice > 1;
         }
         match attack {
-            BME_ATTACK::POWER => {
+            Attack::Power => {
                 !self.HasProperty(property::SHADOW | property::KONSTANT | property::FIRE)
                     && !(self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1)
             }
-            BME_ATTACK::SKILL => !self.HasProperty(property::UNSKILLED | property::BERSERK),
-            BME_ATTACK::BERSERK => self.HasProperty(property::BERSERK),
-            BME_ATTACK::SPEED => self.HasProperty(property::SPEED),
-            BME_ATTACK::TRIP => self.HasProperty(property::TRIP),
-            BME_ATTACK::SHADOW => {
+            Attack::Skill => !self.HasProperty(property::UNSKILLED | property::BERSERK),
+            Attack::Berserk => self.HasProperty(property::BERSERK),
+            Attack::Speed => self.HasProperty(property::SPEED),
+            Attack::Trip => self.HasProperty(property::TRIP),
+            Attack::Shadow => {
                 self.HasProperty(property::SHADOW)
                     || self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1
             }
             // Rush legality depends on the targets, so enumeration checks it.
-            BME_ATTACK::RUSH => true,
+            Attack::Rush => true,
         }
     }
 
-    pub(super) fn CanBeAttacked(&self, attack: BME_ATTACK, skill_dice: usize) -> bool {
+    pub(super) fn CanBeAttacked(&self, attack: Attack, skill_dice: usize) -> bool {
         if self.HasProperty(property::WARRIOR) {
             return false;
         }
         // Stealth overrides Insult, as in C++ RecomputeAttacks.
         if self.HasProperty(property::STEALTH) {
-            return attack == BME_ATTACK::SKILL && skill_dice > 1;
+            return attack == Attack::Skill && skill_dice > 1;
         }
-        if self.HasProperty(property::INSULT) && attack == BME_ATTACK::SKILL {
+        if self.HasProperty(property::INSULT) && attack == Attack::Skill {
             return false;
         }
         true

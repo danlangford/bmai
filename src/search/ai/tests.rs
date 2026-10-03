@@ -3,23 +3,23 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::{BME_ACTION, BME_ATTACK};
+use crate::{Action, Attack};
 
-fn test_move(score: f32) -> BMC_Move {
-    BMC_Move {
-        m_action: BME_ACTION::ATTACK,
-        m_attack: Some(BME_ATTACK::POWER),
+fn test_move(score: f32) -> Move {
+    Move {
+        m_action: Action::Attack,
+        m_attack: Some(Attack::Power),
         m_attackers: vec![0].into(),
         m_targets: vec![0].into(),
         m_score: score,
         m_turbo_option: -1,
-        m_fire: crate::game::BMC_FireAdjustment::default(),
+        m_fire: crate::game::FireAdjustment::default(),
     }
 }
 
 #[test]
 fn simulation_count_matches_cpp_decay_and_clamps() {
-    let ai = BMC_BMAI3::default();
+    let ai = Bmai3::default();
     assert_eq!(ai.FireCandidateLimit(), 500);
     assert_eq!(ai.ComputeNumberSims(1, 1), 500);
     assert_eq!(ai.ComputeNumberSims(12, 1), 416);
@@ -29,7 +29,7 @@ fn simulation_count_matches_cpp_decay_and_clamps() {
 
 #[test]
 fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
-    let ai = BMC_BMAI3 {
+    let ai = Bmai3 {
         m_max_sims: 5,
         ..Default::default()
     };
@@ -39,7 +39,7 @@ fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
 
 #[test]
 fn evaluation_selects_the_highest_probability_move() {
-    let mut ai = BMC_BMAI3 {
+    let mut ai = Bmai3 {
         m_max_sims: 20,
         m_max_branch: 40,
         ..Default::default()
@@ -53,7 +53,7 @@ fn evaluation_selects_the_highest_probability_move() {
 
 #[test]
 fn legacy_bmai_evaluates_each_move_to_completion_without_culling() {
-    let mut ai = BMC_BMAI3 {
+    let mut ai = Bmai3 {
         m_cull_moves: false,
         m_min_sims: 20,
         m_max_sims: 20,
@@ -96,7 +96,7 @@ fn legacy_bmai_evaluates_each_move_to_completion_without_culling() {
 
 #[test]
 fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
-    let mut ai = BMC_BMAI3 {
+    let mut ai = Bmai3 {
         m_min_sims: 20,
         m_max_sims: 20,
         m_max_branch: 100,
@@ -133,7 +133,7 @@ fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
 
 #[test]
 fn native_probability_evaluation_completes_the_surviving_candidate() {
-    let mut ai = BMC_BMAI3 {
+    let mut ai = Bmai3 {
         m_max_sims: 100,
         m_max_branch: 200,
         m_min_sims: 5,

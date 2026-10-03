@@ -20,7 +20,7 @@ impl ParserScenario {
         self
     }
 
-    pub(crate) fn expect_attack(mut self, attack: BME_ATTACK) -> Self {
+    pub(crate) fn expect_attack(mut self, attack: Attack) -> Self {
         self.expected_action.attack(attack);
         self
     }
@@ -62,7 +62,7 @@ impl ParserScenario {
             .expected_action
             .protocol_action()
             .expect("parser scenario has no expected action");
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         let mut output = Vec::new();
         parser
             .ParseString(&self.input, &mut output)

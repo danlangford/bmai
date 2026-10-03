@@ -4,6 +4,10 @@ Authority: C++ `main` at `1fcb826`, Konstant PR #82 at `4813530`, and the
 contract in `AGENTS.md`. PR #82 is treated as the reference for its signed
 Konstant behavior until it lands upstream.
 
+Rust types took Rust naming in 0.17.0 (for example `BMC_Game` became `Game`
+and `BME_ATTACK::POWER` became `Attack::Power`). Names in the C++ columns
+below are the C++ classes.
+
 ## Regression oracle policy
 
 `tests/golden/` holds the expected output of every `tests/fixtures/*in*.txt`,
@@ -133,7 +137,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] `ai <player> <type>`: type 0 legacy fixed-simulation BMAI, type 1 QAI,
   and type 2 batched/culling BMAI3 are wired for parser actions and games.
 - [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing/state.
-  `BMC_AI_SLOT` mirrors C++'s shared AI pointers: `g_ai` after `game`, and the
+  `AiSlot` mirrors C++'s shared AI pointers: `g_ai` after `game`, and the
   persistent `c_ai_type` objects selected by `ai`. Before 0.14.0 BMAIR copied
   settings per player and diverged whenever per-player settings met `game` or
   `ai`. `per_player_settings_change_the_shared_cpp_ai_object` asserts seven
@@ -159,7 +163,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 
 ### Public API mapping
 
-- `BMC_DieData`/`BMC_Die` state and accessors map to public `BMC_Die` fields,
+- `BMC_DieData`/`BMC_Die` state and accessors map to public `Die` fields,
   `HasProperty`, `GetSidesMax`, `GetValueTotal`, `IsAvailable`, `GetScore`,
   `Roll`, `OnSwingSet`, and `OnDizzyRecovered`; remaining event methods are
   invoked by the game engine so their ordering cannot be bypassed accidentally.
@@ -169,13 +173,13 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   C++ and therefore needs no Rust runtime type.
 - `BMC_Game::GenerateValidAttacks`, `SimulateAttack`, `CheckInitiative`, and
   `RecoverDizzyDice` retain corresponding Rust methods. Full round/game play,
-  preround, reserve, Chance, and Focus are exposed through `BMC_Parser` and
-  `PlayGames`, with `BMC_Game` serving as the explicit game template instead
+  preround, reserve, Chance, and Focus are exposed through `Parser` and
+  `PlayGames`, with `Game` serving as the explicit game template instead
   of C++ `PlayGame(BMC_Man*, BMC_Man*)` setup pointers.
 - `BMC_AI`, Maximizer, QAI, legacy BMAI, and BMAI3 virtual dispatch maps to
-  `BMC_AI_POLICY` plus `BMC_BMAI3`; its search settings, simulation-count
+  `AiPolicy` plus `Bmai3`; its search settings, simulation-count
   computation, evaluator, rollout selection, and last probability are public.
-- `BMC_Move`'s tagged union maps to `BMC_Move` for fight actions and internal
+- `BMC_Move`'s tagged union maps to `Move` for fight actions and internal
   typed Swing/Chance/Focus/Reserve moves. Protocol clients observe those move
   types through the same parser action output rather than union field access.
 - `BMC_RNG` maps directly to public `SRand`, `GetRand`, `GetRandMax`, and
@@ -191,8 +195,8 @@ case named in the final column.
 | C++ behavior | Rust implementation | Evidence | Status |
 |---|---|---|---|
 | `BMC_Parser::ParseDie*` | `protocol::legacy::die` | defined Twin Swing parser matrix, all advertised property prefixes, all phases and value/dizzy state, forced-win search scenario in four mode/worker combinations, `parity_defined_twin_swing_in.txt`, every shipped fixture | covered |
-| `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `BMC_Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
-| `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `BMC_Die::GetScore` | score branch tests and all upstream skill score ports | covered |
+| `BMC_Die::OnSwingSet`, `SetOption`, `Roll`, `Reset`; `BMC_Player::Reset`, `RollDice`, `OptimizeDice` | `ApplySwingMove`, `RollDie`, match reset, `Player::OptimizeDice` | both lifecycle panic ports, Turbo/Unique tests, exact seeded fixture traces | covered |
+| `BMC_Die::GetScore` ordinary/Poison/Value/Null/Warrior | `Die::GetScore` | score branch tests and all upstream skill score ports | covered |
 | `BMC_Game::GenerateValidAttacks`, `ValidAttack` for Power/Skill/Speed/Trip/Shadow/Berserk | `game::attack` direct ordered enumeration | upstream attack/Stealth/Insult tests | covered |
 | Konstant, Stealth, Warrior, Stinger, Unskilled, Queer attack restrictions | `CanDoAttack`, `CanBeAttacked`, direct stack enumeration plus `SkillStackCanHit` signed intervals | PR #82's complete signed-Konstant/Stinger/Warrior matrix, Stealth+Insult regressions, differentials | covered |
 | `BMC_Die::OnApplyAttackPlayer` Berserk, Mighty, Weak, Morphing, Turbo, Warrior and Ornery scheduling | `ApplyAttackPlayerEffects`, cached attack-phase available boundary | PR #82 participating/nonparticipating Ornery, Morphing/Twin/Speed, Turbo, Warrior tests | covered |
@@ -202,9 +206,9 @@ case named in the final column.
 | Jolt attacker consumption and attacker/captured-defender extra turns | Jolt snapshots and attacker-property removal in `ApplyAttackForPlayers` | focused Jolt, Trip, Konstant, multiple-die, and Time-and-Space tests | covered Rust extension |
 | ButtonWeavers Doppelganger Power-capture transformation and round reset | target recipe replacement in `ApplyAttackPlayerEffects`, Radioactive decay expansion, original-recipe restoration in `RestoreDiceForNewRound` | focused ordinary/Skill/Twin/Swing, Jolt, Time-and-Space/Konstant, Mighty/Turbo, Rage, Radioactive, and round-lifecycle tests | covered Rust extension |
 | ButtonWeavers Rage initiative, participation, replacement, and round reset | Rage initiative filtering, attacker snapshots, bounded replacement creation, and `RestoreDiceForNewRound` | focused Rage core rules plus Doppelganger, Jolt, Time-and-Space, Konstant, scoring, reroll, multi-target, and capacity scenarios | covered Rust extension |
-| ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `BMC_FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
+| ButtonWeavers Fire-assisted Power/Skill attacks and persistent turndowns | exact `FireAdjustment` attacker increases/helper reductions, direct candidate expansion, and pre-attack application | focused Fire rules plus Stinger, Konstant, Mighty, Weak, Rage, Jolt, Time-and-Space, Queer, Twin, multi-helper, typed-action, and legacy-wire scenarios | covered Rust extension |
 | ButtonWeavers Radioactive decay of the attacker in every one-attacker, one-target attack | `RadioactiveDecayApplies`, `ApplyRadioactiveAttackEffects`, `SplitRadioactiveAttacker`, the Trip branch of `ApplyAttackForPlayers`, and Turbo-candidate suppression in `ExpandTurboMoves` | every skills.html interaction plus responder-log reproductions in `search::tests::radioactive` | covered Rust extension |
-| ButtonWeavers Rush two-target attacks by or against Rush dice | `BME_ATTACK::RUSH` direct pair enumeration in `GenerateValidAttackCandidatesInCppOrder`, shared `CanDoAttack`/`CanBeAttacked` Speed restrictions, generic multi-target resolution | focused Rush rules plus Speed, Stealth, Warrior, Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing, Doppelganger/Radioactive, Jolt, Time-and-Space, Rage, Null, Value, Poison, Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, parser, and legacy/native search scenarios | covered Rust extension |
+| ButtonWeavers Rush two-target attacks by or against Rush dice | `Attack::Rush` direct pair enumeration in `GenerateValidAttackCandidatesInCppOrder`, shared `CanDoAttack`/`CanBeAttacked` Speed restrictions, generic multi-target resolution | focused Rush rules plus Speed, Stealth, Warrior, Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing, Doppelganger/Radioactive, Jolt, Time-and-Space, Rage, Null, Value, Poison, Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, parser, and legacy/native search scenarios | covered Rust extension |
 | `CheckInitiative`, Chance chain, Focus values, dizzy state | `game::mechanics` initiative plus `search::initiative` evaluators | Konstant Chance, C++ player-index asymmetry regression, parser initiative tests, and chained seeded differential | covered |
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `search::preround` generation, evaluation, and application | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
 | ButtonWeavers Auxiliary mutual accept/decline lifecycle and courtesy copy | `PrepareAuxiliaryPhase`, `ApplyAuxiliaryDecision`, legacy/native Auxiliary selectors | readable wire-protocol, mechanics, invalid-input, and worker-independence tests | covered Rust extension |
@@ -212,7 +216,7 @@ case named in the final column.
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | `search::fight` policy dispatch and `search::ai` evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `search::fight` rollout control plus `search::ai` batching/culling | exact ply-2 and full bug16 traces, evaluator tests | covered |
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `search::match_play` round, match, and fairness orchestration | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
-| `BMC_RNG` seed expansion, integer/float output, consumption order | `BMC_RNG` dispatching `LEGACY_PARK_MILLER_V1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
+| `BMC_RNG` seed expansion, integer/float output, consumption order | `Rng` dispatching `LegacyParkMillerV1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Native search deliberately advances beyond C++ BMAI3's probability-reporting
 behavior under the versioned `bmair-native-stream-v2` replay contract. Culling
@@ -552,14 +556,14 @@ raw pointers, or literal byte copying.
   stack and emits the C++ attacker/attack/target traversal without sorting.
 - [x] Replace heap-backed attacker/target lists in hot moves with a bounded,
   compact Rust representation corresponding to C++ `BMC_BitArray`, while
-  retaining ergonomic protocol/public access where needed. `BMC_DieIndexSet`
+  retaining ergonomic protocol/public access where needed. `DieIndexSet`
   is a copyable ten-bit value with ascending iteration and protocol mapping.
 - [x] Align bounded game/player/die storage with C++ fixed-capacity state where
   practical, or document measured reasons for retaining dynamic storage. Move
   and combination state is fixed-capacity. Player dice remain a `Vec` bounded
   by the C++ protocol's ten-die contract: this is the idiomatic initialized-prefix
   representation, and reusable simulations retain its allocation. A fixed
-  `[Option<BMC_Die>; 10]` would enlarge/complicate the public model without
+  `[Option<Die>; 10]` would enlarge/complicate the public model without
   removing hot-path allocation after simulation reuse.
 - [x] Map C++ cached die/player state (`m_sides_max`, attack/vulnerability bits,
   available dice, min/max value, property presence) and each invalidation/update
@@ -591,13 +595,13 @@ raw pointers, or literal byte copying.
 | C++ state/path | Rust-native equivalent | Decision |
 |---|---|---|
 | fixed `BMC_Game` assignment into one `sim` | `RestoreSimulation` into one scratch game per evaluator | aligned; same-length dice use direct slice copying, with allocation-retaining `Vec::clone_from` for shape changes |
-| `BMC_Move` attacker/target bit arrays | `BMC_DieIndexSet(u32)` | aligned; no per-move participant allocation |
-| `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `BMC_DieIndexStack`, stack-backed available-dice views, and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access and transient index vectors are eliminated |
+| `BMC_Move` attacker/target bit arrays | `DieIndexSet(u32)` | aligned; no per-move participant allocation |
+| `BMC_DieIndexStack` direct attack walk | fixed `[usize; 10]` `DieIndexStack`, stack-backed available-dice views, and direct outer attacker/attack traversal | aligned; safe bounds replace raw array access and transient index vectors are eliminated |
 | cached `m_sides_max` | sum of at most two `u8` sides in `GetSidesMax` | intentionally computed; cheaper invariant surface than synchronizing another field |
 | cached attack/vulnerability bits | property branches in `CanDoAttack`/`CanBeAttacked` | intentionally computed; preserves Stealth's skill-dice-count rule explicitly and avoids stale masks after property mutation |
 | cached available/min/max player values | bounded scans or first/last values after exact `OptimizeDice` ordering | intentionally computed over at most ten dice; capture/Trip/Chance/Focus already invoke the corresponding optimize points |
 | property-presence lookup | bounded `HasAvailableProperty`/iterator scans | matches C++ `HasDieWithProperty`, which also scans rather than caching |
-| preround/reserve BMAI batches and culling | `SelectSwingAction`/`SelectBMAIReserveAction` plus `BMC_BMAI3` evaluator settings | aligned, including static-level quirks and direct scratch restoration |
+| preround/reserve BMAI batches and culling | `SelectSwingAction`/`SelectBMAIReserveAction` plus `Bmai3` evaluator settings | aligned, including static-level quirks and direct scratch restoration |
 | Chance/Focus phase recursion | `SelectChanceAction`, `SelectFocusAction`, `EvaluateNextInitiativeAction` | aligned candidate batches, culling, phase transitions, and POV inversion |
 | fight BMAI/BMAI3/QAI | direct ordered generation, `EvaluateMove`, `PlayFightQAI`, `SelectQAIAction` | aligned simulation lifecycle, ply transition, culling, and RNG order |
 
@@ -605,8 +609,8 @@ raw pointers, or literal byte copying.
 
 The JSONL work observes the existing parser/search result; it does not parse
 legacy output to reconstruct actions and does not introduce an alternate game
-or AI path. `BmairSession::execute` runs `BMC_Parser::ParseString` against a
-clone and commits that exact state only on success. `BMC_Parser::GetAction`
+or AI path. `BmairSession::execute` runs `Parser::ParseString` against a
+clone and commits that exact state only on success. `Parser::GetAction`
 records the already-selected move beside the unchanged legacy writer, mapping
 optimized storage indices back to original protocol die indices.
 
@@ -633,7 +637,7 @@ optimized storage indices back to original protocol die indices.
 ## 0.4 streaming legacy subprocess contract
 
 - [x] C++ `ParseStdIn` consumes commands with `fgets`, and Rust
-  `BMC_Parser::ParseStream` now consumes complete commands with `BufRead`
+  `Parser::ParseStream` now consumes complete commands with `BufRead`
   without waiting for EOF. Both terminate on `quit`.
 - [x] `legacy_banner_is_flushed_before_input` proves banner availability, and
   `legacy_stdin_matches_bmaibagels_write_flush_read_contract` returns an action

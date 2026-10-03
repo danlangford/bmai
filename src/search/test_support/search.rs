@@ -25,7 +25,7 @@ pub(crate) const fn native(workers: usize) -> SearchMode {
 
 #[derive(Default)]
 pub(crate) struct SearchScenario {
-    phase: Option<BME_PHASE>,
+    phase: Option<Phase>,
     target_wins: Option<usize>,
     players: [Option<(f32, Vec<String>)>; 2],
     max_ply: Option<usize>,
@@ -41,7 +41,7 @@ pub(crate) struct SearchScenario {
 }
 
 impl SearchScenario {
-    pub(crate) fn phase(mut self, phase: BME_PHASE) -> Self {
+    pub(crate) fn phase(mut self, phase: Phase) -> Self {
         self.phase = Some(phase);
         self
     }
@@ -109,7 +109,7 @@ impl SearchScenario {
         self
     }
 
-    pub(crate) fn expect_attack(mut self, attack: BME_ATTACK) -> Self {
+    pub(crate) fn expect_attack(mut self, attack: Attack) -> Self {
         self.expected_action.attack(attack);
         self
     }
@@ -147,7 +147,7 @@ impl SearchScenario {
 
         for mode in &self.modes {
             let input = self.protocol_input(*mode);
-            let mut parser = BMC_Parser::default();
+            let mut parser = Parser::default();
             let mut output = Vec::new();
             parser
                 .ParseString(&input, &mut output)
@@ -182,7 +182,7 @@ impl SearchScenario {
     }
 
     fn protocol_input(&self, mode: SearchMode) -> String {
-        let phase = self.phase.unwrap_or(BME_PHASE::FIGHT);
+        let phase = self.phase.unwrap_or(Phase::Fight);
         let target_wins = self.target_wins.unwrap_or(3);
         let mut input = String::new();
         match mode {
@@ -239,16 +239,16 @@ impl SearchScenario {
     }
 }
 
-fn phase_name(phase: BME_PHASE) -> &'static str {
+fn phase_name(phase: Phase) -> &'static str {
     match phase {
-        BME_PHASE::AUXILIARY => "aux",
-        BME_PHASE::PREROUND => "preround",
-        BME_PHASE::INITIATIVE => "initiative",
-        BME_PHASE::CHANCE => "chance",
-        BME_PHASE::FOCUS => "focus",
-        BME_PHASE::FIGHT => "fight",
-        BME_PHASE::RESERVE => "reserve",
-        BME_PHASE::GAMEOVER => "gameover",
+        Phase::Auxiliary => "aux",
+        Phase::Preround => "preround",
+        Phase::Initiative => "initiative",
+        Phase::Chance => "chance",
+        Phase::Focus => "focus",
+        Phase::Fight => "fight",
+        Phase::Reserve => "reserve",
+        Phase::Gameover => "gameover",
     }
 }
 

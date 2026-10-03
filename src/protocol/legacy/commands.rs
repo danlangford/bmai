@@ -4,7 +4,7 @@
 
 use super::*;
 
-impl BMC_Parser {
+impl Parser {
     pub(super) fn ParseStringCommands<W: Write>(
         &mut self,
         data: &str,
@@ -31,7 +31,7 @@ impl BMC_Parser {
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("rng ") {
-                let algorithm = BME_RNG_ALGORITHM::Parse(value).ok_or_else(|| {
+                let algorithm = RngAlgorithm::Parse(value).ok_or_else(|| {
                     ParseError(format!(
                         "invalid RNG algorithm: {value} (expected legacy or park-miller)"
                     ))
@@ -71,7 +71,7 @@ impl BMC_Parser {
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                self.m_player_ai[player] = BMC_AI_SLOT::TYPE(value);
+                self.m_player_ai[player] = AiSlot::Type(value);
                 writeln!(output, "Setting AI for player {player} to type {value}")
                     .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "ply")? {
@@ -211,20 +211,20 @@ impl BMC_Parser {
                     self.Policies()
                 } else {
                     std::array::from_fn(|_| match mode {
-                        0 => BMC_AI_POLICY::RANDOM,
-                        1 => BMC_AI_POLICY::MAXIMIZE,
+                        0 => AiPolicy::Random,
+                        1 => AiPolicy::Maximize,
                         2 | 3 => {
-                            let ai = BMC_BMAI3 {
+                            let ai = Bmai3 {
                                 m_cull_moves: false,
                                 m_max_ply: self.m_ai.m_max_ply,
                                 m_rollout_policy: if mode == 2 {
-                                    BME_ROLLOUT_POLICY::MAXIMIZE_OR_RANDOM(probability)
+                                    RolloutPolicy::MaximizeOrRandom(probability)
                                 } else {
-                                    BME_ROLLOUT_POLICY::QAI
+                                    RolloutPolicy::Qai
                                 },
                                 ..Default::default()
                             };
-                            BMC_AI_POLICY::BMAI(Box::new(ai))
+                            AiPolicy::Bmai(Box::new(ai))
                         }
                         _ => unreachable!(),
                     })
@@ -340,17 +340,17 @@ impl BMC_Parser {
     }
 
     /// C++ holds NULL before any `game` or `ai`; `g_ai` is the closest stand-in.
-    pub(super) fn PlayerAI(&self, player: usize) -> &BMC_BMAI3 {
+    pub(super) fn PlayerAI(&self, player: usize) -> &Bmai3 {
         match self.m_player_ai[player] {
-            BMC_AI_SLOT::UNBOUND | BMC_AI_SLOT::GLOBAL => &self.m_ai,
-            BMC_AI_SLOT::TYPE(ai_type) => &self.m_type_ai[ai_type],
+            AiSlot::Unbound | AiSlot::Global => &self.m_ai,
+            AiSlot::Type(ai_type) => &self.m_type_ai[ai_type],
         }
     }
 
     pub(super) fn AIType(&self, player: usize) -> usize {
         match self.m_player_ai[player] {
-            BMC_AI_SLOT::UNBOUND | BMC_AI_SLOT::GLOBAL => 2,
-            BMC_AI_SLOT::TYPE(ai_type) => ai_type,
+            AiSlot::Unbound | AiSlot::Global => 2,
+            AiSlot::Type(ai_type) => ai_type,
         }
     }
 
@@ -359,38 +359,38 @@ impl BMC_Parser {
     pub(super) fn SetPlayerAI(
         &mut self,
         player: usize,
-        update: impl FnOnce(&mut BMC_BMAI3),
+        update: impl FnOnce(&mut Bmai3),
     ) -> Result<bool, ParseError> {
         let slot = *self
             .m_player_ai
             .get(player)
             .ok_or_else(|| ParseError(format!("invalid setting for ai player number: {player}")))?;
         match slot {
-            BMC_AI_SLOT::UNBOUND => {}
-            BMC_AI_SLOT::GLOBAL => update(&mut self.m_ai),
-            BMC_AI_SLOT::TYPE(1) => return Ok(false),
-            BMC_AI_SLOT::TYPE(ai_type) => update(&mut self.m_type_ai[ai_type]),
+            AiSlot::Unbound => {}
+            AiSlot::Global => update(&mut self.m_ai),
+            AiSlot::Type(1) => return Ok(false),
+            AiSlot::Type(ai_type) => update(&mut self.m_type_ai[ai_type]),
         }
         Ok(true)
     }
 
     pub(super) fn RequirePreround(&self) -> Result<(), ParseError> {
-        if self.m_game.m_phase == BME_PHASE::PREROUND {
+        if self.m_game.m_phase == Phase::Preround {
             Ok(())
         } else {
             Err(ParseError("Cannot PlayGame unless it is preround".into()))
         }
     }
 
-    pub(super) fn Policies(&self) -> [BMC_AI_POLICY; 2] {
+    pub(super) fn Policies(&self) -> [AiPolicy; 2] {
         std::array::from_fn(|player| match self.AIType(player) {
             0 => {
                 let mut ai = self.PlayerAI(player).clone();
                 ai.m_cull_moves = false;
-                BMC_AI_POLICY::BMAI(Box::new(ai))
+                AiPolicy::Bmai(Box::new(ai))
             }
-            1 => BMC_AI_POLICY::QAI,
-            2 => BMC_AI_POLICY::BMAI(Box::new(self.PlayerAI(player).clone())),
+            1 => AiPolicy::Qai,
+            2 => AiPolicy::Bmai(Box::new(self.PlayerAI(player).clone())),
             _ => unreachable!(),
         })
     }
@@ -431,7 +431,7 @@ impl BMC_Parser {
             }
             let mut dice = Vec::with_capacity(count);
             // A later undefined swing unlocks it again, as in C++.
-            let mut swing_set = BME_SWING_SET::NOT;
+            let mut swing_set = SwingSet::Not;
             for original_index in 0..count {
                 let definition = lines
                     .get(pos)
@@ -448,22 +448,22 @@ impl BMC_Parser {
                     )
                     .is_some_and(|value| value > 0)
                     {
-                        BME_SWING_SET::LOCKED
+                        SwingSet::Locked
                     } else {
-                        BME_SWING_SET::NOT
+                        SwingSet::Not
                     };
                 }
                 dice.push(die);
             }
             self.m_game.m_player[id].m_die = dice;
-            self.m_game.m_player[id].m_round_original_sides = [[0; 2]; crate::game::BMD_MAX_DICE];
+            self.m_game.m_player[id].m_round_original_sides = [[0; 2]; crate::game::MAX_DICE];
             self.m_game.m_player[id].m_round_transformed = 0;
             self.m_game.m_player[id].m_radioactive_products = 0;
             self.m_game.m_player[id].m_rage_replacements = 0;
             self.m_game.m_player[id].m_specials = 0;
             self.m_game.m_player[id].m_score = if matches!(
                 self.m_game.m_phase,
-                BME_PHASE::INITIATIVE | BME_PHASE::CHANCE | BME_PHASE::FOCUS
+                Phase::Initiative | Phase::Chance | Phase::Focus
             ) {
                 self.m_game.m_player[id]
                     .m_die
@@ -478,15 +478,15 @@ impl BMC_Parser {
             self.m_game.m_player[id].OptimizeDice();
             DebugPlayer(
                 &self.m_game.m_player[id],
-                self.m_game.m_phase == BME_PHASE::PREROUND,
+                self.m_game.m_phase == Phase::Preround,
                 output,
             )?;
         }
-        if self.m_game.m_phase == BME_PHASE::AUXILIARY {
+        if self.m_game.m_phase == Phase::Auxiliary {
             PrepareAuxiliaryPhase(&mut self.m_game)?;
         }
         // The `ai` type objects keep their settings across games, as in C++.
-        self.m_player_ai = [BMC_AI_SLOT::GLOBAL; 2];
+        self.m_player_ai = [AiSlot::Global; 2];
         Ok(pos)
     }
 }

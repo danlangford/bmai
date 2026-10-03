@@ -4,21 +4,21 @@
 
 #![allow(non_camel_case_types, non_snake_case)]
 
-use crate::BMC_Move;
+use crate::Move;
 use std::sync::OnceLock;
 
-const BMD_DEFAULT_SIMS: usize = 500;
-const BMD_MIN_SIMS: usize = 10;
-const BMD_DEFAULT_MAX_BRANCH: usize = 5000;
+const DEFAULT_SIMS: usize = 500;
+const MIN_SIMS: usize = 10;
+const DEFAULT_MAX_BRANCH: usize = 5000;
 
 #[derive(Clone, Copy, Debug)]
-pub enum BME_ROLLOUT_POLICY {
-    QAI,
-    MAXIMIZE_OR_RANDOM(f32),
+pub enum RolloutPolicy {
+    Qai,
+    MaximizeOrRandom(f32),
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BMC_Stats {
+pub struct Stats {
     pub m_sims: usize,
     pub m_total_sims: [usize; 10],
     pub m_total_moves: [usize; 10],
@@ -35,11 +35,11 @@ pub struct EvaluationCoordinate {
 
 #[derive(Clone, Copy, Debug)]
 pub struct EvaluationRequest<'a> {
-    pub candidate: &'a BMC_Move,
+    pub candidate: &'a Move,
     pub coordinate: EvaluationCoordinate,
 }
 
-impl BMC_Stats {
+impl Stats {
     pub fn OnFullSimulation(&mut self) {
         self.m_sims += 1;
     }
@@ -54,9 +54,9 @@ impl BMC_Stats {
 }
 
 #[derive(Clone, Debug)]
-pub struct BMC_BMAI3 {
+pub struct Bmai3 {
     pub m_cull_moves: bool,
-    pub m_rollout_policy: BME_ROLLOUT_POLICY,
+    pub m_rollout_policy: RolloutPolicy,
     pub m_max_ply: usize,
     pub m_max_branch: usize,
     pub m_min_sims: usize,
@@ -68,18 +68,18 @@ pub struct BMC_BMAI3 {
     pub m_last_sims_run: usize,
     pub m_last_probability_win: f32,
     pub m_ply_decay: f32,
-    pub m_stats: BMC_Stats,
+    pub m_stats: Stats,
 }
 
-impl Default for BMC_BMAI3 {
+impl Default for Bmai3 {
     fn default() -> Self {
         Self {
             m_cull_moves: true,
-            m_rollout_policy: BME_ROLLOUT_POLICY::QAI,
+            m_rollout_policy: RolloutPolicy::Qai,
             m_max_ply: 1,
-            m_max_branch: BMD_DEFAULT_MAX_BRANCH,
-            m_min_sims: BMD_MIN_SIMS,
-            m_max_sims: BMD_DEFAULT_SIMS,
+            m_max_branch: DEFAULT_MAX_BRANCH,
+            m_min_sims: MIN_SIMS,
+            m_max_sims: DEFAULT_SIMS,
             m_sims_per_check: 10,
             m_min_best_score_threshold: 0.25,
             m_max_best_score_threshold: 0.90,
@@ -87,12 +87,12 @@ impl Default for BMC_BMAI3 {
             m_last_sims_run: 0,
             m_last_probability_win: 0.0,
             m_ply_decay: 0.5,
-            m_stats: BMC_Stats::default(),
+            m_stats: Stats::default(),
         }
     }
 }
 
-impl BMC_BMAI3 {
+impl Bmai3 {
     pub(crate) fn FireCandidateLimit(&self) -> usize {
         (self.m_max_branch / self.m_min_sims.max(1)).max(1)
     }
@@ -112,14 +112,9 @@ impl BMC_BMAI3 {
     }
 
     /// The callback returns the mover's win probability.
-    pub fn EvaluateMoves<F>(
-        &mut self,
-        moves: Vec<BMC_Move>,
-        level: usize,
-        mut evaluate: F,
-    ) -> BMC_Move
+    pub fn EvaluateMoves<F>(&mut self, moves: Vec<Move>, level: usize, mut evaluate: F) -> Move
     where
-        F: FnMut(&BMC_Move, EvaluationCoordinate) -> f32,
+        F: FnMut(&Move, EvaluationCoordinate) -> f32,
     {
         self.EvaluateMovesBatched(moves, level, |requests| {
             requests
@@ -132,10 +127,10 @@ impl BMC_BMAI3 {
     /// Native mode parallelizes here, so results must match requests by position.
     pub fn EvaluateMovesBatched<F>(
         &mut self,
-        moves: Vec<BMC_Move>,
+        moves: Vec<Move>,
         level: usize,
         evaluate_batch: F,
-    ) -> BMC_Move
+    ) -> Move
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
@@ -145,10 +140,10 @@ impl BMC_BMAI3 {
     /// Keeps sampling the survivor so reported odds use the whole budget.
     pub(crate) fn EvaluateMovesBatchedToCompletion<F>(
         &mut self,
-        moves: Vec<BMC_Move>,
+        moves: Vec<Move>,
         level: usize,
         evaluate_batch: F,
-    ) -> BMC_Move
+    ) -> Move
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
@@ -157,11 +152,11 @@ impl BMC_BMAI3 {
 
     fn EvaluateMovesBatchedInner<F>(
         &mut self,
-        moves: Vec<BMC_Move>,
+        moves: Vec<Move>,
         level: usize,
         complete_survivor: bool,
         mut evaluate_batch: F,
-    ) -> BMC_Move
+    ) -> Move
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
@@ -203,7 +198,7 @@ impl BMC_BMAI3 {
             self.m_last_probability_win = best_score / sims as f32;
             return best;
         }
-        let mut state = BMC_ThinkState::new(moves, sims);
+        let mut state = ThinkState::new(moves, sims);
         static TRACE_AI: OnceLock<bool> = OnceLock::new();
         let trace = *TRACE_AI.get_or_init(|| std::env::var_os("BMAIR_TRACE_AI").is_some());
 
@@ -265,7 +260,7 @@ impl BMC_BMAI3 {
         state.best_move
     }
 
-    fn CullMoves(&self, state: &mut BMC_ThinkState) -> bool {
+    fn CullMoves(&self, state: &mut ThinkState) -> bool {
         if state.movelist.len() == 1 {
             return false;
         }
@@ -281,8 +276,8 @@ impl BMC_BMAI3 {
         while index < state.movelist.len() {
             let delta = state.best_score - state.score[index];
             let mut move_delta_threshold = delta_threshold;
-            if state.movelist[index].m_action == crate::BME_ACTION::ATTACK
-                && state.movelist[index].m_attack == Some(crate::BME_ATTACK::TRIP)
+            if state.movelist[index].m_action == crate::Action::Attack
+                && state.movelist[index].m_attack == Some(crate::Attack::Trip)
             {
                 move_delta_threshold *= 0.5;
             }
@@ -302,18 +297,18 @@ impl BMC_BMAI3 {
 }
 
 #[derive(Clone, Debug)]
-struct BMC_ThinkState {
+struct ThinkState {
     sims: usize,
     sims_run: usize,
     score: Vec<f32>,
     candidate_index: Vec<usize>,
     best_score: f32,
-    best_move: BMC_Move,
-    movelist: Vec<BMC_Move>,
+    best_move: Move,
+    movelist: Vec<Move>,
 }
 
-impl BMC_ThinkState {
-    fn new(movelist: Vec<BMC_Move>, sims: usize) -> Self {
+impl ThinkState {
+    fn new(movelist: Vec<Move>, sims: usize) -> Self {
         let best_move = movelist[0].clone();
         Self {
             sims,

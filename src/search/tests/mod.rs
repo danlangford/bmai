@@ -3,16 +3,16 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::BME_ACTION::{ATTACK, PASS};
-use crate::BME_ATTACK::{BERSERK, POWER, SKILL, SPEED, TRIP};
-use crate::BME_PHASE::FIGHT;
-use crate::BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1;
-use crate::game::{BMC_Die, BMC_DieIndexSet, BMC_Player};
+use crate::Action::{Attack, Pass};
+use crate::Attack::{Berserk, Power, Skill, Speed, Trip};
+use crate::Phase::Fight;
+use crate::RngAlgorithm::LegacyParkMillerV1;
+use crate::game::{Die, DieIndexSet, Player};
 use test_support::scenario;
 
-fn auxiliary_game() -> BMC_Game {
+fn auxiliary_game() -> Game {
     let input = "game 3\naux\nplayer 0 2 0\n6\n+Y\nplayer 1 2 0\n8\n+p12\nquit\n";
-    let mut parser = crate::BMC_Parser::default();
+    let mut parser = crate::Parser::default();
     parser.ParseString(input, &mut Vec::new()).unwrap();
     parser.m_game
 }
@@ -51,9 +51,9 @@ fn either_auxiliary_decline_removes_both_dice() {
 fn native_fight_score_summary_is_stable() {
     let input = include_str!("../../../tests/native-fixtures/fight.txt");
     let setup = input.split_once("getaction").unwrap().0;
-    let mut parser = crate::BMC_Parser::default();
+    let mut parser = crate::Parser::default();
     parser.ParseString(setup, &mut Vec::new()).unwrap();
-    let settings = BMC_BMAI3 {
+    let settings = Bmai3 {
         m_min_sims: 20,
         m_max_sims: 20,
         m_max_branch: 100,
@@ -66,11 +66,11 @@ fn native_fight_score_summary_is_stable() {
     };
 
     let available = std::thread::available_parallelism().map_or(1, usize::from);
-    let mut expected: Option<(BMC_Move, f32)> = None;
+    let mut expected: Option<(Move, f32)> = None;
     for workers in [1, 2, available] {
         let result = SelectBMAIActionAtLevelNative(
             &parser.m_game,
-            LEGACY_PARK_MILLER_V1,
+            LegacyParkMillerV1,
             replay,
             workers,
             &settings,
@@ -89,8 +89,8 @@ fn native_fight_score_summary_is_stable() {
     }
 
     let (action, probability) = expected.unwrap();
-    assert_eq!(action.m_action, ATTACK);
-    assert_eq!(action.m_attack, Some(POWER));
+    assert_eq!(action.m_action, Attack);
+    assert_eq!(action.m_attack, Some(Power));
     assert_eq!(action.m_attackers, vec![0]);
     assert_eq!(action.m_targets, vec![1]);
     assert_eq!(probability, 0.0);
@@ -105,20 +105,20 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     };
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     let contexts = [1, 2, available].map(|workers| NativeEvaluation {
-        algorithm: LEGACY_PARK_MILLER_V1,
+        algorithm: LegacyParkMillerV1,
         replay,
         workers,
     });
 
     let game = native_fixture_game(include_str!("../../../tests/native-fixtures/preround.txt"));
-    let settings = BMC_BMAI3 {
+    let settings = Bmai3 {
         m_min_sims: 1,
         m_max_sims: 1,
         m_max_branch: 20,
         ..Default::default()
     };
     let swing = contexts.map(|context| {
-        let mut rng = BMC_RNG::UntracedDefault();
+        let mut rng = Rng::UntracedDefault();
         let (action, score) = SelectSwingAction(&game, 0, &mut rng, &settings, 1, Some(context));
         (action.values().to_vec(), action.options().to_vec(), score)
     });
@@ -126,14 +126,14 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(swing[2], swing[0]);
 
     let game = native_fixture_game(include_str!("../../../tests/native-fixtures/chance.txt"));
-    let settings = BMC_BMAI3 {
+    let settings = Bmai3 {
         m_min_sims: 1,
         m_max_sims: 2,
         m_max_branch: 10,
         ..Default::default()
     };
     let chance = contexts.map(|context| {
-        let mut rng = BMC_RNG::UntracedDefault();
+        let mut rng = Rng::UntracedDefault();
         let (action, score) =
             SelectChanceAction(&game, 0, &mut rng, &settings, 1, 1, Some(context));
         (action.reroll, score)
@@ -142,14 +142,14 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(chance[2], chance[0]);
 
     let game = native_fixture_game(include_str!("../../../tests/native-fixtures/focus.txt"));
-    let settings = BMC_BMAI3 {
+    let settings = Bmai3 {
         m_min_sims: 1,
         m_max_sims: 2,
         m_max_branch: 40,
         ..Default::default()
     };
     let focus = contexts.map(|context| {
-        let mut rng = BMC_RNG::UntracedDefault();
+        let mut rng = Rng::UntracedDefault();
         let (action, score) = SelectFocusAction(&game, 0, &mut rng, &settings, 1, 1, Some(context));
         (action.values, score)
     });
@@ -162,18 +162,18 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
     let input = "mode native\nseed 17\ngame 2\npreround\n\
             player 0 2 0\nM1\nr30\nplayer 1 1 0\nM30\n";
     let game = native_fixture_game(input);
-    let ai = BMC_BMAI3 {
+    let ai = Bmai3 {
         m_min_sims: 1,
         m_max_sims: 1,
         m_max_branch: 10,
         ..Default::default()
     };
     let policies = [
-        BMC_AI_POLICY::BMAI(Box::new(ai.clone())),
-        BMC_AI_POLICY::BMAI(Box::new(ai)),
+        AiPolicy::Bmai(Box::new(ai.clone())),
+        AiPolicy::Bmai(Box::new(ai)),
     ];
     let run = |workers| {
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(17);
         let mut decision_index = 0;
         let mut native = NativeReplaySequence {
@@ -197,13 +197,13 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
 
 #[test]
 fn tied_round_has_no_loser() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     game.m_player[0].m_score = 12.0;
     game.m_player[1].m_score = 12.0;
     assert_eq!(RoundWinner(&game), None);
 }
 
-fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
+fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     let mut input = String::from("game\nfight\n");
     for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
         input.push_str(&format!("player {player} {} 0\n", dice.len()));
@@ -215,14 +215,14 @@ fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
     native_fixture_game(&input).GenerateValidAttacksInCppOrder()
 }
 
-fn native_fixture_game(input: &str) -> BMC_Game {
+fn native_fixture_game(input: &str) -> Game {
     let setup = input.split_once("getaction").map_or(input, |parts| parts.0);
-    let mut parser = crate::BMC_Parser::default();
+    let mut parser = crate::Parser::default();
     parser.ParseString(setup, &mut Vec::new()).unwrap();
     parser.m_game
 }
 
-fn apply_generated_attack(game: &mut BMC_Game, action: &BMC_Move, rng: &mut BMC_RNG) -> bool {
+fn apply_generated_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
     assert!(
         game.GenerateValidAttacksInCppOrder()
             .iter()
@@ -235,8 +235,8 @@ fn apply_generated_attack(game: &mut BMC_Game, action: &BMC_Move, rng: &mut BMC_
     ApplyAttack(game, action, rng)
 }
 
-fn swing_die(swing: char, properties: u64, original_index: usize) -> BMC_Die {
-    BMC_Die {
+fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
+    Die {
         m_properties: property::VALID | properties,
         m_sides: [0, 0],
         m_swing_type: [Some(swing), None],

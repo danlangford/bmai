@@ -5,12 +5,12 @@ use super::*;
 
 #[derive(Default)]
 pub(crate) struct Scenario {
-    phase: Option<BME_PHASE>,
+    phase: Option<Phase>,
     attacker_dice: Vec<String>,
     defender_dice: Vec<String>,
     specials: [Vec<&'static str>; 2],
     scores: Option<[f32; 2]>,
-    attack: Option<BME_ATTACK>,
+    attack: Option<Attack>,
     attackers: Option<Vec<usize>>,
     targets: Option<Vec<usize>>,
     turbo_option: Option<i16>,
@@ -30,7 +30,7 @@ pub(crate) struct Scenario {
 }
 
 impl Scenario {
-    pub(crate) fn phase(mut self, phase: BME_PHASE) -> Self {
+    pub(crate) fn phase(mut self, phase: Phase) -> Self {
         self.phase = Some(phase);
         self
     }
@@ -65,7 +65,7 @@ impl Scenario {
         self
     }
 
-    pub(crate) fn attacks(mut self, attack: BME_ATTACK) -> Self {
+    pub(crate) fn attacks(mut self, attack: Attack) -> Self {
         self.attack = Some(attack);
         self
     }
@@ -185,8 +185,8 @@ impl Scenario {
 
     #[track_caller]
     pub(crate) fn run(self) {
-        let phase = self.phase.unwrap_or(BME_PHASE::FIGHT);
-        assert_eq!(phase, BME_PHASE::FIGHT, "attack scenarios require FIGHT");
+        let phase = self.phase.unwrap_or(Phase::Fight);
+        assert_eq!(phase, Phase::Fight, "attack scenarios require FIGHT");
         assert!(
             !self.attacker_dice.is_empty(),
             "scenario has no attacker dice"
@@ -215,7 +215,7 @@ impl Scenario {
             &game.m_player[1].m_die,
             self.targets.as_deref().unwrap_or(&[0]),
         );
-        let mut move_to_apply = BMC_Move::attack(attack, attackers, targets, 0.0);
+        let mut move_to_apply = Move::attack(attack, attackers, targets, 0.0);
         if let Some(selection) = self.turbo_option {
             move_to_apply.m_turbo_option = selection;
         }
@@ -265,7 +265,7 @@ impl Scenario {
             return;
         }
 
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         if let Some(seed) = self.seed {
             rng.SRand(seed);
         }
@@ -325,7 +325,7 @@ impl Scenario {
 
 pub(super) fn resolve_original_indices(
     label: &str,
-    dice: &[BMC_Die],
+    dice: &[Die],
     requested: &[usize],
 ) -> Vec<usize> {
     requested
@@ -340,7 +340,7 @@ pub(super) fn resolve_original_indices(
         .collect()
 }
 
-pub(super) fn parse_game(attacker_dice: &[String], defender_dice: &[String]) -> BMC_Game {
+pub(super) fn parse_game(attacker_dice: &[String], defender_dice: &[String]) -> Game {
     parse_game_with_specials(attacker_dice, defender_dice, &[Vec::new(), Vec::new()])
 }
 
@@ -348,7 +348,7 @@ fn parse_game_with_specials(
     attacker_dice: &[String],
     defender_dice: &[String],
     specials: &[Vec<&'static str>; 2],
-) -> BMC_Game {
+) -> Game {
     // INITIATIVE makes the parser derive scores; `run` sets the real phase.
     let mut input = String::from("game\ninitiative\n");
     for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
@@ -363,7 +363,7 @@ fn parse_game_with_specials(
             input.push_str(&format!("special {player} {}\n", names.join(" ")));
         }
     }
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     parser
         .ParseString(&input, &mut Vec::new())
         .unwrap_or_else(|error| panic!("invalid scenario setup: {error}\n{input}"));
@@ -371,21 +371,21 @@ fn parse_game_with_specials(
 }
 
 #[track_caller]
-fn assert_active_dice(label: &str, game: &BMC_Game, player: usize, expected: &[String]) {
+fn assert_active_dice(label: &str, game: &Game, player: usize, expected: &[String]) {
     assert_dice_matching(label, game, player, expected, |die| {
         !die.m_captured && !die.m_in_reserve
     });
 }
 
 #[track_caller]
-fn assert_round_dice(label: &str, game: &BMC_Game, player: usize, expected: &[String]) {
+fn assert_round_dice(label: &str, game: &Game, player: usize, expected: &[String]) {
     assert_dice_matching(label, game, player, expected, |die| !die.m_in_reserve);
 }
 
 #[track_caller]
 fn assert_die_by_original_index(
     label: &str,
-    game: &BMC_Game,
+    game: &Game,
     player: usize,
     original_index: usize,
     expected: &str,
@@ -405,10 +405,10 @@ fn assert_die_by_original_index(
 #[track_caller]
 fn assert_dice_matching(
     label: &str,
-    game: &BMC_Game,
+    game: &Game,
     player: usize,
     expected: &[String],
-    include: impl Fn(&BMC_Die) -> bool,
+    include: impl Fn(&Die) -> bool,
 ) {
     let actual = game.m_player[player]
         .m_die
@@ -419,7 +419,7 @@ fn assert_dice_matching(
     assert_eq!(actual, expected, "unexpected {label} dice");
 }
 
-fn format_die(die: &BMC_Die) -> String {
+fn format_die(die: &Die) -> String {
     let mut output = String::new();
     for notation in crate::protocol::notation::DIE_PROPERTY_PREFIXES {
         if die.HasProperty(notation.property) {
@@ -455,7 +455,7 @@ fn format_die(die: &BMC_Die) -> String {
     output
 }
 
-fn format_side(die: &BMC_Die, side: usize) -> String {
+fn format_side(die: &Die, side: usize) -> String {
     die.m_swing_type[side].map_or_else(
         || die.m_sides[side].to_string(),
         |swing| format!("{swing}-{}", die.m_sides[side]),

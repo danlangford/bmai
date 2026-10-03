@@ -27,7 +27,7 @@ fn rage_focus_die_cannot_be_used_for_focus() {
 fn attacking_rage_die_loses_rage() {
     scenario()
         .attacker("G6:6")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .expect_attacker_dice(["6:5"])
         .expect_no_defender_dice()
@@ -39,7 +39,7 @@ fn attacking_rage_die_loses_rage() {
 fn only_participating_rage_dice_lose_rage() {
     scenario()
         .attackers(["G4:4", "G6:6", "8:8"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .defender("12:12")
         .using([0, 2])
         .expect_attacker_dice(["G6:6", "8:1", "4:1"])
@@ -51,7 +51,7 @@ fn only_participating_rage_dice_lose_rage() {
 fn unsuccessful_trip_consumes_attacking_rage_without_replacing_target() {
     scenario()
         .attacker("Gt6:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("G20:20")
         .expect_attacker_dice(["t6:5"])
         .expect_defender_dice(["G20:13"])
@@ -62,7 +62,7 @@ fn unsuccessful_trip_consumes_attacking_rage_without_replacing_target() {
 fn successful_trip_captures_and_replaces_a_rage_target() {
     scenario()
         .attacker("Gt20:20")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("G6:1")
         .expect_attacker_dice(["t20:1"])
         .expect_defender_dice(["6:3"])
@@ -74,7 +74,7 @@ fn successful_trip_captures_and_replaces_a_rage_target() {
 fn captured_rage_die_is_replaced_until_the_round_ends() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("G6:6")
         .expect_attacker_dice(["20:1"])
         .expect_defender_dice(["6:1"])
@@ -88,7 +88,7 @@ fn captured_rage_die_is_replaced_until_the_round_ends() {
 fn rage_replacement_does_not_apply_mighty_before_its_initial_roll() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("GH6:6")
         .expect_defender_dice(["H6:1"])
         .expect_captured_defender_dice(["HG6:6"])
@@ -99,7 +99,7 @@ fn rage_replacement_does_not_apply_mighty_before_its_initial_roll() {
 fn rage_replacement_does_not_apply_weak_before_its_initial_roll() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("Gh10:10")
         .expect_defender_dice(["h10:3"])
         .expect_captured_defender_dice(["hG10:10"])
@@ -110,7 +110,7 @@ fn rage_replacement_does_not_apply_weak_before_its_initial_roll() {
 fn rage_konstant_replacement_receives_an_initial_roll() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("Gk10:10")
         .expect_defender_dice(["k10:3"])
         .expect_captured_defender_dice(["kG10:10"])
@@ -121,7 +121,7 @@ fn rage_konstant_replacement_receives_an_initial_roll() {
 fn rage_replacement_keeps_jolt_and_captured_jolt_grants_an_extra_turn() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("GJ6:6")
         .expect_extra_turn(true)
         .expect_defender_dice(["J6:1"])
@@ -133,7 +133,7 @@ fn rage_replacement_keeps_jolt_and_captured_jolt_grants_an_extra_turn() {
 fn time_and_space_on_a_rage_replacement_does_not_grant_an_extra_turn() {
     scenario()
         .attacker("20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("G^6:6")
         .expect_extra_turn(false)
         .expect_defender_dice(["^6:1"])
@@ -145,7 +145,7 @@ fn time_and_space_on_a_rage_replacement_does_not_grant_an_extra_turn() {
 fn attacking_rage_jolt_loses_both_skills_and_grants_one_extra_turn() {
     scenario()
         .attacker("GJ6:6")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .expect_extra_turn(true)
         .expect_attacker_dice(["6:5"])
@@ -156,7 +156,7 @@ fn attacking_rage_jolt_loses_both_skills_and_grants_one_extra_turn() {
 fn null_capture_does_not_add_null_to_the_rage_replacement() {
     scenario()
         .attacker("n20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("G6:6")
         .expect_defender_dice(["6:1"])
         .expect_captured_defender_dice(["nG6:6"])
@@ -167,7 +167,7 @@ fn null_capture_does_not_add_null_to_the_rage_replacement() {
 fn value_capture_does_not_add_value_to_the_rage_replacement() {
     scenario()
         .attacker("v20:20")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("G6:6")
         .expect_defender_dice(["6:1"])
         .expect_captured_defender_dice(["vG6:6"])
@@ -178,7 +178,7 @@ fn value_capture_does_not_add_value_to_the_rage_replacement() {
 fn multi_target_rage_replacement_keeps_radioactive_and_poison() {
     scenario()
         .attacker("z8:8")
-        .attacks(SPEED)
+        .attacks(Speed)
         .defenders(["pG%7:7", "1:1"])
         .targeting([0, 1])
         .expect_defender_dice(["p%7:6"])
@@ -190,7 +190,7 @@ fn multi_target_rage_replacement_keeps_radioactive_and_poison() {
 fn rage_replacement_preserves_mood_sides_without_triggering_mood() {
     scenario()
         .attacker("30:30")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("GX?-20:20")
         .expect_defender_dice(["X-20?:13"])
         .expect_captured_defender_dice(["GX-20?:20"])
@@ -201,7 +201,7 @@ fn rage_replacement_preserves_mood_sides_without_triggering_mood() {
 fn attacking_rage_time_and_space_loses_rage_and_can_grant_an_extra_turn() {
     scenario()
         .attacker("G^6:6")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .expect_extra_turn(true)
         .expect_attacker_dice(["^6:5"])
@@ -212,7 +212,7 @@ fn attacking_rage_time_and_space_loses_rage_and_can_grant_an_extra_turn() {
 fn attacking_konstant_rage_loses_rage_without_rerolling() {
     scenario()
         .attackers(["Gk6:6", "8:8"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .defender("2:2")
         .using([0, 1])
         .expect_attacker_dice(["k6:6", "8:1"])
@@ -223,7 +223,7 @@ fn attacking_konstant_rage_loses_rage_without_rerolling() {
 fn rage_replacement_preserves_twin_and_turbo_abilities() {
     scenario()
         .attacker("30:30")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("G(4,6)!:10")
         .expect_defender_dice(["(4,6)!:4"])
         .expect_captured_defender_dice(["G(4,6)!:10"])
@@ -234,7 +234,7 @@ fn rage_replacement_preserves_twin_and_turbo_abilities() {
 fn ten_captured_rage_dice_fit_the_bounded_twenty_die_round_pool() {
     scenario()
         .attacker("z10:10")
-        .attacks(SPEED)
+        .attacks(Speed)
         .defenders(["G1:1"; 10])
         .targeting(0..10)
         .expect_defender_dice(["1:1"; 10])
@@ -245,12 +245,12 @@ fn ten_captured_rage_dice_fit_the_bounded_twenty_die_round_pool() {
 #[test]
 #[should_panic(expected = "Rage replacement exceeds the transformed dice capacity of 20")]
 fn rage_replacement_reports_transformed_capacity_exhaustion() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', 0, 0);
     attacker.m_sides[0] = 20;
     attacker.m_value_total = Some(20);
     game.m_player[0].m_die.push(attacker);
-    for original_index in 0..BMD_MAX_DICE {
+    for original_index in 0..MAX_DICE {
         let mut target = swing_die('P', 0, original_index);
         target.m_sides[0] = 1;
         target.m_value_total = Some(1);
@@ -259,16 +259,16 @@ fn rage_replacement_reports_transformed_capacity_exhaustion() {
         }
         game.m_player[1].m_die.push(target);
     }
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
+    let action = Move::attack(Power, [0], [0], 0.0);
 
-    ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+    ApplyAttack(&mut game, &action, &mut Rng::default());
 }
 
 #[test]
 fn speed_attack_replaces_each_captured_rage_die() {
     scenario()
         .attacker("z10:10")
-        .attacks(SPEED)
+        .attacks(Speed)
         .defenders(["G4:4", "G6:6"])
         .targeting([0, 1])
         .expect_defender_dice(["4:3", "6:1"])

@@ -7,7 +7,7 @@ use crate::game::SplitRadioactiveAttacker;
 
 #[test]
 fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
-    let mut template = BMC_Game::default();
+    let mut template = Game::default();
     for original_index in 0..10 {
         let mut attacker = swing_die(
             'P',
@@ -31,8 +31,8 @@ fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
             .iter()
             .position(|die| die.HasProperty(property::RADIOACTIVE | property::DOPPELGANGER))
             .expect("an untransformed Radioactive Doppelganger remains");
-        let action = BMC_Move::attack(POWER, [attacker], [0], 0.0);
-        apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+        let action = Move::attack(Power, [attacker], [0], 0.0);
+        apply_generated_attack(&mut game, &action, &mut Rng::default());
     }
 
     assert_eq!(game.m_player[0].m_die.len(), 20);
@@ -44,7 +44,7 @@ fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
 #[test]
 #[should_panic(expected = "Radioactive decay exceeds the transformed dice capacity of 20")]
 fn radioactive_decay_reports_transformed_capacity_exhaustion() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     for original_index in 0..20 {
         let properties = if original_index == 0 {
             property::RADIOACTIVE | property::DOPPELGANGER
@@ -62,7 +62,7 @@ fn radioactive_decay_reports_transformed_capacity_exhaustion() {
 
 #[test]
 fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
-    let mut template = BMC_Game::default();
+    let mut template = Game::default();
     let mut original = swing_die('P', property::DOPPELGANGER | property::TRIP, 0);
     original.m_sides = [20, 0];
     original.m_value_total = Some(20);
@@ -75,8 +75,8 @@ fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
 
     let mut game = template.clone();
     game.m_player[0].m_die[0].m_sides = [18, 0];
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
-    apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+    let action = Move::attack(Power, [0], [0], 0.0);
+    apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert_eq!(game.m_player[0].m_die[0].m_sides, [8, 10]);
 
     RestoreDiceForNewRound(&mut game, &template);
@@ -89,7 +89,7 @@ fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
 
 #[test]
 fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
-    let mut template = BMC_Game::default();
+    let mut template = Game::default();
     let mut original = swing_die('P', property::DOPPELGANGER, 0);
     original.m_sides = [18, 0];
     original.m_value_total = Some(18);
@@ -103,10 +103,10 @@ fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
     template.m_player[1].m_die = vec![first_target, second_target];
 
     let mut game = template.clone();
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
-    apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+    let action = Move::attack(Power, [0], [0], 0.0);
+    apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER));
-    apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+    apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert!(game.m_player[0].m_die[0].HasProperty(property::POISON));
 
     RestoreDiceForNewRound(&mut game, &template);
@@ -118,7 +118,7 @@ fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
 
 #[test]
 fn doppelganger_round_reset_does_not_preserve_mighty_side_changes() {
-    let mut template = BMC_Game::default();
+    let mut template = Game::default();
     let mut original = swing_die('P', property::DOPPELGANGER | property::MIGHTY, 0);
     original.m_swing_type = [None, None];
     original.m_sides = [6, 0];
@@ -131,8 +131,8 @@ fn doppelganger_round_reset_does_not_preserve_mighty_side_changes() {
     template.m_player[1].m_die = vec![target];
 
     let mut game = template.clone();
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
-    apply_generated_attack(&mut game, &action, &mut BMC_RNG::default());
+    let action = Move::attack(Power, [0], [0], 0.0);
+    apply_generated_attack(&mut game, &action, &mut Rng::default());
     RestoreDiceForNewRound(&mut game, &template);
 
     assert_eq!(game.m_player[0].m_die[0].m_sides, [6, 0]);

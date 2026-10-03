@@ -6,7 +6,7 @@
 
 use super::{ApplyAttack, RestoreDiceForNewRound};
 use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
-use crate::{BMC_Die, BMC_Game, BMC_Move, BMC_Parser, BMC_RNG, BME_ATTACK, BME_PHASE, property};
+use crate::{Attack, Die, Game, Move, Parser, Phase, Rng, property};
 use std::ops::RangeInclusive;
 
 pub(crate) fn scenario() -> Scenario {
@@ -36,7 +36,7 @@ enum ExpectedAction {
     Pass,
     Surrender,
     Auxiliary(Option<usize>),
-    Attack(BME_ATTACK),
+    Attack(Attack),
     Reserve(Option<usize>),
     SetSwing {
         swings: Vec<SwingSelection>,
@@ -53,7 +53,7 @@ impl ActionExpectation {
         self.action = Some(ExpectedAction::Surrender);
     }
 
-    fn attack(&mut self, attack: BME_ATTACK) {
+    fn attack(&mut self, attack: Attack) {
         self.action = Some(ExpectedAction::Attack(attack));
     }
 

@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::BME_ATTACK::{RUSH, SHADOW};
+use crate::Attack::{Rush, Shadow};
 use test_support::{LEGACY, NATIVE, native, search_scenario};
 
-fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move> {
+fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     attacks_by(attacker_dice, defender_dice)
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(RUSH))
+        .filter(|candidate| candidate.m_attack == Some(Rush))
         .collect()
 }
 
@@ -16,7 +16,7 @@ fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<BMC_Move>
 fn rush_die_captures_two_dice_whose_values_sum_to_its_value() {
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_extra_turn(false)
@@ -32,7 +32,7 @@ fn rush_die_captures_two_dice_whose_values_sum_to_its_value() {
 fn any_die_may_rush_when_a_target_is_a_rush_die() {
     scenario()
         .attacker("6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["#2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["6:5"])
@@ -46,7 +46,7 @@ fn a_rush_die_in_either_target_position_enables_the_attack() {
     for defenders in [["#4:4", "2:2"], ["4:4", "#2:2"]] {
         scenario()
             .attacker("6:6")
-            .attacks(RUSH)
+            .attacks(Rush)
             .defenders(defenders)
             .targeting([0, 1])
             .expect_no_defender_dice()
@@ -58,7 +58,7 @@ fn a_rush_die_in_either_target_position_enables_the_attack() {
 fn rush_requires_a_rush_attacker_or_target() {
     scenario()
         .attacker("6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -70,7 +70,7 @@ fn rush_targets_must_sum_exactly_to_the_attacker_value() {
     for targets in [["2:2", "3:3"], ["3:3", "4:4"]] {
         scenario()
             .attacker("#6:6")
-            .attacks(RUSH)
+            .attacks(Rush)
             .defenders(targets)
             .targeting([0, 1])
             .expect_allowed(false)
@@ -82,14 +82,14 @@ fn rush_targets_must_sum_exactly_to_the_attacker_value() {
 fn rush_requires_exactly_two_targets() {
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defender("#6:6")
         .expect_allowed(false)
         .run();
 
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["1:1", "2:2", "3:3"])
         .targeting([0, 1, 2])
         .expect_allowed(false)
@@ -122,7 +122,7 @@ fn rush_enumerates_every_qualifying_target_pair_once() {
 fn stealth_dice_cannot_rush_or_be_rushed() {
     scenario()
         .attacker("#d6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -130,7 +130,7 @@ fn stealth_dice_cannot_rush_or_be_rushed() {
 
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["d2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -141,7 +141,7 @@ fn stealth_dice_cannot_rush_or_be_rushed() {
 fn warrior_dice_cannot_rush_or_be_rushed() {
     scenario()
         .attacker("#`6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -149,7 +149,7 @@ fn warrior_dice_cannot_rush_or_be_rushed() {
 
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["`2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -165,7 +165,7 @@ fn a_stealth_or_warrior_die_in_either_target_position_blocks_rush() {
         ] {
             scenario()
                 .attacker("#6:6")
-                .attacks(RUSH)
+                .attacks(Rush)
                 .defenders(defenders)
                 .targeting([0, 1])
                 .expect_allowed(false)
@@ -178,7 +178,7 @@ fn a_stealth_or_warrior_die_in_either_target_position_blocks_rush() {
 fn dizzy_focus_die_cannot_rush() {
     scenario()
         .attacker("#f6:6d")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -189,7 +189,7 @@ fn dizzy_focus_die_cannot_rush() {
 fn insult_and_dizzy_dice_can_be_rushed() {
     scenario()
         .attacker("#6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["I2:2", "f4:4d"])
         .targeting([0, 1])
         .expect_no_defender_dice()
@@ -211,7 +211,7 @@ fn attack_restricted_skills_can_still_rush() {
     ] {
         scenario()
             .attacker(attacker)
-            .attacks(RUSH)
+            .attacks(Rush)
             .defenders(defenders)
             .targeting([0, 1])
             .expect_no_defender_dice()
@@ -229,14 +229,14 @@ fn speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush() {
         .filter(|candidate| candidate.m_targets.len() == 2)
         .map(|candidate| candidate.m_attack)
         .collect::<Vec<_>>();
-    assert_eq!(speed, vec![Some(SPEED)]);
+    assert_eq!(speed, vec![Some(Speed)]);
 }
 
 #[test]
 fn rush_targets_are_also_vulnerable_to_ordinary_speed_attacks() {
     scenario()
         .attacker("z9:9")
-        .attacks(SPEED)
+        .attacks(Speed)
         .defenders(["#2:2", "3:3", "4:4"])
         .targeting([0, 1, 2])
         .expect_no_defender_dice()
@@ -247,7 +247,7 @@ fn rush_targets_are_also_vulnerable_to_ordinary_speed_attacks() {
 fn stinger_rush_attacker_must_match_the_sum_exactly() {
     scenario()
         .attacker("#g6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "3:3"])
         .targeting([0, 1])
         .expect_allowed(false)
@@ -255,7 +255,7 @@ fn stinger_rush_attacker_must_match_the_sum_exactly() {
 
     scenario()
         .attacker("#g6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_no_defender_dice()
@@ -266,7 +266,7 @@ fn stinger_rush_attacker_must_match_the_sum_exactly() {
 fn fire_cannot_assist_a_rush_attack() {
     scenario()
         .attackers(["#6:4", "F6:4"])
-        .attacks(RUSH)
+        .attacks(Rush)
         .using([0])
         .defenders(["2:2", "3:3"])
         .targeting([0, 1])
@@ -280,7 +280,7 @@ fn fire_cannot_assist_a_rush_attack() {
 fn twin_values_are_summed_on_both_sides_of_a_rush() {
     scenario()
         .attacker("#(4,4):7")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["(2,2):3", "4:4"])
         .targeting([0, 1])
         .expect_no_defender_dice()
@@ -291,7 +291,7 @@ fn twin_values_are_summed_on_both_sides_of_a_rush() {
 fn konstant_rush_attacker_keeps_its_value_and_konstant_targets_are_captured() {
     scenario()
         .attacker("#k6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["k2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["k#6:6"])
@@ -303,7 +303,7 @@ fn konstant_rush_attacker_keeps_its_value_and_konstant_targets_are_captured() {
 fn berserk_rush_attacker_keeps_berserk_and_its_size() {
     scenario()
         .attacker("#B6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["B#6:5"])
@@ -314,7 +314,7 @@ fn berserk_rush_attacker_keeps_berserk_and_its_size() {
 fn morphing_rush_attacker_does_not_morph_after_two_captures() {
     scenario()
         .attacker("#m6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "(2,2):4"])
         .targeting([0, 1])
         .expect_attacker_dice(["m#6:5"])
@@ -325,7 +325,7 @@ fn morphing_rush_attacker_does_not_morph_after_two_captures() {
 fn doppelganger_radioactive_rush_neither_copies_nor_decays() {
     scenario()
         .attacker("#D%6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "%20:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["D%#6:5"])
@@ -337,7 +337,7 @@ fn doppelganger_radioactive_rush_neither_copies_nor_decays() {
 fn attacking_jolt_rush_grants_an_extra_turn_and_loses_jolt() {
     scenario()
         .attacker("#J6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_extra_turn(true)
@@ -349,7 +349,7 @@ fn attacking_jolt_rush_grants_an_extra_turn_and_loses_jolt() {
 fn rushing_a_captured_jolt_die_grants_an_extra_turn() {
     scenario()
         .attacker("6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["#J2:2", "4:4"])
         .targeting([0, 1])
         .expect_extra_turn(true)
@@ -360,7 +360,7 @@ fn rushing_a_captured_jolt_die_grants_an_extra_turn() {
 fn time_and_space_rush_attacker_can_grant_an_extra_turn() {
     scenario()
         .attacker("#^6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_extra_turn(true)
@@ -372,7 +372,7 @@ fn time_and_space_rush_attacker_can_grant_an_extra_turn() {
 fn rage_rush_attacker_loses_rage_and_both_rage_targets_are_replaced() {
     scenario()
         .attacker("#G6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["#G2:2", "G4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["#6:5"])
@@ -387,7 +387,7 @@ fn rage_rush_attacker_loses_rage_and_both_rage_targets_are_replaced() {
 fn null_rush_attacker_nullifies_both_captured_dice() {
     scenario()
         .attacker("#n6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_captured_defender_dice(["n2:2", "n4:4"])
@@ -399,7 +399,7 @@ fn null_rush_attacker_nullifies_both_captured_dice() {
 fn value_and_poison_scoring_apply_to_each_rushed_die() {
     scenario()
         .attacker("#v6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["6:4", "p8:2"])
         .targeting([0, 1])
         .expect_captured_defender_dice(["pv8:2", "v6:4"])
@@ -412,7 +412,7 @@ fn value_and_poison_scoring_apply_to_each_rushed_die() {
 fn mighty_and_weak_rush_attackers_resize_before_rerolling() {
     scenario()
         .attacker("#H6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["H#8:1"])
@@ -420,7 +420,7 @@ fn mighty_and_weak_rush_attackers_resize_before_rerolling() {
 
     scenario()
         .attacker("#h6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["h#4:1"])
@@ -431,7 +431,7 @@ fn mighty_and_weak_rush_attackers_resize_before_rerolling() {
 fn mood_rush_attacker_and_nonparticipating_ornery_dice_reroll() {
     scenario()
         .attackers(["#X?-6:6", "o20:20"])
-        .attacks(RUSH)
+        .attacks(Rush)
         .using([0])
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
@@ -443,7 +443,7 @@ fn mood_rush_attacker_and_nonparticipating_ornery_dice_reroll() {
 fn maximum_rush_attacker_rerolls_to_its_maximum() {
     scenario()
         .attacker("#M8:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .expect_attacker_dice(["M#8:8"])
@@ -462,7 +462,7 @@ fn turbo_rush_attacker_offers_each_turbo_size() {
 
     scenario()
         .attacker("#X!-6:6")
-        .attacks(RUSH)
+        .attacks(Rush)
         .defenders(["2:2", "4:4"])
         .targeting([0, 1])
         .turbo(20)
@@ -487,7 +487,7 @@ fn rush_notation_inside_game_blocks_is_not_a_comment() {
             .any(|die| die.HasProperty(property::RUSH) && die.GetValueTotal() == 4)
     );
 
-    let mut streamed = crate::BMC_Parser::default();
+    let mut streamed = crate::Parser::default();
     streamed
         .ParseStream(&mut input.as_bytes(), &mut Vec::new())
         .unwrap();
@@ -497,7 +497,7 @@ fn rush_notation_inside_game_blocks_is_not_a_comment() {
 #[test]
 fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .player(0, 3.0, ["#6:6"])
         .player(1, 3.0, ["2:2", "4:4"])
         .ply(2)
@@ -506,7 +506,7 @@ fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
         .surrender(false)
         .modes([LEGACY, NATIVE, native(4)])
         .expect_player_win_percent(0, 100.0..=100.0)
-        .expect_attack(RUSH)
+        .expect_attack(Rush)
         .using([0])
         .targeting([1, 0])
         .run();
@@ -521,6 +521,6 @@ fn shadow_rush_die_offers_both_attack_types() {
         .into_iter()
         .filter_map(|candidate| candidate.m_attack)
         .collect::<Vec<_>>();
-    assert!(attacks.contains(&RUSH));
-    assert!(attacks.contains(&SHADOW));
+    assert!(attacks.contains(&Rush));
+    assert!(attacks.contains(&Shadow));
 }

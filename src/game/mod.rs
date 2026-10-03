@@ -12,9 +12,9 @@ pub mod special;
 mod state;
 mod types;
 
-pub(crate) use action::BMC_FireAdjustment;
-pub use action::{BMC_DieIndexSet, BMC_Move};
-pub use die::BMC_Die;
+pub(crate) use action::FireAdjustment;
+pub use action::{DieIndexSet, Move};
+pub use die::Die;
 pub(crate) use mechanics::{
     ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice, CheckInitiative,
     InitiativeWinner, OptimizeDice, RecoverDizzyDice, RestoreDiceForNewRound, RollDie,
@@ -22,10 +22,10 @@ pub(crate) use mechanics::{
 };
 #[cfg(test)]
 pub(crate) use mechanics::{ApplyAttackPlayerEffects, SplitRadioactiveAttacker};
-pub use player::BMC_Player;
-pub use state::BMC_Game;
-pub(crate) use state::{BMD_MAX_DICE, BMD_MAX_INPUT_DICE};
-pub use types::{BME_ACTION, BME_ATTACK, BME_PHASE, BME_SWING_SET};
+pub use player::Player;
+pub use state::Game;
+pub(crate) use state::{MAX_DICE, MAX_INPUT_DICE};
+pub use types::{Action, Attack, Phase, SwingSet};
 
 #[cfg(test)]
 mod tests;

@@ -6,20 +6,20 @@
 
 pub(crate) mod ai;
 
-use self::ai::{BMC_BMAI3, BME_ROLLOUT_POLICY, EvaluationCoordinate};
+use self::ai::{Bmai3, EvaluationCoordinate, RolloutPolicy};
 use crate::game::{
-    ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice, BMC_Die, BMC_Game,
-    BMC_Move, BME_ACTION, BME_SWING_SET, CheckInitiative, InitiativeWinner, OptimizeDice,
-    RecoverDizzyDice, RestoreDiceForNewRound, RollDie, RollRoundDice, RollScheduledDie, SwingRange,
+    Action, ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice,
+    CheckInitiative, Die, Game, InitiativeWinner, Move, OptimizeDice, RecoverDizzyDice,
+    RestoreDiceForNewRound, RollDie, RollRoundDice, RollScheduledDie, SwingRange, SwingSet,
     property, special,
 };
 #[cfg(test)]
-use crate::game::{ApplyAttackPlayerEffects, BMD_MAX_DICE};
-use crate::rng::BMC_RNG;
+use crate::game::{ApplyAttackPlayerEffects, MAX_DICE};
+use crate::rng::Rng;
 
 #[derive(Clone, Copy)]
 struct NativeEvaluation {
-    algorithm: crate::BME_RNG_ALGORITHM,
+    algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
 }
@@ -29,7 +29,7 @@ fn CompletesNativeProbabilitySample(native: Option<NativeEvaluation>) -> bool {
 }
 
 struct NativeReplaySequence<'a> {
-    algorithm: crate::BME_RNG_ALGORITHM,
+    algorithm: crate::RngAlgorithm,
     root_seed: u64,
     workers: usize,
     decision_index: &'a mut u64,
@@ -57,12 +57,11 @@ const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
 use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum BMC_AI_POLICY {
-    BMAI(Box<BMC_BMAI3>),
-    QAI,
-    RANDOM,
-    MAXIMIZE,
+pub enum AiPolicy {
+    Bmai(Box<Bmai3>),
+    Qai,
+    Random,
+    Maximize,
 }
 
 struct TraceSettings {

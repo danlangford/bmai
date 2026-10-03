@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn PrepareAuxiliaryPhase(game: &mut BMC_Game) -> Result<(), ParseError> {
+pub(super) fn PrepareAuxiliaryPhase(game: &mut Game) -> Result<(), ParseError> {
     let auxiliary = game.m_player.each_ref().map(|player| {
         player
             .m_die
@@ -27,13 +27,13 @@ pub(super) fn PrepareAuxiliaryPhase(game: &mut BMC_Game) -> Result<(), ParseErro
 }
 
 pub(super) fn AddCourtesyAuxiliary(
-    game: &mut BMC_Game,
+    game: &mut Game,
     source_player: usize,
     target_player: usize,
 ) -> Result<(), ParseError> {
-    if game.m_player[target_player].m_die.len() >= BMD_MAX_DICE {
+    if game.m_player[target_player].m_die.len() >= MAX_DICE {
         return Err(ParseError(format!(
-            "courtesy Auxiliary die exceeds player {target_player} capacity {BMD_MAX_DICE}"
+            "courtesy Auxiliary die exceeds player {target_player} capacity {MAX_DICE}"
         )));
     }
     let mut die = *game.m_player[source_player]
@@ -45,6 +45,6 @@ pub(super) fn AddCourtesyAuxiliary(
     die.m_value_total = None;
     die.m_notset = true;
     game.m_player[target_player].m_die.push(die);
-    game.m_player[target_player].m_swing_set = BME_SWING_SET::NOT;
+    game.m_player[target_player].m_swing_set = SwingSet::Not;
     Ok(())
 }

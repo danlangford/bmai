@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::{
-    BMC_Parser, BuildIdentity, Capabilities, ParseError, ProbabilityEstimate, ProtocolAction,
+    BuildIdentity, Capabilities, ParseError, Parser, ProbabilityEstimate, ProtocolAction,
     ReplayMetadata, SessionMetadata,
 };
 
@@ -78,7 +78,7 @@ impl Response {
 
 #[derive(Clone, Debug, Default)]
 pub struct BmairSession {
-    parser: BMC_Parser,
+    parser: Parser,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -110,7 +110,7 @@ impl BmairSession {
     }
 
     pub fn reset(&mut self) {
-        self.parser = BMC_Parser::default();
+        self.parser = Parser::default();
     }
 
     pub fn metadata(&self) -> SessionMetadata {

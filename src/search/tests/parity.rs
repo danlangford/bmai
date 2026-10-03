@@ -11,7 +11,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
         (property::WEAK, 4),
         (property::MAXIMUM, 6),
     ] {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut chance = swing_die('P', property::CHANCE | property::KONSTANT | properties, 0);
         chance.m_sides[0] = 6;
         chance.m_value_total = Some(3);
@@ -21,7 +21,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
         opponent.m_value_total = Some(20);
         game.m_player[1].m_die = vec![opponent];
 
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(1);
         ApplyChanceMove(&mut game, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 3);
@@ -29,7 +29,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
     }
 
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut chance = swing_die('P', property::CHANCE | effect, 0);
         chance.m_sides[0] = 6;
         chance.m_value_total = Some(1);
@@ -38,7 +38,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
         opponent.m_sides[0] = 20;
         opponent.m_value_total = Some(20);
         game.m_player[1].m_die = vec![opponent];
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(1);
         ApplyChanceMove(&mut game, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
         assert_eq!(game.m_player[0].m_die[0].m_sides[0], expected_sides);
@@ -48,7 +48,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
 #[test]
 fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut attacker = swing_die('P', property::TRIP, 0);
         attacker.m_sides[0] = 6;
         attacker.m_value_total = Some(6);
@@ -57,9 +57,9 @@ fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
         target.m_value_total = Some(3);
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
+        let action = Move::attack(Trip, [0], [0], 0.0);
 
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(1);
         ApplyAttack(&mut game, &action, &mut rng);
         assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
@@ -70,7 +70,7 @@ fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
 #[test]
 fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut attacker = swing_die('P', 0, 0);
         attacker.m_sides[0] = 6;
         attacker.m_value_total = Some(6);
@@ -85,8 +85,8 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
 
         ApplyAttack(
             &mut game,
-            &BMC_Move::attack(POWER, [0], [0], 0.0),
-            &mut BMC_RNG::default(),
+            &Move::attack(Power, [0], [0], 0.0),
+            &mut Rng::default(),
         );
         let ornery = game.m_player[0]
             .m_die
@@ -97,7 +97,7 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
         assert_eq!(ornery.m_sides[0], expected_sides);
     }
 
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', 0, 0);
     attacker.m_sides[0] = 6;
     attacker.m_value_total = Some(6);
@@ -109,9 +109,9 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
     target.m_value_total = Some(1);
     game.m_player[0].m_die = vec![attacker, ornery];
     game.m_player[1].m_die = vec![target];
-    let mut rng = BMC_RNG::default();
+    let mut rng = Rng::default();
     rng.SRand(1);
-    ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
+    ApplyAttack(&mut game, &Move::attack(Power, [0], [0], 0.0), &mut rng);
     let ornery = game.m_player[0]
         .m_die
         .iter()
@@ -133,20 +133,20 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
         die
     };
 
-    let mut pass_game = BMC_Game::default();
+    let mut pass_game = Game::default();
     pass_game.m_player[0].m_die = vec![mood_die()];
     ApplyAttack(
         &mut pass_game,
-        &BMC_Move {
-            m_action: PASS,
+        &Move {
+            m_action: Pass,
             m_attack: None,
-            m_attackers: BMC_DieIndexSet::default(),
-            m_targets: BMC_DieIndexSet::default(),
+            m_attackers: DieIndexSet::default(),
+            m_targets: DieIndexSet::default(),
             m_score: 0.0,
             m_turbo_option: -1,
-            m_fire: crate::game::BMC_FireAdjustment::default(),
+            m_fire: crate::game::FireAdjustment::default(),
         },
-        &mut BMC_RNG::default(),
+        &mut Rng::default(),
     );
     assert_eq!(
         (
@@ -156,7 +156,7 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
         (6, 3)
     );
 
-    let mut attack_game = BMC_Game::default();
+    let mut attack_game = Game::default();
     let mut attacker = swing_die('P', 0, 1);
     attacker.m_sides[0] = 6;
     attacker.m_value_total = Some(6);
@@ -165,11 +165,11 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
     target.m_value_total = Some(1);
     attack_game.m_player[0].m_die = vec![attacker, mood_die()];
     attack_game.m_player[1].m_die = vec![target];
-    let mut rng = BMC_RNG::default();
+    let mut rng = Rng::default();
     rng.SRand(3);
     ApplyAttack(
         &mut attack_game,
-        &BMC_Move::attack(POWER, [0], [0], 0.0),
+        &Move::attack(Power, [0], [0], 0.0),
         &mut rng,
     );
     let mood = attack_game.m_player[0]
@@ -183,13 +183,13 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
 
 #[test]
 fn pr82_konstant_time_and_space_never_grants_extra_turn() {
-    for attack in [TRIP, SKILL] {
-        let mut game = BMC_Game::default();
+    for attack in [Trip, Skill] {
+        let mut game = Game::default();
         let mut konstant = swing_die(
             'P',
             property::KONSTANT
                 | property::TIME_AND_SPACE
-                | if attack == TRIP { property::TRIP } else { 0 },
+                | if attack == Trip { property::TRIP } else { 0 },
             0,
         );
         konstant.m_sides[0] = 6;
@@ -199,8 +199,8 @@ fn pr82_konstant_time_and_space_never_grants_extra_turn() {
         target.m_sides[0] = 1;
         target.m_value_total = Some(1);
         game.m_player[1].m_die = vec![target];
-        let action = if attack == TRIP {
-            BMC_Move::attack(attack, [0], [0], 0.0)
+        let action = if attack == Trip {
+            Move::attack(attack, [0], [0], 0.0)
         } else {
             let mut ordinary = swing_die('P', 0, 1);
             ordinary.m_sides[0] = 2;
@@ -208,15 +208,15 @@ fn pr82_konstant_time_and_space_never_grants_extra_turn() {
             game.m_player[0].m_die.push(ordinary);
             game.m_player[1].m_die[0].m_sides[0] = 5;
             game.m_player[1].m_die[0].m_value_total = Some(5);
-            BMC_Move::attack(attack, [0, 1], [0], 0.0)
+            Move::attack(attack, [0, 1], [0], 0.0)
         };
-        assert!(!ApplyAttack(&mut game, &action, &mut BMC_RNG::default()));
+        assert!(!ApplyAttack(&mut game, &action, &mut Rng::default()));
     }
 }
 
 #[test]
 fn pr82_ordinary_time_and_space_uses_its_rerolled_value() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', property::TIME_AND_SPACE, 0);
     attacker.m_sides[0] = 6;
     attacker.m_value_total = Some(1);
@@ -225,9 +225,9 @@ fn pr82_ordinary_time_and_space_uses_its_rerolled_value() {
     target.m_value_total = Some(1);
     game.m_player[0].m_die = vec![attacker];
     game.m_player[1].m_die = vec![target];
-    let mut rng = BMC_RNG::default();
+    let mut rng = Rng::default();
     rng.SRand(3);
-    let extra_turn = ApplyAttack(&mut game, &BMC_Move::attack(POWER, [0], [0], 0.0), &mut rng);
+    let extra_turn = ApplyAttack(&mut game, &Move::attack(Power, [0], [0], 0.0), &mut rng);
     assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
     assert!(extra_turn);
 }
