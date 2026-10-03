@@ -17,6 +17,14 @@ pub(crate) fn search_scenario() -> SearchScenario {
     SearchScenario::default()
 }
 
+pub(crate) fn initiative_scenario() -> InitiativeScenario {
+    InitiativeScenario::default()
+}
+
+pub(crate) fn roll(die: impl Into<String>) -> RollScenario {
+    RollScenario::new(die.into())
+}
+
 pub(crate) fn parser_scenario(input: impl Into<String>) -> ParserScenario {
     ParserScenario {
         input: input.into(),
@@ -84,14 +92,18 @@ impl ActionExpectation {
     }
 }
 
+mod initiative;
 mod mechanics;
 mod parser;
+mod roll;
 mod search;
 
+pub(crate) use initiative::InitiativeScenario;
 pub(crate) use mechanics::Scenario;
 use mechanics::{parse_game, resolve_original_indices};
 pub(crate) use parser::ParserScenario;
 use parser::legacy_action_suffix;
+pub(crate) use roll::RollScenario;
 pub(crate) use search::{LEGACY, NATIVE, SearchScenario, legacy_with_workers, native};
 
 #[cfg(test)]

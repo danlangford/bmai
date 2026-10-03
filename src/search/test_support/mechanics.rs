@@ -11,6 +11,7 @@ pub(crate) struct Scenario {
     specials: [Vec<&'static str>; 2],
     scores: Option<[f32; 2]>,
     attack: Option<Attack>,
+    passes: bool,
     attackers: Option<Vec<usize>>,
     targets: Option<Vec<usize>>,
     turbo_option: Option<i16>,
@@ -67,6 +68,11 @@ impl Scenario {
 
     pub(crate) fn attacks(mut self, attack: Attack) -> Self {
         self.attack = Some(attack);
+        self
+    }
+
+    pub(crate) fn passes(mut self) -> Self {
+        self.passes = true;
         self
     }
 
@@ -195,7 +201,10 @@ impl Scenario {
             !self.defender_dice.is_empty(),
             "scenario has no defender dice"
         );
-        let attack = self.attack.expect("scenario has no attack type");
+        assert!(
+            self.passes != self.attack.is_some(),
+            "scenario needs exactly one of attacks() or passes()"
+        );
         let mut game =
             parse_game_with_specials(&self.attacker_dice, &self.defender_dice, &self.specials);
         game.m_phase = phase;
@@ -215,7 +224,10 @@ impl Scenario {
             &game.m_player[1].m_die,
             self.targets.as_deref().unwrap_or(&[0]),
         );
-        let mut move_to_apply = Move::attack(attack, attackers, targets, 0.0);
+        let mut move_to_apply = match self.attack {
+            Some(attack) => Move::attack(attack, attackers, targets, 0.0),
+            None => super::super::fight::PassMove(),
+        };
         if let Some(selection) = self.turbo_option {
             move_to_apply.m_turbo_option = selection;
         }
@@ -242,16 +254,17 @@ impl Scenario {
             );
             move_to_apply.m_fire.m_amounts[index] = (u16::from(*new_value) - old_value) as u8;
         }
-        let allowed = game
-            .GenerateValidAttacksInCppOrder()
-            .iter()
-            .any(|candidate| {
-                candidate.m_attack == move_to_apply.m_attack
-                    && candidate.m_attackers == move_to_apply.m_attackers
-                    && candidate.m_targets == move_to_apply.m_targets
-                    && candidate.m_turbo_option == move_to_apply.m_turbo_option
-                    && candidate.m_fire == move_to_apply.m_fire
-            });
+        let allowed = self.passes
+            || game
+                .GenerateValidAttacksInCppOrder()
+                .iter()
+                .any(|candidate| {
+                    candidate.m_attack == move_to_apply.m_attack
+                        && candidate.m_attackers == move_to_apply.m_attackers
+                        && candidate.m_targets == move_to_apply.m_targets
+                        && candidate.m_turbo_option == move_to_apply.m_turbo_option
+                        && candidate.m_fire == move_to_apply.m_fire
+                });
 
         if let Some(expected) = self.expected_allowed {
             assert_eq!(allowed, expected, "unexpected attack legality");
@@ -397,13 +410,23 @@ fn assert_die_by_original_index(
         .unwrap_or_else(|| panic!("no active {label} die has declaration index {original_index}"));
     assert_eq!(
         format_die(die),
-        expected,
+        normalize_die(expected),
         "unexpected {label} die {original_index}"
     );
 }
 
+/// Lets tests spell expected dice in any token order, as they spell inputs.
+fn normalize_die(expected: &str) -> String {
+    let mut parser = Parser::default();
+    let input = format!("game\nfight\nplayer 0 1 0\n{expected}\nplayer 1 1 0\n1:1\n");
+    match parser.ParseString(&input, &mut Vec::new()) {
+        Ok(()) => format_die(&parser.m_game.m_player[0].m_die[0]),
+        Err(_) => expected.to_string(),
+    }
+}
+
 #[track_caller]
-fn assert_dice_matching(
+pub(super) fn assert_dice_matching(
     label: &str,
     game: &Game,
     player: usize,
@@ -416,10 +439,14 @@ fn assert_dice_matching(
         .filter(|die| include(die))
         .map(format_die)
         .collect::<Vec<_>>();
+    let expected = expected
+        .iter()
+        .map(|die| normalize_die(die))
+        .collect::<Vec<_>>();
     assert_eq!(actual, expected, "unexpected {label} dice");
 }
 
-fn format_die(die: &Die) -> String {
+pub(super) fn format_die(die: &Die) -> String {
     let mut output = String::new();
     for notation in crate::protocol::notation::DIE_PROPERTY_PREFIXES {
         if die.HasProperty(notation.property) {

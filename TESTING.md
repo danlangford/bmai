@@ -45,14 +45,53 @@ fired-up value and `.firing([(die, value)])` names each assisting Fire die's
 final value. Both use recipe declaration indices, making the transferred points
 and the persistent state visible in the scenario.
 
+`.passes()` replaces `.attacks(...)` to check what a Pass leaves behind, such
+as Ornery dice that stay put. Expected dice may list skills in any order; each
+expectation is parsed and printed the same way as the actual die.
+
+Chance and Focus have their own scenario:
+
+```rust
+initiative_scenario()
+    .player(["cX?-13:1", "1:1"])
+    .opponent(["20:20"])
+    .chance_rerolls([0])
+    .expect_player_dice(["cX?-12:1", "1:1"])
+    .run();
+
+initiative_scenario()
+    .player(["f20:12"])
+    .opponent(["20:20"])
+    .focuses([(0, 7)])
+    .expect_player_dice(["f20:7d"])
+    .expect_player_dice_next_turn(["f20:7"])
+    .run();
+```
+
+`.seated_as(1)` puts the player in seat 1, for C++'s seat-keyed Chance rule,
+and `.expect_initiative(...)` and `.expect_chance_success(...)` check the
+result.
+
+`roll(die)` rerolls one die many times on a single RNG stream, for rules about
+which sizes or values a reroll can produce:
+
+```rust
+roll("(Y,Y)&-13:13")
+    .times(200)
+    .expect_twin_halves_match()
+    .expect_sizes([2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+    .run();
+```
+
 The DSL is deliberately test-only and dependency-free. It is not a second game
 implementation: setup is parsed by `Parser`, legality comes from
 `GenerateValidAttacksInCppOrder`, resolution comes from `ApplyAttack`, and
-round restoration comes from `RestoreDiceForNewRound`. Expected dice are
+round restoration comes from `RestoreDiceForNewRound`, and Chance, Focus, and
+rerolls use `ApplyChanceMove`, `ApplyFocusMove`, and `RollScheduledDie`. Expected dice are
 written using the protocol notation and failures show canonical expected and
 actual recipes.
 
 Prefer a scenario when its recipe and outcome tell the whole rules story. Keep
 a lower-level test when it needs to inspect an intermediate state, exercise a
-non-attack phase not represented by the DSL, or prove a particular internal
+phase the DSL does not cover (swing selection, reserve, auxiliary), or prove a particular internal
 ordering or RNG-consumption boundary.

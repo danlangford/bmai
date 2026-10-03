@@ -118,23 +118,10 @@ fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
 
 #[test]
 fn doppelganger_round_reset_does_not_preserve_mighty_side_changes() {
-    let mut template = Game::default();
-    let mut original = swing_die('P', property::DOPPELGANGER | property::MIGHTY, 0);
-    original.m_swing_type = [None, None];
-    original.m_sides = [6, 0];
-    original.m_value_total = Some(6);
-    template.m_player[0].m_die = vec![original];
-    let mut target = swing_die('P', property::MAXIMUM, 0);
-    target.m_swing_type = [None, None];
-    target.m_sides = [4, 0];
-    target.m_value_total = Some(4);
-    template.m_player[1].m_die = vec![target];
-
-    let mut game = template.clone();
-    let action = Move::attack(Power, [0], [0], 0.0);
-    apply_generated_attack(&mut game, &action, &mut Rng::default());
-    RestoreDiceForNewRound(&mut game, &template);
-
-    assert_eq!(game.m_player[0].m_die[0].m_sides, [6, 0]);
-    assert!(game.m_player[0].m_die[0].HasProperty(property::DOPPELGANGER | property::MIGHTY));
+    scenario()
+        .attacker("DH6:6")
+        .attacks(Power)
+        .defender("M4:4")
+        .expect_next_round_attacker_dice(["HD6:6"])
+        .run();
 }

@@ -16,23 +16,6 @@ fn boom_choices(attacker: &str, target: &str) -> Vec<Move> {
         .collect()
 }
 
-fn mood_sizes(die: &str) -> Vec<u8> {
-    let mut rng = Rng::default();
-    let mut sizes = (0..200)
-        .map(|_| {
-            let mut game = native_fixture_game(&format!(
-                "game\nfight\nplayer 0 1 0\n{die}\nplayer 1 1 0\n1:1\n"
-            ));
-            game.m_player[0].m_die[0].m_notset = true;
-            RollScheduledDie(&mut game, 0, 0, &mut rng);
-            game.m_player[0].m_die[0].m_sides[0]
-        })
-        .collect::<Vec<_>>();
-    sizes.sort_unstable();
-    sizes.dedup();
-    sizes
-}
-
 #[test]
 fn boom_removes_the_boom_die_unscored_and_rerolls_the_target() {
     scenario()
@@ -307,50 +290,38 @@ fn search_reports_a_boom_when_it_is_the_only_attack() {
 
 #[test]
 fn mad_resizes_to_even_sizes_in_its_swing_range() {
-    assert_eq!(
-        mood_sizes("Y&-13:5"),
-        vec![2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
-    );
+    roll("Y&-13:5")
+        .times(200)
+        .expect_sizes([2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+        .run();
 }
 
 #[test]
 fn mood_resizes_to_standard_die_sizes_in_its_swing_range() {
-    assert_eq!(mood_sizes("R?-11:5"), vec![2, 4, 6, 8, 10, 12]);
+    roll("R?-11:5")
+        .times(200)
+        .expect_sizes([2, 4, 6, 8, 10, 12])
+        .run();
 }
 
 #[test]
 fn a_mad_twin_shares_one_size() {
     // Engine probe.
-    let mut rng = Rng::default();
-    for _ in 0..20 {
-        let mut game =
-            native_fixture_game("game\nfight\nplayer 0 1 0\n(Y,Y)&-13:13\nplayer 1 1 0\n1:1\n");
-        game.m_player[0].m_die[0].m_notset = true;
-        RollScheduledDie(&mut game, 0, 0, &mut rng);
-        let sides = game.m_player[0].m_die[0].m_sides;
-        assert_eq!(sides[0], sides[1]);
-        assert_eq!(sides[0] % 2, 0);
-    }
+    roll("(Y,Y)&-13:13")
+        .times(200)
+        .expect_twin_halves_match()
+        .expect_sizes([2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
+        .run();
 }
 
 #[test]
 fn chance_rerolls_resize_mood_dice() {
-    let mut game =
-        native_fixture_game("game\nchance\nplayer 0 2 0\ncX?-13:1\n1:1\nplayer 1 1 0\n20:20\n");
-    ApplyChanceMove(
-        &mut game,
-        0,
-        1,
-        &ChanceMove { reroll: vec![0] },
-        &mut Rng::default(),
-    );
-    let die = game.m_player[0]
-        .m_die
-        .iter()
-        .find(|die| die.m_original_index == 0)
-        .unwrap();
-    assert_ne!(die.m_sides[0], 13);
-    assert!([4, 6, 8, 10, 12, 20].contains(&die.m_sides[0]));
+    initiative_scenario()
+        .player(["cX?-13:1", "1:1"])
+        .opponent(["20:20"])
+        .chance_rerolls([0])
+        .expect_player_dice(["cX?-12:1", "1:1"])
+        .run();
 }
 
 #[test]
