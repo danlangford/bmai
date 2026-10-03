@@ -15,13 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
-- Consider button-level game setup (for example `player 0 * 0 Echo`), so
-  BMAIR could build pre-game specials such as Echo, Zero, Bruno, Pappy, and
-  RandomBM recipes itself. Today the caller resolves them before sending dice.
-- Check ButtonWeavers' by-reference attacker loop for same-die Radioactive
-  Doppelganger and Morphing dice against a running engine.
-- Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
-  attack reroll.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
 
 ## [0.16.0] - 2026-10-02
@@ -51,6 +44,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An infinite `turbo_accuracy` now considers every Turbo size instead of
   hanging the search.
 - Morphing now applies to single-target Berserk and Speed attacks.
+- Checked against the running ButtonWeavers engine:
+  - A Doppelganger copy of a Mighty or Weak die now resizes on the attack
+    reroll, even if Konstant.
+  - A Radioactive Doppelganger's first copy keeps the captured die's value
+    without rerolling.
+  - A Radioactive Morphing attacker decays into two full-size morphs.
 - A Trip die morphs only after a successful Trip: it rolls at its own size
   first, then rerolls at the captured die's size. A failed Trip never morphs.
 

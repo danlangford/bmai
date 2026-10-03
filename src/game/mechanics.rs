@@ -295,9 +295,25 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     }
 
     let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
-    for product in products.iter() {
+    for (position, product) in products.iter().enumerate() {
         if copies_target && attacker_is_radioactive {
             CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
+            if position == 0 {
+                // ButtonWeavers' attacker loop never rerolls the first copy,
+                // which keeps the captured die's value and size.
+                let value = game.m_player[target_player].m_die[target].m_value_total;
+                let die = &mut game.m_player[attacker_player].m_die[product];
+                die.m_value_total = value;
+                die.m_notset = false;
+            } else {
+                ApplyBeforeRollEffects(game, attacker_player, product);
+            }
+        } else if attacker_is_radioactive
+            && MorphingApplies(action)
+            && original.HasProperty(property::MORPHING)
+        {
+            // ButtonWeavers runs each product's Morphing hook again.
+            MorphIntoTarget(game, attacker_player, target_player, product, target);
         } else if !original.HasProperty(property::KONSTANT) {
             // ButtonWeavers resets doesReroll on Doppelganger copies, so only
             // the original die's Konstant can stop the resize.
@@ -555,6 +571,8 @@ pub(crate) fn ApplyAttackPlayerEffects(
     {
         let target = action.m_targets.first().expect("Doppelganger target");
         CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
+        // The copy rerolls even if Konstant, so Mighty and Weak resize it.
+        ApplyBeforeRollEffects(game, attacker_player, attacker);
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {

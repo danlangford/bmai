@@ -381,7 +381,7 @@ reproduce dice from ButtonWeavers' own `responder0*Test.php` action logs.
 | Doppelganger decays, then each product copies the target | `radioactive_doppelganger_decays_before_each_product_copies_the_target`, `radioactive_doppelganger_decays_before_both_products_copy_the_target`; the Radioactive-target order is `doppelganger_copy_of_a_radioactive_target_decays` (responder log) |
 | Mad is lost on decay | not applicable: BMAIR does not implement Mad, and BMAIBagels refuses Mad games |
 | Mood is lost on decay | `decay_removes_mood_so_the_products_keep_their_halved_size` |
-| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`, `radioactive_morphing_attacker_morphs_before_it_decays` |
+| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`; a Radioactive Morphing attacker follows the engine instead: `radioactive_morphing_attacker_decays_into_two_full_size_morphs` |
 | Time and Space is lost on decay | `decay_removes_time_and_space_so_an_odd_reroll_grants_no_extra_turn` |
 | Turbo is lost on decay | `decay_removes_turbo_and_turbo_sizes_are_not_offered`; Trip keeps its sizes because it rolls first: `turbo_trip_still_offers_sizes_because_it_rolls_before_decaying` |
 
@@ -397,12 +397,21 @@ Further scenarios cover Konstant and Weak products, Rage on both sides, Null,
 scoring, next-round restoration, the dice-pool limit, and legacy/native search.
 Decay products always roll fresh values, including Konstant and Trip
 attackers. Mighty and Weak resize the products of ordinary attackers and of a
-Doppelganger copy of a Radioactive target, but not Konstant products. The
-copies made by a Radioactive Doppelganger do not resize, matching BMAIR's
-existing Doppelganger rule; whether ButtonWeavers resizes copies is an open
-question in the CHANGELOG. Same-die Radioactive+Morphing, +Berserk, and
-+Doppelganger follow the documented interactions; ButtonWeavers' by-reference
-attacker loop may differ there, and no current button has those combinations.
+Doppelganger copy of a Radioactive target, but not Konstant products.
+
+Same-die combinations were settled by running the ButtonWeavers engine
+(`BMAttack::commit_attack` under PHP 8.5), because its by-reference attacker
+loop contradicts two documented interactions. BMAIR follows the engine:
+
+| Engine probe | Result | Rust evidence |
+|---|---|---|
+| `D(20)` captures `H(6)` / `h(12)` / `kH(4)` | `H(8)` / `h(10)` / rerolled `kH(6)` | `copied_mighty_grows_but_copied_turbo_does_not_resize`, `copied_weak_shrinks_on_the_doppelganger_reroll`, `copied_konstant_still_resizes_and_rerolls` |
+| `%D(9)` captures `H(4):4` | `H(4):4` never rerolled, plus a rerolled `H(6)` | `radioactive_doppelganger_keeps_the_first_copy_unrolled` |
+| `%m(4)` captures `(6,6)` | two full-size `m(6,6)`, not halves | `radioactive_morphing_attacker_decays_into_two_full_size_morphs` |
+| `%B(12)` Berserk vs `(6)` | `(3)` and `(3)` | `radioactive_berserk_attacker_halves_before_it_decays` |
+| `m(4)` captures `%(10)` | `m(5)` and `m(5)` | `morphing_attacker_morphs_before_a_radioactive_target_decays_it` |
+
+No current button has same-die Radioactive Morphing or Doppelganger dice.
 A decay that would exceed the 20-die pool is skipped instead of panicking.
 
 ### Button specials and ButtonWeavers rule corrections

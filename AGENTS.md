@@ -6,6 +6,10 @@ than C++ parity. Regressions are caught by the golden outputs in
 `tests/golden/`, which an intentional rules change may update. The contract
 below records how the port itself was proven.
 
+Comments are the exception. Write one only when a reader needs a reason the
+code cannot give; keep it short and explain why the code is there, never what
+it does or how it works.
+
 The `rust` branch is a behavioral port of the C++ implementation on `main`.
 Do not call the port complete merely because the shipped fixtures select the
 same final actions.

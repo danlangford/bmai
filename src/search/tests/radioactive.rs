@@ -235,12 +235,14 @@ fn morphing_attacker_morphs_before_a_radioactive_target_decays_it() {
 }
 
 #[test]
-fn radioactive_morphing_attacker_morphs_before_it_decays() {
+fn radioactive_morphing_attacker_decays_into_two_full_size_morphs() {
+    // ButtonWeavers engine probe: each product's Morphing hook runs again, so
+    // %m(4) capturing (6,6) leaves two m(6,6), not the documented halves.
     scenario()
         .attacker("%m4:4")
         .attacks(POWER)
         .defender("(6,6):3")
-        .expect_attacker_dice(["m(3,3):5", "m(3,3):3"])
+        .expect_attacker_dice(["m(6,6):6", "m(6,6):5"])
         .run();
 }
 
@@ -404,5 +406,17 @@ fn search_reports_a_radioactive_attack_in_legacy_and_native_modes() {
         .expect_attack(POWER)
         .using([0])
         .targeting([0])
+        .run();
+}
+
+#[test]
+fn radioactive_doppelganger_keeps_the_first_copy_unrolled() {
+    // ButtonWeavers engine probe: %D(9) capturing H(4):4 leaves H(4):4, never
+    // rerolled, and an H(6) that grew and rerolled.
+    scenario()
+        .attacker("%D9:9")
+        .attacks(POWER)
+        .defender("H4:4")
+        .expect_attacker_dice(["H6:5", "H4:4"])
         .run();
 }
