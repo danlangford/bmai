@@ -115,7 +115,7 @@ fn largo_search_reports_a_power_attack_over_the_wire() {
 
 #[test]
 fn simulations_keep_each_players_specials_after_a_side_swap() {
-    let mut game = parsed(&format!(
+    let game = parsed(&format!(
         "{GAME}special 0 unique_swing\nspecial 1 no_initiative\n"
     ))
     .m_game;
