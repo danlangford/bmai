@@ -1,0 +1,16 @@
+exit 0
+--- stdout
+target wins set to 1
+p0 s0.0 Dice (10000005)10 (b0400)10 (200000200)6
+p1 s0.0 Dice (100000080)8 (100)6 (402000)(4,6)
+Setting AI for player 0 to type 1
+Setting AI for player 1 to type 1
+Seeding with 71
+game over 1 - 0 - 0
+game over 1 - 0 - 0
+game over 0 - 1 - 0
+game over 1 - 0 - 0
+game over 1 - 0 - 0
+matches over 4 - 1
+--- stderr
+RNG_HASH 259 6406229677908120847

@@ -14,10 +14,247 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Complete mechanics support for the remaining parsing-only skills:
-  Auxiliary (`+`) and Radioactive (`%`).
-- Add parser and mechanics support for Fire and Rush. Fire work must include
-  the documented Rage+Fire interaction: firing does not consume Rage.
+- Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
+## [0.17.0] - 2026-10-03
+
+### Added
+
+- Boom (`b`): the Boom die leaves play unscored and rerolls one target, which
+  stays in play. Boom may target Stealth dice. A Jolt Boom die grants an
+  extra turn; Time and Space and Radioactive never trigger, and a Null or
+  Value Boom die converts nothing.
+- Mad (`&`) swing dice: like Mood, but every reroll picks an even size in the
+  swing range. Radioactive decay removes Mad.
+- Advertised the `boom` attack type and the `b` and `&` tokens in capabilities.
+
+### Changed
+
+- Rust types now use Rust naming (`Game`, `Move`, `Phase`, `Attack`, and
+  so on) instead of the C++ `BMC_`, `BME_`, and `BMD_` prefixes.
+
+### Fixed
+
+- Checked against the running ButtonWeavers engine:
+  - Mood dice resize only to standard die sizes in their swing range.
+  - A Mood Twin die picks one size for both halves.
+  - Konstant Mood dice keep their size and value.
+  - Mood dice also resize when tripped and on Chance rerolls.
+  - Konstant Mighty and Weak dice keep their size on every reroll,
+    including Ornery, Trip-target, and Chance rerolls. Doppelganger copies
+    still resize.
+  - Warrior dice ignore Ornery rerolls.
+
+## [0.16.0] - 2026-10-02
+
+### Added
+
+- Added the `special PLAYER [ID...]` command for button
+  specials, which the wire format cannot express per die:
+  - `unique_swing` (Guillermo, Oregon): different swing types take different
+    sizes.
+  - `unique_sizes` (Gordo): no two dice share a size, and an Auxiliary swing
+    die is declined.
+  - `no_skill_attacks` (Largo, The Flying Squirrel).
+  - `skill_immune` (The Japanese Beetle).
+  - `no_initiative` (Giant): ranked below every other button for initiative.
+- Advertised the specials, with the buttons that use them, in capabilities
+  `button_specials`.
+- Reported each player's specials in JSONL session metadata.
+
+### Fixed
+
+- Trip legality now follows ButtonWeavers instead of C++: a Trip die may Trip
+  any die it can roll at least the minimum of, including Twin dice, and
+  Konstant and Maximum targets raise that bar. A Turbo Trip is offered when
+  any Turbo size reaches the target, and only sizes that do are offered.
+  Mood Twin dice reach one subdie's swing size, as in ButtonWeavers.
+- An infinite `turbo_accuracy` now considers every Turbo size instead of
+  hanging the search.
+- Morphing now applies to single-target Berserk and Speed attacks.
+- Checked against the running ButtonWeavers engine:
+  - A Doppelganger copy of a Mighty or Weak die now resizes on the attack
+    reroll, even if Konstant.
+  - A Radioactive Doppelganger's first copy keeps the captured die's value
+    without rerolling.
+  - A Radioactive Morphing attacker, including a Trip die, decays into two
+    full-size morphs.
+- A Trip die morphs only after a successful Trip: it rolls at its own size
+  first, then rerolls at the captured die's size. A failed Trip never morphs.
+
+## [0.15.0] - 2026-10-02
+
+### Added
+
+- Implemented the complete ButtonWeavers Radioactive (`%`) rule. In any attack
+  with exactly one attacker and one target, by any attack type, the attacker
+  decays into two near-equal dice when either die is Radioactive. Previously
+  only Radioactive Doppelganger Power attacks decayed.
+- Decay products lose Radioactive, Turbo, Mood, Jolt, and Time and Space, roll
+  fresh values, and resize for Mighty or Weak unless Konstant. A target that
+  survives a failed Trip loses Radioactive.
+- Applied ButtonWeavers' ordering: Berserk and Morphing transform the attacker
+  before it decays, a Radioactive Doppelganger decays before both products
+  copy the target, and a Doppelganger copy of a Radioactive target decays.
+- Advertised Radioactive as implemented; `parsing_only_skills` is now empty.
+- Added a scenario for every Radioactive interaction on the ButtonWeavers
+  skills page, plus reproductions of ButtonWeavers responder-test logs.
+
+### Changed
+
+- Replaced the reference-binary differential tests with golden outputs in
+  `tests/golden/`. Each records a fixture's normalized output and RNG
+  fingerprint, so no C++ or previous-release binary is needed. Most fixtures
+  run in every `cargo test`; the longest searches run in CI for releases.
+- Moves whose attacker will decay no longer expand into Turbo sizes, since the
+  decaying die loses Turbo before its reroll. Trip keeps its sizes, because
+  ButtonWeavers rolls the Trip at the chosen size before the decay.
+- A decay that would exceed the 20-die pool is skipped rather than panicking.
+
+### Fixed
+
+- A Null or Value attacker that transforms during the attack, such as a
+  Doppelganger, still makes its captured die Null or Value, as ButtonWeavers
+  runs those effects from the attacker's original skills.
+- Twin decay products now take ButtonWeavers' subdie order: the first product
+  keeps the rounded-up first half and the rounded-down second half.
+
+## [0.14.0] - 2026-10-01
+
+### Added
+
+- Implemented the ButtonWeavers Rush (`#`) skill. A die makes a `rush` attack
+  by capturing exactly two dice whose values sum to its value; the attacker or
+  at least one target must be a Rush die, so any die may Rush a Rush die.
+- Applied ButtonWeavers' shared Speed-attack restrictions: Stealth and Warrior
+  dice cannot make or receive Rush attacks, dizzy dice cannot Rush, and Fire
+  cannot assist. Skills that forbid only Power or Skill attacks still Rush.
+- Advertised Rush and the `rush` attack type through machine-readable
+  capabilities and emitted `rush` in legacy and typed actions.
+- Added Rush rule and interaction scenarios for Speed, Stealth, Warrior,
+  Focus, Insult, Konstant, Stinger, Fire, Twin, Berserk, Morphing,
+  Doppelganger, Radioactive, Jolt, Time and Space, Rage, Null, Value, Poison,
+  Mighty, Weak, Mood, Ornery, Maximum, Turbo, Reserve, comment parsing, and
+  legacy/native search.
+- A Speed die that is also a Rush die offers its two-target captures only as
+  Speed attacks. Both attack types have identical legality and resolution, so
+  this avoids searching duplicate candidates. Inputs without Rush dice keep
+  their candidate order, RNG consumption, and output, and skip Rush pair
+  enumeration entirely.
+
+### Fixed
+
+- Stopped search from panicking when `max_sims` is below `min_sims` (for
+  example `max_sims 5` with the default minimum of 10) in both the legacy and
+  JSONL protocols. Simulation counts now follow C++ `ComputeNumberSims`, which
+  checks the minimum first, and a seeded fixture matches the C++ reference.
+- Matched C++ per-player search settings (`ply`, `max_sims`, `min_sims`,
+  `maxbranch` with a player). C++ players point at shared AI objects, so a
+  per-player setting changes the global AI after `game`, or the shared `ai`
+  type object, which keeps default settings of its own and persists across
+  games. BMAIR previously gave each player a private copy, so it diverged from
+  C++ whenever a script combined per-player settings with `game` or `ai`.
+  Seven scenarios now match the C++ reference, and JSONL session metadata
+  reports the shared objects. Scripts that use only global settings, including
+  BMAIBagels, are unchanged.
+
+## [0.13.0] - 2026-09-30
+
+### Added
+
+- Added opt-in `report_sims N` selected-move probability reporting for native
+  BMAI fight search. Normal bounded search still chooses the move; the chosen
+  move is then evaluated with exactly `N` fresh samples on a reserved,
+  deterministic stream.
+- Added a typed JSONL `evaluation` result containing the evaluated player,
+  probability, simulation count, and whether the estimate came from move
+  selection or selected-move resampling.
+- Added reconstructed regressions for ButtonWeavers games 120810 and 120813,
+  including their exact 50/50 and 70/30 bounded-roll endgames.
+
+### Changed
+
+- Preserved the historical legacy `best move` diagnostic and emit a separate
+  `selected move report` diagnostic only when resampling is requested.
+
+## [0.12.0] - 2026-09-20
+
+### Changed
+
+- Organized the Rust source by game, search, and protocol responsibilities
+  while preserving the public API, protocol output, search order, and RNG use.
+- Isolated each search phase, each protocol adapter, and test-only scenario
+  support into focused modules.
+- Added an architecture guide documenting dependency direction and where new
+  rules, search behavior, protocols, and tests belong.
+
+## [0.11.0] - 2026-09-18
+
+### Added
+
+- Added the default-off `fire_overshooting on|off` client option. When enabled,
+  BMAIR may spend Fire on a Power attack that was already legal, allowing the
+  search to value both the stronger attacker and the safer turned-down Fire
+  dice.
+- Added paired mechanics, parser, and search regressions for disabled and
+  enabled Fire overshooting.
+
+## [0.10.1] - 2026-09-17
+
+### Fixed
+
+- Prevented Warrior dice from making a Skill attack unless at least one
+  non-Warrior die participates, matching ButtonWeavers validation.
+- Returned locked preround Swing and Option selections directly instead of
+  attempting to apply them again to already-rolled dice.
+
+## [0.10.0] - 2026-09-16
+
+### Added
+
+- Implemented the ButtonWeavers Fire (`F`) skill for Power and Skill attacks,
+  including required assistance, multiple Fire dice, attacker maxima, and
+  persistent Fire-die turndowns.
+- Added exact Fire adjustments to search moves so Konstant attackers retain
+  their fired-up values while ordinary attackers reroll normally.
+- Added `fire DIE VALUE` lines to assisted legacy actions and an optional
+  `fire` array to typed JSON attack actions.
+- Added readable mechanics scenarios for Fire with Stinger, Konstant, Mighty,
+  Weak, Rage, Jolt, Time and Space, Queer, Twin, and unsupported attack types.
+- Bound assisted-candidate construction to the search budget before allocating
+  every possible Fire distribution on large buttons.
+
+### Changed
+
+- Advertise Fire as implemented through machine-readable capabilities.
+
+### Known limitations
+
+- Wildcard dice remain unsupported by BMAIR. ButtonWeavers' unresolved
+  Wildcard-specific Fire behavior is therefore outside this release.
+- An odd Queer die cannot be fired to an even value to unlock a Power attack,
+  matching ButtonWeavers' current pre-assistance attack-type eligibility.
+- BMAIR follows ButtonWeavers' default `fire_overshooting = false` behavior.
+  Searching optional Fire adjustments for otherwise-legal attacks requires a
+  future player-preference input.
+- Fire-assisted attacks involving an attacking Turbo die currently use its
+  displayed size; alternate Turbo sizes are not searched for that attack.
+
+## [0.9.0] - 2026-09-16
+
+### Added
+
+- Implemented the ButtonWeavers Auxiliary (`+`) lifecycle and `aux` phase.
+- Added mutual accept/decline resolution, courtesy Auxiliary copies when only
+  one button supplies the die, and legacy `aux DIE`/`aux -1` actions.
+- Added deterministic native Auxiliary evaluation across worker counts and an
+  `auxiliary` typed action.
+- Added readable parser and mechanics regressions derived from the
+  ButtonWeavers Auxiliary engine tests.
+
+### Changed
+
+- Advertise Auxiliary as implemented rather than parsing-only.
 
 ## [0.8.2] - 2026-09-02
 
@@ -233,7 +470,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...HEAD
+[0.17.0]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...bmair-v0.17.0
+[0.16.0]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...bmair-v0.16.0
+[0.15.0]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...bmair-v0.15.0
+[0.14.0]: https://github.com/danlangford/bmai/compare/bmair-v0.13.0...bmair-v0.14.0
+[0.13.0]: https://github.com/danlangford/bmai/compare/bmair-v0.12.0...bmair-v0.13.0
+[0.12.0]: https://github.com/danlangford/bmai/compare/bmair-v0.11.0...bmair-v0.12.0
+[0.11.0]: https://github.com/danlangford/bmai/compare/bmair-v0.10.1...bmair-v0.11.0
+[0.10.1]: https://github.com/danlangford/bmai/compare/bmair-v0.10.0...bmair-v0.10.1
+[0.10.0]: https://github.com/danlangford/bmai/compare/bmair-v0.9.0...bmair-v0.10.0
+[0.9.0]: https://github.com/danlangford/bmai/compare/bmair-v0.8.2...bmair-v0.9.0
 [0.8.2]: https://github.com/danlangford/bmai/compare/bmair-v0.8.1...bmair-v0.8.2
 [0.8.1]: https://github.com/danlangford/bmai/compare/bmair-v0.8.0...bmair-v0.8.1
 [0.8.0]: https://github.com/danlangford/bmai/compare/bmair-v0.7.0...bmair-v0.8.0

@@ -1,0 +1,13 @@
+exit 0
+--- stdout
+p0 s28.0 Dice (80)10:3 (80)6:2 (0)4:1
+p1 s6.0 Dice (0)12:10 (2100)(4,4):4 (0)4:2
+l1 p0 Valid Moves 1 Sims 500
+l1 p0 best move (8.0 points, 80.0% win)
+stats 1/10-500/5000/0.50
+action
+skill
+2 0
+0
+--- stderr
+RNG_HASH 75 16109586838289187432

@@ -27,14 +27,14 @@ The `die_notation` object lets clients translate external recipes without
 hard-coding BMAIR's skill abbreviations. `property_prefixes` reports each
 one-character token with a stable snake-case `id`, display `name`, and
 `support` of `implemented` or `parsing_only`. `postfix_properties` reports
-Turbo (`!`) and Mood (`?`). The remaining fields describe swing types `P-Z`,
+Turbo (`!`), Mood (`?`), and Mad (`&`). The remaining fields describe swing types `P-Z`,
 option and Twin punctuation, defined-side selection, rolled values, and the
 dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-and `G` as the parsing-only Rage property. Consumers should use this metadata
-instead of maintaining a parallel token-to-skill table.
+`F` as Fire, `G` as Rage, `#` as Rush, and `b` as Boom. Consumers should use this metadata instead of
+maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
 
@@ -78,7 +78,10 @@ success result contains:
   worker count, global settings, and per-player AI/search settings after
   execution;
 - `replay`: the native stream partition, root seed, and decision index actually
-  used by the last native BMAI search, or null when no native search ran.
+  used by the last native BMAI search, or null when no native search ran;
+- `evaluation`: the last fight-search probability estimate, or null. It contains
+  `player`, a zero-to-one `probability`, `simulations`, and a `source` of
+  `move_selection` or `selected_move_resample`.
 
 Replay metadata describes the top-level decision. Candidate/batch/simulation
 coordinates are deterministically derived inside the versioned partition.
@@ -94,7 +97,9 @@ Actions use a `type` discriminator:
 
 - `{"type":"pass"}`
 - `{"type":"surrender"}`
-- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`
+- `{"type":"auxiliary","die":1}`; `die` is null when Auxiliary is declined
+- `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`;
+  `attack_type` is one of the advertised `attack_types`, including `rush` and `boom`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
 - `{"type":"chance","dice":[0,2]}`
@@ -104,6 +109,9 @@ An attack may include `turbo`. Option Turbo is
 `{"kind":"option","die":0,"value":20}`; swing Turbo is
 `{"kind":"swing","swing":"X","value":12}`. Die numbers are original
 wire-protocol indices, even when internal dice storage is optimized.
+An assisted attack includes `"fire":[{"die":1,"value":3}]`, naming the
+final displayed value of each Fire die turned down for the attack. The field is
+omitted for attacks without Fire assistance.
 
 Stable error codes in v1 are `invalid_json`, `invalid_request`,
 `unsupported_protocol`, `invalid_params`, `method_not_found`, and
@@ -115,7 +123,8 @@ Run `bmair [FILE]` or pipe text to stdin. The startup banner and all parser
 output are part of this human-oriented interface. The command set is:
 
 `game`, phase names, `player`, `ai`, `mode`, `rng`, `workers`, `seed`, `ply`,
-`max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`, `surrender`, `getaction`,
+`max_sims`, `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`, `special`,
+`surrender`, `getaction`,
 `playgame`, `playfair`, `compare`, `debug`, `debugply`, and `quit`.
 
 Standard input is incremental. BMAIR flushes the four-line banner before
@@ -127,11 +136,19 @@ C++ subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
 After trimming whitespace, a whole top-level line beginning with `#` is ignored.
 Inline comments and comments within a `game` phase/player/die block are invalid.
+Inside a `game` block every die line is a die definition, so a Rush die such as
+`#6:6` is never mistaken for a comment.
 
 Top-level BMAI fight searches emit the legacy `l1 p0 best move` diagnostic
 before `stats` and `action`. Its parenthesized fields include the accumulated
 winning score and numeric win percentage used by historical subprocess
-consumers. Recursive search diagnostics remain internal.
+consumers. When `report_sims` is nonzero, a separate `l1 p0 selected move
+report` diagnostic follows it with the fresh score, sample count, and win
+percentage. Recursive search diagnostics remain internal.
+After the attacker and target index lines and any Turbo selection, an assisted
+attack emits one `fire DIE VALUE` line per assisting Fire die. `DIE` is its
+original input index and `VALUE` is the final displayed value to submit to
+ButtonWeavers.
 
 The stable command forms are:
 
@@ -143,11 +160,25 @@ The stable command forms are:
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
 | `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
-| `ply [PLAYER] N` | Set global or per-player BMAI depth. |
+| `ply [PLAYER] N` | Set global or per-player BMAI depth. Per-player settings change the AI object that player currently uses, as in C++; see below. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
-| `maxbranch [PLAYER] N` | Set global or per-player branch budget. |
+| `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
+
+As in C++, players point at shared AI objects. Every `game` points both
+players at the global AI, which the unqualified commands and the `stats` line
+use. `ai PLAYER TYPE` points that player at the AI object for `TYPE`; those
+objects start with default settings, keep them across `game` blocks, and are
+shared by every player selecting the same type. A per-player command changes the
+object the player currently uses, so it can change the global settings or
+another player's search. QAI ignores per-player search settings without
+printing a confirmation. A per-player command before any `game` or `ai` command
+prints its confirmation but changes nothing (C++ dereferences a null AI there).
+JSONL session metadata reports the settings of the object each player uses.
+| `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
+| `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
+| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |
@@ -155,12 +186,29 @@ The stable command forms are:
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
 
-Phases are `preround`, `reserve`, `initiative`, `chance`, `focus`, `fight`, and
-`gameover`. `getaction` is defined for preround, reserve, Chance, Focus, and
-fight; initiative/gameover are state-description phases rather than direct
-action requests. Legacy parser errors terminate the process with a nonzero exit
-status. JSONL converts those same errors into recoverable `execution_error`
-responses and rolls back the request.
+Phases are `aux`, `preround`, `reserve`, `initiative`, `chance`, `focus`,
+`fight`, and `gameover`. `getaction` is defined for Auxiliary, preround,
+reserve, Chance, Focus, and fight; initiative/gameover are state-description
+phases rather than direct action requests. In an Auxiliary state, the action is
+`aux DIE` to accept the indexed die or `aux -1` to decline. When only one
+player supplies an Auxiliary die, BMAIR creates ButtonWeavers' courtesy copy
+for the other player before evaluating the choice.
+
+Gordo's restriction is applied when the caller sends `special N unique_sizes`;
+other button-specific eligibility is the caller's responsibility. BMAIR
+validates the engine-level limit of one Auxiliary die per player.
+Legacy parser errors terminate the process with a nonzero exit status. JSONL
+converts those same errors into recoverable `execution_error` responses and
+rolls back the request.
+
+`report_sims` is a Rust-native extension rather than part of the frozen C++
+contract. A nonzero value produces a report only for `mode native` BMAI or
+BMAI3 fight search; QAI and legacy fight requests reject it, while other phases
+retain the setting without producing an evaluation. The reporting samples use
+the same versioned native mechanics and rollout policy as root candidate
+evaluation, but a reserved stream keeps them independent from move selection.
+The selected action and next decision replay key are therefore identical with
+reporting on or off.
 
 Game-state syntax and multiline action examples live in
 [`tests/fixtures/`](tests/fixtures/); deterministic native examples live in

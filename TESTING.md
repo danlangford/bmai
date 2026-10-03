@@ -10,13 +10,13 @@ script would obscure the rule being tested. A scenario reads like a Button Men
 position:
 
 ```rust
-use crate::BME_ATTACK::POWER;
-use crate::BME_PHASE::FIGHT;
+use crate::Attack::Power;
+use crate::Phase::Fight;
 
 scenario()
-    .phase(FIGHT)
+    .phase(Fight)
     .attacker("n30:27")
-    .attacks(POWER)
+    .attacks(Power)
     .defender("20:19")
     .expect_allowed(true)
     .expect_scores(0.0, 0.0)
@@ -35,12 +35,18 @@ use BMAIR's stable test default; `.seed(...)` selects a specific replay seed
 when the exact roll matters. `.turbo(...)` chooses an option-die branch (`0` or
 `1`) or a Turbo swing size. `.with_scores(...)` overrides the scores derived
 from the starting dice when a scoring rule needs a specific baseline.
+`.attacker_special(id)` and `.defender_special(id)` apply a `special` button
+rule to either side.
 `.expect_attacker_die(index, recipe)` checks one surviving die by declaration
 index when other rerolled dice are irrelevant to the rule under test.
 `.expect_no_defender_dice()` keeps an empty defending side equally readable.
+For Fire attacks, `.boosting([(die, value)])` names each participating die's
+fired-up value and `.firing([(die, value)])` names each assisting Fire die's
+final value. Both use recipe declaration indices, making the transferred points
+and the persistent state visible in the scenario.
 
 The DSL is deliberately test-only and dependency-free. It is not a second game
-implementation: setup is parsed by `BMC_Parser`, legality comes from
+implementation: setup is parsed by `Parser`, legality comes from
 `GenerateValidAttacksInCppOrder`, resolution comes from `ApplyAttack`, and
 round restoration comes from `RestoreDiceForNewRound`. Expected dice are
 written using the protocol notation and failures show canonical expected and

@@ -73,9 +73,11 @@ mise exec -- cargo build --release --locked
 
 Open this repository directly in RustRover. `Cargo.toml` is at the repository
 root and the Rust sources follow the standard Cargo layout under `src/`.
+[`ARCHITECTURE.md`](ARCHITECTURE.md) explains the game, search, protocol, and
+runtime boundaries and where new behavior belongs.
 
-Existing protocol samples are retained under `tests/fixtures/` for parity and
-differential tests against the C++ implementation.
+Protocol samples under `tests/fixtures/` have golden outputs in
+`tests/golden/`, recording each fixture's output and RNG fingerprint.
 
 Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
@@ -124,18 +126,42 @@ release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
 `getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
-`min_sims`, `maxbranch`, `turbo_accuracy`, `debug`, `debugply`, and `quit`. See
+`min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
+`debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
 Whole lines whose first non-whitespace character is `#` may be used as comments
 between top-level commands. Inline comments and comments inside `game` blocks
-are not supported.
+are not supported, so a Rush die line such as `#6:6` inside a `game` block is
+always a die.
+
+`ply`, `max_sims`, `min_sims`, and `maxbranch` take an optional player, as in
+C++. Without one they change the global AI. With one they change the AI that
+player currently uses, which is shared: every `game` points both players at the
+global AI, and `ai PLAYER TYPE` points one player at that type's AI, whose
+settings persist across games. A per-player setting therefore affects every
+player using the same AI, and the global `stats` line reports the global AI.
+
+### Skills
+
+BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
+the C++ engine predates or only parses: Auxiliary, Boom, Doppelganger, Fire,
+Jolt, Mad, Radioactive, Rage, and Rush. No advertised die skill is parsing-only; known
+gaps are listed under Planned in the CHANGELOG. Clients should discover the
+exact die tokens, skills, and attack types (including `rush` and `boom`) through
+capabilities rather than hard-coding them.
+
+Some buttons carry a button special, a rule for the whole button. The wire
+format has no button names, so clients name the rule after the `game` block,
+for example `special 0 unique_sizes` for Gordo. Capabilities `button_specials`
+lists each rule and the buttons that use it.
 
 ### Python and service integration
 
 Long-lived clients should start `bmair --protocol jsonl-v1` and exchange one
 request and response per line. This interface has request IDs, typed actions,
 structured recoverable errors, capability discovery, transactional session
-updates, and native replay metadata; it emits no human banner on stdout.
+updates, native replay metadata, and structured probability evaluations; it
+emits no human banner on stdout.
 
 The complete wire contract and compatibility policy are in
 [`PROTOCOL.md`](PROTOCOL.md). A dependency-free persistent Python client is in
@@ -161,6 +187,13 @@ Native search defaults to `workers 1`. Set an explicit positive count or use
 The resolved count is reported and included in replay metadata; worker settings
 do not affect legacy search.
 
+For a user-visible probability estimate, `report_sims N` keeps normal bounded
+search responsible for choosing the fight move, then evaluates only that move
+with exactly `N` fresh native samples. It defaults to zero, requires native
+BMAI fight search to produce a report, and does not change the selected action
+or consume a later decision stream. Clients should discover the command through
+capabilities before using it.
+
 `rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
 16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`
 is an alias. Its stable replay identifier is
@@ -177,8 +210,14 @@ candidate simulation while keeping legacy mode as the compatibility oracle.
 ## Verification
 
 The default Rust test suite includes unit, parser, game-mechanics, and structural
-search tests. Expensive reference-binary differential tests are marked ignored
-because they require separately supplied C++ reference executables; their setup
-and recorded evidence are documented in [`PARITY.md`](PARITY.md). New mechanics
+search tests, plus golden output for every fixture. The longest fixture
+searches are ignored by default and run in CI for releases:
+
+```shell
+cargo test --release --test fixture_golden -- --include-ignored
+```
+
+After an intentional behavior change, regenerate the golden files with
+`BMAIR_UPDATE_GOLDEN=1` and review their diff. New mechanics
 tests can use the recipe-based scenario DSL described in
 [`TESTING.md`](TESTING.md).

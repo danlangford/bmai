@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
+// SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+
+pub const TIME_AND_SPACE: u64 = 0x0001;
+pub const AUXILIARY: u64 = 0x0002;
+pub const QUEER: u64 = 0x0004;
+pub const TRIP: u64 = 0x0008;
+pub const SPEED: u64 = 0x0010;
+pub const SHADOW: u64 = 0x0020;
+pub const BERSERK: u64 = 0x0040;
+pub const STEALTH: u64 = 0x0080;
+pub const POISON: u64 = 0x0100;
+pub const NULL: u64 = 0x0200;
+pub const MOOD: u64 = 0x0400;
+pub const TURBO: u64 = 0x0800;
+pub const OPTION: u64 = 0x1000;
+pub const TWIN: u64 = 0x2000;
+pub const FOCUS: u64 = 0x4000;
+pub const VALID: u64 = 0x8000;
+pub const MIGHTY: u64 = 0x1_0000;
+pub const WEAK: u64 = 0x2_0000;
+pub const RESERVE: u64 = 0x4_0000;
+pub const ORNERY: u64 = 0x8_0000;
+pub const DOPPELGANGER: u64 = 0x10_0000;
+pub const CHANCE: u64 = 0x20_0000;
+pub const MORPHING: u64 = 0x40_0000;
+pub const RADIOACTIVE: u64 = 0x80_0000;
+pub const WARRIOR: u64 = 0x100_0000;
+pub const SLOW: u64 = 0x200_0000;
+pub const UNIQUE: u64 = 0x400_0000;
+pub const UNSKILLED: u64 = 0x800_0000;
+pub const STINGER: u64 = 0x1000_0000;
+pub const RAGE: u64 = 0x2000_0000;
+pub const KONSTANT: u64 = 0x4000_0000;
+pub const MAXIMUM: u64 = 0x8000_0000;
+pub const INSULT: u64 = 0x1_0000_0000;
+pub const VALUE: u64 = 0x2_0000_0000;
+pub const JOLT: u64 = 0x4_0000_0000;
+pub const FIRE: u64 = 0x8_0000_0000;
+pub const RUSH: u64 = 0x10_0000_0000;
+pub const MAD: u64 = 0x20_0000_0000;
+pub const BOOM: u64 = 0x40_0000_0000;

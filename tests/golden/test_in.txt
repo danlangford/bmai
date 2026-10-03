@@ -1,0 +1,8 @@
+exit 1
+--- stdout
+p0 s31.0 Dice (0)4:1 (0)10:1
+p1 s40.0 Dice (0)20:20 (0)20:2
+Setting max ply to 2
+--- stderr
+RNG_HASH 0 14695981039346656037
+unrecognized command: sims 150

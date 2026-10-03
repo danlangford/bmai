@@ -1,0 +1,17 @@
+exit 0
+--- stdout
+p0 s50.0 Dice (0)30:16 (0)30:16 (1000)6:5
+p1 s46.0 Dice (1000)5:4 (1000)7:3 (1000)9:3 (1000)11:3
+Setting max ply to 3
+Setting max # simulations to 100
+Setting min # simulations to 5
+Setting max branch to 400
+l1 p0 Valid Moves 12 Sims 33
+l1 p0 best move (31.0 points, 94.0% win)
+stats 3/5-100/400/0.50
+action
+power
+1
+0
+--- stderr
+RNG_HASH 29376272 1190953346435781719

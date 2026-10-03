@@ -1,0 +1,11 @@
+exit 0
+--- stdout
+p0 s1.0 Dice (0)1:1
+p1 s30.0 Dice (2000)(30,30):60 (0)1:1
+l1 p0 Valid Moves 2 Sims 500
+l1 p0 best move (0.0 points, 0.0% win)
+stats 1/10-500/5000/0.50
+action
+surrender
+--- stderr
+RNG_HASH 6000 11473883982462806912

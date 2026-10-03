@@ -2,41 +2,33 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-/// Stable identifier for a replayable RNG implementation.
-#[allow(non_camel_case_types, non_snake_case)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BME_RNG_ALGORITHM {
-    /// BMAI's Park-Miller minimal-standard LCG plus its custom seed expansion.
-    LEGACY_PARK_MILLER_V1,
+pub enum RngAlgorithm {
+    LegacyParkMillerV1,
 }
 
-impl BME_RNG_ALGORITHM {
+impl RngAlgorithm {
     pub const fn ReplayId(self) -> &'static str {
         match self {
-            Self::LEGACY_PARK_MILLER_V1 => "bmai-park-miller-16807-v1",
+            Self::LegacyParkMillerV1 => "bmai-park-miller-16807-v1",
         }
     }
 
     pub fn Parse(value: &str) -> Option<Self> {
         match value {
             "legacy" | "park-miller" | "bmai-park-miller-16807-v1" => {
-                Some(Self::LEGACY_PARK_MILLER_V1)
+                Some(Self::LegacyParkMillerV1)
             }
             _ => None,
         }
     }
 }
 
-/// Versioned RNG dispatcher. The closed enum keeps dispatch statically
-/// optimizable in hot search loops while leaving a deliberate seam for native
-/// generators with different state and stream-splitting behavior.
-///
-/// The initial implementation is the original BMAI Park-Miller generator.
-/// Keeping its integer operations exact is required for seeded C++ parity.
-#[allow(non_camel_case_types, non_snake_case)]
+/// A closed enum keeps hot-loop dispatch static; exact integer operations keep
+/// seeded legacy replays reproducible.
 #[derive(Clone, Debug)]
-pub struct BMC_RNG {
-    m_algorithm: BME_RNG_ALGORITHM,
+pub struct Rng {
+    m_algorithm: RngAlgorithm,
     m_seed: u32,
     m_trace_raw: bool,
     m_trace_hash: bool,
@@ -45,10 +37,10 @@ pub struct BMC_RNG {
     m_native_stratum: Option<crate::native::NativeStratum>,
 }
 
-impl Default for BMC_RNG {
+impl Default for Rng {
     fn default() -> Self {
         Self {
-            m_algorithm: BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            m_algorithm: RngAlgorithm::LegacyParkMillerV1,
             m_seed: 78_904_497,
             m_trace_raw: std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
             m_trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
@@ -59,10 +51,10 @@ impl Default for BMC_RNG {
     }
 }
 
-impl BMC_RNG {
+impl Rng {
     pub(crate) fn UntracedDefault() -> Self {
         Self {
-            m_algorithm: BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+            m_algorithm: RngAlgorithm::LegacyParkMillerV1,
             m_seed: 78_904_497,
             m_trace_raw: false,
             m_trace_hash: false,
@@ -73,7 +65,7 @@ impl BMC_RNG {
     }
 
     pub(crate) fn FromNativeStream(
-        algorithm: BME_RNG_ALGORITHM,
+        algorithm: RngAlgorithm,
         seed: crate::native::NativeStreamSeed,
         stratum: Option<crate::native::NativeStratum>,
     ) -> Self {
@@ -88,7 +80,7 @@ impl BMC_RNG {
         }
     }
 
-    pub const fn Algorithm(&self) -> BME_RNG_ALGORITHM {
+    pub const fn Algorithm(&self) -> RngAlgorithm {
         self.m_algorithm
     }
 
@@ -96,7 +88,7 @@ impl BMC_RNG {
         self.m_algorithm.ReplayId()
     }
 
-    pub fn SetAlgorithm(&mut self, algorithm: BME_RNG_ALGORITHM) {
+    pub fn SetAlgorithm(&mut self, algorithm: RngAlgorithm) {
         self.m_algorithm = algorithm;
     }
 
@@ -117,7 +109,7 @@ impl BMC_RNG {
     pub fn GetRand(&mut self) -> u32 {
         self.m_native_stratum = None;
         match self.m_algorithm {
-            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
+            RngAlgorithm::LegacyParkMillerV1 => self.GetLegacyParkMillerRand(),
         }
     }
 
@@ -143,7 +135,7 @@ impl BMC_RNG {
     pub fn GetRandMax(&mut self, upper: u32) -> u32 {
         assert!(upper > 0, "GetRandMax requires a nonzero upper bound");
         let random = match self.m_algorithm {
-            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1 => self.GetLegacyParkMillerRand(),
+            RngAlgorithm::LegacyParkMillerV1 => self.GetLegacyParkMillerRand(),
         };
         let Some(stratum) = self.m_native_stratum.as_mut() else {
             return random % upper;
@@ -159,9 +151,7 @@ impl BMC_RNG {
             % u128::from(next_radix)) as u64;
         let base_digit = position / stratum.radix % upper_u64;
         let lower_cell = position % stratum.radix;
-        // Shifting by the already-selected lower cell is a permutation of this
-        // draw's faces. A complete mixed-radix block therefore remains
-        // exhaustive, while short prefixes do not pin later draws to face 0.
+        // A permutation of the faces, so full blocks stay exhaustive.
         let value = (base_digit + lower_cell % upper_u64) % upper_u64;
         stratum.radix = next_radix;
         value as u32
@@ -172,7 +162,7 @@ impl BMC_RNG {
     }
 }
 
-impl Drop for BMC_RNG {
+impl Drop for Rng {
     fn drop(&mut self) {
         if self.m_trace_hash {
             eprintln!(
@@ -189,8 +179,8 @@ mod tests {
 
     #[test]
     fn default_sequence_is_stable() {
-        let mut rng = BMC_RNG::default();
-        assert_eq!(rng.Algorithm(), BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1);
+        let mut rng = Rng::default();
+        assert_eq!(rng.Algorithm(), RngAlgorithm::LegacyParkMillerV1);
         assert_eq!(rng.ReplayId(), "bmai-park-miller-16807-v1");
         assert_eq!(rng.GetRand(), 1_150_470_880);
         assert_eq!(rng.GetRand(), 21_322_572);
@@ -201,18 +191,18 @@ mod tests {
     fn legacy_rng_names_select_the_same_versioned_stream_without_reseeding() {
         for name in ["legacy", "park-miller", "bmai-park-miller-16807-v1"] {
             assert_eq!(
-                BME_RNG_ALGORITHM::Parse(name),
-                Some(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1)
+                RngAlgorithm::Parse(name),
+                Some(RngAlgorithm::LegacyParkMillerV1)
             );
         }
-        assert_eq!(BME_RNG_ALGORITHM::Parse("unknown"), None);
+        assert_eq!(RngAlgorithm::Parse("unknown"), None);
 
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(17);
         let first = rng.GetRand();
-        rng.SetAlgorithm(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1);
+        rng.SetAlgorithm(RngAlgorithm::LegacyParkMillerV1);
         let second = rng.GetRand();
-        let mut uninterrupted = BMC_RNG::default();
+        let mut uninterrupted = Rng::default();
         uninterrupted.SRand(17);
         assert_eq!(
             (first, second),
@@ -229,8 +219,8 @@ mod tests {
         for offset in [0, 7, u64::MAX] {
             let mut counts = [0usize; 20];
             for index in 0..100 {
-                let mut rng = BMC_RNG::FromNativeStream(
-                    BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                let mut rng = Rng::FromNativeStream(
+                    RngAlgorithm::LegacyParkMillerV1,
                     seed,
                     Some(crate::native::NativeStratum {
                         index,
@@ -254,8 +244,8 @@ mod tests {
             for offset in [0, 17, u64::MAX] {
                 let mut outcomes = vec![vec![0usize; second_bound]; first_bound];
                 for index in 0..(first_bound * second_bound) {
-                    let mut rng = BMC_RNG::FromNativeStream(
-                        BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+                    let mut rng = Rng::FromNativeStream(
+                        RngAlgorithm::LegacyParkMillerV1,
                         seed,
                         Some(crate::native::NativeStratum {
                             index: index as u64,
@@ -281,8 +271,8 @@ mod tests {
             state: 123,
             stream: 456,
         };
-        let mut stratified = BMC_RNG::FromNativeStream(
-            BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1,
+        let mut stratified = Rng::FromNativeStream(
+            RngAlgorithm::LegacyParkMillerV1,
             seed,
             Some(crate::native::NativeStratum {
                 index: 999,
@@ -290,19 +280,17 @@ mod tests {
                 radix: 1,
             }),
         );
-        let mut ordinary =
-            BMC_RNG::FromNativeStream(BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1, seed, None);
+        let mut ordinary = Rng::FromNativeStream(RngAlgorithm::LegacyParkMillerV1, seed, None);
 
         assert_eq!(stratified.GetRand(), ordinary.GetRand());
         assert_eq!(stratified.GetRandMax(20), ordinary.GetRandMax(20));
     }
 
-    /// Port of LegacyMembers.TestRNG. The C++ test is statistical rather than
-    /// sequence-based, so retain its sample count and tolerances verbatim.
+    /// The C++ test is statistical, so its sample count and tolerances stay.
     #[test]
     fn cpp_legacy_rng_distribution() {
         const SAMPLES: usize = 1_000_000;
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         let mut bins = [0usize; 10];
         for _ in 0..SAMPLES {
             let sample = rng.GetFRand();

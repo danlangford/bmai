@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
-use bmair::{BMC_Parser, Capabilities, run_jsonl};
+use bmair::{Capabilities, Parser, run_jsonl};
 
 fn main() {
     if let Err(error) = run() {
@@ -61,7 +61,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     output.flush()?;
 
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     if let Some(path) = arguments.first() {
         writeln!(output, "Reading from {path}")?;
         let input = fs::read_to_string(path)?;

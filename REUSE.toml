@@ -39,6 +39,7 @@ SPDX-FileCopyrightText = "Copyright 2001-2026 Denis Papp"
 path = [
     "tests/fixtures/parity_*",
     "tests/fixtures/bug105372_in.txt",
+    "tests/golden/*",
     "tests/native-fixtures/*",
     "tests/jsonl-fixtures/*",
 ]
