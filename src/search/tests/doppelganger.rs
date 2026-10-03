@@ -36,22 +36,22 @@ fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
     // No recipe gives two Twin swing types different sizes.
     let mut game = Game::default();
     let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
-    attacker.m_sides = [20, 0];
-    attacker.m_value_total = Some(20);
+    attacker.sides = [20, 0];
+    attacker.value = Some(20);
     let mut target = swing_die('X', property::DOPPELGANGER | property::TWIN, 0);
-    target.m_sides = [8, 10];
-    target.m_swing_type = [Some('X'), Some('V')];
-    target.m_value_total = Some(12);
-    game.m_player[0].m_die = vec![attacker];
-    game.m_player[1].m_die = vec![target];
+    target.sides = [8, 10];
+    target.swing_type = [Some('X'), Some('V')];
+    target.value = Some(12);
+    game.players[0].dice = vec![attacker];
+    game.players[1].dice = vec![target];
 
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
 
-    let copied = &game.m_player[0].m_die[0];
-    assert_eq!(copied.m_sides, [8, 10]);
-    assert_eq!(copied.m_swing_type, [Some('X'), Some('V')]);
-    assert!(copied.HasProperty(property::TWIN | property::DOPPELGANGER));
+    let copied = &game.players[0].dice[0];
+    assert_eq!(copied.sides, [8, 10]);
+    assert_eq!(copied.swing_type, [Some('X'), Some('V')]);
+    assert!(copied.has_property(property::TWIN | property::DOPPELGANGER));
 }
 
 #[test]

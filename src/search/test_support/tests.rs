@@ -120,45 +120,42 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
             &["p20:14".to_owned()],
             &["q6:5".to_owned(), "q20:4".to_owned()],
         );
-        game.m_phase = Fight;
-        game.m_player[0].m_score = 2.0;
-        game.m_player[1].m_score = 47.0;
-        let attacker = resolve_original_indices("attacker", &game.m_player[0].m_die, &[0]);
-        let target = resolve_original_indices("target", &game.m_player[1].m_die, &[1]);
+        game.phase = Fight;
+        game.players[0].score = 2.0;
+        game.players[1].score = 47.0;
+        let attacker = resolve_original_indices("attacker", &game.players[0].dice, &[0]);
+        let target = resolve_original_indices("target", &game.players[1].dice, &[1]);
         let mut rng = Rng::default();
-        rng.SRand(seed_for_first_roll(poison_roll, 20));
+        rng.reseed(seed_for_first_roll(poison_roll, 20));
 
-        ApplyAttack(
+        apply_attack(
             &mut game,
-            &Move::attack(Power, attacker, target, 0.0),
+            &Move::new_attack(Power, attacker, target, 0.0),
             &mut rng,
         );
-        assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), poison_roll);
-        assert_eq!(
-            [game.m_player[0].m_score, game.m_player[1].m_score],
-            [22.0, 37.0]
-        );
+        assert_eq!(game.players[0].dice[0].value_total(), poison_roll);
+        assert_eq!([game.players[0].score, game.players[1].score], [22.0, 37.0]);
 
-        game.m_player.swap(0, 1);
-        let queer_capture = game
-            .GenerateValidAttacksInCppOrder()
-            .into_iter()
-            .find(|candidate| {
-                candidate.m_attack == Some(Shadow)
-                    && candidate
-                        .m_attackers
-                        .iter()
-                        .any(|index| game.m_player[0].m_die[index].m_original_index == 0)
-                    && candidate
-                        .m_targets
-                        .iter()
-                        .any(|index| game.m_player[1].m_die[index].m_original_index == 0)
-            });
+        game.players.swap(0, 1);
+        let queer_capture =
+            game.generate_valid_attacks_in_cpp_order()
+                .into_iter()
+                .find(|candidate| {
+                    candidate.attack == Some(Shadow)
+                        && candidate
+                            .attackers
+                            .iter()
+                            .any(|index| game.players[0].dice[index].original_index == 0)
+                        && candidate
+                            .targets
+                            .iter()
+                            .any(|index| game.players[1].dice[index].original_index == 0)
+                });
 
         if matches!(poison_roll, 5 | 6) {
-            ApplyAttack(&mut game, &queer_capture.unwrap(), &mut rng);
+            apply_attack(&mut game, &queer_capture.unwrap(), &mut rng);
             assert_eq!(
-                [game.m_player[1].m_score, game.m_player[0].m_score],
+                [game.players[1].score, game.players[0].score],
                 [42.0, 27.0],
                 "unexpected final scores after Poison rolled {poison_roll}"
             );
@@ -175,8 +172,8 @@ fn seed_for_first_roll(value: u16, sides: u32) -> u32 {
     (1..=u32::MAX)
         .find(|seed| {
             let mut rng = Rng::default();
-            rng.SRand(*seed);
-            rng.GetRandMax(sides) + 1 == u32::from(value)
+            rng.reseed(*seed);
+            rng.rand_below(sides) + 1 == u32::from(value)
         })
         .expect("every die face must be reachable from the legacy RNG")
 }
@@ -244,9 +241,9 @@ fn scenario_failures_show_expected_and_actual_die_recipes() {
 #[test]
 fn scenario_indices_follow_recipe_order_after_production_optimization() {
     let game = parse_game(&["6:1".to_owned(), "20:20".to_owned()], &["1:1".to_owned()]);
-    assert_eq!(game.m_player[0].m_die[0].m_original_index, 1);
+    assert_eq!(game.players[0].dice[0].original_index, 1);
     assert_eq!(
-        resolve_original_indices("attacker", &game.m_player[0].m_die, &[0]),
+        resolve_original_indices("attacker", &game.players[0].dice, &[0]),
         [1]
     );
 }

@@ -6,108 +6,108 @@ use super::{Attack, property};
 
 #[derive(Clone, Copy, Debug)]
 pub struct Die {
-    pub m_properties: u64,
-    pub m_sides: [u8; 2],
-    pub m_swing_type: [Option<char>; 2],
-    pub m_value_total: Option<u8>,
-    pub m_captured: bool,
-    pub m_notset: bool,
-    pub m_dizzy: bool,
-    pub m_original_index: usize,
-    pub m_in_reserve: bool,
+    pub properties: u64,
+    pub sides: [u8; 2],
+    pub swing_type: [Option<char>; 2],
+    pub value: Option<u8>,
+    pub captured: bool,
+    pub not_set: bool,
+    pub dizzy: bool,
+    pub original_index: usize,
+    pub in_reserve: bool,
 }
 
 impl Die {
-    pub fn HasProperty(&self, property: u64) -> bool {
-        self.m_properties & property != 0
+    pub fn has_property(&self, property: u64) -> bool {
+        self.properties & property != 0
     }
-    pub fn GetSidesMax(&self) -> u16 {
-        if self.HasProperty(property::TWIN) {
-            self.m_sides.iter().map(|v| u16::from(*v)).sum()
+    pub fn sides_max(&self) -> u16 {
+        if self.has_property(property::TWIN) {
+            self.sides.iter().map(|v| u16::from(*v)).sum()
         } else {
-            u16::from(self.m_sides[0])
+            u16::from(self.sides[0])
         }
     }
-    pub fn GetValueTotal(&self) -> u16 {
-        u16::from(self.m_value_total.unwrap_or(0))
+    pub fn value_total(&self) -> u16 {
+        u16::from(self.value.unwrap_or(0))
     }
-    pub fn IsAvailable(&self) -> bool {
-        self.m_value_total.is_some() && !self.m_captured && !self.m_notset && !self.m_in_reserve
+    pub fn is_available(&self) -> bool {
+        self.value.is_some() && !self.captured && !self.not_set && !self.in_reserve
     }
 
-    pub fn GetScore(&self, own: bool) -> f32 {
-        if self.HasProperty(property::NULL | property::WARRIOR) {
+    pub fn score(&self, own: bool) -> f32 {
+        if self.has_property(property::NULL | property::WARRIOR) {
             return 0.0;
         }
-        let poison = self.HasProperty(property::POISON);
-        let value = self.HasProperty(property::VALUE);
-        match (poison, value, own) {
-            (true, true, true) => -(self.GetValueTotal() as f32),
-            (true, true, false) => -(self.GetValueTotal() as f32) * 0.5,
-            (true, false, true) => -(self.GetSidesMax() as f32),
-            (true, false, false) => -(self.GetSidesMax() as f32) * 0.5,
-            (false, true, true) => self.GetValueTotal() as f32 * 0.5,
-            (false, true, false) => self.GetValueTotal() as f32,
-            (false, false, true) => self.GetSidesMax() as f32 * 0.5,
-            (false, false, false) => self.GetSidesMax() as f32,
+        let poison = self.has_property(property::POISON);
+        let is_value_die = self.has_property(property::VALUE);
+        match (poison, is_value_die, own) {
+            (true, true, true) => -(self.value_total() as f32),
+            (true, true, false) => -(self.value_total() as f32) * 0.5,
+            (true, false, true) => -(self.sides_max() as f32),
+            (true, false, false) => -(self.sides_max() as f32) * 0.5,
+            (false, true, true) => self.value_total() as f32 * 0.5,
+            (false, true, false) => self.value_total() as f32,
+            (false, false, true) => self.sides_max() as f32 * 0.5,
+            (false, false, false) => self.sides_max() as f32,
         }
     }
 
-    pub fn Roll(&mut self, rng: &mut crate::rng::Rng) {
-        super::RollDie(self, rng);
+    pub fn roll(&mut self, rng: &mut crate::rng::Rng) {
+        super::roll_die(self, rng);
     }
 
-    pub fn OnSwingSet(&mut self, swing: char, value: u8) {
-        assert!(self.m_notset, "Die::OnSwingSet requires NOTSET state");
+    pub fn on_swing_set(&mut self, swing: char, value: u8) {
+        assert!(self.not_set, "Die::OnSwingSet requires NOTSET state");
         for side in 0..2 {
-            if self.m_swing_type[side] == Some(swing) {
-                self.m_sides[side] = value;
+            if self.swing_type[side] == Some(swing) {
+                self.sides[side] = value;
             }
         }
     }
 
-    pub fn OnDizzyRecovered(&mut self) {
-        self.m_dizzy = false;
+    pub fn on_dizzy_recovered(&mut self) {
+        self.dizzy = false;
     }
 
-    pub(super) fn CanDoAttack(&self, attack: Attack, skill_dice: usize) -> bool {
-        if !self.IsAvailable() || self.m_dizzy {
+    pub(super) fn can_do_attack(&self, attack: Attack, skill_dice: usize) -> bool {
+        if !self.is_available() || self.dizzy {
             return false;
         }
-        if self.HasProperty(property::WARRIOR) {
+        if self.has_property(property::WARRIOR) {
             return attack == Attack::Skill;
         }
-        if self.HasProperty(property::STEALTH) {
+        if self.has_property(property::STEALTH) {
             return attack == Attack::Skill && skill_dice > 1;
         }
         match attack {
             Attack::Power => {
-                !self.HasProperty(property::SHADOW | property::KONSTANT | property::FIRE)
-                    && !(self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1)
+                !self.has_property(property::SHADOW | property::KONSTANT | property::FIRE)
+                    && !(self.has_property(property::QUEER) && self.value_total() % 2 == 1)
             }
-            Attack::Skill => !self.HasProperty(property::UNSKILLED | property::BERSERK),
-            Attack::Berserk => self.HasProperty(property::BERSERK),
-            Attack::Speed => self.HasProperty(property::SPEED),
-            Attack::Trip => self.HasProperty(property::TRIP),
+            Attack::Skill => !self.has_property(property::UNSKILLED | property::BERSERK),
+            Attack::Berserk => self.has_property(property::BERSERK),
+            Attack::Speed => self.has_property(property::SPEED),
+            Attack::Trip => self.has_property(property::TRIP),
             Attack::Shadow => {
-                self.HasProperty(property::SHADOW)
-                    || self.HasProperty(property::QUEER) && self.GetValueTotal() % 2 == 1
+                self.has_property(property::SHADOW)
+                    || self.has_property(property::QUEER) && self.value_total() % 2 == 1
             }
             // Rush legality depends on the targets, so enumeration checks it.
             Attack::Rush => true,
-            Attack::Boom => self.HasProperty(property::BOOM),
+            Attack::Boom => self.has_property(property::BOOM),
         }
     }
 
-    pub(super) fn CanBeAttacked(&self, attack: Attack, skill_dice: usize) -> bool {
-        if self.HasProperty(property::WARRIOR) {
+    pub(super) fn can_be_attacked(&self, attack: Attack, skill_dice: usize) -> bool {
+        if self.has_property(property::WARRIOR) {
             return false;
         }
         // Stealth overrides Insult, as in C++ RecomputeAttacks.
-        if self.HasProperty(property::STEALTH) {
+        if self.has_property(property::STEALTH) {
             return attack == Attack::Boom || attack == Attack::Skill && skill_dice > 1;
         }
-        if self.HasProperty(property::INSULT) && attack == Attack::Skill {
+        if self.has_property(property::INSULT) && attack == Attack::Skill {
             return false;
         }
         true

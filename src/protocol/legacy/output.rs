@@ -4,23 +4,23 @@
 
 use super::*;
 
-pub(super) fn DebugPlayer<W: Write>(
+pub(super) fn debug_player<W: Write>(
     player: &crate::game::Player,
     all: bool,
     output: &mut W,
 ) -> Result<(), ParseError> {
-    write!(output, "p{} s{:.1} Dice ", player.m_id, player.m_score).map_err(io_error)?;
-    for die in &player.m_die {
-        if !all && !die.IsAvailable() {
+    write!(output, "p{} s{:.1} Dice ", player.id, player.score).map_err(io_error)?;
+    for die in &player.dice {
+        if !all && !die.is_available() {
             continue;
         }
-        write!(output, "({:x})", die.m_properties & !property::VALID).map_err(io_error)?;
-        if die.HasProperty(property::TWIN) {
-            write!(output, "({},{})", die.m_sides[0], die.m_sides[1]).map_err(io_error)?;
+        write!(output, "({:x})", die.properties & !property::VALID).map_err(io_error)?;
+        if die.has_property(property::TWIN) {
+            write!(output, "({},{})", die.sides[0], die.sides[1]).map_err(io_error)?;
         } else {
-            write!(output, "{}", die.m_sides[0]).map_err(io_error)?;
+            write!(output, "{}", die.sides[0]).map_err(io_error)?;
         }
-        if let Some(value) = die.m_value_total {
+        if let Some(value) = die.value {
             write!(output, ":{value} ").map_err(io_error)?;
         } else {
             write!(output, " ").map_err(io_error)?;
@@ -29,57 +29,52 @@ pub(super) fn DebugPlayer<W: Write>(
     writeln!(output).map_err(io_error)
 }
 
-pub(super) fn SendAttack<W: Write>(
+pub(super) fn send_attack<W: Write>(
     game: &Game,
     action: &Move,
     output: &mut W,
 ) -> Result<(), ParseError> {
-    match action.m_action {
+    match action.action {
         Action::Pass => writeln!(output, "pass").map_err(io_error),
         Action::Surrender => writeln!(output, "surrender").map_err(io_error),
         Action::Attack => {
-            writeln!(
-                output,
-                "{}",
-                action.m_attack.expect("attack kind").protocol()
-            )
-            .map_err(io_error)?;
-            write_indices(&game.m_player[0], &action.m_attackers, output)?;
-            write_indices(&game.m_player[1], &action.m_targets, output)?;
-            if action.m_turbo_option >= 0
-                && let Some(die) = game.m_player[0]
-                    .m_die
+            writeln!(output, "{}", action.attack.expect("attack kind").protocol())
+                .map_err(io_error)?;
+            write_indices(&game.players[0], &action.attackers, output)?;
+            write_indices(&game.players[1], &action.targets, output)?;
+            if action.turbo_option >= 0
+                && let Some(die) = game.players[0]
+                    .dice
                     .iter()
-                    .find(|die| die.IsAvailable() && die.HasProperty(property::TURBO))
+                    .find(|die| die.is_available() && die.has_property(property::TURBO))
             {
-                if die.HasProperty(property::OPTION) {
+                if die.has_property(property::OPTION) {
                     writeln!(
                         output,
                         "option {} {}",
-                        die.m_original_index, die.m_sides[action.m_turbo_option as usize]
+                        die.original_index, die.sides[action.turbo_option as usize]
                     )
                     .map_err(io_error)?;
-                } else if let Some(swing) = die.m_swing_type[0] {
-                    writeln!(output, "swing {swing} {}", action.m_turbo_option)
-                        .map_err(io_error)?;
+                } else if let Some(swing) = die.swing_type[0] {
+                    writeln!(output, "swing {swing} {}", action.turbo_option).map_err(io_error)?;
                 }
             }
             for index in action
-                .m_fire
-                .m_amounts
+                .fire
+                .amounts
                 .iter()
                 .enumerate()
                 .filter_map(|(index, amount)| {
-                    (!action.m_attackers.contains(index) && *amount > 0).then_some((index, *amount))
+                    (!action.attackers.contains(index) && *amount > 0).then_some((index, *amount))
                 })
             {
                 let (index, reduction) = index;
-                let die = &game.m_player[0].m_die[index];
+                let die = &game.players[0].dice[index];
                 writeln!(
                     output,
                     "fire {} {}",
-                    die.m_original_index,
-                    die.GetValueTotal() - u16::from(reduction)
+                    die.original_index,
+                    die.value_total() - u16::from(reduction)
                 )
                 .map_err(io_error)?;
             }
@@ -93,61 +88,59 @@ pub(super) fn protocol_attack(
     game: &Game,
     action: &Move,
 ) -> Result<crate::protocol::ProtocolAction, ParseError> {
-    match action.m_action {
+    match action.action {
         Action::Pass => Ok(crate::protocol::ProtocolAction::Pass),
         Action::Surrender => Ok(crate::protocol::ProtocolAction::Surrender),
         Action::Attack => {
             let attack_type = action
-                .m_attack
+                .attack
                 .ok_or_else(|| ParseError("attack has no attack type".into()))?
                 .protocol();
             let original_indices = |player: usize, indices: &DieIndexSet| {
                 indices
                     .iter()
-                    .map(|index| game.m_player[player].m_die[index].m_original_index)
+                    .map(|index| game.players[player].dice[index].original_index)
                     .collect::<Vec<_>>()
             };
-            let turbo = if action.m_turbo_option < 0 {
+            let turbo = if action.turbo_option < 0 {
                 None
             } else {
-                game.m_player[0]
-                    .m_die
+                game.players[0]
+                    .dice
                     .iter()
-                    .find(|die| die.IsAvailable() && die.HasProperty(property::TURBO))
+                    .find(|die| die.is_available() && die.has_property(property::TURBO))
                     .and_then(|die| {
-                        if die.HasProperty(property::OPTION) {
+                        if die.has_property(property::OPTION) {
                             Some(crate::protocol::TurboSelection::Option {
-                                die: die.m_original_index,
-                                value: die.m_sides[action.m_turbo_option as usize],
+                                die: die.original_index,
+                                value: die.sides[action.turbo_option as usize],
                             })
                         } else {
-                            die.m_swing_type[0].map(|swing| {
-                                crate::protocol::TurboSelection::Swing {
-                                    swing,
-                                    value: action.m_turbo_option as u8,
-                                }
+                            die.swing_type[0].map(|swing| crate::protocol::TurboSelection::Swing {
+                                swing,
+                                value: action.turbo_option as u8,
                             })
                         }
                     })
             };
             let fire = action
-                .m_fire
-                .m_amounts
+                .fire
+                .amounts
                 .iter()
                 .enumerate()
-                .filter(|(index, amount)| !action.m_attackers.contains(*index) && **amount > 0)
+                .filter(|(index, amount)| !action.attackers.contains(*index) && **amount > 0)
                 .map(|(index, reduction)| {
-                    let die = &game.m_player[0].m_die[index];
+                    let die = &game.players[0].dice[index];
                     crate::protocol::FireSelection {
-                        die: die.m_original_index,
-                        value: (die.GetValueTotal() - u16::from(*reduction)) as u8,
+                        die: die.original_index,
+                        value: (die.value_total() - u16::from(*reduction)) as u8,
                     }
                 })
                 .collect();
             Ok(crate::protocol::ProtocolAction::Attack {
                 attack_type,
-                attackers: original_indices(0, &action.m_attackers),
-                targets: original_indices(1, &action.m_targets),
+                attackers: original_indices(0, &action.attackers),
+                targets: original_indices(1, &action.targets),
                 turbo,
                 fire,
             })
@@ -169,10 +162,10 @@ pub(super) fn protocol_swing(game: &Game, action: &SwingMove) -> crate::protocol
         .options()
         .iter()
         .map(|(index, second)| {
-            let die = &game.m_player[0].m_die[*index];
+            let die = &game.players[0].dice[*index];
             crate::protocol::OptionSelection {
-                die: die.m_original_index,
-                value: die.m_sides[usize::from(*second)],
+                die: die.original_index,
+                value: die.sides[usize::from(*second)],
             }
         })
         .collect::<Vec<_>>();
@@ -194,7 +187,7 @@ pub(super) fn protocol_chance(
             dice: action
                 .reroll
                 .iter()
-                .map(|index| game.m_player[0].m_die[*index].m_original_index)
+                .map(|index| game.players[0].dice[*index].original_index)
                 .collect(),
         }
     }
@@ -212,7 +205,7 @@ pub(super) fn protocol_focus(
                 .values
                 .iter()
                 .map(|(index, value)| crate::protocol::FocusSelection {
-                    die: game.m_player[0].m_die[*index].m_original_index,
+                    die: game.players[0].dice[*index].original_index,
                     value: *value,
                 })
                 .collect(),
@@ -242,26 +235,26 @@ pub(super) fn write_indices<W: Write>(
         if n > 0 {
             write!(output, " ").map_err(io_error)?;
         }
-        write!(output, "{}", player.m_die[index].m_original_index).map_err(io_error)?;
+        write!(output, "{}", player.dice[index].original_index).map_err(io_error)?;
     }
     writeln!(output).map_err(io_error)
 }
 
-pub(super) fn SendSetSwing<W: Write>(
+pub(super) fn send_set_swing<W: Write>(
     game: &Game,
     action: &SwingMove,
     output: &mut W,
 ) -> Result<(), ParseError> {
-    let player = &game.m_player[0];
+    let player = &game.players[0];
     let mut sent = false;
     for (swing, value) in action.values() {
         writeln!(output, "swing {swing} {value}").map_err(io_error)?;
         sent = true;
     }
     for (index, second) in action.options() {
-        let die = &player.m_die[*index];
-        let selected = die.m_sides[usize::from(*second)];
-        writeln!(output, "option {} {selected}", die.m_original_index).map_err(io_error)?;
+        let die = &player.dice[*index];
+        let selected = die.sides[usize::from(*second)];
+        writeln!(output, "option {} {selected}", die.original_index).map_err(io_error)?;
         sent = true;
     }
     if !sent {

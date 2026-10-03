@@ -6,33 +6,33 @@ use super::{Action, Attack, MAX_DICE};
 
 #[derive(Clone, Debug)]
 pub struct Move {
-    pub m_action: Action,
-    pub m_attack: Option<Attack>,
-    pub m_attackers: DieIndexSet,
-    pub m_targets: DieIndexSet,
-    pub m_score: f32,
+    pub action: Action,
+    pub attack: Option<Attack>,
+    pub attackers: DieIndexSet,
+    pub targets: DieIndexSet,
+    pub score: f32,
     /// -1 means no Turbo decision; option dice use 0/1; swing dice store a size.
-    pub m_turbo_option: i16,
-    pub m_fire: FireAdjustment,
+    pub turbo_option: i16,
+    pub fire: FireAdjustment,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct FireAdjustment {
     /// Attackers' entries are increases; other dice's entries are reductions.
-    pub m_amounts: [u8; MAX_DICE],
+    pub amounts: [u8; MAX_DICE],
 }
 
 impl Default for FireAdjustment {
     fn default() -> Self {
         Self {
-            m_amounts: [0; MAX_DICE],
+            amounts: [0; MAX_DICE],
         }
     }
 }
 
 impl FireAdjustment {
     pub fn is_empty(&self) -> bool {
-        self.m_amounts.iter().all(|amount| *amount == 0)
+        self.amounts.iter().all(|amount| *amount == 0)
     }
 
     pub(super) fn from_allocations(
@@ -43,27 +43,25 @@ impl FireAdjustment {
             debug_assert!(increases[index] == 0 || reductions[index] == 0);
             increases[index] += reductions[index];
         }
-        Self {
-            m_amounts: increases,
-        }
+        Self { amounts: increases }
     }
 }
 
 impl Move {
-    pub(crate) fn attack(
+    pub(crate) fn new_attack(
         kind: Attack,
         attackers: impl Into<DieIndexSet>,
         targets: impl Into<DieIndexSet>,
         score: f32,
     ) -> Self {
         Self {
-            m_action: Action::Attack,
-            m_attack: Some(kind),
-            m_attackers: attackers.into(),
-            m_targets: targets.into(),
-            m_score: score,
-            m_turbo_option: -1,
-            m_fire: FireAdjustment::default(),
+            action: Action::Attack,
+            attack: Some(kind),
+            attackers: attackers.into(),
+            targets: targets.into(),
+            score,
+            turbo_option: -1,
+            fire: FireAdjustment::default(),
         }
     }
 }

@@ -218,63 +218,63 @@ impl Scenario {
         );
         let mut game =
             parse_game_with_specials(&self.attacker_dice, &self.defender_dice, &self.specials);
-        game.m_phase = phase;
-        game.m_fire_overshooting = self.fire_overshooting;
+        game.phase = phase;
+        game.fire_overshooting = self.fire_overshooting;
         if let Some(scores) = self.scores {
-            game.m_player[0].m_score = scores[0];
-            game.m_player[1].m_score = scores[1];
+            game.players[0].score = scores[0];
+            game.players[1].score = scores[1];
         }
         let template = game.clone();
         let attackers = resolve_original_indices(
             "attacker",
-            &game.m_player[0].m_die,
+            &game.players[0].dice,
             self.attackers.as_deref().unwrap_or(&[0]),
         );
         let targets = resolve_original_indices(
             "target",
-            &game.m_player[1].m_die,
+            &game.players[1].dice,
             self.targets.as_deref().unwrap_or(&[0]),
         );
         let mut move_to_apply = match self.attack {
-            Some(attack) => Move::attack(attack, attackers, targets, 0.0),
-            None => super::super::fight::PassMove(),
+            Some(attack) => Move::new_attack(attack, attackers, targets, 0.0),
+            None => super::super::fight::pass_move(),
         };
         if let Some(selection) = self.turbo_option {
-            move_to_apply.m_turbo_option = selection;
+            move_to_apply.turbo_option = selection;
         }
         for (original_index, new_value) in &self.fire_values {
             let index =
-                resolve_original_indices("Fire", &game.m_player[0].m_die, &[*original_index])[0];
-            let old_value = game.m_player[0].m_die[index].GetValueTotal();
+                resolve_original_indices("Fire", &game.players[0].dice, &[*original_index])[0];
+            let old_value = game.players[0].dice[index].value_total();
             assert!(
                 u16::from(*new_value) < old_value,
                 "Fire dice must turn down"
             );
-            move_to_apply.m_fire.m_amounts[index] = (old_value - u16::from(*new_value)) as u8;
+            move_to_apply.fire.amounts[index] = (old_value - u16::from(*new_value)) as u8;
         }
         for (original_index, new_value) in &self.boosted_values {
             let index = resolve_original_indices(
                 "boosted attacker",
-                &game.m_player[0].m_die,
+                &game.players[0].dice,
                 &[*original_index],
             )[0];
-            let old_value = game.m_player[0].m_die[index].GetValueTotal();
+            let old_value = game.players[0].dice[index].value_total();
             assert!(
                 u16::from(*new_value) > old_value,
                 "fired attackers must turn up"
             );
-            move_to_apply.m_fire.m_amounts[index] = (u16::from(*new_value) - old_value) as u8;
+            move_to_apply.fire.amounts[index] = (u16::from(*new_value) - old_value) as u8;
         }
         let allowed = self.passes
             || game
-                .GenerateValidAttacksInCppOrder()
+                .generate_valid_attacks_in_cpp_order()
                 .iter()
                 .any(|candidate| {
-                    candidate.m_attack == move_to_apply.m_attack
-                        && candidate.m_attackers == move_to_apply.m_attackers
-                        && candidate.m_targets == move_to_apply.m_targets
-                        && candidate.m_turbo_option == move_to_apply.m_turbo_option
-                        && candidate.m_fire == move_to_apply.m_fire
+                    candidate.attack == move_to_apply.attack
+                        && candidate.attackers == move_to_apply.attackers
+                        && candidate.targets == move_to_apply.targets
+                        && candidate.turbo_option == move_to_apply.turbo_option
+                        && candidate.fire == move_to_apply.fire
                 });
 
         if let Some(expected) = self.expected_allowed {
@@ -291,16 +291,16 @@ impl Scenario {
 
         let mut rng = Rng::default();
         if let Some(seed) = self.seed {
-            rng.SRand(seed);
+            rng.reseed(seed);
         }
-        let extra_turn = ApplyAttack(&mut game, &move_to_apply, &mut rng);
+        let extra_turn = apply_attack(&mut game, &move_to_apply, &mut rng);
 
         if let Some(expected) = self.expected_extra_turn {
             assert_eq!(extra_turn, expected, "unexpected extra-turn result");
         }
         if let Some(expected) = self.expected_scores {
             assert_eq!(
-                [game.m_player[0].m_score, game.m_player[1].m_score],
+                [game.players[0].score, game.players[1].score],
                 expected,
                 "unexpected player scores"
             );
@@ -315,14 +315,12 @@ impl Scenario {
             assert_active_dice("defender", &game, 1, &expected);
         }
         if let Some(expected) = self.expected_captured_defender_dice {
-            assert_dice_matching("captured defender", &game, 1, &expected, |die| {
-                die.m_captured
-            });
+            assert_dice_matching("captured defender", &game, 1, &expected, |die| die.captured);
         }
         if self.expected_next_round_attacker_dice.is_some()
             || self.expected_next_round_defender_dice.is_some()
         {
-            RestoreDiceForNewRound(&mut game, &template);
+            restore_dice_for_new_round(&mut game, &template);
             if let Some(expected) = self.expected_next_round_attacker_dice {
                 assert_round_dice("next-round attacker", &game, 0, &expected);
             }
@@ -331,15 +329,15 @@ impl Scenario {
             }
             for (label, player) in [("attacker", 0), ("defender", 1)] {
                 assert_eq!(
-                    game.m_player[player].m_round_transformed, 0,
+                    game.players[player].round_transformed, 0,
                     "next-round {label} still has transformed-recipe bookkeeping"
                 );
                 assert_eq!(
-                    game.m_player[player].m_radioactive_products, 0,
+                    game.players[player].radioactive_products, 0,
                     "next-round {label} still has Radioactive-product bookkeeping"
                 );
                 assert_eq!(
-                    game.m_player[player].m_rage_replacements, 0,
+                    game.players[player].rage_replacements, 0,
                     "next-round {label} still has Rage-replacement bookkeeping"
                 );
             }
@@ -357,7 +355,7 @@ pub(super) fn resolve_original_indices(
         .map(|original_index| {
             dice.iter()
                 .position(|die| {
-                    die.m_original_index == *original_index && !die.m_captured && !die.m_in_reserve
+                    die.original_index == *original_index && !die.captured && !die.in_reserve
                 })
                 .unwrap_or_else(|| panic!("scenario has no active {label} die {original_index}"))
         })
@@ -389,21 +387,21 @@ fn parse_game_with_specials(
     }
     let mut parser = Parser::default();
     parser
-        .ParseString(&input, &mut Vec::new())
+        .parse_string(&input, &mut Vec::new())
         .unwrap_or_else(|error| panic!("invalid scenario setup: {error}\n{input}"));
-    parser.m_game
+    parser.game
 }
 
 #[track_caller]
 fn assert_active_dice(label: &str, game: &Game, player: usize, expected: &[String]) {
     assert_dice_matching(label, game, player, expected, |die| {
-        !die.m_captured && !die.m_in_reserve
+        !die.captured && !die.in_reserve
     });
 }
 
 #[track_caller]
 fn assert_round_dice(label: &str, game: &Game, player: usize, expected: &[String]) {
-    assert_dice_matching(label, game, player, expected, |die| !die.m_in_reserve);
+    assert_dice_matching(label, game, player, expected, |die| !die.in_reserve);
 }
 
 #[track_caller]
@@ -414,10 +412,10 @@ fn assert_die_by_original_index(
     original_index: usize,
     expected: &str,
 ) {
-    let die = game.m_player[player]
-        .m_die
+    let die = game.players[player]
+        .dice
         .iter()
-        .find(|die| die.m_original_index == original_index && !die.m_captured && !die.m_in_reserve)
+        .find(|die| die.original_index == original_index && !die.captured && !die.in_reserve)
         .unwrap_or_else(|| panic!("no active {label} die has declaration index {original_index}"));
     assert_eq!(
         format_die(die),
@@ -432,8 +430,8 @@ fn assert_die_by_original_index(
 fn normalize_die(expected: &str) -> String {
     let mut parser = Parser::default();
     let input = format!("game\nfight\nplayer 0 1 0\n{expected}\nplayer 1 1 0\n1:1\n");
-    match parser.ParseString(&input, &mut Vec::new()) {
-        Ok(()) => format_die(&parser.m_game.m_player[0].m_die[0]),
+    match parser.parse_string(&input, &mut Vec::new()) {
+        Ok(()) => format_die(&parser.game.players[0].dice[0]),
         Err(_) => expected.to_string(),
     }
 }
@@ -446,8 +444,8 @@ pub(super) fn assert_dice_matching(
     expected: &[String],
     include: impl Fn(&Die) -> bool,
 ) {
-    let actual = game.m_player[player]
-        .m_die
+    let actual = game.players[player]
+        .dice
         .iter()
         .filter(|die| include(die))
         .map(format_die)
@@ -462,11 +460,11 @@ pub(super) fn assert_dice_matching(
 pub(super) fn format_die(die: &Die) -> String {
     let mut output = String::new();
     for notation in crate::protocol::notation::DIE_PROPERTY_PREFIXES {
-        if die.HasProperty(notation.property) {
+        if die.has_property(notation.property) {
             output.push(notation.token);
         }
     }
-    if die.HasProperty(property::TWIN) {
+    if die.has_property(property::TWIN) {
         output.push('(');
         output.push_str(&format_side(die, 0));
         output.push(',');
@@ -474,24 +472,24 @@ pub(super) fn format_die(die: &Die) -> String {
         output.push(')');
     } else {
         output.push_str(&format_side(die, 0));
-        if die.HasProperty(property::OPTION) {
+        if die.has_property(property::OPTION) {
             output.push('/');
             output.push_str(&format_side(die, 1));
         }
     }
-    if die.HasProperty(property::TURBO) {
+    if die.has_property(property::TURBO) {
         output.push('!');
     }
-    if die.HasProperty(property::MOOD) {
+    if die.has_property(property::MOOD) {
         output.push('?');
     }
-    if die.HasProperty(property::MAD) {
+    if die.has_property(property::MAD) {
         output.push('&');
     }
-    if let Some(value) = die.m_value_total {
+    if let Some(value) = die.value {
         output.push(':');
         output.push_str(&value.to_string());
-        if die.m_dizzy {
+        if die.dizzy {
             output.push('d');
         }
     }
@@ -499,8 +497,8 @@ pub(super) fn format_die(die: &Die) -> String {
 }
 
 fn format_side(die: &Die, side: usize) -> String {
-    die.m_swing_type[side].map_or_else(
-        || die.m_sides[side].to_string(),
-        |swing| format!("{swing}-{}", die.m_sides[side]),
+    die.swing_type[side].map_or_else(
+        || die.sides[side].to_string(),
+        |swing| format!("{swing}-{}", die.sides[side]),
     )
 }

@@ -7,20 +7,20 @@ use super::*;
 #[test]
 fn rage_dice_do_not_contribute_to_initiative() {
     let game = native_fixture_game("game\ninitiative\nplayer 0 1 0\nG20:20\nplayer 1 1 0\n6:6\n");
-    assert_eq!(CheckInitiative(&game), Some(1));
+    assert_eq!(check_initiative(&game), Some(1));
 }
 
 #[test]
 fn rage_slow_die_is_still_excluded_from_initiative() {
     let game = native_fixture_game("game\ninitiative\nplayer 0 1 0\nGw20:20\nplayer 1 1 0\n6:6\n");
-    assert_eq!(CheckInitiative(&game), Some(1));
+    assert_eq!(check_initiative(&game), Some(1));
 }
 
 #[test]
 fn rage_focus_die_cannot_be_used_for_focus() {
     let game = native_fixture_game("game\nfocus\nplayer 0 1 0\nGf20:20\nplayer 1 1 0\n6:6\n");
-    assert_eq!(GenerateFocusMoves(&game, 0).len(), 1);
-    assert!(GenerateFocusMoves(&game, 0)[0].values.is_empty());
+    assert_eq!(generate_focus_moves(&game, 0).len(), 1);
+    assert!(generate_focus_moves(&game, 0)[0].values.is_empty());
 }
 
 #[test]
@@ -247,21 +247,21 @@ fn ten_captured_rage_dice_fit_the_bounded_twenty_die_round_pool() {
 fn rage_replacement_reports_transformed_capacity_exhaustion() {
     let mut game = Game::default();
     let mut attacker = swing_die('P', 0, 0);
-    attacker.m_sides[0] = 20;
-    attacker.m_value_total = Some(20);
-    game.m_player[0].m_die.push(attacker);
+    attacker.sides[0] = 20;
+    attacker.value = Some(20);
+    game.players[0].dice.push(attacker);
     for original_index in 0..MAX_DICE {
         let mut target = swing_die('P', 0, original_index);
-        target.m_sides[0] = 1;
-        target.m_value_total = Some(1);
+        target.sides[0] = 1;
+        target.value = Some(1);
         if original_index == 0 {
-            target.m_properties |= property::RAGE;
+            target.properties |= property::RAGE;
         }
-        game.m_player[1].m_die.push(target);
+        game.players[1].dice.push(target);
     }
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
 
-    ApplyAttack(&mut game, &action, &mut Rng::default());
+    apply_attack(&mut game, &action, &mut Rng::default());
 }
 
 #[test]

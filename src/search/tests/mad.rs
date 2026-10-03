@@ -28,12 +28,12 @@ fn a_mad_twin_shares_one_size() {
 fn a_mad_die_may_start_at_an_odd_size() {
     let mut parser = crate::Parser::default();
     parser
-        .ParseString(
+        .parse_string(
             "game\npreround\nplayer 0 1 0\nX&\nplayer 1 1 0\n6\n",
             &mut Vec::new(),
         )
         .unwrap();
-    let sizes = GenerateSwingMoves(&parser.m_game.m_player[0])
+    let sizes = generate_swing_moves(&parser.game.players[0])
         .iter()
         .map(|candidate| candidate.values()[0].1)
         .collect::<Vec<_>>();
@@ -97,9 +97,6 @@ fn mad_parses_before_or_after_the_swing_size() {
         let game = native_fixture_game(&format!(
             "game\nfight\nplayer 0 1 0\n{die}\nplayer 1 1 0\n1:1\n"
         ));
-        assert!(
-            game.m_player[0].m_die[0].HasProperty(property::MAD),
-            "{die}"
-        );
+        assert!(game.players[0].dice[0].has_property(property::MAD), "{die}");
     }
 }

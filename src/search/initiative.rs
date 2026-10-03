@@ -4,20 +4,20 @@
 
 use super::*;
 
-pub(super) fn HasAvailableProperty(player: &crate::game::Player, property: u64) -> bool {
+pub(super) fn has_available_property(player: &crate::game::Player, property: u64) -> bool {
     player
-        .m_die
+        .dice
         .iter()
-        .any(|die| die.IsAvailable() && die.HasProperty(property))
+        .any(|die| die.is_available() && die.has_property(property))
 }
 
-pub(super) fn GenerateChanceMoves(game: &Game, player: usize) -> Vec<ChanceMove> {
-    let dice = game.m_player[player]
-        .m_die
+pub(super) fn generate_chance_moves(game: &Game, player: usize) -> Vec<ChanceMove> {
+    let dice = game.players[player]
+        .dice
         .iter()
         .enumerate()
         .filter_map(|(index, die)| {
-            (die.IsAvailable() && die.HasProperty(property::CHANCE)).then_some(index)
+            (die.is_available() && die.has_property(property::CHANCE)).then_some(index)
         })
         .collect::<Vec<_>>();
     let mut moves = Vec::with_capacity(1usize << dice.len());
@@ -34,7 +34,7 @@ pub(super) fn GenerateChanceMoves(game: &Game, player: usize) -> Vec<ChanceMove>
     moves
 }
 
-pub(super) fn ApplyChanceMove(
+pub(super) fn apply_chance_move(
     game: &mut Game,
     player: usize,
     previous_initiative: usize,
@@ -45,24 +45,24 @@ pub(super) fn ApplyChanceMove(
         return (previous_initiative, false);
     }
     for index in &action.reroll {
-        if !game.m_player[player].m_die[*index].HasProperty(property::KONSTANT) {
-            game.m_player[player].m_die[*index].m_notset = true;
+        if !game.players[player].dice[*index].has_property(property::KONSTANT) {
+            game.players[player].dice[*index].not_set = true;
         }
-        ApplyBeforeRollEffects(game, player, *index);
-        if game.m_player[player].m_die[*index].m_notset {
-            RollScheduledDie(game, player, *index, rng);
+        apply_before_roll_effects(game, player, *index);
+        if game.players[player].dice[*index].not_set {
+            roll_scheduled_die(game, player, *index, rng);
         }
     }
-    game.m_player[player].OptimizeDice();
+    game.players[player].optimize_dice();
     // C++ tests `initiative != 0`, so success means player 0 won, whoever rolled.
-    if CheckInitiative(game) == Some(0) {
+    if check_initiative(game) == Some(0) {
         (player, true)
     } else {
         (previous_initiative, false)
     }
 }
 
-pub(super) fn SelectChanceAction(
+pub(super) fn select_chance_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -71,8 +71,8 @@ pub(super) fn SelectChanceAction(
     initiative: usize,
     native: Option<NativeEvaluation>,
 ) -> (ChanceMove, f32) {
-    let mut moves = GenerateChanceMoves(game, player);
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let mut moves = generate_chance_moves(game, player);
+    let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
     let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
@@ -80,14 +80,14 @@ pub(super) fn SelectChanceAction(
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
     while sims_run < sims {
-        let batch = if ai.m_cull_moves {
-            ai.m_sims_per_check.min(sims - sims_run)
+        let batch = if ai.cull_moves {
+            ai.sims_per_check.min(sims - sims_run)
         } else {
             sims - sims_run
         };
         let native_results = native.map(|context| {
-            let batch_index = if ai.m_cull_moves {
-                sims_run / ai.m_sims_per_check.max(1)
+            let batch_index = if ai.cull_moves {
+                sims_run / ai.sims_per_check.max(1)
             } else {
                 0
             };
@@ -107,14 +107,14 @@ pub(super) fn SelectChanceAction(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = NativeSimulationRng(
+                    let mut simulation_rng = native_simulation_rng(
                         context.algorithm,
                         context.replay,
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
                     );
-                    EvaluateChanceSimulation(
+                    evaluate_chance_simulation(
                         &mut simulation,
                         player,
                         initiative,
@@ -133,8 +133,8 @@ pub(super) fn SelectChanceAction(
                     .sum::<f32>();
             } else {
                 for _ in 0..batch {
-                    RestoreSimulation(&mut simulation, game);
-                    scores[index] += EvaluateChanceSimulation(
+                    restore_simulation(&mut simulation, game);
+                    scores[index] += evaluate_chance_simulation(
                         &mut simulation,
                         player,
                         initiative,
@@ -151,19 +151,19 @@ pub(super) fn SelectChanceAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.cull_moves {
             break;
         }
         if moves.len() == 1 {
-            if CompletesNativeProbabilitySample(native) {
+            if completes_native_probability_sample(native) {
                 continue;
             }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
-        let threshold = ai.m_min_best_score_threshold
-            + progress * (ai.m_max_best_score_threshold - ai.m_min_best_score_threshold);
-        let mut delta_threshold = (1.0 - progress) * ai.m_sims_per_check as f32 * 0.5;
+        let threshold = ai.min_best_score_threshold
+            + progress * (ai.max_best_score_threshold - ai.min_best_score_threshold);
+        let mut delta_threshold = (1.0 - progress) * ai.sims_per_check as f32 * 0.5;
         if best_score > 1.0 && delta_threshold >= best_score {
             delta_threshold = best_score;
         }
@@ -182,21 +182,21 @@ pub(super) fn SelectChanceAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
+        if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
     }
-    if TraceSettings().chance {
+    if trace_settings().chance {
         eprintln!(
             "CHANCE_BEST l{level} seed={} score={best_score} sims={sims_run} {:?}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             best.reroll
         );
     }
     (best, best_score / sims_run as f32)
 }
 
-pub(super) fn EvaluateChanceSimulation(
+pub(super) fn evaluate_chance_simulation(
     simulation: &mut Game,
     player: usize,
     initiative: usize,
@@ -206,11 +206,11 @@ pub(super) fn EvaluateChanceSimulation(
     level: usize,
 ) -> f32 {
     let (next_initiative, chance_continues) =
-        ApplyChanceMove(simulation, player, initiative, action, rng);
-    if level >= ai.m_max_ply {
-        PlayFightQAIFromPhase(simulation, rng, next_initiative, player, false, ai)
+        apply_chance_move(simulation, player, initiative, action, rng);
+    if level >= ai.max_ply {
+        play_fight_qai_from_phase(simulation, rng, next_initiative, player, false, ai)
     } else {
-        EvaluateNextInitiativeAction(
+        evaluate_next_initiative_action(
             simulation,
             rng,
             ai,
@@ -226,19 +226,19 @@ pub(super) fn EvaluateChanceSimulation(
     }
 }
 
-pub(crate) fn SelectBMAIChanceAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> ChanceMove {
-    SelectChanceAction(game, 0, rng, ai, 1, 1, None).0
+pub(crate) fn select_bmai_chance_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> ChanceMove {
+    select_chance_action(game, 0, rng, ai, 1, 1, None).0
 }
 
-pub(crate) fn SelectNativeBMAIChanceAction(
+pub(crate) fn select_native_bmai_chance_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     ai: &Bmai3,
 ) -> ChanceMove {
-    let mut unused_legacy_rng = Rng::UntracedDefault();
-    SelectChanceAction(
+    let mut unused_legacy_rng = Rng::untraced_default();
+    select_chance_action(
         game,
         0,
         &mut unused_legacy_rng,
@@ -254,18 +254,18 @@ pub(crate) fn SelectNativeBMAIChanceAction(
     .0
 }
 
-pub(super) fn GenerateFocusMoves(game: &Game, player: usize) -> Vec<FocusMove> {
-    let focus = game.m_player[player]
-        .m_die
+pub(super) fn generate_focus_moves(game: &Game, player: usize) -> Vec<FocusMove> {
+    let focus = game.players[player]
+        .dice
         .iter()
         .enumerate()
         .filter(|(_, die)| {
-            die.IsAvailable()
-                && die.HasProperty(property::FOCUS)
-                && !die.HasProperty(property::RAGE)
-                && die.GetValueTotal() > 1
+            die.is_available()
+                && die.has_property(property::FOCUS)
+                && !die.has_property(property::RAGE)
+                && die.value_total() > 1
         })
-        .map(|(index, die)| (index, die.GetValueTotal() as u8))
+        .map(|(index, die)| (index, die.value_total() as u8))
         .collect::<Vec<_>>();
     let combinations = focus
         .iter()
@@ -282,31 +282,31 @@ pub(super) fn GenerateFocusMoves(game: &Game, player: usize) -> Vec<FocusMove> {
             }
             divisor *= usize::from(*current);
         }
-        RestoreSimulation(&mut trial, game);
-        ApplyFocusMove(
+        restore_simulation(&mut trial, game);
+        apply_focus_move(
             &mut trial,
             player,
             &FocusMove {
                 values: values.clone(),
             },
         );
-        if CheckInitiative(&trial) == Some(player) {
+        if check_initiative(&trial) == Some(player) {
             moves.push(FocusMove { values });
         }
     }
     moves
 }
 
-pub(super) fn ApplyFocusMove(game: &mut Game, player: usize, action: &FocusMove) {
+pub(super) fn apply_focus_move(game: &mut Game, player: usize, action: &FocusMove) {
     for (index, value) in &action.values {
-        let die = &mut game.m_player[player].m_die[*index];
-        die.m_value_total = Some(*value);
-        die.m_dizzy = true;
+        let die = &mut game.players[player].dice[*index];
+        die.value = Some(*value);
+        die.dizzy = true;
     }
-    game.m_player[player].OptimizeDice();
+    game.players[player].optimize_dice();
 }
 
-pub(super) fn SelectFocusAction(
+pub(super) fn select_focus_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -315,13 +315,13 @@ pub(super) fn SelectFocusAction(
     initiative: usize,
     native: Option<NativeEvaluation>,
 ) -> (FocusMove, f32) {
-    let trace = TraceSettings().focus;
-    let mut moves = GenerateFocusMoves(game, player);
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let trace = trace_settings().focus;
+    let mut moves = generate_focus_moves(game, player);
+    let sims = ai.compute_number_sims(moves.len(), level);
     if trace {
         eprintln!(
             "FOCUS_BEGIN l{level} seed={} moves={} sims={sims}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             moves.len()
         );
     }
@@ -332,14 +332,14 @@ pub(super) fn SelectFocusAction(
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
     while sims_run < sims {
-        let batch = if ai.m_cull_moves {
-            ai.m_sims_per_check.min(sims - sims_run)
+        let batch = if ai.cull_moves {
+            ai.sims_per_check.min(sims - sims_run)
         } else {
             sims - sims_run
         };
         let native_results = native.map(|context| {
-            let batch_index = if ai.m_cull_moves {
-                sims_run / ai.m_sims_per_check.max(1)
+            let batch_index = if ai.cull_moves {
+                sims_run / ai.sims_per_check.max(1)
             } else {
                 0
             };
@@ -359,14 +359,14 @@ pub(super) fn SelectFocusAction(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = NativeSimulationRng(
+                    let mut simulation_rng = native_simulation_rng(
                         context.algorithm,
                         context.replay,
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
                     );
-                    EvaluateFocusSimulation(
+                    evaluate_focus_simulation(
                         &mut simulation,
                         player,
                         initiative,
@@ -385,8 +385,8 @@ pub(super) fn SelectFocusAction(
                     .sum::<f32>();
             } else {
                 for _ in 0..batch {
-                    RestoreSimulation(&mut simulation, game);
-                    scores[index] += EvaluateFocusSimulation(
+                    restore_simulation(&mut simulation, game);
+                    scores[index] += evaluate_focus_simulation(
                         &mut simulation,
                         player,
                         initiative,
@@ -400,7 +400,7 @@ pub(super) fn SelectFocusAction(
             if trace {
                 eprintln!(
                     "FOCUS_MOVE l{level} m{index} seed={} sims={} score={} {:?}",
-                    rng.DebugSeed(),
+                    rng.debug_seed(),
                     sims_run + batch,
                     scores[index],
                     action.values
@@ -412,19 +412,19 @@ pub(super) fn SelectFocusAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.cull_moves {
             break;
         }
         if moves.len() == 1 {
-            if CompletesNativeProbabilitySample(native) {
+            if completes_native_probability_sample(native) {
                 continue;
             }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
-        let threshold = ai.m_min_best_score_threshold
-            + progress * (ai.m_max_best_score_threshold - ai.m_min_best_score_threshold);
-        let mut delta_threshold = (1.0 - progress) * ai.m_sims_per_check as f32 * 0.5;
+        let threshold = ai.min_best_score_threshold
+            + progress * (ai.max_best_score_threshold - ai.min_best_score_threshold);
+        let mut delta_threshold = (1.0 - progress) * ai.sims_per_check as f32 * 0.5;
         if best_score > 1.0 && delta_threshold >= best_score {
             delta_threshold = best_score;
         }
@@ -443,21 +443,21 @@ pub(super) fn SelectFocusAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
+        if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
     }
     if trace {
         eprintln!(
             "FOCUS_BEST l{level} seed={} score={best_score} sims={sims_run} {:?}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             best.values
         );
     }
     (best, best_score / sims_run as f32)
 }
 
-pub(super) fn EvaluateFocusSimulation(
+pub(super) fn evaluate_focus_simulation(
     simulation: &mut Game,
     player: usize,
     initiative: usize,
@@ -469,13 +469,13 @@ pub(super) fn EvaluateFocusSimulation(
     let phase = if action.values.is_empty() {
         initiative
     } else {
-        ApplyFocusMove(simulation, player, action);
+        apply_focus_move(simulation, player, action);
         player
     };
-    if level >= ai.m_max_ply {
-        PlayFightQAIFromPhase(simulation, rng, phase, player, false, ai)
+    if level >= ai.max_ply {
+        play_fight_qai_from_phase(simulation, rng, phase, player, false, ai)
     } else {
-        EvaluateNextInitiativeAction(
+        evaluate_next_initiative_action(
             simulation,
             rng,
             ai,
@@ -491,19 +491,19 @@ pub(super) fn EvaluateFocusSimulation(
     }
 }
 
-pub(crate) fn SelectBMAIFocusAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> FocusMove {
-    SelectFocusAction(game, 0, rng, ai, 1, 1, None).0
+pub(crate) fn select_bmai_focus_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> FocusMove {
+    select_focus_action(game, 0, rng, ai, 1, 1, None).0
 }
 
-pub(crate) fn SelectNativeBMAIFocusAction(
+pub(crate) fn select_native_bmai_focus_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     ai: &Bmai3,
 ) -> FocusMove {
-    let mut unused_legacy_rng = Rng::UntracedDefault();
-    SelectFocusAction(
+    let mut unused_legacy_rng = Rng::untraced_default();
+    select_focus_action(
         game,
         0,
         &mut unused_legacy_rng,
@@ -519,7 +519,7 @@ pub(crate) fn SelectNativeBMAIFocusAction(
     .0
 }
 
-pub(super) fn EvaluateNextInitiativeAction(
+pub(super) fn evaluate_next_initiative_action(
     game: &mut Game,
     rng: &mut Rng,
     ai: &Bmai3,
@@ -530,9 +530,9 @@ pub(super) fn EvaluateNextInitiativeAction(
 ) -> f32 {
     if matches!(stage, InitiativeStage::Chance) {
         let player = 1 - initiative;
-        if HasAvailableProperty(&game.m_player[player], property::CHANCE) {
+        if has_available_property(&game.players[player], property::CHANCE) {
             let (_, probability) =
-                SelectChanceAction(game, player, rng, ai, level, initiative, None);
+                select_chance_action(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability
             } else {
@@ -543,9 +543,9 @@ pub(super) fn EvaluateNextInitiativeAction(
     }
     if matches!(stage, InitiativeStage::Focus) {
         let player = 1 - initiative;
-        if HasAvailableProperty(&game.m_player[player], property::FOCUS) {
+        if has_available_property(&game.players[player], property::FOCUS) {
             let (_, probability) =
-                SelectFocusAction(game, player, rng, ai, level, initiative, None);
+                select_focus_action(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability
             } else {
@@ -555,9 +555,9 @@ pub(super) fn EvaluateNextInitiativeAction(
     }
     let mut oriented = game.clone();
     if initiative == 1 {
-        oriented.m_player.swap(0, 1);
+        oriented.players.swap(0, 1);
     }
-    let (_, probability) = SelectBMAIActionAtLevel(&oriented, rng, ai, level, false);
+    let (_, probability) = select_bmai_action_at_level(&oriented, rng, ai, level, false);
     if initiative == pov {
         probability
     } else {
@@ -566,30 +566,30 @@ pub(super) fn EvaluateNextInitiativeAction(
 }
 
 // As in C++, BMAI plays until max ply and QAI finishes the round.
-pub(super) fn PlaySimulatedRound(
+pub(super) fn play_simulated_round(
     game: &mut Game,
     rng: &mut Rng,
     ai: &Bmai3,
     mut level: usize,
     pov: usize,
 ) -> f32 {
-    RollRoundDice(game, rng);
-    let mut phase = InitiativeWinner(game);
+    roll_round_dice(game, rng);
+    let mut phase = initiative_winner(game);
     let mut passed = false;
-    let mut use_qai = level > ai.m_max_ply;
+    let mut use_qai = level > ai.max_ply;
     let mut oriented = game.clone();
     loop {
         let player = 1 - phase;
-        if !HasAvailableProperty(&game.m_player[player], property::CHANCE) || use_qai {
+        if !has_available_property(&game.players[player], property::CHANCE) || use_qai {
             break;
         }
-        let action = SelectChanceAction(game, player, rng, ai, level, phase, None).0;
-        if level >= ai.m_max_ply {
+        let action = select_chance_action(game, player, rng, ai, level, phase, None).0;
+        if level >= ai.max_ply {
             use_qai = true;
         } else {
             level += 1;
         }
-        let (next_phase, continues) = ApplyChanceMove(game, player, phase, &action, rng);
+        let (next_phase, continues) = apply_chance_move(game, player, phase, &action, rng);
         phase = next_phase;
         if !continues {
             break;
@@ -597,11 +597,11 @@ pub(super) fn PlaySimulatedRound(
     }
     loop {
         let player = 1 - phase;
-        if !HasAvailableProperty(&game.m_player[player], property::FOCUS) || use_qai {
+        if !has_available_property(&game.players[player], property::FOCUS) || use_qai {
             break;
         }
-        let action = SelectFocusAction(game, player, rng, ai, level, phase, None).0;
-        if level >= ai.m_max_ply {
+        let action = select_focus_action(game, player, rng, ai, level, phase, None).0;
+        if level >= ai.max_ply {
             use_qai = true;
         } else {
             level += 1;
@@ -609,53 +609,53 @@ pub(super) fn PlaySimulatedRound(
         if action.values.is_empty() {
             break;
         }
-        ApplyFocusMove(game, player, &action);
+        apply_focus_move(game, player, &action);
         phase = player;
     }
     for _ in 0..256 {
-        if FightOver(game) {
+        if fight_over(game) {
             break;
         }
-        RestoreSimulation(&mut oriented, game);
+        restore_simulation(&mut oriented, game);
         if phase == 1 {
-            oriented.m_player.swap(0, 1);
+            oriented.players.swap(0, 1);
         }
         let action = if use_qai {
-            SelectRolloutAction(&oriented, rng, ai)
+            select_rollout_action(&oriented, rng, ai)
         } else {
-            let action = SelectBMAIActionAtLevel(&oriented, rng, ai, level, passed).0;
-            if level >= ai.m_max_ply {
+            let action = select_bmai_action_at_level(&oriented, rng, ai, level, passed).0;
+            if level >= ai.max_ply {
                 use_qai = true;
             } else {
                 level += 1;
             }
             action
         };
-        if action.m_action == Action::Surrender {
-            game.m_player[phase].m_score = -1000.0;
+        if action.action == Action::Surrender {
+            game.players[phase].score = -1000.0;
             break;
         }
-        if action.m_action != Action::Attack {
+        if action.action != Action::Attack {
             if passed {
                 break;
             }
             passed = true;
         } else {
             passed = false;
-            let extra = ApplyAttackForPlayers(game, &action, phase, 1 - phase, rng);
-            RecoverDizzyDice(&mut game.m_player[phase]);
+            let extra = apply_attack_for_players(game, &action, phase, 1 - phase, rng);
+            recover_dizzy_dice(&mut game.players[phase]);
             if extra {
                 continue;
             }
         }
-        if action.m_action != Action::Attack {
-            RecoverDizzyDice(&mut game.m_player[phase]);
+        if action.action != Action::Attack {
+            recover_dizzy_dice(&mut game.players[phase]);
         }
         phase = 1 - phase;
     }
-    match game.m_player[pov]
-        .m_score
-        .total_cmp(&game.m_player[1 - pov].m_score)
+    match game.players[pov]
+        .score
+        .total_cmp(&game.players[1 - pov].score)
     {
         std::cmp::Ordering::Greater => 1.0,
         std::cmp::Ordering::Equal => 0.5,
@@ -663,13 +663,13 @@ pub(super) fn PlaySimulatedRound(
     }
 }
 
-pub(super) fn PlayRoundQAI(game: &mut Game, rng: &mut Rng, pov: usize, ai: &Bmai3) -> f32 {
-    RollRoundDice(game, rng);
-    let phase = InitiativeWinner(game);
-    PlayFightQAIFromPhase(game, rng, phase, pov, false, ai)
+pub(super) fn play_round_qai(game: &mut Game, rng: &mut Rng, pov: usize, ai: &Bmai3) -> f32 {
+    roll_round_dice(game, rng);
+    let phase = initiative_winner(game);
+    play_fight_qai_from_phase(game, rng, phase, pov, false, ai)
 }
 
-pub(super) fn PlayFightQAIFromPhase(
+pub(super) fn play_fight_qai_from_phase(
     game: &mut Game,
     rng: &mut Rng,
     mut phase: usize,
@@ -679,35 +679,35 @@ pub(super) fn PlayFightQAIFromPhase(
 ) -> f32 {
     let mut oriented = game.clone();
     for _ in 0..256 {
-        if game.m_player.iter().any(|p| AvailableDice(p) == 0) {
+        if game.players.iter().any(|p| available_dice_count(p) == 0) {
             break;
         }
-        RestoreSimulation(&mut oriented, game);
+        restore_simulation(&mut oriented, game);
         if phase == 1 {
-            oriented.m_player.swap(0, 1);
+            oriented.players.swap(0, 1);
         }
-        let action = SelectRolloutAction(&oriented, rng, ai);
-        if action.m_action != Action::Attack {
+        let action = select_rollout_action(&oriented, rng, ai);
+        if action.action != Action::Attack {
             if passed {
                 break;
             }
             passed = true;
         } else {
             passed = false;
-            let extra = ApplyAttackForPlayers(game, &action, phase, 1 - phase, rng);
-            RecoverDizzyDice(&mut game.m_player[phase]);
+            let extra = apply_attack_for_players(game, &action, phase, 1 - phase, rng);
+            recover_dizzy_dice(&mut game.players[phase]);
             if extra {
                 continue;
             }
         }
-        if action.m_action != Action::Attack {
-            RecoverDizzyDice(&mut game.m_player[phase]);
+        if action.action != Action::Attack {
+            recover_dizzy_dice(&mut game.players[phase]);
         }
         phase = 1 - phase;
     }
-    match game.m_player[pov]
-        .m_score
-        .total_cmp(&game.m_player[1 - pov].m_score)
+    match game.players[pov]
+        .score
+        .total_cmp(&game.players[1 - pov].score)
     {
         std::cmp::Ordering::Greater => 1.0,
         std::cmp::Ordering::Equal => 0.5,

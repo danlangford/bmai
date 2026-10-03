@@ -4,15 +4,15 @@
 
 use super::*;
 
-pub(crate) fn SelectBMAIAction(game: &Game, rng: &mut Rng, settings: &Bmai3) -> Move {
-    SelectBMAIActionWithStats(game, rng, settings).m_move
+pub(crate) fn select_bmai_action(game: &Game, rng: &mut Rng, settings: &Bmai3) -> Move {
+    select_bmai_action_with_stats(game, rng, settings).best_move
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct SearchResult {
-    pub m_move: Move,
-    pub m_best_score: f32,
-    pub m_sims_run: usize,
+    pub best_move: Move,
+    pub best_score: f32,
+    pub sims_run: usize,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -22,69 +22,75 @@ pub(crate) struct SearchProbability {
 }
 
 impl SearchProbability {
-    pub fn ProbabilityWin(self) -> f32 {
+    pub fn win_probability(self) -> f32 {
         self.score / self.simulations as f32
     }
 }
 
 impl SearchResult {
-    pub fn ProbabilityWin(&self) -> f32 {
-        self.m_best_score / self.m_sims_run as f32
+    pub fn win_probability(&self) -> f32 {
+        self.best_score / self.sims_run as f32
     }
 }
 
-pub(crate) fn SelectBMAIActionWithStats(
+pub(crate) fn select_bmai_action_with_stats(
     game: &Game,
     rng: &mut Rng,
     settings: &Bmai3,
 ) -> SearchResult {
-    SelectBMAIActionAtLevelWithStats(game, rng, settings, 1, false)
+    select_bmai_action_at_level_with_stats(game, rng, settings, 1, false)
 }
 
-pub(crate) fn SelectNativeBMAIAction(
+pub(crate) fn select_native_bmai_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     settings: &Bmai3,
 ) -> Move {
-    SelectNativeBMAIActionWithStats(game, rng_algorithm, replay, workers, settings).m_move
+    select_native_bmai_action_with_stats(game, rng_algorithm, replay, workers, settings).best_move
 }
 
-pub(crate) fn SelectNativeBMAIActionWithStats(
+pub(crate) fn select_native_bmai_action_with_stats(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     settings: &Bmai3,
 ) -> SearchResult {
-    SelectBMAIActionAtLevelNativeWithStats(game, rng_algorithm, replay, workers, settings)
+    select_bmai_action_at_level_native_with_stats(game, rng_algorithm, replay, workers, settings)
 }
 
 #[cfg(test)]
-pub(super) fn SelectBMAIActionAtLevelNative(
+pub(super) fn select_bmai_action_at_level_native(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     settings: &Bmai3,
 ) -> (Move, f32) {
-    let result =
-        SelectBMAIActionAtLevelNativeWithStats(game, rng_algorithm, replay, workers, settings);
-    let probability = result.ProbabilityWin();
-    (result.m_move, probability)
+    let result = select_bmai_action_at_level_native_with_stats(
+        game,
+        rng_algorithm,
+        replay,
+        workers,
+        settings,
+    );
+    let probability = result.win_probability();
+    (result.best_move, probability)
 }
 
-pub(super) fn SelectBMAIActionAtLevelNativeWithStats(
+pub(super) fn select_bmai_action_at_level_native_with_stats(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     settings: &Bmai3,
 ) -> SearchResult {
-    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
+    let mut moves =
+        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(PassMove());
+        moves.push(pass_move());
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -95,14 +101,14 @@ pub(super) fn SelectBMAIActionAtLevelNativeWithStats(
             .collect();
         crate::native::ordered_parallel_map(tasks, workers, |(candidate, coordinate)| {
             let mut simulation = game.clone();
-            let mut simulation_rng = NativeSimulationRng(
+            let mut simulation_rng = native_simulation_rng(
                 rng_algorithm,
                 replay,
                 coordinate.candidate_index,
                 coordinate.batch_index,
                 coordinate.simulation_index,
             );
-            EvaluateMove(
+            evaluate_move(
                 &mut simulation,
                 &candidate,
                 &mut simulation_rng,
@@ -114,32 +120,32 @@ pub(super) fn SelectBMAIActionAtLevelNativeWithStats(
         })
     };
     let selected = if replay.stream_version.completes_probability_sample() {
-        evaluator.EvaluateMovesBatchedToCompletion(moves, 1, &mut evaluate_batch)
+        evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch)
     } else {
-        evaluator.EvaluateMovesBatched(moves, 1, &mut evaluate_batch)
+        evaluator.evaluate_moves_batched(moves, 1, &mut evaluate_batch)
     };
-    let probability = evaluator.m_last_probability_win;
-    let selected = if probability == 0.0 && game.m_surrender_allowed {
+    let probability = evaluator.last_probability_win;
+    let selected = if probability == 0.0 && game.surrender_allowed {
         Move {
-            m_action: Action::Surrender,
-            m_attack: None,
-            m_attackers: Vec::new().into(),
-            m_targets: Vec::new().into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-            m_fire: crate::game::FireAdjustment::default(),
+            action: Action::Surrender,
+            attack: None,
+            attackers: Vec::new().into(),
+            targets: Vec::new().into(),
+            score: 0.0,
+            turbo_option: -1,
+            fire: crate::game::FireAdjustment::default(),
         }
     } else {
         selected
     };
     SearchResult {
-        m_move: selected,
-        m_best_score: evaluator.m_last_best_score,
-        m_sims_run: evaluator.m_last_sims_run,
+        best_move: selected,
+        best_score: evaluator.last_best_score,
+        sims_run: evaluator.last_sims_run,
     }
 }
 
-pub(crate) fn EvaluateSelectedNativeBMAIMove(
+pub(crate) fn evaluate_selected_native_bmai_move(
     game: &Game,
     selected: &Move,
     rng_algorithm: crate::RngAlgorithm,
@@ -158,14 +164,14 @@ pub(crate) fn EvaluateSelectedNativeBMAIMove(
         .collect();
     let scores = crate::native::ordered_parallel_map(tasks, workers, |coordinate| {
         let mut simulation = game.clone();
-        let mut simulation_rng = NativeSimulationRng(
+        let mut simulation_rng = native_simulation_rng(
             rng_algorithm,
             replay,
             coordinate.candidate_index,
             coordinate.batch_index,
             coordinate.simulation_index,
         );
-        EvaluateMove(
+        evaluate_move(
             &mut simulation,
             selected,
             &mut simulation_rng,
@@ -181,7 +187,7 @@ pub(crate) fn EvaluateSelectedNativeBMAIMove(
     }
 }
 
-pub(super) fn NativeSimulationRng(
+pub(super) fn native_simulation_rng(
     algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     candidate_index: impl TryInto<u64>,
@@ -198,47 +204,48 @@ pub(super) fn NativeSimulationRng(
         batch_index: batch_index as u64,
         simulation_index: simulation_index as u64,
     };
-    Rng::FromNativeStream(algorithm, key.derive_stream_seed(), key.stratum())
+    Rng::from_native_stream(algorithm, key.derive_stream_seed(), key.stratum())
 }
 
-pub(super) fn SelectBMAIActionAtLevel(
+pub(super) fn select_bmai_action_at_level(
     game: &Game,
     rng: &mut Rng,
     settings: &Bmai3,
     level: usize,
     previous_pass: bool,
 ) -> (Move, f32) {
-    let result = SelectBMAIActionAtLevelWithStats(game, rng, settings, level, previous_pass);
-    let probability = result.ProbabilityWin();
-    (result.m_move, probability)
+    let result = select_bmai_action_at_level_with_stats(game, rng, settings, level, previous_pass);
+    let probability = result.win_probability();
+    (result.best_move, probability)
 }
 
-pub(super) fn SelectBMAIActionAtLevelWithStats(
+pub(super) fn select_bmai_action_at_level_with_stats(
     game: &Game,
     rng: &mut Rng,
     settings: &Bmai3,
     level: usize,
     previous_pass: bool,
 ) -> SearchResult {
-    let trace = TraceSettings().bmai_attack;
-    let trace_evaluation = TraceSettings().attack_eval;
-    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(settings.FireCandidateLimit());
+    let trace = trace_settings().bmai_attack;
+    let trace_evaluation = trace_settings().attack_eval;
+    let mut moves =
+        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(PassMove());
+        moves.push(pass_move());
     }
     if trace {
         eprintln!(
             "BMAI_BEGIN l{level} seed={} moves={} pass={previous_pass}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             moves.len()
         );
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
     let mut simulation = game.clone();
-    let selected = evaluator.EvaluateMoves(moves, level, |candidate, _coordinate| {
-        RestoreSimulation(&mut simulation, game);
-        EvaluateMove(
+    let selected = evaluator.evaluate_moves(moves, level, |candidate, _coordinate| {
+        restore_simulation(&mut simulation, game);
+        evaluate_move(
             &mut simulation,
             candidate,
             rng,
@@ -248,16 +255,16 @@ pub(super) fn SelectBMAIActionAtLevelWithStats(
             trace_evaluation,
         )
     });
-    let probability = evaluator.m_last_probability_win;
-    let selected = if probability == 0.0 && game.m_surrender_allowed {
+    let probability = evaluator.last_probability_win;
+    let selected = if probability == 0.0 && game.surrender_allowed {
         Move {
-            m_action: Action::Surrender,
-            m_attack: None,
-            m_attackers: Vec::new().into(),
-            m_targets: Vec::new().into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-            m_fire: crate::game::FireAdjustment::default(),
+            action: Action::Surrender,
+            attack: None,
+            attackers: Vec::new().into(),
+            targets: Vec::new().into(),
+            score: 0.0,
+            turbo_option: -1,
+            fire: crate::game::FireAdjustment::default(),
         }
     } else {
         selected
@@ -265,21 +272,21 @@ pub(super) fn SelectBMAIActionAtLevelWithStats(
     if trace {
         eprintln!(
             "BMAI_END l{level} seed={} probability={probability:.6} action={:?} attack={:?} {:?}->{:?}",
-            rng.DebugSeed(),
-            selected.m_action,
-            selected.m_attack,
-            selected.m_attackers,
-            selected.m_targets
+            rng.debug_seed(),
+            selected.action,
+            selected.attack,
+            selected.attackers,
+            selected.targets
         );
     }
     SearchResult {
-        m_move: selected,
-        m_best_score: evaluator.m_last_best_score,
-        m_sims_run: evaluator.m_last_sims_run,
+        best_move: selected,
+        best_score: evaluator.last_best_score,
+        sims_run: evaluator.last_sims_run,
     }
 }
 
-pub(super) fn EvaluateMove(
+pub(super) fn evaluate_move(
     simulation: &mut Game,
     candidate: &Move,
     rng: &mut Rng,
@@ -291,49 +298,45 @@ pub(super) fn EvaluateMove(
     if trace {
         eprintln!(
             "ATTACK_EVAL l{level} seed={} {:?} {:?}->{:?}",
-            rng.DebugSeed(),
-            candidate.m_attack,
-            candidate.m_attackers,
-            candidate.m_targets
+            rng.debug_seed(),
+            candidate.attack,
+            candidate.attackers,
+            candidate.targets
         );
     }
     // Treating surrender as a pass would waste a rollout and shift later RNG.
-    if candidate.m_action == Action::Surrender {
+    if candidate.action == Action::Surrender {
         return 0.0;
     }
-    if candidate.m_action == Action::Pass && previous_pass {
-        return WinProbability(simulation);
+    if candidate.action == Action::Pass && previous_pass {
+        return win_probability(simulation);
     }
-    let extra_turn = if candidate.m_action == Action::Attack {
-        ApplyAttack(simulation, candidate, rng)
+    let extra_turn = if candidate.action == Action::Attack {
+        apply_attack(simulation, candidate, rng)
     } else {
         false
     };
-    if FightOver(simulation) {
-        return WinProbability(simulation);
+    if fight_over(simulation) {
+        return win_probability(simulation);
     }
     if !extra_turn {
-        simulation.m_player.swap(0, 1);
+        simulation.players.swap(0, 1);
     }
-    let result = if level >= settings.m_max_ply {
-        let probability = PlayFightQAI(
-            simulation,
-            rng,
-            candidate.m_action == Action::Pass,
-            settings,
-        );
+    let result = if level >= settings.max_ply {
+        let probability =
+            play_fight_qai(simulation, rng, candidate.action == Action::Pass, settings);
         if extra_turn {
             probability
         } else {
             1.0 - probability
         }
     } else {
-        let (_, next_probability) = SelectBMAIActionAtLevel(
+        let (_, next_probability) = select_bmai_action_at_level(
             simulation,
             rng,
             settings,
             level + 1,
-            candidate.m_action == Action::Pass,
+            candidate.action == Action::Pass,
         );
         if extra_turn {
             next_probability
@@ -344,39 +347,39 @@ pub(super) fn EvaluateMove(
     if trace {
         eprintln!(
             "ATTACK_RESULT l{level} seed={} score={result} totals={:.1},{:.1} dice={},{}",
-            rng.DebugSeed(),
-            simulation.m_player[0].m_score,
-            simulation.m_player[1].m_score,
-            AvailableDice(&simulation.m_player[0]),
-            AvailableDice(&simulation.m_player[1])
+            rng.debug_seed(),
+            simulation.players[0].score,
+            simulation.players[1].score,
+            available_dice_count(&simulation.players[0]),
+            available_dice_count(&simulation.players[1])
         );
     }
     result
 }
 
-pub(super) fn PlayFightQAI(game: &mut Game, rng: &mut Rng, mut passed: bool, ai: &Bmai3) -> f32 {
+pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, ai: &Bmai3) -> f32 {
     let mut initial_player_is_zero = true;
     for _ in 0..256 {
-        if FightOver(game) {
+        if fight_over(game) {
             break;
         }
-        let action = SelectRolloutAction(game, rng, ai);
-        if action.m_action != Action::Attack {
+        let action = select_rollout_action(game, rng, ai);
+        if action.action != Action::Attack {
             if passed {
                 break;
             }
             passed = true;
         } else {
             passed = false;
-            let extra_turn = ApplyAttack(game, &action, rng);
+            let extra_turn = apply_attack(game, &action, rng);
             if extra_turn {
                 continue;
             }
         }
-        game.m_player.swap(0, 1);
+        game.players.swap(0, 1);
         initial_player_is_zero = !initial_player_is_zero;
     }
-    let current_zero_probability = WinProbability(game);
+    let current_zero_probability = win_probability(game);
     if initial_player_is_zero {
         current_zero_probability
     } else {
@@ -384,60 +387,57 @@ pub(super) fn PlayFightQAI(game: &mut Game, rng: &mut Rng, mut passed: bool, ai:
     }
 }
 
-pub(super) fn PassMove() -> Move {
+pub(super) fn pass_move() -> Move {
     Move {
-        m_action: Action::Pass,
-        m_attack: None,
-        m_attackers: Vec::new().into(),
-        m_targets: Vec::new().into(),
-        m_score: 0.0,
-        m_turbo_option: -1,
-        m_fire: crate::game::FireAdjustment::default(),
+        action: Action::Pass,
+        attack: None,
+        attackers: Vec::new().into(),
+        targets: Vec::new().into(),
+        score: 0.0,
+        turbo_option: -1,
+        fire: crate::game::FireAdjustment::default(),
     }
 }
 
-pub(super) fn FightOver(game: &Game) -> bool {
-    game.m_player
+pub(super) fn fight_over(game: &Game) -> bool {
+    game.players
         .iter()
-        .any(|player| AvailableDice(player) == 0)
+        .any(|player| available_dice_count(player) == 0)
 }
 
-pub(super) fn WinProbability(game: &Game) -> f32 {
-    match game.m_player[0]
-        .m_score
-        .total_cmp(&game.m_player[1].m_score)
-    {
+pub(super) fn win_probability(game: &Game) -> f32 {
+    match game.players[0].score.total_cmp(&game.players[1].score) {
         std::cmp::Ordering::Greater => 1.0,
         std::cmp::Ordering::Equal => 0.5,
         std::cmp::Ordering::Less => 0.0,
     }
 }
 
-pub(super) fn MovesIncludingPass(game: &Game, fire_limit: usize) -> Vec<Move> {
-    let mut moves = game.GenerateValidAttacksInCppOrderForSearch(fire_limit);
+pub(super) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
+    let mut moves = game.generate_valid_attacks_in_cpp_order_for_search(fire_limit);
     if moves.is_empty() {
-        moves.push(PassMove());
+        moves.push(pass_move());
     }
     moves
 }
 
-pub(super) fn SelectRandomAction(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let moves = MovesIncludingPass(game, fire_limit);
-    moves[rng.GetRandMax(moves.len() as u32) as usize].clone()
+pub(super) fn select_random_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+    let moves = moves_including_pass(game, fire_limit);
+    moves[rng.rand_below(moves.len() as u32) as usize].clone()
 }
 
-pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let moves = MovesIncludingPass(game, fire_limit);
+pub(super) fn select_maximize_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+    let moves = moves_including_pass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
     let mut simulation = ScratchGame::new(game);
     for candidate in moves {
-        if candidate.m_action != Action::Attack {
+        if candidate.action != Action::Attack {
             return candidate;
         }
-        RestoreSimulation(&mut simulation, game);
-        ApplyAttack(&mut simulation, &candidate, rng);
-        let score = simulation.m_player[0].m_score - simulation.m_player[1].m_score;
+        restore_simulation(&mut simulation, game);
+        apply_attack(&mut simulation, &candidate, rng);
+        let score = simulation.players[0].score - simulation.players[1].score;
         if score > best_score {
             best_score = score;
             best = candidate;
@@ -446,75 +446,81 @@ pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize
     best
 }
 
-pub(super) fn SelectRolloutAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Move {
-    match ai.m_rollout_policy {
-        RolloutPolicy::Qai => SelectQAIActionWithFireLimit(game, rng, ai.FireCandidateLimit()),
+pub(super) fn select_rollout_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Move {
+    match ai.rollout_policy {
+        RolloutPolicy::Qai => {
+            select_qai_action_with_fire_limit(game, rng, ai.fire_candidate_limit())
+        }
         RolloutPolicy::MaximizeOrRandom(probability) => {
-            if rng.GetFRand() < probability {
-                SelectMaximizeAction(game, rng, ai.FireCandidateLimit())
+            if rng.rand_f32() < probability {
+                select_maximize_action(game, rng, ai.fire_candidate_limit())
             } else {
-                SelectRandomAction(game, rng, ai.FireCandidateLimit())
+                select_random_action(game, rng, ai.fire_candidate_limit())
             }
         }
     }
 }
 
-pub(crate) fn SelectQAIAction(game: &Game, rng: &mut Rng) -> Move {
-    SelectQAIActionWithFireLimit(game, rng, Bmai3::default().FireCandidateLimit())
+pub(crate) fn select_qai_action(game: &Game, rng: &mut Rng) -> Move {
+    select_qai_action_with_fire_limit(game, rng, Bmai3::default().fire_candidate_limit())
 }
 
-pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let traces = TraceSettings();
+pub(super) fn select_qai_action_with_fire_limit(
+    game: &Game,
+    rng: &mut Rng,
+    fire_limit: usize,
+) -> Move {
+    let traces = trace_settings();
     let trace = traces.qai;
     let trace_rng = traces.rng;
     let trace_moves = traces.qai_moves;
     if trace {
         eprintln!(
             "QAI_BEGIN seed={} scores={:.1},{:.1}",
-            rng.DebugSeed(),
-            game.m_player[0].m_score,
-            game.m_player[1].m_score
+            rng.debug_seed(),
+            game.players[0].score,
+            game.players[1].score
         );
     }
     let mut best: Option<(f32, Move)> = None;
     let mut move_count = 0usize;
     let mut simulation = ScratchGame::new(game);
-    for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
+    for candidate in game.generate_valid_attacks_in_cpp_order_for_search(fire_limit) {
         move_count += 1;
         if trace_rng {
             eprintln!(
                 "QAI_RNG before={} move={} attack={:?} attacker={} target={} scores={:.2},{:.2}",
-                rng.DebugSeed(),
+                rng.debug_seed(),
                 move_count - 1,
-                candidate.m_attack,
-                candidate.m_attackers.first().unwrap_or(usize::MAX),
-                candidate.m_targets.first().unwrap_or(usize::MAX),
-                game.m_player[0].m_score,
-                game.m_player[1].m_score
+                candidate.attack,
+                candidate.attackers.first().unwrap_or(usize::MAX),
+                candidate.targets.first().unwrap_or(usize::MAX),
+                game.players[0].score,
+                game.players[1].score
             );
         }
-        RestoreSimulation(&mut simulation, game);
-        ApplyAttack(&mut simulation, &candidate, rng);
-        let mut score = simulation.m_player[0].m_score - simulation.m_player[1].m_score;
-        for attacker in candidate.m_attackers.iter() {
-            let die = &game.m_player[0].m_die[attacker];
-            let delta = (die.GetSidesMax() as f32 + 1.0) * 0.5 - die.GetValueTotal() as f32;
-            if !die.HasProperty(property::SHADOW) {
-                score += if die.HasProperty(property::POISON) {
+        restore_simulation(&mut simulation, game);
+        apply_attack(&mut simulation, &candidate, rng);
+        let mut score = simulation.players[0].score - simulation.players[1].score;
+        for attacker in candidate.attackers.iter() {
+            let die = &game.players[0].dice[attacker];
+            let delta = (die.sides_max() as f32 + 1.0) * 0.5 - die.value_total() as f32;
+            if !die.has_property(property::SHADOW) {
+                score += if die.has_property(property::POISON) {
                     -delta
                 } else {
                     delta
                 };
             }
         }
-        score += rng.GetRandMax(5) as f32;
+        score += rng.rand_below(5) as f32;
         if trace_rng {
-            eprintln!("QAI_RNG after={} score={score:.2}", rng.DebugSeed());
+            eprintln!("QAI_RNG after={} score={score:.2}", rng.debug_seed());
         }
         if trace_moves {
             eprintln!(
                 "QAI_MOVE {score:.2} {:?} {:?}->{:?}",
-                candidate.m_attack, candidate.m_attackers, candidate.m_targets
+                candidate.attack, candidate.attackers, candidate.targets
             );
         }
         if best
@@ -524,25 +530,25 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
             best = Some((score, candidate));
         }
     }
-    let selected = best.map_or_else(PassMove, |(_, action)| action);
+    let selected = best.map_or_else(pass_move, |(_, action)| action);
     if trace {
         let values = |player: usize| {
-            game.m_player[player]
-                .m_die
+            game.players[player]
+                .dice
                 .iter()
-                .filter(|die| die.IsAvailable())
-                .map(Die::GetValueTotal)
+                .filter(|die| die.is_available())
+                .map(Die::value_total)
                 .collect::<Vec<_>>()
         };
         eprintln!(
             "QAI_BEST seed={} moves={move_count} {:?}|{:?} action={:?} attack={:?} {:?}->{:?}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             values(0),
             values(1),
-            selected.m_action,
-            selected.m_attack,
-            selected.m_attackers,
-            selected.m_targets
+            selected.action,
+            selected.attack,
+            selected.attackers,
+            selected.targets
         );
     }
     selected
@@ -560,7 +566,7 @@ impl ScratchGame {
     fn new(source: &Game) -> Self {
         let scratch = match SCRATCH_GAME.take() {
             Some(mut scratch) => {
-                RestoreSimulation(&mut scratch, source);
+                restore_simulation(&mut scratch, source);
                 scratch
             }
             None => Box::new(source.clone()),
@@ -595,44 +601,44 @@ impl Drop for ScratchGame {
 
 /// Field by field, so the scratch players keep their dice allocations. The
 /// destructuring makes a new field a compile error here.
-pub(super) fn RestoreSimulation(simulation: &mut Game, source: &Game) {
+pub(super) fn restore_simulation(simulation: &mut Game, source: &Game) {
     let Game {
-        m_player,
-        m_phase,
-        m_surrender_allowed,
-        m_target_wins,
-        m_turbo_accuracy,
-        m_fire_overshooting,
+        players,
+        phase,
+        surrender_allowed,
+        target_wins,
+        turbo_accuracy,
+        fire_overshooting,
     } = source;
-    for (simulation, source) in simulation.m_player.iter_mut().zip(m_player) {
+    for (simulation, source) in simulation.players.iter_mut().zip(players) {
         let crate::game::Player {
-            m_id,
-            m_score,
-            m_die,
-            m_swing_set,
-            m_round_original_sides,
-            m_round_transformed,
-            m_radioactive_products,
-            m_rage_replacements,
-            m_specials,
+            id,
+            score,
+            dice,
+            swing_set,
+            round_original_sides,
+            round_transformed,
+            radioactive_products,
+            rage_replacements,
+            specials,
         } = source;
-        simulation.m_id = *m_id;
-        simulation.m_score = *m_score;
-        if simulation.m_die.len() == m_die.len() {
-            simulation.m_die.copy_from_slice(m_die);
+        simulation.id = *id;
+        simulation.score = *score;
+        if simulation.dice.len() == dice.len() {
+            simulation.dice.copy_from_slice(dice);
         } else {
-            simulation.m_die.clone_from(m_die);
+            simulation.dice.clone_from(dice);
         }
-        simulation.m_swing_set = *m_swing_set;
-        simulation.m_round_original_sides = *m_round_original_sides;
-        simulation.m_round_transformed = *m_round_transformed;
-        simulation.m_radioactive_products = *m_radioactive_products;
-        simulation.m_rage_replacements = *m_rage_replacements;
-        simulation.m_specials = *m_specials;
+        simulation.swing_set = *swing_set;
+        simulation.round_original_sides = *round_original_sides;
+        simulation.round_transformed = *round_transformed;
+        simulation.radioactive_products = *radioactive_products;
+        simulation.rage_replacements = *rage_replacements;
+        simulation.specials = *specials;
     }
-    simulation.m_phase = *m_phase;
-    simulation.m_surrender_allowed = *m_surrender_allowed;
-    simulation.m_target_wins = *m_target_wins;
-    simulation.m_turbo_accuracy = *m_turbo_accuracy;
-    simulation.m_fire_overshooting = *m_fire_overshooting;
+    simulation.phase = *phase;
+    simulation.surrender_allowed = *surrender_allowed;
+    simulation.target_wins = *target_wins;
+    simulation.turbo_accuracy = *turbo_accuracy;
+    simulation.fire_overshooting = *fire_overshooting;
 }

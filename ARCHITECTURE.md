@@ -67,7 +67,8 @@ instead of adding a circular dependency.
 
 ## Compatibility constraint
 
-Types follow Rust naming; many function and field names still mirror their C++
-counterparts so `PARITY.md` mappings stay readable. Structural cleanup must not alter action
-ordering, RNG consumption, simulation counts, state restoration, or protocol
-output. `PARITY.md` defines the evidence required for such changes.
+Names follow Rust conventions; `PARITY.md` maps each C++ name to its Rust
+name (for example `GetValueTotal` to `value_total`). Structural cleanup must
+not alter action ordering, RNG consumption, simulation counts, state
+restoration, or protocol output. `PARITY.md` defines the evidence required for
+such changes.

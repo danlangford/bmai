@@ -97,7 +97,7 @@ impl BmairSession {
     pub fn execute(&mut self, script: &str) -> Result<SessionExecuteResult, ParseError> {
         let mut candidate = self.parser.clone();
         let mut output = Vec::new();
-        candidate.ParseString(script, &mut output)?;
+        candidate.parse_string(script, &mut output)?;
         self.parser = candidate;
         Ok(SessionExecuteResult {
             build: BuildIdentity::current(),

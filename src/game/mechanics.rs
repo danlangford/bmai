@@ -5,49 +5,49 @@
 use super::{Attack, Die, DieIndexSet, Game, MAX_DICE, Move, Player, property};
 use crate::rng::Rng;
 
-pub(crate) fn ApplyAttack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
-    ApplyAttackForPlayers(game, action, 0, 1, rng)
+pub(crate) fn apply_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
+    apply_attack_for_players(game, action, 0, 1, rng)
 }
 
-pub(crate) fn ApplyAttackForPlayers(
+pub(crate) fn apply_attack_for_players(
     game: &mut Game,
     action: &Move,
     attacker_player: usize,
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
-    if action.m_attack == Some(Attack::Boom) {
-        return ApplyBoomAttack(game, action, attacker_player, target_player, rng);
+    if action.attack == Some(Attack::Boom) {
+        return apply_boom_attack(game, action, attacker_player, target_player, rng);
     }
-    ApplyFireAdjustments(game, action, attacker_player);
+    apply_fire_adjustments(game, action, attacker_player);
     // A cached count, so attackers marked NOTSET below still count.
-    let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
-    let is_trip = action.m_attack == Some(Attack::Trip);
+    let mut available_attackers = available_dice_count(&game.players[attacker_player]);
+    let is_trip = action.attack == Some(Attack::Trip);
     let attacking_jolt_dice = action
-        .m_attackers
+        .attackers
         .iter()
-        .filter(|index| game.m_player[attacker_player].m_die[*index].HasProperty(property::JOLT))
+        .filter(|index| game.players[attacker_player].dice[*index].has_property(property::JOLT))
         .collect::<DieIndexSet>();
     let attacking_jolt = !attacking_jolt_dice.is_empty();
     let attacking_rage = action
-        .m_attackers
+        .attackers
         .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::RAGE));
+        .any(|index| game.players[attacker_player].dice[index].has_property(property::RAGE));
     let captured_jolt = action
-        .m_targets
+        .targets
         .iter()
-        .any(|index| game.m_player[target_player].m_die[index].HasProperty(property::JOLT));
+        .any(|index| game.players[target_player].dice[index].has_property(property::JOLT));
     // ButtonWeavers keeps these hooks even after Doppelganger replaces the attacker.
     let null_attacker = action
-        .m_attackers
+        .attackers
         .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::NULL));
+        .any(|index| game.players[attacker_player].dice[index].has_property(property::NULL));
     let value_attacker = action
-        .m_attackers
+        .attackers
         .iter()
-        .any(|index| game.m_player[attacker_player].m_die[index].HasProperty(property::VALUE));
-    let mut actual_attackers = action.m_attackers;
-    let decays = RadioactiveDecayApplies(game, action, attacker_player, target_player);
+        .any(|index| game.players[attacker_player].dice[index].has_property(property::VALUE));
+    let mut actual_attackers = action.attackers;
+    let decays = radioactive_decay_applies(game, action, attacker_player, target_player);
     // Decay strips Jolt after ButtonWeavers' Jolt hook has granted the turn.
     let jolt_dice_to_consume = if decays {
         DieIndexSet::default()
@@ -57,202 +57,213 @@ pub(crate) fn ApplyAttackForPlayers(
     let rerolling_attackers = actual_attackers
         .iter()
         .filter(|index| {
-            !game.m_player[attacker_player].m_die[*index].HasProperty(property::KONSTANT)
+            !game.players[attacker_player].dice[*index].has_property(property::KONSTANT)
         })
         .collect::<DieIndexSet>();
     if decays && !is_trip {
-        let attacker = action.m_attackers.first().expect("Radioactive attacker");
-        actual_attackers =
-            ApplyRadioactiveAttackEffects(game, action, attacker_player, target_player, attacker);
+        let attacker = action.attackers.first().expect("Radioactive attacker");
+        actual_attackers = apply_radioactive_attack_effects(
+            game,
+            action,
+            attacker_player,
+            target_player,
+            attacker,
+        );
         available_attackers += 1;
     } else {
         for attacker in actual_attackers.iter() {
-            ApplyAttackPlayerEffects(game, action, attacker_player, target_player, attacker, true);
+            apply_attack_player_effects(
+                game,
+                action,
+                attacker_player,
+                target_player,
+                attacker,
+                true,
+            );
         }
     }
 
     if is_trip {
-        let target = action.m_targets.first().expect("Trip target");
-        if !game.m_player[target_player].m_die[target].HasProperty(property::KONSTANT) {
-            game.m_player[target_player].m_die[target].m_notset = true;
+        let target = action.targets.first().expect("Trip target");
+        if !game.players[target_player].dice[target].has_property(property::KONSTANT) {
+            game.players[target_player].dice[target].not_set = true;
         }
-        ApplyBeforeRollEffects(game, target_player, target);
+        apply_before_roll_effects(game, target_player, target);
     }
 
     // Ornery dice reroll after every attack their player makes.
-    if action.m_attack.is_some() {
+    if action.attack.is_some() {
         for attacker in 0..available_attackers {
-            let die = &game.m_player[attacker_player].m_die[attacker];
-            if !RerollsWhenOrnery(die) || die.m_notset {
+            let die = &game.players[attacker_player].dice[attacker];
+            if !rerolls_when_ornery(die) || die.not_set {
                 continue;
             }
-            if !die.HasProperty(property::KONSTANT) {
-                game.m_player[attacker_player].m_die[attacker].m_notset = true;
+            if !die.has_property(property::KONSTANT) {
+                game.players[attacker_player].dice[attacker].not_set = true;
             }
-            ApplyBeforeRollEffects(game, attacker_player, attacker);
+            apply_before_roll_effects(game, attacker_player, attacker);
         }
     }
 
     // Trip consumes these after its rolls instead, below.
     if !is_trip {
-        ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
-        ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
+        consume_attacking_jolt(game, attacker_player, jolt_dice_to_consume);
+        consume_attacking_rage(game, attacker_player, actual_attackers, attacking_rage);
     }
     // This roll order determines RNG consumption.
     for attacker in actual_attackers.iter() {
-        ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
+        apply_attacker_nature_roll(game, attacker_player, attacker, rng);
     }
-    if action.m_attack.is_some() {
+    if action.attack.is_some() {
         for attacker in 0..available_attackers {
-            let die = &game.m_player[attacker_player].m_die[attacker];
-            if RerollsWhenOrnery(die) && !actual_attackers.contains(attacker) {
-                ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
+            let die = &game.players[attacker_player].dice[attacker];
+            if rerolls_when_ornery(die) && !actual_attackers.contains(attacker) {
+                apply_attacker_nature_roll(game, attacker_player, attacker, rng);
             }
         }
     }
     if is_trip {
-        let target = action.m_targets.first().expect("Trip target");
-        if game.m_player[target_player].m_die[target].m_notset {
-            RollScheduledDie(game, target_player, target, rng);
+        let target = action.targets.first().expect("Trip target");
+        if game.players[target_player].dice[target].not_set {
+            roll_scheduled_die(game, target_player, target, rng);
         }
-        ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
-        ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
+        consume_attacking_jolt(game, attacker_player, jolt_dice_to_consume);
+        consume_attacking_rage(game, attacker_player, actual_attackers, attacking_rage);
     }
 
     // Konstant attackers never reroll, so they cannot trigger it.
     let time_and_space_extra_turn = actual_attackers.iter().any(|index| {
-        let die = &game.m_player[attacker_player].m_die[index];
-        die.HasProperty(property::TIME_AND_SPACE)
+        let die = &game.players[attacker_player].dice[index];
+        die.has_property(property::TIME_AND_SPACE)
             && rerolling_attackers.contains(index)
-            && die.GetValueTotal() % 2 == 1
+            && die.value_total() % 2 == 1
     });
 
     let mut morph_extra_turn = false;
     if is_trip {
-        let target = action.m_targets.first().expect("Trip target");
-        let attacker = action.m_attackers.first().expect("Trip attacker");
-        let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
-            < game.m_player[target_player].m_die[target].GetValueTotal();
+        let target = action.targets.first().expect("Trip target");
+        let attacker = action.attackers.first().expect("Trip attacker");
+        let trip_failed = game.players[attacker_player].dice[attacker].value_total()
+            < game.players[target_player].dice[target].value_total();
         let morphs = !trip_failed
-            && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING);
+            && game.players[attacker_player].dice[attacker].has_property(property::MORPHING);
         let attacker_is_radioactive =
-            game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE);
+            game.players[attacker_player].dice[attacker].has_property(property::RADIOACTIVE);
         if morphs {
             // ButtonWeavers morphs after the Trip roll and gives the new die
             // no value, so it rerolls at the captured die's size.
-            MorphIntoTarget(game, attacker_player, target_player, attacker, target);
+            morph_into_target(game, attacker_player, target_player, attacker, target);
             if !decays {
-                let die = &mut game.m_player[attacker_player].m_die[attacker];
-                die.m_notset = true;
-                RollDie(die, rng);
+                let die = &mut game.players[attacker_player].dice[attacker];
+                die.not_set = true;
+                roll_die(die, rng);
                 morph_extra_turn =
-                    die.HasProperty(property::TIME_AND_SPACE) && die.GetValueTotal() % 2 == 1;
+                    die.has_property(property::TIME_AND_SPACE) && die.value_total() % 2 == 1;
             }
         }
         if decays {
             // Trip rolls resolve before ButtonWeavers' capture hooks, so decay
             // happens after them, even when the Trip fails.
-            let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
+            let products = split_radioactive_attacker(game, attacker_player, attacker);
             for product in products.iter() {
                 if morphs && attacker_is_radioactive {
                     // ButtonWeavers runs each product's Morphing hook again.
-                    MorphIntoTarget(game, attacker_player, target_player, product, target);
+                    morph_into_target(game, attacker_player, target_player, product, target);
                 }
-                RollDie(&mut game.m_player[attacker_player].m_die[product], rng);
+                roll_die(&mut game.players[attacker_player].dice[product], rng);
             }
             if trip_failed {
-                let die = &mut game.m_player[target_player].m_die[target];
-                die.m_properties &= !property::RADIOACTIVE;
+                let die = &mut game.players[target_player].dice[target];
+                die.properties &= !property::RADIOACTIVE;
             }
         }
         if trip_failed {
-            OptimizeDice(&mut game.m_player[attacker_player]);
-            OptimizeDice(&mut game.m_player[target_player]);
+            optimize_dice(&mut game.players[attacker_player]);
+            optimize_dice(&mut game.players[target_player]);
             return attacking_jolt || time_and_space_extra_turn;
         }
     }
 
     let mut created_rage_replacement = false;
-    for (removed, original_target) in action.m_targets.iter().enumerate() {
+    for (removed, original_target) in action.targets.iter().enumerate() {
         let target = original_target - removed;
-        let rage_replacement = CreateAndRollRageReplacement(game, target_player, target, rng);
-        let own_score = game.m_player[target_player].m_die[target].GetScore(true);
-        game.m_player[target_player].m_score -= own_score;
+        let rage_replacement = create_and_roll_rage_replacement(game, target_player, target, rng);
+        let own_score = game.players[target_player].dice[target].score(true);
+        game.players[target_player].score -= own_score;
         if null_attacker {
-            game.m_player[target_player].m_die[target].m_properties |= property::NULL;
+            game.players[target_player].dice[target].properties |= property::NULL;
         }
         if value_attacker {
-            game.m_player[target_player].m_die[target].m_properties |= property::VALUE;
+            game.players[target_player].dice[target].properties |= property::VALUE;
         }
-        let captured_score = game.m_player[target_player].m_die[target].GetScore(false);
-        game.m_player[attacker_player].m_score += captured_score;
-        OnDieLost(&mut game.m_player[target_player], target);
+        let captured_score = game.players[target_player].dice[target].score(false);
+        game.players[attacker_player].score += captured_score;
+        on_die_lost(&mut game.players[target_player], target);
         if let Some(replacement) = rage_replacement {
-            AddRageReplacement(game, target_player, replacement);
+            add_rage_replacement(game, target_player, replacement);
             created_rage_replacement = true;
         }
     }
-    OptimizeDice(&mut game.m_player[attacker_player]);
+    optimize_dice(&mut game.players[attacker_player]);
     if created_rage_replacement {
-        OptimizeDice(&mut game.m_player[target_player]);
+        optimize_dice(&mut game.players[target_player]);
     }
     attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
 
 /// ButtonWeavers removes the Boom die unscored and rerolls the target, which
 /// is never captured; only the attacker's Jolt and Ornery hooks still fire.
-fn ApplyBoomAttack(
+fn apply_boom_attack(
     game: &mut Game,
     action: &Move,
     attacker_player: usize,
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
-    let attacker = action.m_attackers.first().expect("Boom attacker");
-    let target = action.m_targets.first().expect("Boom target");
-    let extra_turn = game.m_player[attacker_player].m_die[attacker].HasProperty(property::JOLT);
-    game.m_player[attacker_player].m_score -=
-        game.m_player[attacker_player].m_die[attacker].GetScore(true);
-    OnDieLost(&mut game.m_player[attacker_player], attacker);
+    let attacker = action.attackers.first().expect("Boom attacker");
+    let target = action.targets.first().expect("Boom target");
+    let extra_turn = game.players[attacker_player].dice[attacker].has_property(property::JOLT);
+    game.players[attacker_player].score -= game.players[attacker_player].dice[attacker].score(true);
+    on_die_lost(&mut game.players[attacker_player], attacker);
 
-    if !game.m_player[target_player].m_die[target].HasProperty(property::KONSTANT) {
-        game.m_player[target_player].m_die[target].m_notset = true;
-        ApplyBeforeRollEffects(game, target_player, target);
-        RerollAndRescore(game, target_player, target, rng);
+    if !game.players[target_player].dice[target].has_property(property::KONSTANT) {
+        game.players[target_player].dice[target].not_set = true;
+        apply_before_roll_effects(game, target_player, target);
+        reroll_and_rescore(game, target_player, target, rng);
     }
-    for index in 0..game.m_player[attacker_player].m_die.len() {
-        let die = &game.m_player[attacker_player].m_die[index];
-        if !die.IsAvailable() || !RerollsWhenOrnery(die) {
+    for index in 0..game.players[attacker_player].dice.len() {
+        let die = &game.players[attacker_player].dice[index];
+        if !die.is_available() || !rerolls_when_ornery(die) {
             continue;
         }
-        if !die.HasProperty(property::KONSTANT) {
-            game.m_player[attacker_player].m_die[index].m_notset = true;
+        if !die.has_property(property::KONSTANT) {
+            game.players[attacker_player].dice[index].not_set = true;
         }
-        ApplyBeforeRollEffects(game, attacker_player, index);
-        ApplyAttackerNatureRoll(game, attacker_player, index, rng);
+        apply_before_roll_effects(game, attacker_player, index);
+        apply_attacker_nature_roll(game, attacker_player, index, rng);
     }
-    OptimizeDice(&mut game.m_player[attacker_player]);
-    OptimizeDice(&mut game.m_player[target_player]);
+    optimize_dice(&mut game.players[attacker_player]);
+    optimize_dice(&mut game.players[target_player]);
     extra_turn
 }
 
 /// Unlike an attacker's reroll, a Boom target's new value counts for Value.
-fn RerollAndRescore(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
-    let old_score = game.m_player[player].m_die[index].GetScore(true);
-    let die = &mut game.m_player[player].m_die[index];
-    ApplyMood(die, rng);
-    RollDie(die, rng);
-    game.m_player[player].m_score += die.GetScore(true) - old_score;
+fn reroll_and_rescore(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
+    let old_score = game.players[player].dice[index].score(true);
+    let die = &mut game.players[player].dice[index];
+    apply_mood(die, rng);
+    roll_die(die, rng);
+    game.players[player].score += die.score(true) - old_score;
 }
 
-pub(super) fn ApplyFireAdjustments(game: &mut Game, action: &Move, player: usize) {
-    if action.m_fire.is_empty() {
+pub(super) fn apply_fire_adjustments(game: &mut Game, action: &Move, player: usize) {
+    if action.fire.is_empty() {
         return;
     }
-    let (increase_total, reduction_total) = action.m_fire.m_amounts.iter().enumerate().fold(
+    let (increase_total, reduction_total) = action.fire.amounts.iter().enumerate().fold(
         (0u16, 0u16),
         |(increases, reductions), (index, amount)| {
-            if action.m_attackers.contains(index) {
+            if action.attackers.contains(index) {
                 (increases + u16::from(*amount), reductions)
             } else {
                 (increases, reductions + u16::from(*amount))
@@ -264,111 +275,110 @@ pub(super) fn ApplyFireAdjustments(game: &mut Game, action: &Move, player: usize
         "Fire increases and reductions must balance"
     );
     for index in 0..crate::game::MAX_DICE {
-        let amount = action.m_fire.m_amounts[index];
+        let amount = action.fire.amounts[index];
         if amount == 0 {
             continue;
         }
         assert!(
-            index < game.m_player[player].m_die.len(),
+            index < game.players[player].dice.len(),
             "invalid Fire die index"
         );
-        let die = &mut game.m_player[player].m_die[index];
-        let old_score = die.GetScore(true);
-        let value = die.GetValueTotal();
-        if action.m_attackers.contains(index) {
+        let die = &mut game.players[player].dice[index];
+        let old_score = die.score(true);
+        let value = die.value_total();
+        if action.attackers.contains(index) {
             let new_value = value + u16::from(amount);
-            assert!(new_value <= die.GetSidesMax() && new_value <= u16::from(u8::MAX));
-            die.m_value_total = Some(new_value as u8);
+            assert!(new_value <= die.sides_max() && new_value <= u16::from(u8::MAX));
+            die.value = Some(new_value as u8);
         } else {
-            assert!(die.HasProperty(property::FIRE));
-            let minimum = if die.HasProperty(property::TWIN) {
+            assert!(die.has_property(property::FIRE));
+            let minimum = if die.has_property(property::TWIN) {
                 2
             } else {
                 1
             };
             let new_value = value - u16::from(amount);
             assert!(new_value >= minimum);
-            die.m_value_total = Some(new_value as u8);
+            die.value = Some(new_value as u8);
         }
-        game.m_player[player].m_score += die.GetScore(true) - old_score;
+        game.players[player].score += die.score(true) - old_score;
     }
 }
 
-pub(crate) fn RadioactiveDecayApplies(
+pub(crate) fn radioactive_decay_applies(
     game: &Game,
     action: &Move,
     attacker_player: usize,
     target_player: usize,
 ) -> bool {
     // A Boom die leaves play before ButtonWeavers' decay hook can split it.
-    if matches!(action.m_attack, None | Some(Attack::Boom))
-        || action.m_attackers.len() != 1
-        || action.m_targets.len() != 1
+    if matches!(action.attack, None | Some(Attack::Boom))
+        || action.attackers.len() != 1
+        || action.targets.len() != 1
     {
         return false;
     }
-    let (Some(attacker), Some(target)) = (action.m_attackers.first(), action.m_targets.first())
-    else {
+    let (Some(attacker), Some(target)) = (action.attackers.first(), action.targets.first()) else {
         return false;
     };
     // Rage replacements and failed Trips can keep decay going past the
     // 20-slot pool; skipping the split there beats panicking mid-search.
-    if game.m_player[attacker_player].m_die.len() >= MAX_DICE {
+    if game.players[attacker_player].dice.len() >= MAX_DICE {
         return false;
     }
-    game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE)
-        || game.m_player[target_player].m_die[target].HasProperty(property::RADIOACTIVE)
+    game.players[attacker_player].dice[attacker].has_property(property::RADIOACTIVE)
+        || game.players[target_player].dice[target].has_property(property::RADIOACTIVE)
 }
 
 /// ButtonWeavers runs a Radioactive target's decay hook after every attacker
 /// hook, so only a Radioactive attacker decays before Doppelganger copies.
-pub(crate) fn ApplyRadioactiveAttackEffects(
+pub(crate) fn apply_radioactive_attack_effects(
     game: &mut Game,
     action: &Move,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
 ) -> DieIndexSet {
-    let target = action.m_targets.first().expect("Radioactive target");
-    let original = game.m_player[attacker_player].m_die[attacker];
-    let attacker_is_radioactive = original.HasProperty(property::RADIOACTIVE);
+    let target = action.targets.first().expect("Radioactive target");
+    let original = game.players[attacker_player].dice[attacker];
+    let attacker_is_radioactive = original.has_property(property::RADIOACTIVE);
     let copies_target =
-        action.m_attack == Some(Attack::Power) && original.HasProperty(property::DOPPELGANGER);
+        action.attack == Some(Attack::Power) && original.has_property(property::DOPPELGANGER);
 
     // Warrior dice never attack alone, and decay strips Turbo before it
-    // could resize, so neither effect from ApplyAttackPlayerEffects applies.
-    if action.m_attack == Some(Attack::Berserk) {
-        HalveBerserkAttacker(game, attacker_player, attacker);
+    // could resize, so neither effect from apply_attack_player_effects applies.
+    if action.attack == Some(Attack::Berserk) {
+        halve_berserk_attacker(game, attacker_player, attacker);
     }
-    if MorphingApplies(action) && original.HasProperty(property::MORPHING) {
-        MorphIntoTarget(game, attacker_player, target_player, attacker, target);
+    if morphing_applies(action) && original.has_property(property::MORPHING) {
+        morph_into_target(game, attacker_player, target_player, attacker, target);
     }
     if copies_target && !attacker_is_radioactive {
-        CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
+        copy_doppelganger_target(game, attacker_player, target_player, attacker, target);
     }
 
-    let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
+    let products = split_radioactive_attacker(game, attacker_player, attacker);
     for (position, product) in products.iter().enumerate() {
         if copies_target && attacker_is_radioactive {
-            CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
+            copy_doppelganger_target(game, attacker_player, target_player, product, target);
             if position == 0 {
                 // ButtonWeavers' attacker loop never rerolls the first copy,
                 // which keeps the captured die's value and size.
-                game.m_player[attacker_player].m_die[product].m_notset = false;
+                game.players[attacker_player].dice[product].not_set = false;
             } else {
-                ResizeMightyAndWeak(game, attacker_player, product);
+                resize_mighty_and_weak(game, attacker_player, product);
             }
         } else if attacker_is_radioactive
-            && MorphingApplies(action)
-            && original.HasProperty(property::MORPHING)
+            && morphing_applies(action)
+            && original.has_property(property::MORPHING)
         {
             // ButtonWeavers runs each product's Morphing hook again.
-            MorphIntoTarget(game, attacker_player, target_player, product, target);
+            morph_into_target(game, attacker_player, target_player, product, target);
         } else if copies_target {
             // ButtonWeavers resets doesReroll on Doppelganger copies.
-            ResizeMightyAndWeak(game, attacker_player, product);
+            resize_mighty_and_weak(game, attacker_player, product);
         } else {
-            ApplyBeforeRollEffects(game, attacker_player, product);
+            apply_before_roll_effects(game, attacker_player, product);
         }
     }
     products
@@ -376,22 +386,22 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
 
 /// Matches ButtonWeavers `BMDie::split` and `BMDieTwin::split`, whose order
 /// decides which product keeps each rounded-up half.
-pub(crate) fn SplitRadioactiveAttacker(
+pub(crate) fn split_radioactive_attacker(
     game: &mut Game,
     attacker_player: usize,
     attacker: usize,
 ) -> DieIndexSet {
     assert!(
-        game.m_player[attacker_player].m_die.len() < MAX_DICE,
+        game.players[attacker_player].dice.len() < MAX_DICE,
         "Radioactive decay exceeds the transformed dice capacity of {MAX_DICE}"
     );
 
-    let original = game.m_player[attacker_player].m_die[attacker];
-    let original_index = original.m_original_index;
-    let used_indices = game.m_player[attacker_player]
-        .m_die
+    let original = game.players[attacker_player].dice[attacker];
+    let original_index = original.original_index;
+    let used_indices = game.players[attacker_player]
+        .dice
         .iter()
-        .map(|die| die.m_original_index)
+        .map(|die| die.original_index)
         .collect::<DieIndexSet>();
     let synthetic_index = (0..MAX_DICE)
         .find(|index| !used_indices.contains(*index))
@@ -404,104 +414,104 @@ pub(crate) fn SplitRadioactiveAttacker(
         | property::MAD
         | property::JOLT
         | property::TIME_AND_SPACE;
-    first.m_properties &= !removed;
-    second.m_properties &= !removed;
-    if original.HasProperty(property::TWIN) {
-        first.m_sides = [original.m_sides[0].div_ceil(2), original.m_sides[1] / 2];
-        second.m_sides = [original.m_sides[0] / 2, original.m_sides[1].div_ceil(2)];
+    first.properties &= !removed;
+    second.properties &= !removed;
+    if original.has_property(property::TWIN) {
+        first.sides = [original.sides[0].div_ceil(2), original.sides[1] / 2];
+        second.sides = [original.sides[0] / 2, original.sides[1].div_ceil(2)];
     } else {
-        first.m_sides[0] = original.m_sides[0].div_ceil(2);
-        second.m_sides[0] = original.m_sides[0] / 2;
+        first.sides[0] = original.sides[0].div_ceil(2);
+        second.sides[0] = original.sides[0] / 2;
     }
     for die in [&mut first, &mut second] {
-        die.m_value_total = None;
-        die.m_notset = true;
-        die.m_captured = false;
-        die.m_dizzy = false;
+        die.value = None;
+        die.not_set = true;
+        die.captured = false;
+        die.dizzy = false;
     }
-    second.m_original_index = synthetic_index;
+    second.original_index = synthetic_index;
 
     let transformed = 1 << original_index;
-    if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
-        game.m_player[attacker_player].m_round_original_sides[original_index] = original.m_sides;
-        game.m_player[attacker_player].m_round_transformed |= transformed;
+    if game.players[attacker_player].round_transformed & transformed == 0 {
+        game.players[attacker_player].round_original_sides[original_index] = original.sides;
+        game.players[attacker_player].round_transformed |= transformed;
     }
-    game.m_player[attacker_player].m_radioactive_products |= 1 << synthetic_index;
-    let old_score = original.GetScore(true);
-    game.m_player[attacker_player].m_die[attacker] = first;
-    game.m_player[attacker_player]
-        .m_die
+    game.players[attacker_player].radioactive_products |= 1 << synthetic_index;
+    let old_score = original.score(true);
+    game.players[attacker_player].dice[attacker] = first;
+    game.players[attacker_player]
+        .dice
         .insert(attacker + 1, second);
-    let new_score = first.GetScore(true) + second.GetScore(true);
-    game.m_player[attacker_player].m_score += new_score - old_score;
+    let new_score = first.score(true) + second.score(true);
+    game.players[attacker_player].score += new_score - old_score;
     [attacker, attacker + 1].into()
 }
 
-fn HalveBerserkAttacker(game: &mut Game, attacker_player: usize, attacker: usize) {
-    let die = &mut game.m_player[attacker_player].m_die[attacker];
-    let old_score = die.GetScore(true);
-    die.m_sides[0] = die.m_sides[0].div_ceil(2);
-    die.m_properties &= !property::BERSERK;
-    game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+fn halve_berserk_attacker(game: &mut Game, attacker_player: usize, attacker: usize) {
+    let die = &mut game.players[attacker_player].dice[attacker];
+    let old_score = die.score(true);
+    die.sides[0] = die.sides[0].div_ceil(2);
+    die.properties &= !property::BERSERK;
+    game.players[attacker_player].score += die.score(true) - old_score;
 }
 
 /// Trip morphs only once its roll has succeeded, so it is handled separately.
-fn MorphingApplies(action: &Move) -> bool {
-    action.m_targets.len() == 1 && action.m_attack != Some(Attack::Trip)
+fn morphing_applies(action: &Move) -> bool {
+    action.targets.len() == 1 && action.attack != Some(Attack::Trip)
 }
 
-fn MorphIntoTarget(
+fn morph_into_target(
     game: &mut Game,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
     target: usize,
 ) {
-    let target_die = game.m_player[target_player].m_die[target];
-    let die = &mut game.m_player[attacker_player].m_die[attacker];
-    let old_score = die.GetScore(true);
-    if target_die.HasProperty(property::TWIN) {
-        die.m_properties |= property::TWIN;
-        die.m_sides = target_die.m_sides;
+    let target_die = game.players[target_player].dice[target];
+    let die = &mut game.players[attacker_player].dice[attacker];
+    let old_score = die.score(true);
+    if target_die.has_property(property::TWIN) {
+        die.properties |= property::TWIN;
+        die.sides = target_die.sides;
     } else {
-        die.m_properties &= !property::TWIN;
-        die.m_sides = [target_die.GetSidesMax() as u8, 0];
+        die.properties &= !property::TWIN;
+        die.sides = [target_die.sides_max() as u8, 0];
     }
-    game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+    game.players[attacker_player].score += die.score(true) - old_score;
 }
 
-fn CopyDoppelgangerTarget(
+fn copy_doppelganger_target(
     game: &mut Game,
     attacker_player: usize,
     target_player: usize,
     attacker: usize,
     target: usize,
 ) {
-    let mut copied = game.m_player[target_player].m_die[target];
-    let original = game.m_player[attacker_player].m_die[attacker];
-    let original_index = original.m_original_index;
-    let old_score = original.GetScore(true);
+    let mut copied = game.players[target_player].dice[target];
+    let original = game.players[attacker_player].dice[attacker];
+    let original_index = original.original_index;
+    let old_score = original.score(true);
     let transformed = 1 << original_index;
-    if game.m_player[attacker_player].m_round_transformed & transformed == 0 {
-        game.m_player[attacker_player].m_round_original_sides[original_index] = original.m_sides;
-        game.m_player[attacker_player].m_round_transformed |= transformed;
+    if game.players[attacker_player].round_transformed & transformed == 0 {
+        game.players[attacker_player].round_original_sides[original_index] = original.sides;
+        game.players[attacker_player].round_transformed |= transformed;
     }
-    copied.m_captured = false;
-    copied.m_notset = true;
-    copied.m_dizzy = false;
-    copied.m_original_index = original_index;
-    copied.m_in_reserve = false;
-    game.m_player[attacker_player].m_die[attacker] = copied;
-    game.m_player[attacker_player].m_score += copied.GetScore(true) - old_score;
+    copied.captured = false;
+    copied.not_set = true;
+    copied.dizzy = false;
+    copied.original_index = original_index;
+    copied.in_reserve = false;
+    game.players[attacker_player].dice[attacker] = copied;
+    game.players[attacker_player].score += copied.score(true) - old_score;
 }
 
-pub(super) fn ConsumeAttackingJolt(game: &mut Game, player: usize, attackers: DieIndexSet) {
+pub(super) fn consume_attacking_jolt(game: &mut Game, player: usize, attackers: DieIndexSet) {
     for attacker in attackers.iter() {
-        game.m_player[player].m_die[attacker].m_properties &= !property::JOLT;
+        game.players[player].dice[attacker].properties &= !property::JOLT;
     }
 }
 
-pub(super) fn ConsumeAttackingRage(
+pub(super) fn consume_attacking_rage(
     game: &mut Game,
     player: usize,
     attackers: DieIndexSet,
@@ -511,52 +521,52 @@ pub(super) fn ConsumeAttackingRage(
         return;
     }
     for attacker in attackers.iter() {
-        game.m_player[player].m_die[attacker].m_properties &= !property::RAGE;
+        game.players[player].dice[attacker].properties &= !property::RAGE;
     }
 }
 
-pub(super) fn CreateAndRollRageReplacement(
+pub(super) fn create_and_roll_rage_replacement(
     game: &Game,
     player: usize,
     target: usize,
     rng: &mut Rng,
 ) -> Option<Die> {
-    let original = game.m_player[player].m_die[target];
-    if !original.HasProperty(property::RAGE) {
+    let original = game.players[player].dice[target];
+    if !original.has_property(property::RAGE) {
         return None;
     }
     assert!(
-        game.m_player[player].m_die.len() < MAX_DICE,
+        game.players[player].dice.len() < MAX_DICE,
         "Rage replacement exceeds the transformed dice capacity of {MAX_DICE}"
     );
-    let used_indices = game.m_player[player]
-        .m_die
+    let used_indices = game.players[player]
+        .dice
         .iter()
-        .map(|die| die.m_original_index)
+        .map(|die| die.original_index)
         .collect::<DieIndexSet>();
     let synthetic_index = (0..MAX_DICE)
         .find(|index| !used_indices.contains(*index))
         .expect("Rage replacement has no free stable die index");
     let mut replacement = original;
-    replacement.m_properties &= !property::RAGE;
-    replacement.m_value_total = None;
-    replacement.m_captured = false;
-    replacement.m_notset = true;
-    replacement.m_dizzy = false;
-    replacement.m_original_index = synthetic_index;
+    replacement.properties &= !property::RAGE;
+    replacement.value = None;
+    replacement.captured = false;
+    replacement.not_set = true;
+    replacement.dizzy = false;
+    replacement.original_index = synthetic_index;
     // ButtonWeavers' replacement roll skips Mighty, Weak, and Mood.
-    RollDie(&mut replacement, rng);
+    roll_die(&mut replacement, rng);
     Some(replacement)
 }
 
-pub(super) fn AddRageReplacement(game: &mut Game, player: usize, replacement: Die) {
-    game.m_player[player].m_rage_replacements |= 1 << replacement.m_original_index;
-    game.m_player[player].m_score += replacement.GetScore(true);
-    let available = AvailableDice(&game.m_player[player]);
-    game.m_player[player].m_die.insert(available, replacement);
+pub(super) fn add_rage_replacement(game: &mut Game, player: usize, replacement: Die) {
+    game.players[player].rage_replacements |= 1 << replacement.original_index;
+    game.players[player].score += replacement.score(true);
+    let available = available_dice_count(&game.players[player]);
+    game.players[player].dice.insert(available, replacement);
 }
 
-pub(crate) fn ApplyAttackPlayerEffects(
+pub(crate) fn apply_attack_player_effects(
     game: &mut Game,
     action: &Move,
     attacker_player: usize,
@@ -564,141 +574,146 @@ pub(crate) fn ApplyAttackPlayerEffects(
     attacker: usize,
     actually_attacking: bool,
 ) {
-    if !game.m_player[attacker_player].m_die[attacker].HasProperty(property::KONSTANT) {
-        game.m_player[attacker_player].m_die[attacker].m_notset = true;
+    if !game.players[attacker_player].dice[attacker].has_property(property::KONSTANT) {
+        game.players[attacker_player].dice[attacker].not_set = true;
     }
 
-    if actually_attacking && action.m_attack == Some(Attack::Berserk) {
-        HalveBerserkAttacker(game, attacker_player, attacker);
+    if actually_attacking && action.attack == Some(Attack::Berserk) {
+        halve_berserk_attacker(game, attacker_player, attacker);
     }
 
-    if game.m_player[attacker_player].m_die[attacker].m_notset {
-        ApplyBeforeRollEffects(game, attacker_player, attacker);
+    if game.players[attacker_player].dice[attacker].not_set {
+        apply_before_roll_effects(game, attacker_player, attacker);
     }
 
-    if MorphingApplies(action)
-        && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
+    if morphing_applies(action)
+        && game.players[attacker_player].dice[attacker].has_property(property::MORPHING)
     {
-        let target = action.m_targets.first().expect("Morphing target");
-        MorphIntoTarget(game, attacker_player, target_player, attacker, target);
+        let target = action.targets.first().expect("Morphing target");
+        morph_into_target(game, attacker_player, target_player, attacker, target);
     }
 
-    if game.m_player[attacker_player].m_die[attacker].HasProperty(property::TURBO)
-        && action.m_turbo_option >= 0
+    if game.players[attacker_player].dice[attacker].has_property(property::TURBO)
+        && action.turbo_option >= 0
     {
-        if game.m_player[attacker_player].m_die[attacker].HasProperty(property::OPTION) {
-            if action.m_turbo_option == 1 {
-                let die = &mut game.m_player[attacker_player].m_die[attacker];
-                let old_score = die.GetScore(true);
-                die.m_sides.swap(0, 1);
-                game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+        if game.players[attacker_player].dice[attacker].has_property(property::OPTION) {
+            if action.turbo_option == 1 {
+                let die = &mut game.players[attacker_player].dice[attacker];
+                let old_score = die.score(true);
+                die.sides.swap(0, 1);
+                game.players[attacker_player].score += die.score(true) - old_score;
             }
-        } else if action.m_turbo_option > 0
-            && let Some(swing) = game.m_player[attacker_player].m_die[attacker].m_swing_type[0]
+        } else if action.turbo_option > 0
+            && let Some(swing) = game.players[attacker_player].dice[attacker].swing_type[0]
         {
             let mut score_delta = 0.0;
-            for die in &mut game.m_player[attacker_player].m_die {
-                let old_score = die.GetScore(true);
+            for die in &mut game.players[attacker_player].dice {
+                let old_score = die.score(true);
                 for side in 0..2 {
-                    if die.m_swing_type[side] == Some(swing) {
-                        die.m_sides[side] = action.m_turbo_option as u8;
+                    if die.swing_type[side] == Some(swing) {
+                        die.sides[side] = action.turbo_option as u8;
                     }
                 }
-                score_delta += die.GetScore(true) - old_score;
+                score_delta += die.score(true) - old_score;
             }
-            game.m_player[attacker_player].m_score += score_delta;
+            game.players[attacker_player].score += score_delta;
         }
     }
 
     // ButtonWeavers copies before the attack reroll, so the copy's own Mighty
     // or Weak applies; Warrior is lost after.
     if actually_attacking
-        && action.m_attack == Some(Attack::Power)
-        && action.m_attackers.len() == 1
-        && action.m_targets.len() == 1
-        && game.m_player[attacker_player].m_die[attacker].HasProperty(property::DOPPELGANGER)
+        && action.attack == Some(Attack::Power)
+        && action.attackers.len() == 1
+        && action.targets.len() == 1
+        && game.players[attacker_player].dice[attacker].has_property(property::DOPPELGANGER)
     {
-        let target = action.m_targets.first().expect("Doppelganger target");
-        CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
+        let target = action.targets.first().expect("Doppelganger target");
+        copy_doppelganger_target(game, attacker_player, target_player, attacker, target);
         // The copy rerolls even if Konstant, so Mighty and Weak resize it.
-        ResizeMightyAndWeak(game, attacker_player, attacker);
+        resize_mighty_and_weak(game, attacker_player, attacker);
     }
 
-    if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {
-        let die = &mut game.m_player[attacker_player].m_die[attacker];
-        let old_score = die.GetScore(true);
-        die.m_properties &= !property::WARRIOR;
-        game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
+    if game.players[attacker_player].dice[attacker].has_property(property::WARRIOR) {
+        let die = &mut game.players[attacker_player].dice[attacker];
+        let old_score = die.score(true);
+        die.properties &= !property::WARRIOR;
+        game.players[attacker_player].score += die.score(true) - old_score;
     }
 }
 
 // ButtonWeavers Konstant clears `doesReroll`, which Mighty and Weak require.
-pub(crate) fn ApplyBeforeRollEffects(game: &mut Game, player: usize, index: usize) {
-    if !game.m_player[player].m_die[index].HasProperty(property::KONSTANT) {
-        ResizeMightyAndWeak(game, player, index);
+pub(crate) fn apply_before_roll_effects(game: &mut Game, player: usize, index: usize) {
+    if !game.players[player].dice[index].has_property(property::KONSTANT) {
+        resize_mighty_and_weak(game, player, index);
     }
 }
 
-fn RerollsWhenOrnery(die: &Die) -> bool {
-    die.HasProperty(property::ORNERY) && !die.HasProperty(property::WARRIOR)
+fn rerolls_when_ornery(die: &Die) -> bool {
+    die.has_property(property::ORNERY) && !die.has_property(property::WARRIOR)
 }
 
-fn ResizeMightyAndWeak(game: &mut Game, player: usize, index: usize) {
-    let die = &mut game.m_player[player].m_die[index];
-    let old_score = die.GetScore(true);
-    let dice = if die.HasProperty(property::TWIN) {
+fn resize_mighty_and_weak(game: &mut Game, player: usize, index: usize) {
+    let die = &mut game.players[player].dice[index];
+    let old_score = die.score(true);
+    let dice = if die.has_property(property::TWIN) {
         2
     } else {
         1
     };
-    if die.HasProperty(property::MIGHTY) {
-        for sides in die.m_sides.iter_mut().take(dice) {
-            *sides = MightySides(*sides);
+    if die.has_property(property::MIGHTY) {
+        for sides in die.sides.iter_mut().take(dice) {
+            *sides = mighty_sides(*sides);
         }
     }
-    if die.HasProperty(property::WEAK) {
-        for sides in die.m_sides.iter_mut().take(dice) {
-            *sides = WeakSides(*sides);
+    if die.has_property(property::WEAK) {
+        for sides in die.sides.iter_mut().take(dice) {
+            *sides = weak_sides(*sides);
         }
     }
-    game.m_player[player].m_score += die.GetScore(true) - old_score;
+    game.players[player].score += die.score(true) - old_score;
 }
 
-pub(super) fn ApplyAttackerNatureRoll(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
-    let die = &mut game.m_player[player].m_die[index];
-    let old_score = die.GetScore(true);
-    ApplyMood(die, rng);
+pub(super) fn apply_attacker_nature_roll(
+    game: &mut Game,
+    player: usize,
+    index: usize,
+    rng: &mut Rng,
+) {
+    let die = &mut game.players[player].dice[index];
+    let old_score = die.score(true);
+    apply_mood(die, rng);
     // C++ never rescores after the reroll, so a Value die keeps its old score.
-    game.m_player[player].m_score += die.GetScore(true) - old_score;
-    if die.m_notset {
-        RollDie(die, rng);
+    game.players[player].score += die.score(true) - old_score;
+    if die.not_set {
+        roll_die(die, rng);
     }
 }
 
 /// ButtonWeavers resizes Mood and Mad dice on every reroll, including Trip
 /// targets and Chance rerolls.
-pub(crate) fn RollScheduledDie(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
-    ApplyAttackerNatureRoll(game, player, index, rng);
+pub(crate) fn roll_scheduled_die(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
+    apply_attacker_nature_roll(game, player, index, rng);
 }
 
-pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
-    let available = AvailableDice(player);
-    player.m_die[index].m_captured = true;
-    player.m_die[index..available].rotate_left(1);
+pub(super) fn on_die_lost(player: &mut crate::game::Player, index: usize) {
+    let available = available_dice_count(player);
+    player.dice[index].captured = true;
+    player.dice[index..available].rotate_left(1);
 }
 
 // ButtonWeavers `standard_die_sizes`; unlike Mighty's list, no 16.
 const MOOD_DIE_SIZES: [u8; 9] = [1, 2, 4, 6, 8, 10, 12, 20, 30];
 
-pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
-    let mad = die.HasProperty(property::MAD);
-    if !mad && !die.HasProperty(property::MOOD) || die.HasProperty(property::KONSTANT) {
+pub(super) fn apply_mood(die: &mut Die, rng: &mut Rng) {
+    let mad = die.has_property(property::MAD);
+    if !mad && !die.has_property(property::MOOD) || die.has_property(property::KONSTANT) {
         return;
     }
-    let Some(swing) = die.m_swing_type.iter().flatten().next().copied() else {
+    let Some(swing) = die.swing_type.iter().flatten().next().copied() else {
         return;
     };
-    let (minimum, maximum) = SwingRange(swing);
+    let (minimum, maximum) = swing_range(swing);
     let sizes = (minimum..=maximum)
         .filter(|size| {
             if mad {
@@ -708,15 +723,15 @@ pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
             }
         })
         .collect::<Vec<_>>();
-    let size = sizes[rng.GetRandMax(sizes.len() as u32) as usize];
-    for index in 0..die.m_sides.len() {
-        if die.m_swing_type[index].is_some() {
-            die.m_sides[index] = size;
+    let size = sizes[rng.rand_below(sizes.len() as u32) as usize];
+    for index in 0..die.sides.len() {
+        if die.swing_type[index].is_some() {
+            die.sides[index] = size;
         }
     }
 }
 
-pub(super) fn MightySides(sides: u8) -> u8 {
+pub(super) fn mighty_sides(sides: u8) -> u8 {
     const VALUES: [u8; 20] = [
         1, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 16, 16, 16, 16, 20, 20, 20, 20,
     ];
@@ -727,7 +742,7 @@ pub(super) fn MightySides(sides: u8) -> u8 {
     }
 }
 
-pub(super) fn WeakSides(sides: u8) -> u8 {
+pub(super) fn weak_sides(sides: u8) -> u8 {
     const VALUES: [u8; 20] = [
         1, 1, 1, 2, 2, 4, 4, 6, 6, 8, 8, 10, 10, 12, 12, 12, 12, 16, 16, 16,
     ];
@@ -739,61 +754,61 @@ pub(super) fn WeakSides(sides: u8) -> u8 {
     }
 }
 
-pub(crate) fn OptimizeDice(player: &mut Player) {
-    player.OptimizeDice();
+pub(crate) fn optimize_dice(player: &mut Player) {
+    player.optimize_dice();
 }
 
-pub(crate) fn RollDie(die: &mut Die, rng: &mut Rng) {
-    assert!(die.m_notset, "Die::Roll requires NOTSET state");
-    die.m_captured = false;
-    die.m_notset = false;
-    die.m_dizzy = false;
-    if die.m_in_reserve {
-        die.m_value_total = None;
+pub(crate) fn roll_die(die: &mut Die, rng: &mut Rng) {
+    assert!(die.not_set, "Die::Roll requires NOTSET state");
+    die.captured = false;
+    die.not_set = false;
+    die.dizzy = false;
+    if die.in_reserve {
+        die.value = None;
         return;
     }
-    let dice = if die.HasProperty(property::TWIN) {
+    let dice = if die.has_property(property::TWIN) {
         2
     } else {
         1
     };
     let mut value = 0u16;
-    for sides in die.m_sides.iter().take(dice) {
+    for sides in die.sides.iter().take(dice) {
         if *sides > 0 {
-            if die.HasProperty(property::WARRIOR | property::MAXIMUM) {
+            if die.has_property(property::WARRIOR | property::MAXIMUM) {
                 value += u16::from(*sides);
             } else {
-                value += u16::from(rng.GetRandMax(u32::from(*sides)) as u8 + 1);
+                value += u16::from(rng.rand_below(u32::from(*sides)) as u8 + 1);
             }
         }
     }
-    die.m_value_total = Some(value as u8);
+    die.value = Some(value as u8);
 }
 
-pub(crate) fn InitiativeWinner(game: &Game) -> usize {
-    CheckInitiative(game).unwrap_or(0)
+pub(crate) fn initiative_winner(game: &Game) -> usize {
+    check_initiative(game).unwrap_or(0)
 }
 
-pub(crate) fn CheckInitiative(game: &Game) -> Option<usize> {
+pub(crate) fn check_initiative(game: &Game) -> Option<usize> {
     let mut values = [Vec::new(), Vec::new()];
     for (player, output) in values.iter_mut().enumerate() {
-        *output = game.m_player[player]
-            .m_die
+        *output = game.players[player]
+            .dice
             .iter()
             .filter(|die| {
-                die.IsAvailable()
-                    && !die.HasProperty(
+                die.is_available()
+                    && !die.has_property(
                         property::TRIP | property::SLOW | property::STINGER | property::RAGE,
                     )
             })
-            .map(Die::GetValueTotal)
+            .map(Die::value_total)
             .collect();
         output.sort_unstable();
     }
     // ButtonWeavers ranks a no-initiative button below every other button,
     // even one with no initiative dice, by giving the others a sentinel.
     let no_initiative =
-        [0, 1].map(|player| game.m_player[player].m_specials & super::special::NO_INITIATIVE != 0);
+        [0, 1].map(|player| game.players[player].specials & super::special::NO_INITIATIVE != 0);
     if no_initiative.contains(&true) {
         for (player, output) in values.iter_mut().enumerate() {
             if no_initiative[player] {
@@ -814,11 +829,11 @@ pub(crate) fn CheckInitiative(game: &Game) -> Option<usize> {
     None
 }
 
-pub(crate) fn AvailableDice(player: &Player) -> usize {
-    player.m_die.iter().filter(|die| die.IsAvailable()).count()
+pub(crate) fn available_dice_count(player: &Player) -> usize {
+    player.dice.iter().filter(|die| die.is_available()).count()
 }
 
-pub(crate) fn SwingRange(swing: char) -> (u8, u8) {
+pub(crate) fn swing_range(swing: char) -> (u8, u8) {
     match swing {
         'P' => (1, 30),
         'Q' => (2, 20),
@@ -835,86 +850,85 @@ pub(crate) fn SwingRange(swing: char) -> (u8, u8) {
     }
 }
 
-pub(crate) fn RestoreDiceForNewRound(game: &mut Game, template: &Game) {
-    for player in 0..game.m_player.len() {
-        let products = game.m_player[player].m_radioactive_products
-            | game.m_player[player].m_rage_replacements;
-        game.m_player[player]
-            .m_die
-            .retain(|die| products & (1 << die.m_original_index) == 0);
-        game.m_player[player].m_round_transformed &= !products;
-        game.m_player[player].m_radioactive_products = 0;
-        game.m_player[player].m_rage_replacements = 0;
-        for index in 0..game.m_player[player].m_die.len() {
-            let original_index = game.m_player[player].m_die[index].m_original_index;
-            let transformed =
-                game.m_player[player].m_round_transformed & (1 << original_index) != 0;
+pub(crate) fn restore_dice_for_new_round(game: &mut Game, template: &Game) {
+    for player in 0..game.players.len() {
+        let products =
+            game.players[player].radioactive_products | game.players[player].rage_replacements;
+        game.players[player]
+            .dice
+            .retain(|die| products & (1 << die.original_index) == 0);
+        game.players[player].round_transformed &= !products;
+        game.players[player].radioactive_products = 0;
+        game.players[player].rage_replacements = 0;
+        for index in 0..game.players[player].dice.len() {
+            let original_index = game.players[player].dice[index].original_index;
+            let transformed = game.players[player].round_transformed & (1 << original_index) != 0;
             if transformed {
-                let sides = game.m_player[player].m_round_original_sides[original_index];
-                let in_reserve = game.m_player[player].m_die[index].m_in_reserve;
-                if let Some(original) = template.m_player[player]
-                    .m_die
+                let sides = game.players[player].round_original_sides[original_index];
+                let in_reserve = game.players[player].dice[index].in_reserve;
+                if let Some(original) = template.players[player]
+                    .dice
                     .iter()
-                    .find(|original| original.m_original_index == original_index)
+                    .find(|original| original.original_index == original_index)
                 {
-                    game.m_player[player].m_die[index] = *original;
+                    game.players[player].dice[index] = *original;
                     // Swing and Option selections persist for a round winner;
                     // fixed Mighty/Weak side changes do not.
-                    if original.HasProperty(property::OPTION) {
-                        game.m_player[player].m_die[index].m_sides = sides;
+                    if original.has_property(property::OPTION) {
+                        game.players[player].dice[index].sides = sides;
                     } else {
                         for (side, saved) in sides.iter().enumerate() {
-                            if original.m_swing_type[side].is_some() {
-                                game.m_player[player].m_die[index].m_sides[side] = *saved;
+                            if original.swing_type[side].is_some() {
+                                game.players[player].dice[index].sides[side] = *saved;
                             }
                         }
                     }
-                    game.m_player[player].m_die[index].m_in_reserve = in_reserve;
+                    game.players[player].dice[index].in_reserve = in_reserve;
                 }
-                game.m_player[player].m_round_transformed &= !(1 << original_index);
+                game.players[player].round_transformed &= !(1 << original_index);
             }
-            let die = &mut game.m_player[player].m_die[index];
-            let Some(original) = template.m_player[player]
-                .m_die
+            let die = &mut game.players[player].dice[index];
+            let Some(original) = template.players[player]
+                .dice
                 .iter()
-                .find(|original| original.m_original_index == die.m_original_index)
+                .find(|original| original.original_index == die.original_index)
             else {
                 continue;
             };
 
-            if original.HasProperty(property::JOLT) {
-                die.m_properties |= property::JOLT;
+            if original.has_property(property::JOLT) {
+                die.properties |= property::JOLT;
             } else {
-                die.m_properties &= !property::JOLT;
+                die.properties &= !property::JOLT;
             }
-            if original.HasProperty(property::RAGE) {
-                die.m_properties |= property::RAGE;
+            if original.has_property(property::RAGE) {
+                die.properties |= property::RAGE;
             } else {
-                die.m_properties &= !property::RAGE;
+                die.properties &= !property::RAGE;
             }
         }
     }
 }
 
-pub(crate) fn RollRoundDice(game: &mut Game, rng: &mut Rng) {
-    for player in &mut game.m_player {
-        player.m_score = 0.0;
-        for die in &mut player.m_die {
-            die.m_notset = true;
-            RollDie(die, rng);
+pub(crate) fn roll_round_dice(game: &mut Game, rng: &mut Rng) {
+    for player in &mut game.players {
+        player.score = 0.0;
+        for die in &mut player.dice {
+            die.not_set = true;
+            roll_die(die, rng);
         }
-        player.m_score = player
-            .m_die
+        player.score = player
+            .dice
             .iter()
-            .filter(|d| d.IsAvailable())
-            .map(|d| d.GetScore(true))
+            .filter(|d| d.is_available())
+            .map(|d| d.score(true))
             .sum();
-        player.OptimizeDice();
+        player.optimize_dice();
     }
 }
 
-pub(crate) fn RecoverDizzyDice(player: &mut Player) {
-    for die in &mut player.m_die {
-        die.m_dizzy = false;
+pub(crate) fn recover_dizzy_dice(player: &mut Player) {
+    for die in &mut player.dice {
+        die.dizzy = false;
     }
 }

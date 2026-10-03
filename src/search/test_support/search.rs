@@ -150,7 +150,7 @@ impl SearchScenario {
             let mut parser = Parser::default();
             let mut output = Vec::new();
             parser
-                .ParseString(&input, &mut output)
+                .parse_string(&input, &mut output)
                 .unwrap_or_else(|error| panic!("invalid search scenario: {error}\n{input}"));
             let output = String::from_utf8(output).expect("protocol output must be UTF-8");
             if let Some(expected) = &self.expected_win_percent {

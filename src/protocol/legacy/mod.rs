@@ -7,13 +7,14 @@ use std::io::{BufRead, Write};
 
 use crate::game::{Action, Die, DieIndexSet, Game, MAX_DICE, Move, Phase, SwingSet, property};
 use crate::search::{
-    AiPolicy, EvaluateSelectedNativeBMAIMove, PlayFairGames, PlayFairGamesNative,
-    PlayGamesWithPolicies, PlayGamesWithPoliciesNative, SelectBMAIActionWithStats,
-    SelectBMAIAuxiliaryAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
-    SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIActionWithStats,
-    SelectNativeBMAIAuxiliaryAction, SelectNativeBMAIChanceAction, SelectNativeBMAIFocusAction,
-    SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
-    SelectQAIAuxiliaryAction, SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
+    AiPolicy, SwingMove, evaluate_selected_native_bmai_move, play_fair_games,
+    play_fair_games_native, play_games_with_policies, play_games_with_policies_native,
+    select_bmai_action_with_stats, select_bmai_auxiliary_action, select_bmai_chance_action,
+    select_bmai_focus_action, select_bmai_reserve_action, select_bmai_set_swing_action,
+    select_native_bmai_action_with_stats, select_native_bmai_auxiliary_action,
+    select_native_bmai_chance_action, select_native_bmai_focus_action,
+    select_native_bmai_reserve_action, select_native_bmai_set_swing_action, select_qai_action,
+    select_qai_auxiliary_action, select_qai_reserve_action, select_qai_set_swing_action,
 };
 use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm, RolloutPolicy};
 
@@ -38,98 +39,96 @@ enum AiSlot {
 
 #[derive(Clone, Debug)]
 pub struct Parser {
-    pub m_game: Game,
-    m_report_sims: usize,
-    m_execution_mode: ExecutionMode,
-    m_native_root_seed: u64,
-    m_native_decision_index: u64,
-    m_native_workers: usize,
-    m_rng: Rng,
-    m_ai: Bmai3,
-    m_type_ai: [Bmai3; 3],
-    m_player_ai: [AiSlot; 2],
-    m_debug_ply: usize,
-    m_logging: [bool; 8],
-    m_last_action: Option<crate::protocol::ProtocolAction>,
-    m_last_replay: Option<crate::protocol::ReplayMetadata>,
-    m_last_evaluation: Option<crate::protocol::ProbabilityEstimate>,
+    pub game: Game,
+    report_sims: usize,
+    execution_mode: ExecutionMode,
+    native_root_seed: u64,
+    native_decision_index: u64,
+    native_workers: usize,
+    rng: Rng,
+    ai: Bmai3,
+    type_ai: [Bmai3; 3],
+    player_ai: [AiSlot; 2],
+    debug_ply: usize,
+    logging: [bool; 8],
+    last_action: Option<crate::protocol::ProtocolAction>,
+    last_replay: Option<crate::protocol::ReplayMetadata>,
+    last_evaluation: Option<crate::protocol::ProbabilityEstimate>,
 }
 
 impl Default for Parser {
     fn default() -> Self {
         Self {
-            m_game: Game::default(),
-            m_report_sims: 0,
-            m_execution_mode: ExecutionMode::default(),
-            m_native_root_seed: 78_904_497,
-            m_native_decision_index: 0,
-            m_native_workers: 1,
-            m_rng: Rng::default(),
-            m_ai: Bmai3::default(),
-            m_type_ai: std::array::from_fn(|ai_type| Bmai3 {
-                m_cull_moves: ai_type == 2,
+            game: Game::default(),
+            report_sims: 0,
+            execution_mode: ExecutionMode::default(),
+            native_root_seed: 78_904_497,
+            native_decision_index: 0,
+            native_workers: 1,
+            rng: Rng::default(),
+            ai: Bmai3::default(),
+            type_ai: std::array::from_fn(|ai_type| Bmai3 {
+                cull_moves: ai_type == 2,
                 ..Default::default()
             }),
-            m_player_ai: [AiSlot::Unbound; 2],
-            m_debug_ply: 0,
-            m_logging: [true; 8],
-            m_last_action: None,
-            m_last_replay: None,
-            m_last_evaluation: None,
+            player_ai: [AiSlot::Unbound; 2],
+            debug_ply: 0,
+            logging: [true; 8],
+            last_action: None,
+            last_replay: None,
+            last_evaluation: None,
         }
     }
 }
 
 impl Parser {
     pub const fn execution_mode(&self) -> ExecutionMode {
-        self.m_execution_mode
+        self.execution_mode
     }
 
     pub const fn rng_algorithm(&self) -> RngAlgorithm {
-        self.m_rng.Algorithm()
+        self.rng.algorithm()
     }
 
     pub const fn rng_replay_id(&self) -> &'static str {
-        self.m_rng.ReplayId()
+        self.rng.replay_id()
     }
 
     pub fn session_metadata(&self) -> crate::protocol::SessionMetadata {
         crate::protocol::SessionMetadata {
-            phase: phase_protocol(self.m_game.m_phase),
-            target_wins: self.m_game.m_target_wins,
-            surrender_allowed: self.m_game.m_surrender_allowed,
-            turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.m_game.m_turbo_accuracy),
-            fire_overshooting: self.m_game.m_fire_overshooting,
-            execution_mode: self.m_execution_mode.as_str(),
-            rng: self.m_rng.ReplayId(),
-            native_root_seed: self.m_native_root_seed,
-            native_decision_index: self.m_native_decision_index,
-            workers: self.m_native_workers,
-            max_ply: self.m_ai.m_max_ply,
-            min_simulations: self.m_ai.m_min_sims,
-            max_simulations: self.m_ai.m_max_sims,
-            max_branch: self.m_ai.m_max_branch,
-            report_simulations: self.m_report_sims,
+            phase: phase_protocol(self.game.phase),
+            target_wins: self.game.target_wins,
+            surrender_allowed: self.game.surrender_allowed,
+            turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.game.turbo_accuracy),
+            fire_overshooting: self.game.fire_overshooting,
+            execution_mode: self.execution_mode.as_str(),
+            rng: self.rng.replay_id(),
+            native_root_seed: self.native_root_seed,
+            native_decision_index: self.native_decision_index,
+            workers: self.native_workers,
+            max_ply: self.ai.max_ply,
+            min_simulations: self.ai.min_sims,
+            max_simulations: self.ai.max_sims,
+            max_branch: self.ai.max_branch,
+            report_simulations: self.report_sims,
             players: std::array::from_fn(|player| {
-                let ai = self.PlayerAI(player);
+                let ai = self.player_ai(player);
                 crate::protocol::PlayerAiMetadata {
-                    ai_type: self.AIType(player),
-                    policy: match self.AIType(player) {
+                    ai_type: self.ai_type(player),
+                    policy: match self.ai_type(player) {
                         0 => "bmai",
                         1 => "qai",
                         2 => "bmai3",
                         _ => unreachable!(),
                     },
-                    culls_moves: ai.m_cull_moves,
-                    max_ply: ai.m_max_ply,
-                    min_simulations: ai.m_min_sims,
-                    max_simulations: ai.m_max_sims,
-                    max_branch: ai.m_max_branch,
+                    culls_moves: ai.cull_moves,
+                    max_ply: ai.max_ply,
+                    min_simulations: ai.min_sims,
+                    max_simulations: ai.max_sims,
+                    max_branch: ai.max_branch,
                     specials: crate::protocol::notation::BUTTON_SPECIALS
                         .iter()
-                        .filter(|special| {
-                            self.m_game.m_player[player].m_specials & special.special != 0
-                        })
+                        .filter(|special| self.game.players[player].specials & special.special != 0)
                         .map(|special| special.id)
                         .collect(),
                 }
@@ -138,33 +137,33 @@ impl Parser {
     }
 
     pub fn last_action(&self) -> Option<&crate::protocol::ProtocolAction> {
-        self.m_last_action.as_ref()
+        self.last_action.as_ref()
     }
 
     pub fn last_replay(&self) -> Option<&crate::protocol::ReplayMetadata> {
-        self.m_last_replay.as_ref()
+        self.last_replay.as_ref()
     }
 
     pub fn last_evaluation(&self) -> Option<&crate::protocol::ProbabilityEstimate> {
-        self.m_last_evaluation.as_ref()
+        self.last_evaluation.as_ref()
     }
 
-    pub fn ParseString<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
-        self.m_last_action = None;
-        self.m_last_replay = None;
-        self.m_last_evaluation = None;
-        self.ParseStringCommands(data, output)
+    pub fn parse_string<W: Write>(&mut self, data: &str, output: &mut W) -> Result<(), ParseError> {
+        self.last_action = None;
+        self.last_replay = None;
+        self.last_evaluation = None;
+        self.parse_string_commands(data, output)
     }
 
     /// Clients keep stdin open, so each command runs as soon as it arrives.
-    pub fn ParseStream<R: BufRead, W: Write>(
+    pub fn parse_stream<R: BufRead, W: Write>(
         &mut self,
         input: &mut R,
         output: &mut W,
     ) -> Result<(), ParseError> {
-        self.m_last_action = None;
-        self.m_last_replay = None;
-        self.m_last_evaluation = None;
+        self.last_action = None;
+        self.last_replay = None;
+        self.last_evaluation = None;
 
         while let Some(line) = read_stream_line(input)? {
             let command = line.trim();
@@ -197,13 +196,13 @@ impl Parser {
                     block.push_str(&header);
                     for original_index in 0..dice {
                         let definition = read_required_stream_line(input, "missing die")?;
-                        ParseDie(definition.trim(), original_index)?;
+                        parse_die(definition.trim(), original_index)?;
                         block.push_str(&definition);
                     }
                 }
             }
 
-            self.ParseStringCommands(&block, output)?;
+            self.parse_string_commands(&block, output)?;
             output.flush().map_err(io_error)?;
             if is_quit {
                 break;

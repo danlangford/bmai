@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-#![allow(non_camel_case_types, non_snake_case)]
-
 use crate::Move;
 use std::sync::OnceLock;
 
@@ -19,10 +17,10 @@ pub enum RolloutPolicy {
 
 #[derive(Clone, Debug, Default)]
 pub struct Stats {
-    pub m_sims: usize,
-    pub m_total_sims: [usize; 10],
-    pub m_total_moves: [usize; 10],
-    pub m_total_samples: [usize; 10],
+    pub sims: usize,
+    pub total_sims: [usize; 10],
+    pub total_moves: [usize; 10],
+    pub total_samples: [usize; 10],
 }
 
 /// Culling reorders candidates, so these keep their original indices.
@@ -40,83 +38,83 @@ pub struct EvaluationRequest<'a> {
 }
 
 impl Stats {
-    pub fn OnFullSimulation(&mut self) {
-        self.m_sims += 1;
+    pub fn on_full_simulation(&mut self) {
+        self.sims += 1;
     }
 
-    pub fn OnPlyAction(&mut self, ply: usize, moves: usize, sims: usize) {
-        if let Some(total) = self.m_total_sims.get_mut(ply) {
+    pub fn on_ply_action(&mut self, ply: usize, moves: usize, sims: usize) {
+        if let Some(total) = self.total_sims.get_mut(ply) {
             *total += sims;
-            self.m_total_moves[ply] += moves;
-            self.m_total_samples[ply] += 1;
+            self.total_moves[ply] += moves;
+            self.total_samples[ply] += 1;
         }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct Bmai3 {
-    pub m_cull_moves: bool,
-    pub m_rollout_policy: RolloutPolicy,
-    pub m_max_ply: usize,
-    pub m_max_branch: usize,
-    pub m_min_sims: usize,
-    pub m_max_sims: usize,
-    pub m_sims_per_check: usize,
-    pub m_min_best_score_threshold: f32,
-    pub m_max_best_score_threshold: f32,
-    pub m_last_best_score: f32,
-    pub m_last_sims_run: usize,
-    pub m_last_probability_win: f32,
-    pub m_ply_decay: f32,
-    pub m_stats: Stats,
+    pub cull_moves: bool,
+    pub rollout_policy: RolloutPolicy,
+    pub max_ply: usize,
+    pub max_branch: usize,
+    pub min_sims: usize,
+    pub max_sims: usize,
+    pub sims_per_check: usize,
+    pub min_best_score_threshold: f32,
+    pub max_best_score_threshold: f32,
+    pub last_best_score: f32,
+    pub last_sims_run: usize,
+    pub last_probability_win: f32,
+    pub ply_decay: f32,
+    pub stats: Stats,
 }
 
 impl Default for Bmai3 {
     fn default() -> Self {
         Self {
-            m_cull_moves: true,
-            m_rollout_policy: RolloutPolicy::Qai,
-            m_max_ply: 1,
-            m_max_branch: DEFAULT_MAX_BRANCH,
-            m_min_sims: MIN_SIMS,
-            m_max_sims: DEFAULT_SIMS,
-            m_sims_per_check: 10,
-            m_min_best_score_threshold: 0.25,
-            m_max_best_score_threshold: 0.90,
-            m_last_best_score: 0.0,
-            m_last_sims_run: 0,
-            m_last_probability_win: 0.0,
-            m_ply_decay: 0.5,
-            m_stats: Stats::default(),
+            cull_moves: true,
+            rollout_policy: RolloutPolicy::Qai,
+            max_ply: 1,
+            max_branch: DEFAULT_MAX_BRANCH,
+            min_sims: MIN_SIMS,
+            max_sims: DEFAULT_SIMS,
+            sims_per_check: 10,
+            min_best_score_threshold: 0.25,
+            max_best_score_threshold: 0.90,
+            last_best_score: 0.0,
+            last_sims_run: 0,
+            last_probability_win: 0.0,
+            ply_decay: 0.5,
+            stats: Stats::default(),
         }
     }
 }
 
 impl Bmai3 {
-    pub(crate) fn FireCandidateLimit(&self) -> usize {
-        (self.m_max_branch / self.m_min_sims.max(1)).max(1)
+    pub(crate) fn fire_candidate_limit(&self) -> usize {
+        (self.max_branch / self.min_sims.max(1)).max(1)
     }
 
-    pub fn ComputeNumberSims(&self, moves: usize, level: usize) -> usize {
+    pub fn compute_number_sims(&self, moves: usize, level: usize) -> usize {
         assert!(moves > 0);
         assert!(level > 0);
-        let decay = self.m_ply_decay.powi(level as i32 - 1);
-        let sims = (self.m_max_branch as f32 * decay / moves as f32) as usize;
+        let decay = self.ply_decay.powi(level as i32 - 1);
+        let sims = (self.max_branch as f32 * decay / moves as f32) as usize;
         // C++ lets the minimum win over a smaller maximum; `clamp` would panic.
-        let minimum = ((self.m_min_sims as f32 * decay + 0.99) as usize).max(1);
+        let minimum = ((self.min_sims as f32 * decay + 0.99) as usize).max(1);
         if sims < minimum {
             return minimum;
         }
-        let maximum = ((self.m_max_sims as f32 * decay + 0.99) as usize).max(1);
+        let maximum = ((self.max_sims as f32 * decay + 0.99) as usize).max(1);
         sims.min(maximum)
     }
 
     /// The callback returns the mover's win probability.
-    pub fn EvaluateMoves<F>(&mut self, moves: Vec<Move>, level: usize, mut evaluate: F) -> Move
+    pub fn evaluate_moves<F>(&mut self, moves: Vec<Move>, level: usize, mut evaluate: F) -> Move
     where
         F: FnMut(&Move, EvaluationCoordinate) -> f32,
     {
-        self.EvaluateMovesBatched(moves, level, |requests| {
+        self.evaluate_moves_batched(moves, level, |requests| {
             requests
                 .iter()
                 .map(|request| evaluate(request.candidate, request.coordinate))
@@ -125,7 +123,7 @@ impl Bmai3 {
     }
 
     /// Native mode parallelizes here, so results must match requests by position.
-    pub fn EvaluateMovesBatched<F>(
+    pub fn evaluate_moves_batched<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -134,11 +132,11 @@ impl Bmai3 {
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
-        self.EvaluateMovesBatchedInner(moves, level, false, evaluate_batch)
+        self.evaluate_moves_batched_inner(moves, level, false, evaluate_batch)
     }
 
     /// Keeps sampling the survivor so reported odds use the whole budget.
-    pub(crate) fn EvaluateMovesBatchedToCompletion<F>(
+    pub(crate) fn evaluate_moves_batched_to_completion<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -147,10 +145,10 @@ impl Bmai3 {
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
-        self.EvaluateMovesBatchedInner(moves, level, true, evaluate_batch)
+        self.evaluate_moves_batched_inner(moves, level, true, evaluate_batch)
     }
 
-    fn EvaluateMovesBatchedInner<F>(
+    fn evaluate_moves_batched_inner<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -161,9 +159,9 @@ impl Bmai3 {
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
         assert!(!moves.is_empty());
-        let sims = self.ComputeNumberSims(moves.len(), level);
-        self.m_stats.OnPlyAction(level, moves.len(), sims);
-        if !self.m_cull_moves {
+        let sims = self.compute_number_sims(moves.len(), level);
+        self.stats.on_ply_action(level, moves.len(), sims);
+        if !self.cull_moves {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
             let requests = moves
@@ -186,16 +184,16 @@ impl Bmai3 {
                 let start = candidate_index * sims;
                 let score = results[start..start + sims].iter().sum();
                 for _ in 0..sims {
-                    self.m_stats.OnFullSimulation();
+                    self.stats.on_full_simulation();
                 }
                 if score > best_score {
                     best_score = score;
                     best = candidate.clone();
                 }
             }
-            self.m_last_best_score = best_score;
-            self.m_last_sims_run = sims;
-            self.m_last_probability_win = best_score / sims as f32;
+            self.last_best_score = best_score;
+            self.last_sims_run = sims;
+            self.last_probability_win = best_score / sims as f32;
             return best;
         }
         let mut state = ThinkState::new(moves, sims);
@@ -204,9 +202,9 @@ impl Bmai3 {
 
         while state.sims_run < state.sims {
             let check_sims = self
-                .m_sims_per_check
+                .sims_per_check
                 .min(state.sims.saturating_sub(state.sims_run));
-            let batch_index = state.sims_run / self.m_sims_per_check;
+            let batch_index = state.sims_run / self.sims_per_check;
             let simulation_start = state.sims_run;
             let candidate_indices = &state.candidate_index;
             let requests = state
@@ -231,7 +229,7 @@ impl Bmai3 {
                 let start = index * check_sims;
                 for score in &results[start..start + check_sims] {
                     state.score[index] += score;
-                    self.m_stats.OnFullSimulation();
+                    self.stats.on_full_simulation();
                 }
                 if state.score[index] > state.best_score {
                     state.best_score = state.score[index];
@@ -248,26 +246,26 @@ impl Bmai3 {
             if state.sims_run >= state.sims {
                 break;
             }
-            let multiple_candidates_remain = self.CullMoves(&mut state);
+            let multiple_candidates_remain = self.cull(&mut state);
             if !multiple_candidates_remain && !complete_survivor {
                 break;
             }
         }
 
-        self.m_last_best_score = state.best_score;
-        self.m_last_sims_run = state.sims_run;
-        self.m_last_probability_win = state.best_score / state.sims_run as f32;
+        self.last_best_score = state.best_score;
+        self.last_sims_run = state.sims_run;
+        self.last_probability_win = state.best_score / state.sims_run as f32;
         state.best_move
     }
 
-    fn CullMoves(&self, state: &mut ThinkState) -> bool {
+    fn cull(&self, state: &mut ThinkState) -> bool {
         if state.movelist.len() == 1 {
             return false;
         }
         let progress = state.sims_run as f32 / state.sims as f32;
-        let threshold = self.m_min_best_score_threshold
-            + progress * (self.m_max_best_score_threshold - self.m_min_best_score_threshold);
-        let mut delta_threshold = (1.0 - progress) * self.m_sims_per_check as f32 * 0.5;
+        let threshold = self.min_best_score_threshold
+            + progress * (self.max_best_score_threshold - self.min_best_score_threshold);
+        let mut delta_threshold = (1.0 - progress) * self.sims_per_check as f32 * 0.5;
         if state.best_score > 1.0 && delta_threshold >= state.best_score {
             delta_threshold = state.best_score;
         }
@@ -276,8 +274,8 @@ impl Bmai3 {
         while index < state.movelist.len() {
             let delta = state.best_score - state.score[index];
             let mut move_delta_threshold = delta_threshold;
-            if state.movelist[index].m_action == crate::Action::Attack
-                && state.movelist[index].m_attack == Some(crate::Attack::Trip)
+            if state.movelist[index].action == crate::Action::Attack
+                && state.movelist[index].attack == Some(crate::Attack::Trip)
             {
                 move_delta_threshold *= 0.5;
             }

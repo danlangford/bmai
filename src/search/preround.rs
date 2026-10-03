@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn SelectSwingAction(
+pub(super) fn select_swing_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -12,23 +12,23 @@ pub(super) fn SelectSwingAction(
     level: usize,
     native: Option<NativeEvaluation>,
 ) -> (SwingMove, f32) {
-    if game.m_player[player].m_swing_set != SwingSet::Not {
-        return (CurrentSwingMove(&game.m_player[player]), 0.0);
+    if game.players[player].swing_set != SwingSet::Not {
+        return (current_swing_move(&game.players[player]), 0.0);
     }
-    let traces = TraceSettings();
+    let traces = trace_settings();
     let trace_list = level == 1 && traces.swing_list;
     let trace_candidate = traces.swing_candidate;
     let trace_sim = level == 2 && traces.swing_sim;
     let trace_moves = level == 1 && traces.swing_moves;
     let trace_best = traces.swing;
-    let mut moves = GenerateSwingMoves(&game.m_player[player]);
+    let mut moves = generate_swing_moves(&game.players[player]);
     if moves.is_empty() {
         return (SwingMove::empty(), 0.0);
     }
-    let max_moves = ai.m_max_branch / ai.m_min_sims;
+    let max_moves = ai.max_branch / ai.min_sims;
     if moves.len() > max_moves {
         let mut selection_rng = native.map(|context| {
-            NativeSimulationRng(
+            native_simulation_rng(
                 context.algorithm,
                 context.replay,
                 NATIVE_ENUMERATION_STREAM,
@@ -36,9 +36,9 @@ pub(super) fn SelectSwingAction(
                 0,
             )
         });
-        RandomlySelectSwingMoves(
+        randomly_select_swing_moves(
             &mut moves,
-            &game.m_player[player],
+            &game.players[player],
             max_moves,
             selection_rng.as_mut().unwrap_or(rng),
         );
@@ -53,7 +53,7 @@ pub(super) fn SelectSwingAction(
             );
         }
     }
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
     let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
@@ -61,14 +61,14 @@ pub(super) fn SelectSwingAction(
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
     while sims_run < sims {
-        let batch = if ai.m_cull_moves {
-            ai.m_sims_per_check.min(sims - sims_run)
+        let batch = if ai.cull_moves {
+            ai.sims_per_check.min(sims - sims_run)
         } else {
             sims - sims_run
         };
         let native_results = native.map(|context| {
-            let batch_index = if ai.m_cull_moves {
-                sims_run / ai.m_sims_per_check.max(1)
+            let batch_index = if ai.cull_moves {
+                sims_run / ai.sims_per_check.max(1)
             } else {
                 0
             };
@@ -87,16 +87,16 @@ pub(super) fn SelectSwingAction(
                 context.workers,
                 |(candidate, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    ApplySwingMove(&mut simulation.m_player[player], &candidate);
-                    simulation.m_player[player].m_swing_set = SwingSet::Locked;
-                    let mut simulation_rng = NativeSimulationRng(
+                    apply_swing_move(&mut simulation.players[player], &candidate);
+                    simulation.players[player].swing_set = SwingSet::Locked;
+                    let mut simulation_rng = native_simulation_rng(
                         context.algorithm,
                         context.replay,
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
                     );
-                    EvaluateSwingMove(&mut simulation, player, &mut simulation_rng, ai, level)
+                    evaluate_swing_move(&mut simulation, player, &mut simulation_rng, ai, level)
                 },
             )
         });
@@ -104,7 +104,7 @@ pub(super) fn SelectSwingAction(
             if trace_candidate {
                 eprintln!(
                     "SWING_CANDIDATE l{level} p{player} m{index} seed={} sims={} {:?}",
-                    rng.DebugSeed(),
+                    rng.debug_seed(),
                     sims_run + batch,
                     candidate.values()
                 );
@@ -118,13 +118,13 @@ pub(super) fn SelectSwingAction(
                     if trace_sim && index == 0 {
                         eprintln!(
                             "SWING_SIM l{level} m{index} s{simulation_index} seed={}",
-                            rng.DebugSeed()
+                            rng.debug_seed()
                         );
                     }
-                    RestoreSimulation(&mut simulation, game);
-                    ApplySwingMove(&mut simulation.m_player[player], candidate);
-                    simulation.m_player[player].m_swing_set = SwingSet::Locked;
-                    scores[index] += EvaluateSwingMove(&mut simulation, player, rng, ai, level);
+                    restore_simulation(&mut simulation, game);
+                    apply_swing_move(&mut simulation.players[player], candidate);
+                    simulation.players[player].swing_set = SwingSet::Locked;
+                    scores[index] += evaluate_swing_move(&mut simulation, player, rng, ai, level);
                 }
             }
             if scores[index] > best_score {
@@ -142,19 +142,19 @@ pub(super) fn SelectSwingAction(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || !ai.m_cull_moves {
+        if sims_run >= sims || !ai.cull_moves {
             break;
         }
         if moves.len() == 1 {
-            if CompletesNativeProbabilitySample(native) {
+            if completes_native_probability_sample(native) {
                 continue;
             }
             break;
         }
         let progress = sims_run as f32 / sims as f32;
-        let threshold = ai.m_min_best_score_threshold
-            + progress * (ai.m_max_best_score_threshold - ai.m_min_best_score_threshold);
-        let mut delta_threshold = (1.0 - progress) * ai.m_sims_per_check as f32 * 0.5;
+        let threshold = ai.min_best_score_threshold
+            + progress * (ai.max_best_score_threshold - ai.min_best_score_threshold);
+        let mut delta_threshold = (1.0 - progress) * ai.sims_per_check as f32 * 0.5;
         if best_score > 1.0 && delta_threshold >= best_score {
             delta_threshold = best_score;
         }
@@ -173,14 +173,14 @@ pub(super) fn SelectSwingAction(
                 index += 1;
             }
         }
-        if moves.len() == 1 && !CompletesNativeProbabilitySample(native) {
+        if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
     }
     if trace_best {
         eprintln!(
             "SWING p{player} seed={} score={best_score} sims={sims_run} {:?} {:?}",
-            rng.DebugSeed(),
+            rng.debug_seed(),
             best.values(),
             best.options()
         );
@@ -189,19 +189,19 @@ pub(super) fn SelectSwingAction(
     (best, probability)
 }
 
-pub(crate) fn SelectBMAISetSwingAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> SwingMove {
-    SelectSwingAction(game, 0, rng, ai, 1, None).0
+pub(crate) fn select_bmai_set_swing_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> SwingMove {
+    select_swing_action(game, 0, rng, ai, 1, None).0
 }
 
-pub(crate) fn SelectNativeBMAISetSwingAction(
+pub(crate) fn select_native_bmai_set_swing_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     ai: &Bmai3,
 ) -> SwingMove {
-    let mut unused_legacy_rng = Rng::UntracedDefault();
-    SelectSwingAction(
+    let mut unused_legacy_rng = Rng::untraced_default();
+    select_swing_action(
         game,
         0,
         &mut unused_legacy_rng,
@@ -216,45 +216,45 @@ pub(crate) fn SelectNativeBMAISetSwingAction(
     .0
 }
 
-pub(crate) fn SelectQAISetSwingAction(game: &Game) -> SwingMove {
-    GenerateSwingMoves(&game.m_player[0])
+pub(crate) fn select_qai_set_swing_action(game: &Game) -> SwingMove {
+    generate_swing_moves(&game.players[0])
         .into_iter()
         .next()
         .unwrap_or_else(SwingMove::empty)
 }
 
-pub(crate) fn SelectBMAIReserveAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Option<usize> {
-    let reserve_indices = game.m_player[0]
-        .m_die
+pub(crate) fn select_bmai_reserve_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Option<usize> {
+    let reserve_indices = game.players[0]
+        .dice
         .iter()
         .enumerate()
-        .filter_map(|(index, die)| die.m_in_reserve.then_some(index))
+        .filter_map(|(index, die)| die.in_reserve.then_some(index))
         .collect::<Vec<_>>();
-    let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
+    let sims = ai.compute_number_sims(reserve_indices.len() + 1, 1);
     let mut best_score = -1.0f32;
     let mut best = None;
     let mut simulation = game.clone();
 
     for candidate in reserve_indices.into_iter().map(Some).chain([None]) {
         let mut score = 0.0f32;
-        if TraceSettings().reserve {
+        if trace_settings().reserve {
             eprintln!(
                 "RESERVE_BEGIN candidate={candidate:?} seed={} sims={sims}",
-                rng.DebugSeed()
+                rng.debug_seed()
             );
         }
         for _ in 0..sims {
-            RestoreSimulation(&mut simulation, game);
+            restore_simulation(&mut simulation, game);
             if let Some(index) = candidate {
-                ApplyUseReserve(&mut simulation.m_player[0].m_die[index]);
+                apply_use_reserve(&mut simulation.players[0].dice[index]);
             }
-            let fight_level = PlayPreround(&mut simulation, rng, ai, 2);
-            score += PlaySimulatedRound(&mut simulation, rng, ai, fight_level, 0);
+            let fight_level = play_preround(&mut simulation, rng, ai, 2);
+            score += play_simulated_round(&mut simulation, rng, ai, fight_level, 0);
         }
-        if TraceSettings().reserve {
+        if trace_settings().reserve {
             eprintln!(
                 "RESERVE_END candidate={candidate:?} seed={} score={score:.1}",
-                rng.DebugSeed()
+                rng.debug_seed()
             );
         }
         if score > best_score {
@@ -265,39 +265,39 @@ pub(crate) fn SelectBMAIReserveAction(game: &Game, rng: &mut Rng, ai: &Bmai3) ->
     best
 }
 
-pub(super) fn AuxiliaryDie(player: &crate::game::Player) -> Option<usize> {
+pub(super) fn auxiliary_die(player: &crate::game::Player) -> Option<usize> {
     player
-        .m_die
+        .dice
         .iter()
-        .position(|die| die.HasProperty(property::AUXILIARY))
+        .position(|die| die.has_property(property::AUXILIARY))
 }
 
 /// Gordo refuses a single swing die of its own V-Z types, which would force
 /// two dice to share a size; ButtonWeavers lets a Twin swing die through.
-fn AcceptableAuxiliaryDie(player: &crate::game::Player) -> Option<usize> {
-    AuxiliaryDie(player).filter(|index| {
-        let die = &player.m_die[*index];
-        player.m_specials & special::UNIQUE_SIZES == 0
-            || die.HasProperty(property::TWIN)
-            || !die.m_swing_type[0].is_some_and(|swing| ('V'..='Z').contains(&swing))
+fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<usize> {
+    auxiliary_die(player).filter(|index| {
+        let die = &player.dice[*index];
+        player.specials & special::UNIQUE_SIZES == 0
+            || die.has_property(property::TWIN)
+            || !die.swing_type[0].is_some_and(|swing| ('V'..='Z').contains(&swing))
     })
 }
 
 /// On ButtonWeavers a decline by either player removes every Auxiliary die.
-pub(crate) fn ApplyAuxiliaryDecision(game: &mut Game, accepted: bool) {
+pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
     let accepted = accepted
-        && game.m_player.iter().all(|player| {
-            AuxiliaryDie(player).is_none() || AcceptableAuxiliaryDie(player).is_some()
+        && game.players.iter().all(|player| {
+            auxiliary_die(player).is_none() || acceptable_auxiliary_die(player).is_some()
         });
-    for player in &mut game.m_player {
-        let selected = accepted.then(|| AuxiliaryDie(player)).flatten();
+    for player in &mut game.players {
+        let selected = accepted.then(|| auxiliary_die(player)).flatten();
         let mut index = 0;
-        player.m_die.retain_mut(|die| {
-            let keep = !die.HasProperty(property::AUXILIARY) || Some(index) == selected;
-            if keep && die.HasProperty(property::AUXILIARY) {
-                die.m_properties &= !property::AUXILIARY;
-                die.m_value_total = None;
-                die.m_notset = true;
+        player.dice.retain_mut(|die| {
+            let keep = !die.has_property(property::AUXILIARY) || Some(index) == selected;
+            if keep && die.has_property(property::AUXILIARY) {
+                die.properties &= !property::AUXILIARY;
+                die.value = None;
+                die.not_set = true;
             }
             index += 1;
             keep
@@ -305,12 +305,12 @@ pub(crate) fn ApplyAuxiliaryDecision(game: &mut Game, accepted: bool) {
     }
 }
 
-pub(super) fn EvaluateAuxiliaryDecision(game: &Game, accepted: bool, rng: &mut Rng) -> f32 {
+pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut Rng) -> f32 {
     let mut simulation = game.clone();
-    ApplyAuxiliaryDecision(&mut simulation, accepted);
+    apply_auxiliary_decision(&mut simulation, accepted);
     // QAI, because BMAI here would nest a new search at every move.
     let (winner, _) =
-        PlayRoundWithPolicies(&mut simulation, rng, &[AiPolicy::Qai, AiPolicy::Qai], None);
+        play_round_with_policies(&mut simulation, rng, &[AiPolicy::Qai, AiPolicy::Qai], None);
     match winner {
         Some(0) => 1.0,
         None => 0.5,
@@ -319,19 +319,19 @@ pub(super) fn EvaluateAuxiliaryDecision(game: &Game, accepted: bool, rng: &mut R
     }
 }
 
-pub(crate) fn SelectBMAIAuxiliaryAction(
+pub(crate) fn select_bmai_auxiliary_action(
     game: &Game,
     rng: &mut Rng,
     ai: &Bmai3,
 ) -> AuxiliarySearchResult {
-    let Some(auxiliary) = AcceptableAuxiliaryDie(&game.m_player[0]) else {
+    let Some(auxiliary) = acceptable_auxiliary_die(&game.players[0]) else {
         return AuxiliarySearchResult {
             die: None,
             score: 0.0,
             simulations: 0,
         };
     };
-    let simulations = ai.ComputeNumberSims(2, 1);
+    let simulations = ai.compute_number_sims(2, 1);
     let candidates = [Some(auxiliary), None];
     let mut best = AuxiliarySearchResult {
         die: None,
@@ -340,7 +340,7 @@ pub(crate) fn SelectBMAIAuxiliaryAction(
     };
     for candidate in candidates {
         let score = (0..simulations)
-            .map(|_| EvaluateAuxiliaryDecision(game, candidate.is_some(), rng))
+            .map(|_| evaluate_auxiliary_decision(game, candidate.is_some(), rng))
             .sum();
         if score > best.score {
             best.die = candidate;
@@ -350,21 +350,21 @@ pub(crate) fn SelectBMAIAuxiliaryAction(
     best
 }
 
-pub(crate) fn SelectNativeBMAIAuxiliaryAction(
+pub(crate) fn select_native_bmai_auxiliary_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     ai: &Bmai3,
 ) -> AuxiliarySearchResult {
-    let Some(auxiliary) = AcceptableAuxiliaryDie(&game.m_player[0]) else {
+    let Some(auxiliary) = acceptable_auxiliary_die(&game.players[0]) else {
         return AuxiliarySearchResult {
             die: None,
             score: 0.0,
             simulations: 0,
         };
     };
-    let simulations = ai.ComputeNumberSims(2, 1);
+    let simulations = ai.compute_number_sims(2, 1);
     let candidates = [Some(auxiliary), None];
     let tasks = candidates
         .iter()
@@ -380,8 +380,8 @@ pub(crate) fn SelectNativeBMAIAuxiliaryAction(
         workers,
         |(candidate_index, candidate, simulation_index)| {
             let mut simulation_rng =
-                NativeSimulationRng(rng_algorithm, replay, candidate_index, 0, simulation_index);
-            EvaluateAuxiliaryDecision(game, candidate.is_some(), &mut simulation_rng)
+                native_simulation_rng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            evaluate_auxiliary_decision(game, candidate.is_some(), &mut simulation_rng)
         },
     );
     let mut best = AuxiliarySearchResult {
@@ -402,24 +402,24 @@ pub(crate) fn SelectNativeBMAIAuxiliaryAction(
     best
 }
 
-pub(crate) fn SelectQAIAuxiliaryAction(game: &Game) -> Option<usize> {
-    AcceptableAuxiliaryDie(&game.m_player[0])
+pub(crate) fn select_qai_auxiliary_action(game: &Game) -> Option<usize> {
+    acceptable_auxiliary_die(&game.players[0])
 }
 
-pub(crate) fn SelectNativeBMAIReserveAction(
+pub(crate) fn select_native_bmai_reserve_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
     ai: &Bmai3,
 ) -> Option<usize> {
-    let reserve_indices = game.m_player[0]
-        .m_die
+    let reserve_indices = game.players[0]
+        .dice
         .iter()
         .enumerate()
-        .filter_map(|(index, die)| die.m_in_reserve.then_some(index))
+        .filter_map(|(index, die)| die.in_reserve.then_some(index))
         .collect::<Vec<_>>();
-    let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
+    let sims = ai.compute_number_sims(reserve_indices.len() + 1, 1);
     let candidates = reserve_indices
         .into_iter()
         .map(Some)
@@ -439,12 +439,12 @@ pub(crate) fn SelectNativeBMAIReserveAction(
         |(candidate_index, candidate, simulation_index)| {
             let mut simulation = game.clone();
             if let Some(index) = candidate {
-                ApplyUseReserve(&mut simulation.m_player[0].m_die[index]);
+                apply_use_reserve(&mut simulation.players[0].dice[index]);
             }
             let mut simulation_rng =
-                NativeSimulationRng(rng_algorithm, replay, candidate_index, 0, simulation_index);
-            let fight_level = PlayPreround(&mut simulation, &mut simulation_rng, ai, 2);
-            PlaySimulatedRound(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
+                native_simulation_rng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            let fight_level = play_preround(&mut simulation, &mut simulation_rng, ai, 2);
+            play_simulated_round(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
         },
     );
 
@@ -460,38 +460,35 @@ pub(crate) fn SelectNativeBMAIReserveAction(
     best
 }
 
-pub(crate) fn SelectQAIReserveAction(game: &Game) -> Option<usize> {
-    game.m_player[0]
-        .m_die
-        .iter()
-        .position(|die| die.m_in_reserve)
+pub(crate) fn select_qai_reserve_action(game: &Game) -> Option<usize> {
+    game.players[0].dice.iter().position(|die| die.in_reserve)
 }
 
-pub(super) fn ApplyUseReserve(die: &mut Die) {
-    die.m_in_reserve = false;
-    die.m_properties &= !property::RESERVE;
-    die.m_value_total = None;
-    die.m_notset = true;
+pub(super) fn apply_use_reserve(die: &mut Die) {
+    die.in_reserve = false;
+    die.properties &= !property::RESERVE;
+    die.value = None;
+    die.not_set = true;
 }
 
-pub(super) fn RandomlySelectSwingMoves(
+pub(super) fn randomly_select_swing_moves(
     moves: &mut Vec<SwingMove>,
     player: &crate::game::Player,
     max: usize,
     rng: &mut Rng,
 ) {
     let swing_types = player
-        .m_die
+        .dice
         .iter()
-        .filter(|die| !die.m_in_reserve)
-        .flat_map(|die| die.m_swing_type.iter().flatten().copied())
+        .filter(|die| !die.in_reserve)
+        .flat_map(|die| die.swing_type.iter().flatten().copied())
         .collect::<std::collections::BTreeSet<_>>();
     let extreme_settings = |action: &SwingMove| {
         action
             .values()
             .iter()
             .filter(|(swing, value)| {
-                let (minimum, maximum) = SwingRange(*swing);
+                let (minimum, maximum) = swing_range(*swing);
                 *value == minimum || *value == maximum
             })
             .count()
@@ -516,15 +513,15 @@ pub(super) fn RandomlySelectSwingMoves(
     }
 
     while moves.len() > max {
-        let index = rng.GetRandMax(moves.len() as u32) as usize;
+        let index = rng.rand_below(moves.len() as u32) as usize;
         let percentage_extreme = extreme_settings(&moves[index]) as f32 / swing_dice as f32;
-        if rng.GetFRand() >= percentage_extreme {
+        if rng.rand_f32() >= percentage_extreme {
             moves.swap_remove(index);
         }
     }
 }
 
-pub(super) fn EvaluateSwingMove(
+pub(super) fn evaluate_swing_move(
     game: &mut Game,
     player: usize,
     rng: &mut Rng,
@@ -534,96 +531,96 @@ pub(super) fn EvaluateSwingMove(
     let other = 1 - player;
 
     // C++ switches both sides to QAI at the terminal ply.
-    if level >= ai.m_max_ply {
-        if game.m_player[other].m_swing_set == SwingSet::Not {
-            if NeedsSetSwing(&game.m_player[other]) {
-                let selected = GenerateSwingMoves(&game.m_player[other])
+    if level >= ai.max_ply {
+        if game.players[other].swing_set == SwingSet::Not {
+            if needs_set_swing(&game.players[other]) {
+                let selected = generate_swing_moves(&game.players[other])
                     .into_iter()
                     .next()
                     .expect("a player needing a swing has a valid setting");
-                ApplySwingMove(&mut game.m_player[other], &selected);
+                apply_swing_move(&mut game.players[other], &selected);
             }
-            game.m_player[other].m_swing_set = SwingSet::Locked;
+            game.players[other].swing_set = SwingSet::Locked;
         }
-        return PlayRoundQAI(game, rng, player, ai);
+        return play_round_qai(game, rng, player, ai);
     }
 
     // Before the terminal ply, C++ uses the opponent's next decision estimate.
-    if game.m_player[other].m_swing_set == SwingSet::Not {
-        if !NeedsSetSwing(&game.m_player[other]) {
-            game.m_player[other].m_swing_set = SwingSet::Locked;
-            return PlayRoundToNextBMAIAction(game, rng, player, ai, level + 1);
+    if game.players[other].swing_set == SwingSet::Not {
+        if !needs_set_swing(&game.players[other]) {
+            game.players[other].swing_set = SwingSet::Locked;
+            return play_round_to_next_bmai_action(game, rng, player, ai, level + 1);
         }
-        if game.m_player[player].m_swing_set == SwingSet::Ready {
-            game.m_player[player].m_swing_set = SwingSet::Not;
+        if game.players[player].swing_set == SwingSet::Ready {
+            game.players[player].swing_set = SwingSet::Not;
         }
-        let (_, other_probability) = SelectSwingAction(game, other, rng, ai, level + 1, None);
+        let (_, other_probability) = select_swing_action(game, other, rng, ai, level + 1, None);
         return 1.0 - other_probability;
     }
 
-    PlayRoundToNextBMAIAction(game, rng, player, ai, level + 1)
+    play_round_to_next_bmai_action(game, rng, player, ai, level + 1)
 }
 
-pub(super) fn PlayRoundToNextBMAIAction(
+pub(super) fn play_round_to_next_bmai_action(
     game: &mut Game,
     rng: &mut Rng,
     pov: usize,
     ai: &Bmai3,
     level: usize,
 ) -> f32 {
-    RollRoundDice(game, rng);
-    let phase = InitiativeWinner(game);
-    EvaluateNextInitiativeAction(game, rng, ai, level, phase, pov, InitiativeStage::Chance)
+    roll_round_dice(game, rng);
+    let phase = initiative_winner(game);
+    evaluate_next_initiative_action(game, rng, ai, level, phase, pov, InitiativeStage::Chance)
 }
 
-pub(super) fn NeedsSetSwing(player: &crate::game::Player) -> bool {
+pub(super) fn needs_set_swing(player: &crate::game::Player) -> bool {
     player
-        .m_die
+        .dice
         .iter()
-        .filter(|die| !die.m_in_reserve)
-        .any(|d| d.m_swing_type.iter().any(Option::is_some) || d.HasProperty(property::OPTION))
+        .filter(|die| !die.in_reserve)
+        .any(|d| d.swing_type.iter().any(Option::is_some) || d.has_property(property::OPTION))
 }
 
-pub(super) fn CurrentSwingMove(player: &crate::game::Player) -> SwingMove {
+pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     let mut action = SwingMove::empty();
     let mut seen = [false; 26];
-    for (index, die) in player.m_die.iter().enumerate() {
-        if die.m_in_reserve {
+    for (index, die) in player.dice.iter().enumerate() {
+        if die.in_reserve {
             continue;
         }
         for side in 0..2 {
-            if let Some(swing @ 'A'..='Z') = die.m_swing_type[side] {
+            if let Some(swing @ 'A'..='Z') = die.swing_type[side] {
                 let seen_index = (swing as u8 - b'A') as usize;
                 if !seen[seen_index] {
-                    action.push_value((swing, die.m_sides[side]));
+                    action.push_value((swing, die.sides[side]));
                     seen[seen_index] = true;
                 }
             }
         }
-        if die.HasProperty(property::OPTION) {
-            // ParseDie keeps the selected option in slot zero.
+        if die.has_property(property::OPTION) {
+            // parse_die keeps the selected option in slot zero.
             action.push_option((index, false));
         }
     }
     action
 }
 
-pub(super) fn GenerateSwingMoves(player: &crate::game::Player) -> Vec<SwingMove> {
+pub(super) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
     let mut actions = Vec::<(Option<char>, usize, Vec<u8>)>::new();
     let mut swings = player
-        .m_die
+        .dice
         .iter()
-        .filter(|die| !die.m_in_reserve)
-        .flat_map(|d| d.m_swing_type.iter().flatten().copied())
+        .filter(|die| !die.in_reserve)
+        .flat_map(|d| d.swing_type.iter().flatten().copied())
         .collect::<Vec<_>>();
     swings.sort_unstable();
     swings.dedup();
     for swing in swings {
-        let (min, max) = SwingRange(swing);
+        let (min, max) = swing_range(swing);
         actions.push((Some(swing), 0, (min..=max).collect()));
     }
-    for (index, die) in player.m_die.iter().enumerate() {
-        if !die.m_in_reserve && die.HasProperty(property::OPTION) {
+    for (index, die) in player.dice.iter().enumerate() {
+        if !die.in_reserve && die.has_property(property::OPTION) {
             actions.push((None, index, vec![0, 1]));
         }
     }
@@ -643,26 +640,24 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::Player) -> Vec<SwingMove>
         }
         moves = next;
     }
-    let unique_sizes = player.m_specials & special::UNIQUE_SIZES != 0;
-    if unique_sizes || player.m_specials & special::UNIQUE_SWING != 0 {
+    let unique_sizes = player.specials & special::UNIQUE_SIZES != 0;
+    if unique_sizes || player.specials & special::UNIQUE_SWING != 0 {
         moves.retain(|candidate| {
             // Option dice count at the side this candidate chooses.
             let fixed_sizes = player
-                .m_die
+                .dice
                 .iter()
                 .enumerate()
-                .filter(|(_, die)| {
-                    !die.m_in_reserve && die.m_swing_type.iter().all(Option::is_none)
-                })
+                .filter(|(_, die)| !die.in_reserve && die.swing_type.iter().all(Option::is_none))
                 .map(|(index, die)| {
                     let second = candidate
                         .options()
                         .iter()
                         .any(|(option, second)| *option == index && *second);
-                    if die.HasProperty(property::OPTION) {
-                        u16::from(die.m_sides[usize::from(second)])
+                    if die.has_property(property::OPTION) {
+                        u16::from(die.sides[usize::from(second)])
                     } else {
-                        die.GetSidesMax()
+                        die.sides_max()
                     }
                 })
                 .collect::<Vec<_>>();
@@ -676,11 +671,11 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::Player) -> Vec<SwingMove>
     // Unique only forbids matching a lower-lettered swing type, as in C++.
     moves.retain(|candidate| {
         player
-            .m_die
+            .dice
             .iter()
-            .filter(|die| !die.m_in_reserve && die.HasProperty(property::UNIQUE))
+            .filter(|die| !die.in_reserve && die.has_property(property::UNIQUE))
             .all(|die| {
-                let Some(unique_swing) = die.m_swing_type[0] else {
+                let Some(unique_swing) = die.swing_type[0] else {
                     return true;
                 };
                 let unique_value = candidate
@@ -693,8 +688,8 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::Player) -> Vec<SwingMove>
                 !candidate.values().iter().any(|(swing, value)| {
                     *swing < unique_swing
                         && *value == unique_value
-                        && player.m_die.iter().any(|other| {
-                            !other.m_in_reserve && other.m_swing_type.contains(&Some(*swing))
+                        && player.dice.iter().any(|other| {
+                            !other.in_reserve && other.swing_type.contains(&Some(*swing))
                         })
                 })
             })
@@ -702,23 +697,23 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::Player) -> Vec<SwingMove>
     moves
 }
 
-pub(super) fn ApplySwingMove(player: &mut crate::game::Player, action: &SwingMove) {
-    for die in &mut player.m_die {
-        if die.m_in_reserve {
+pub(super) fn apply_swing_move(player: &mut crate::game::Player, action: &SwingMove) {
+    for die in &mut player.dice {
+        if die.in_reserve {
             continue;
         }
         for side in 0..2 {
-            if let Some(s) = die.m_swing_type[side]
+            if let Some(s) = die.swing_type[side]
                 && let Some((_, v)) = action.values().iter().find(|(kind, _)| *kind == s)
             {
-                assert!(die.m_notset, "Die::OnSwingSet requires NOTSET state");
-                die.m_sides[side] = *v;
+                assert!(die.not_set, "Die::OnSwingSet requires NOTSET state");
+                die.sides[side] = *v;
             }
         }
     }
     for (index, second) in action.options() {
         if *second {
-            player.m_die[*index].m_sides.swap(0, 1);
+            player.dice[*index].sides.swap(0, 1);
         }
     }
 }

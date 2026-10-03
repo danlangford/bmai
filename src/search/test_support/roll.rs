@@ -3,7 +3,7 @@
 
 use super::mechanics::parse_game;
 use super::*;
-use crate::game::RollScheduledDie;
+use crate::game::roll_scheduled_die;
 use std::collections::BTreeSet;
 
 pub(crate) struct RollScenario {
@@ -54,14 +54,14 @@ impl RollScenario {
         let mut values = BTreeSet::new();
         for _ in 0..self.times {
             let mut game = template.clone();
-            game.m_player[0].m_die[0].m_notset = true;
-            RollScheduledDie(&mut game, 0, 0, &mut rng);
-            let die = &game.m_player[0].m_die[0];
+            game.players[0].dice[0].not_set = true;
+            roll_scheduled_die(&mut game, 0, 0, &mut rng);
+            let die = &game.players[0].dice[0];
             if self.expect_twin_halves_match {
-                assert_eq!(die.m_sides[0], die.m_sides[1], "Twin halves differ");
+                assert_eq!(die.sides[0], die.sides[1], "Twin halves differ");
             }
-            sizes.insert(die.m_sides[0]);
-            values.insert(die.GetValueTotal());
+            sizes.insert(die.sides[0]);
+            values.insert(die.value_total());
         }
         if let Some(expected) = self.expected_sizes {
             assert_eq!(sizes, expected, "unexpected rerolled sizes of {}", self.die);

@@ -5,7 +5,7 @@
 use super::*;
 
 impl Parser {
-    pub(super) fn ParseStringCommands<W: Write>(
+    pub(super) fn parse_string_commands<W: Write>(
         &mut self,
         data: &str,
         output: &mut W,
@@ -19,7 +19,7 @@ impl Parser {
                 continue;
             }
             if let Some(value) = line.strip_prefix("mode ") {
-                self.m_execution_mode = ExecutionMode::parse(value).ok_or_else(|| {
+                self.execution_mode = ExecutionMode::parse(value).ok_or_else(|| {
                     ParseError(format!(
                         "invalid execution mode: {value} (expected legacy or native)"
                     ))
@@ -27,17 +27,17 @@ impl Parser {
                 writeln!(
                     output,
                     "Setting execution mode to {}",
-                    self.m_execution_mode.as_str()
+                    self.execution_mode.as_str()
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("rng ") {
-                let algorithm = RngAlgorithm::Parse(value).ok_or_else(|| {
+                let algorithm = RngAlgorithm::parse(value).ok_or_else(|| {
                     ParseError(format!(
                         "invalid RNG algorithm: {value} (expected legacy or park-miller)"
                     ))
                 })?;
-                self.m_rng.SetAlgorithm(algorithm);
-                writeln!(output, "Setting RNG to legacy ({})", algorithm.ReplayId())
+                self.rng.set_algorithm(algorithm);
+                writeln!(output, "Setting RNG to legacy ({})", algorithm.replay_id())
                     .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("workers ") {
                 let (workers, automatic) = if value == "auto" {
@@ -48,7 +48,7 @@ impl Parser {
                 if workers == 0 {
                     return Err(ParseError("native worker count must be at least 1".into()));
                 }
-                self.m_native_workers = workers;
+                self.native_workers = workers;
                 if automatic {
                     writeln!(output, "Setting native workers to {workers} (auto)")
                         .map_err(io_error)?;
@@ -57,11 +57,11 @@ impl Parser {
                 }
             } else if line.starts_with("game") {
                 if let Some(wins) = line.strip_prefix("game ") {
-                    self.m_game.m_target_wins = parse_usize(wins)? as u8;
-                    writeln!(output, "target wins set to {}", self.m_game.m_target_wins)
+                    self.game.target_wins = parse_usize(wins)? as u8;
+                    writeln!(output, "target wins set to {}", self.game.target_wins)
                         .map_err(io_error)?;
                 }
-                pos = self.ParseGame(&lines, pos, output)?;
+                pos = self.parse_game(&lines, pos, output)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "ai")? {
                 if value > 2 {
                     return Err(ParseError(format!("invalid setting for ai type: {value}")));
@@ -71,76 +71,68 @@ impl Parser {
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                self.m_player_ai[player] = AiSlot::Type(value);
+                self.player_ai[player] = AiSlot::Type(value);
                 writeln!(output, "Setting AI for player {player} to type {value}")
                     .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "ply")? {
-                if self.SetPlayerAI(player, |ai| ai.m_max_ply = value)? {
+                if self.set_player_ai(player, |ai| ai.max_ply = value)? {
                     writeln!(output, "Setting max ply for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "ply") {
-                self.m_ai.m_max_ply = value?;
-                writeln!(output, "Setting max ply to {}", self.m_ai.m_max_ply).map_err(io_error)?;
+                self.ai.max_ply = value?;
+                writeln!(output, "Setting max ply to {}", self.ai.max_ply).map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "max_sims")? {
-                if self.SetPlayerAI(player, |ai| ai.m_max_sims = value)? {
+                if self.set_player_ai(player, |ai| ai.max_sims = value)? {
                     writeln!(output, "Setting max sims for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "max_sims") {
-                self.m_ai.m_max_sims = value?;
-                writeln!(
-                    output,
-                    "Setting max # simulations to {}",
-                    self.m_ai.m_max_sims
-                )
-                .map_err(io_error)?;
+                self.ai.max_sims = value?;
+                writeln!(output, "Setting max # simulations to {}", self.ai.max_sims)
+                    .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "min_sims")? {
-                if self.SetPlayerAI(player, |ai| ai.m_min_sims = value)? {
+                if self.set_player_ai(player, |ai| ai.min_sims = value)? {
                     writeln!(output, "Setting min sims for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "min_sims") {
-                self.m_ai.m_min_sims = value?;
-                writeln!(
-                    output,
-                    "Setting min # simulations to {}",
-                    self.m_ai.m_min_sims
-                )
-                .map_err(io_error)?;
+                self.ai.min_sims = value?;
+                writeln!(output, "Setting min # simulations to {}", self.ai.min_sims)
+                    .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "maxbranch")? {
-                if self.SetPlayerAI(player, |ai| ai.m_max_branch = value)? {
+                if self.set_player_ai(player, |ai| ai.max_branch = value)? {
                     writeln!(output, "Setting max branch for player {player} to {value}")
                         .map_err(io_error)?;
                 }
             } else if let Some(value) = argument(line, "maxbranch") {
-                self.m_ai.m_max_branch = value?;
-                writeln!(output, "Setting max branch to {}", self.m_ai.m_max_branch)
+                self.ai.max_branch = value?;
+                writeln!(output, "Setting max branch to {}", self.ai.max_branch)
                     .map_err(io_error)?;
             } else if let Some(value) = argument(line, "report_sims") {
-                self.m_report_sims = value?;
+                self.report_sims = value?;
                 writeln!(
                     output,
                     "Setting selected-move report simulations to {}",
-                    self.m_report_sims
+                    self.report_sims
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("turbo_accuracy ") {
-                self.m_game.m_turbo_accuracy = value
+                self.game.turbo_accuracy = value
                     .parse::<f32>()
                     .map_err(|_| ParseError(format!("invalid float: {value}")))?;
                 writeln!(
                     output,
                     "Setting turbo accuracy to {:.6}",
-                    self.m_game.m_turbo_accuracy
+                    self.game.turbo_accuracy
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("fire_overshooting ") {
-                self.m_game.m_fire_overshooting = parse_on_off("fire_overshooting", value)?;
+                self.game.fire_overshooting = parse_on_off("fire_overshooting", value)?;
                 writeln!(
                     output,
                     "Setting Fire overshooting {}",
-                    if self.m_game.m_fire_overshooting {
+                    if self.game.fire_overshooting {
                         "on"
                     } else {
                         "off"
@@ -170,7 +162,7 @@ impl Parser {
                             ))
                         })?;
                 }
-                self.m_game.m_player[player].m_specials = specials;
+                self.game.players[player].specials = specials;
                 writeln!(
                     output,
                     "Setting specials for player {player} to {}",
@@ -182,42 +174,42 @@ impl Parser {
                 )
                 .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("surrender ") {
-                self.m_game.m_surrender_allowed = value == "on";
+                self.game.surrender_allowed = value == "on";
             } else if line == "getaction" {
-                self.GetAction(output)?;
+                self.send_action(output)?;
             } else if line.starts_with("playgame ") {
-                self.RequirePreround()?;
+                self.require_preround()?;
                 let games = parse_usize(line.trim_start_matches("playgame "))?;
-                let policies = self.Policies();
-                let wins = if self.m_execution_mode == ExecutionMode::Native {
-                    PlayGamesWithPoliciesNative(
-                        &self.m_game,
+                let policies = self.policies();
+                let wins = if self.execution_mode == ExecutionMode::Native {
+                    play_games_with_policies_native(
+                        &self.game,
                         games,
-                        &mut self.m_rng,
+                        &mut self.rng,
                         &policies,
-                        self.m_native_root_seed,
-                        self.m_native_workers,
-                        &mut self.m_native_decision_index,
+                        self.native_root_seed,
+                        self.native_workers,
+                        &mut self.native_decision_index,
                     )
                 } else {
-                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                    play_games_with_policies(&self.game, games, &mut self.rng, &policies)
                 };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if let Some((games, mode, probability)) = playfair_arguments(line)? {
-                self.RequirePreround()?;
+                self.require_preround()?;
                 // C++ accepts out-of-range modes and simply leaves the game's
                 // currently selected AIs unchanged.
                 let policies = if mode > 3 {
-                    self.Policies()
+                    self.policies()
                 } else {
                     std::array::from_fn(|_| match mode {
                         0 => AiPolicy::Random,
                         1 => AiPolicy::Maximize,
                         2 | 3 => {
                             let ai = Bmai3 {
-                                m_cull_moves: false,
-                                m_max_ply: self.m_ai.m_max_ply,
-                                m_rollout_policy: if mode == 2 {
+                                cull_moves: false,
+                                max_ply: self.ai.max_ply,
+                                rollout_policy: if mode == 2 {
                                     RolloutPolicy::MaximizeOrRandom(probability)
                                 } else {
                                     RolloutPolicy::Qai
@@ -229,18 +221,18 @@ impl Parser {
                         _ => unreachable!(),
                     })
                 };
-                let wins = if self.m_execution_mode == ExecutionMode::Native {
-                    PlayFairGamesNative(
-                        &self.m_game,
+                let wins = if self.execution_mode == ExecutionMode::Native {
+                    play_fair_games_native(
+                        &self.game,
                         games,
-                        &mut self.m_rng,
+                        &mut self.rng,
                         &policies,
-                        self.m_native_root_seed,
-                        self.m_native_workers,
-                        &mut self.m_native_decision_index,
+                        self.native_root_seed,
+                        self.native_workers,
+                        &mut self.native_decision_index,
                     )
                 } else {
-                    PlayFairGames(&self.m_game, games, &mut self.m_rng, &policies)
+                    play_fair_games(&self.game, games, &mut self.rng, &policies)
                 };
                 writeln!(
                     output,
@@ -266,21 +258,21 @@ impl Parser {
                     }
                 }
             } else if line.starts_with("compare ") {
-                self.RequirePreround()?;
+                self.require_preround()?;
                 let games = parse_usize(line.trim_start_matches("compare "))?;
-                let policies = self.Policies();
-                let wins = if self.m_execution_mode == ExecutionMode::Native {
-                    PlayGamesWithPoliciesNative(
-                        &self.m_game,
+                let policies = self.policies();
+                let wins = if self.execution_mode == ExecutionMode::Native {
+                    play_games_with_policies_native(
+                        &self.game,
                         games,
-                        &mut self.m_rng,
+                        &mut self.rng,
                         &policies,
-                        self.m_native_root_seed,
-                        self.m_native_workers,
-                        &mut self.m_native_decision_index,
+                        self.native_root_seed,
+                        self.native_workers,
+                        &mut self.native_decision_index,
                     )
                 } else {
-                    PlayGamesWithPolicies(&self.m_game, games, &mut self.m_rng, &policies)
+                    play_games_with_policies(&self.game, games, &mut self.rng, &policies)
                 };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if line == "quit" {
@@ -295,13 +287,13 @@ impl Parser {
                 } else {
                     seed as u32
                 };
-                self.m_rng.SRand(resolved);
-                self.m_native_root_seed = u64::from(resolved);
-                self.m_native_decision_index = 0;
+                self.rng.reseed(resolved);
+                self.native_root_seed = u64::from(resolved);
+                self.native_decision_index = 0;
                 writeln!(output, "Seeding with {seed}").map_err(io_error)?;
             } else if let Some(value) = argument(line, "debugply") {
-                self.m_debug_ply = value?;
-                writeln!(output, "Setting debug ply to {}", self.m_debug_ply).map_err(io_error)?;
+                self.debug_ply = value?;
+                writeln!(output, "Setting debug ply to {}", self.debug_ply).map_err(io_error)?;
             } else if line.starts_with("debug ") {
                 let values = line.split_whitespace().collect::<Vec<_>>();
                 if values.len() != 3 {
@@ -328,8 +320,8 @@ impl Parser {
                     .map_err(|_| ParseError(format!("invalid integer: {}", values[2])))?
                     != 0;
                 let enabled = usize::from(enabled);
-                self.m_logging[index] = enabled != 0;
-                if self.m_logging[0] {
+                self.logging[index] = enabled != 0;
+                if self.logging[0] {
                     writeln!(output, "Debug {category} set to {enabled}").map_err(io_error)?;
                 }
             } else {
@@ -340,15 +332,15 @@ impl Parser {
     }
 
     /// C++ holds NULL before any `game` or `ai`; `g_ai` is the closest stand-in.
-    pub(super) fn PlayerAI(&self, player: usize) -> &Bmai3 {
-        match self.m_player_ai[player] {
-            AiSlot::Unbound | AiSlot::Global => &self.m_ai,
-            AiSlot::Type(ai_type) => &self.m_type_ai[ai_type],
+    pub(super) fn player_ai(&self, player: usize) -> &Bmai3 {
+        match self.player_ai[player] {
+            AiSlot::Unbound | AiSlot::Global => &self.ai,
+            AiSlot::Type(ai_type) => &self.type_ai[ai_type],
         }
     }
 
-    pub(super) fn AIType(&self, player: usize) -> usize {
-        match self.m_player_ai[player] {
+    pub(super) fn ai_type(&self, player: usize) -> usize {
+        match self.player_ai[player] {
             AiSlot::Unbound | AiSlot::Global => 2,
             AiSlot::Type(ai_type) => ai_type,
         }
@@ -356,46 +348,46 @@ impl Parser {
 
     /// Returns whether C++ prints a confirmation. Before any `game` or `ai`, C++
     /// dereferences NULL; BMAIR keeps earlier releases' message-only behavior.
-    pub(super) fn SetPlayerAI(
+    pub(super) fn set_player_ai(
         &mut self,
         player: usize,
         update: impl FnOnce(&mut Bmai3),
     ) -> Result<bool, ParseError> {
         let slot = *self
-            .m_player_ai
+            .player_ai
             .get(player)
             .ok_or_else(|| ParseError(format!("invalid setting for ai player number: {player}")))?;
         match slot {
             AiSlot::Unbound => {}
-            AiSlot::Global => update(&mut self.m_ai),
+            AiSlot::Global => update(&mut self.ai),
             AiSlot::Type(1) => return Ok(false),
-            AiSlot::Type(ai_type) => update(&mut self.m_type_ai[ai_type]),
+            AiSlot::Type(ai_type) => update(&mut self.type_ai[ai_type]),
         }
         Ok(true)
     }
 
-    pub(super) fn RequirePreround(&self) -> Result<(), ParseError> {
-        if self.m_game.m_phase == Phase::Preround {
+    pub(super) fn require_preround(&self) -> Result<(), ParseError> {
+        if self.game.phase == Phase::Preround {
             Ok(())
         } else {
             Err(ParseError("Cannot PlayGame unless it is preround".into()))
         }
     }
 
-    pub(super) fn Policies(&self) -> [AiPolicy; 2] {
-        std::array::from_fn(|player| match self.AIType(player) {
+    pub(super) fn policies(&self) -> [AiPolicy; 2] {
+        std::array::from_fn(|player| match self.ai_type(player) {
             0 => {
-                let mut ai = self.PlayerAI(player).clone();
-                ai.m_cull_moves = false;
+                let mut ai = self.player_ai(player).clone();
+                ai.cull_moves = false;
                 AiPolicy::Bmai(Box::new(ai))
             }
             1 => AiPolicy::Qai,
-            2 => AiPolicy::Bmai(Box::new(self.PlayerAI(player).clone())),
+            2 => AiPolicy::Bmai(Box::new(self.player_ai(player).clone())),
             _ => unreachable!(),
         })
     }
 
-    pub(super) fn ParseGame<W: Write>(
+    pub(super) fn parse_game<W: Write>(
         &mut self,
         lines: &[&str],
         mut pos: usize,
@@ -406,7 +398,7 @@ impl Parser {
             .ok_or_else(|| ParseError("missing phase".into()))?
             .trim();
         pos += 1;
-        self.m_game.m_phase = parse_phase(phase)?;
+        self.game.phase = parse_phase(phase)?;
         for expected in 0..2 {
             let header = lines
                 .get(pos)
@@ -438,10 +430,10 @@ impl Parser {
                     .ok_or_else(|| ParseError("missing die".into()))?
                     .trim();
                 pos += 1;
-                let die = ParseDie(definition, original_index)?;
-                if die.m_swing_type.iter().any(Option::is_some) || die.HasProperty(property::OPTION)
+                let die = parse_die(definition, original_index)?;
+                if die.swing_type.iter().any(Option::is_some) || die.has_property(property::OPTION)
                 {
-                    swing_set = if ParseDieDefinedSides(
+                    swing_set = if parse_die_defined_sides(
                         definition
                             .split_once(':')
                             .map_or(definition, |(text, _)| text),
@@ -455,38 +447,38 @@ impl Parser {
                 }
                 dice.push(die);
             }
-            self.m_game.m_player[id].m_die = dice;
-            self.m_game.m_player[id].m_round_original_sides = [[0; 2]; crate::game::MAX_DICE];
-            self.m_game.m_player[id].m_round_transformed = 0;
-            self.m_game.m_player[id].m_radioactive_products = 0;
-            self.m_game.m_player[id].m_rage_replacements = 0;
-            self.m_game.m_player[id].m_specials = 0;
-            self.m_game.m_player[id].m_score = if matches!(
-                self.m_game.m_phase,
+            self.game.players[id].dice = dice;
+            self.game.players[id].round_original_sides = [[0; 2]; crate::game::MAX_DICE];
+            self.game.players[id].round_transformed = 0;
+            self.game.players[id].radioactive_products = 0;
+            self.game.players[id].rage_replacements = 0;
+            self.game.players[id].specials = 0;
+            self.game.players[id].score = if matches!(
+                self.game.phase,
                 Phase::Initiative | Phase::Chance | Phase::Focus
             ) {
-                self.m_game.m_player[id]
-                    .m_die
+                self.game.players[id]
+                    .dice
                     .iter()
-                    .filter(|die| !die.m_in_reserve)
-                    .map(|die| die.GetScore(true))
+                    .filter(|die| !die.in_reserve)
+                    .map(|die| die.score(true))
                     .sum()
             } else {
                 score
             };
-            self.m_game.m_player[id].m_swing_set = swing_set;
-            self.m_game.m_player[id].OptimizeDice();
-            DebugPlayer(
-                &self.m_game.m_player[id],
-                self.m_game.m_phase == Phase::Preround,
+            self.game.players[id].swing_set = swing_set;
+            self.game.players[id].optimize_dice();
+            debug_player(
+                &self.game.players[id],
+                self.game.phase == Phase::Preround,
                 output,
             )?;
         }
-        if self.m_game.m_phase == Phase::Auxiliary {
-            PrepareAuxiliaryPhase(&mut self.m_game)?;
+        if self.game.phase == Phase::Auxiliary {
+            prepare_auxiliary_phase(&mut self.game)?;
         }
         // The `ai` type objects keep their settings across games, as in C++.
-        self.m_player_ai = [AiSlot::Global; 2];
+        self.player_ai = [AiSlot::Global; 2];
         Ok(pos)
     }
 }

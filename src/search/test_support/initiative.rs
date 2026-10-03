@@ -3,7 +3,7 @@
 
 use super::mechanics::{assert_dice_matching, parse_game};
 use super::*;
-use crate::search::{ApplyChanceMove, ApplyFocusMove, ChanceMove, FocusMove};
+use crate::search::{ChanceMove, FocusMove, apply_chance_move, apply_focus_move};
 
 #[derive(Default)]
 pub(crate) struct InitiativeScenario {
@@ -104,11 +104,11 @@ impl InitiativeScenario {
         let mut game = parse_game(seats[0], seats[1]);
         let mut rng = Rng::default();
         if let Some(seed) = self.seed {
-            rng.SRand(seed);
+            rng.reseed(seed);
         }
 
         if let Some(reroll) = self.chance_rerolls {
-            let (initiative, success) = ApplyChanceMove(
+            let (initiative, success) = apply_chance_move(
                 &mut game,
                 player,
                 opponent,
@@ -126,17 +126,17 @@ impl InitiativeScenario {
             }
         }
         if let Some(values) = self.focus_values {
-            ApplyFocusMove(&mut game, player, &FocusMove { values });
+            apply_focus_move(&mut game, player, &FocusMove { values });
         }
 
         if let Some(expected) = self.expected_initiative {
-            assert_eq!(game.CheckInitiative(), expected, "unexpected initiative");
+            assert_eq!(game.check_initiative(), expected, "unexpected initiative");
         }
         if let Some(expected) = self.expected_player_dice {
             assert_dice_matching("player", &game, player, &expected, |_| true);
         }
         if let Some(expected) = self.expected_dice_next_turn {
-            game.RecoverDizzyDice(player);
+            game.recover_dizzy_dice(player);
             assert_dice_matching("next-turn player", &game, player, &expected, |_| true);
         }
     }
