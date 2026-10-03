@@ -520,7 +520,7 @@ pub(super) fn RandomlySelectSwingMoves(
             if extreme_settings(&moves[index]) == swing_dice {
                 index += 1;
             } else {
-                // C++'s move list removes this way, which fixes move order.
+                // C++'s move list removes this way, which determines move order.
                 moves.swap_remove(index);
             }
         }

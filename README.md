@@ -150,10 +150,10 @@ gaps are listed under Planned in the CHANGELOG. Clients should discover the
 exact die tokens, skills, and attack types (including `rush`) through
 capabilities rather than hard-coding them.
 
-Some buttons carry a button special, a rule for the whole button from the
-published game. The wire format has no button names, so clients name the rule after
-the `game` block, for example `special 0 unique_sizes` for Gordo.
-Capabilities `button_specials` lists each rule and the buttons that use it.
+Some buttons carry a button special, a rule for the whole button. The wire
+format has no button names, so clients name the rule after the `game` block,
+for example `special 0 unique_sizes` for Gordo. Capabilities `button_specials`
+lists each rule and the buttons that use it.
 
 ### Python and service integration
 

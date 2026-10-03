@@ -78,7 +78,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ApplyBeforeRollEffects(game, target_player, target);
     }
 
-    // Ornery dice reroll after every attack, even ones they sat out.
+    // Ornery dice reroll after every attack their player makes.
     if action.m_attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.m_player[attacker_player].m_die[attacker];
@@ -97,7 +97,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
         ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
-    // This roll order fixes RNG consumption.
+    // This roll order determines RNG consumption.
     for attacker in actual_attackers.iter() {
         ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
     }
@@ -132,9 +132,11 @@ pub(crate) fn ApplyAttackForPlayers(
         let attacker = action.m_attackers.first().expect("Trip attacker");
         let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal();
-        if !trip_failed
-            && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
-        {
+        let morphs = !trip_failed
+            && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING);
+        let attacker_is_radioactive =
+            game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE);
+        if morphs {
             // ButtonWeavers morphs after the Trip roll and gives the new die
             // no value, so it rerolls at the captured die's size.
             MorphIntoTarget(game, attacker_player, target_player, attacker, target);
@@ -151,6 +153,10 @@ pub(crate) fn ApplyAttackForPlayers(
             // happens after them, even when the Trip fails.
             let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
             for product in products.iter() {
+                if morphs && attacker_is_radioactive {
+                    // ButtonWeavers runs each product's Morphing hook again.
+                    MorphIntoTarget(game, attacker_player, target_player, product, target);
+                }
                 RollDie(&mut game.m_player[attacker_player].m_die[product], rng);
             }
             if trip_failed {
@@ -297,10 +303,7 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
             if position == 0 {
                 // ButtonWeavers' attacker loop never rerolls the first copy,
                 // which keeps the captured die's value and size.
-                let value = game.m_player[target_player].m_die[target].m_value_total;
-                let die = &mut game.m_player[attacker_player].m_die[product];
-                die.m_value_total = value;
-                die.m_notset = false;
+                game.m_player[attacker_player].m_die[product].m_notset = false;
             } else {
                 ApplyBeforeRollEffects(game, attacker_player, product);
             }
@@ -554,7 +557,8 @@ pub(crate) fn ApplyAttackPlayerEffects(
         }
     }
 
-    // ButtonWeavers' hook order: after Mighty, Weak, and Turbo; before Warrior.
+    // ButtonWeavers copies before the attack reroll, so the copy's own Mighty
+    // or Weak applies; Warrior is lost after.
     if actually_attacking
         && action.m_attack == Some(BME_ATTACK::POWER)
         && action.m_attackers.len() == 1

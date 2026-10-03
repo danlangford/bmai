@@ -49,7 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     reroll, even if Konstant.
   - A Radioactive Doppelganger's first copy keeps the captured die's value
     without rerolling.
-  - A Radioactive Morphing attacker decays into two full-size morphs.
+  - A Radioactive Morphing attacker, including a Trip die, decays into two
+    full-size morphs.
 - A Trip die morphs only after a successful Trip: it rolls at its own size
   first, then rerolls at the captured die's size. A failed Trip never morphs.
 

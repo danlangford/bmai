@@ -418,3 +418,30 @@ fn radioactive_doppelganger_keeps_the_first_copy_unrolled() {
         .expect_attacker_dice(["H6:5", "H4:4"])
         .run();
 }
+
+#[test]
+fn radioactive_morphing_trip_decays_into_two_full_size_morphs() {
+    // ButtonWeavers engine probe: %tm(4) Tripping (6) leaves two tm(6).
+    let draws = |seed: u32| {
+        let mut rng = BMC_RNG::default();
+        rng.SRand(seed);
+        [4, 6, 6, 6].map(|sides| rng.GetRandMax(sides) + 1)
+    };
+    let seed = (1..10_000)
+        .find(|seed| {
+            let [trip, target, _, _] = draws(*seed);
+            trip >= target
+        })
+        .expect("a successful Trip");
+    let [_, _, first, second] = draws(seed);
+    scenario()
+        .attacker("%tm4:1")
+        .attacks(TRIP)
+        .defender("6:3")
+        .seed(seed)
+        .expect_no_defender_dice()
+        .expect_attacker_dice(
+            [first.max(second), first.min(second)].map(|value| format!("tm6:{value}")),
+        )
+        .run();
+}
