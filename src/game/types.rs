@@ -41,6 +41,7 @@ pub enum Attack {
     Trip,
     Shadow,
     Rush,
+    Boom,
 }
 
 impl Attack {
@@ -53,6 +54,7 @@ impl Attack {
             Self::Trip => "trip",
             Self::Shadow => "shadow",
             Self::Rush => "rush",
+            Self::Boom => "boom",
         }
     }
 }

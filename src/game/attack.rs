@@ -482,6 +482,7 @@ impl Game {
                 Attack::Trip,
                 Attack::Shadow,
                 Attack::Rush,
+                Attack::Boom,
             ] {
                 match attack {
                     Attack::Power | Attack::Trip | Attack::Shadow => {
@@ -706,6 +707,21 @@ impl Game {
                             }
                         }
                     }
+                    Attack::Boom => {
+                        if !attacker_die.CanDoAttack(attack, 1) {
+                            continue;
+                        }
+                        for (target_index, target_die) in targets.iter() {
+                            if target_die.CanBeAttacked(attack, 1) {
+                                moves.push(Move::attack(
+                                    attack,
+                                    [attacker_index],
+                                    [*target_index],
+                                    0.0,
+                                ));
+                            }
+                        }
+                    }
                     Attack::Rush => {
                         // A Speed die's two-target Speed attack resolves identically.
                         let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
@@ -900,7 +916,8 @@ fn MoveInvolvesDie(action: &Move, die: usize) -> bool {
             action.m_attackers.first() == Some(die)
         }
         Some(Attack::Skill) => action.m_attackers.contains(die),
-        None => false,
+        // The Boom die leaves play without rolling, so Turbo never applies.
+        Some(Attack::Boom) | None => false,
     }
 }
 
@@ -1015,6 +1032,7 @@ fn attack_preference(attack: Option<Attack>) -> u8 {
         Some(Attack::Trip) => 4,
         Some(Attack::Shadow) => 5,
         Some(Attack::Rush) => 6,
-        None => 7,
+        Some(Attack::Boom) => 7,
+        None => 8,
     }
 }

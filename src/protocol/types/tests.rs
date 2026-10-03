@@ -75,7 +75,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
     assert_eq!(
         value["attack_types"],
         serde_json::json!([
-            "power", "skill", "berserk", "speed", "trip", "shadow", "rush"
+            "power", "skill", "berserk", "speed", "trip", "shadow", "rush", "boom"
         ])
     );
     assert_eq!(value["parsing_only_skills"], serde_json::json!([]));
@@ -106,7 +106,7 @@ fn die_notation_is_complete_unique_and_machine_readable() {
         tokens,
         vec![
             '^', 'q', 't', 'z', 's', 'B', 'd', 'p', 'n', 'f', 'H', 'h', 'r', 'o', 'c', 'm', '`',
-            'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', 'F', '+', 'D', '%', 'G', '#'
+            'w', 'u', '~', 'g', 'k', 'M', 'I', 'v', 'J', 'F', '+', 'D', '%', 'G', '#', 'b'
         ]
     );
     assert_eq!(
@@ -177,7 +177,8 @@ fn die_notation_is_complete_unique_and_machine_readable() {
         value["die_notation"]["postfix_properties"],
         serde_json::json!([
             {"token": "!", "id": "turbo", "name": "Turbo"},
-            {"token": "?", "id": "mood", "name": "Mood"}
+            {"token": "?", "id": "mood", "name": "Mood"},
+            {"token": "&", "id": "mad", "name": "Mad"}
         ])
     );
     assert_eq!(value["die_notation"]["swing_types"], "P-Z");

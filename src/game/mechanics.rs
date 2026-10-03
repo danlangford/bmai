@@ -16,6 +16,9 @@ pub(crate) fn ApplyAttackForPlayers(
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
+    if action.m_attack == Some(Attack::Boom) {
+        return ApplyBoomAttack(game, action, attacker_player, target_player, rng);
+    }
     ApplyFireAdjustments(game, action, attacker_player);
     // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
@@ -196,6 +199,52 @@ pub(crate) fn ApplyAttackForPlayers(
     attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
 
+/// ButtonWeavers removes the Boom die unscored and rerolls the target, which
+/// is never captured; only the attacker's Jolt and Ornery hooks still fire.
+fn ApplyBoomAttack(
+    game: &mut Game,
+    action: &Move,
+    attacker_player: usize,
+    target_player: usize,
+    rng: &mut Rng,
+) -> bool {
+    let attacker = action.m_attackers.first().expect("Boom attacker");
+    let target = action.m_targets.first().expect("Boom target");
+    let extra_turn = game.m_player[attacker_player].m_die[attacker].HasProperty(property::JOLT);
+    game.m_player[attacker_player].m_score -=
+        game.m_player[attacker_player].m_die[attacker].GetScore(true);
+    OnDieLost(&mut game.m_player[attacker_player], attacker);
+
+    if !game.m_player[target_player].m_die[target].HasProperty(property::KONSTANT) {
+        game.m_player[target_player].m_die[target].m_notset = true;
+        ApplyBeforeRollEffects(game, target_player, target);
+        RerollAndRescore(game, target_player, target, rng);
+    }
+    for index in 0..game.m_player[attacker_player].m_die.len() {
+        let die = &game.m_player[attacker_player].m_die[index];
+        if !die.IsAvailable() || !die.HasProperty(property::ORNERY) {
+            continue;
+        }
+        if !die.HasProperty(property::KONSTANT) {
+            game.m_player[attacker_player].m_die[index].m_notset = true;
+        }
+        ApplyBeforeRollEffects(game, attacker_player, index);
+        ApplyAttackerNatureRoll(game, attacker_player, index, rng);
+    }
+    OptimizeDice(&mut game.m_player[attacker_player]);
+    OptimizeDice(&mut game.m_player[target_player]);
+    extra_turn
+}
+
+/// Unlike an attacker's reroll, a Boom target's new value counts for Value.
+fn RerollAndRescore(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
+    let old_score = game.m_player[player].m_die[index].GetScore(true);
+    let die = &mut game.m_player[player].m_die[index];
+    ApplyMood(die, rng);
+    RollDie(die, rng);
+    game.m_player[player].m_score += die.GetScore(true) - old_score;
+}
+
 pub(super) fn ApplyFireAdjustments(game: &mut Game, action: &Move, player: usize) {
     if action.m_fire.is_empty() {
         return;
@@ -251,7 +300,11 @@ pub(crate) fn RadioactiveDecayApplies(
     attacker_player: usize,
     target_player: usize,
 ) -> bool {
-    if action.m_attack.is_none() || action.m_attackers.len() != 1 || action.m_targets.len() != 1 {
+    // A Boom die leaves play before ButtonWeavers' decay hook can split it.
+    if matches!(action.m_attack, None | Some(Attack::Boom))
+        || action.m_attackers.len() != 1
+        || action.m_targets.len() != 1
+    {
         return false;
     }
     let (Some(attacker), Some(target)) = (action.m_attackers.first(), action.m_targets.first())
@@ -347,6 +400,7 @@ pub(crate) fn SplitRadioactiveAttacker(
     let removed = property::RADIOACTIVE
         | property::TURBO
         | property::MOOD
+        | property::MAD
         | property::JOLT
         | property::TIME_AND_SPACE;
     first.m_properties &= !removed;
@@ -609,9 +663,10 @@ pub(super) fn ApplyAttackerNatureRoll(game: &mut Game, player: usize, index: usi
     }
 }
 
+/// ButtonWeavers resizes Mood and Mad dice on every reroll, including Trip
+/// targets and Chance rerolls.
 pub(crate) fn RollScheduledDie(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
-    let die = &mut game.m_player[player].m_die[index];
-    RollDie(die, rng);
+    ApplyAttackerNatureRoll(game, player, index, rng);
 }
 
 pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
@@ -621,19 +676,30 @@ pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
     player.m_die.insert(available - 1, lost);
 }
 
+/// ButtonWeavers: Mood picks a standard die size and Mad an even size, both
+/// from the swing range; a Twin shares one size, and Konstant never resizes.
 pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
-    if die.HasProperty(property::MOOD) {
-        for index in 0..die.m_sides.len() {
-            if let Some(swing) = die.m_swing_type[index] {
-                die.m_sides[index] = match swing {
-                    'X' => [4, 6, 8, 10, 12, 20][rng.GetRandMax(6) as usize],
-                    'V' => [6, 8, 10, 12][rng.GetRandMax(4) as usize],
-                    _ => {
-                        let (min, max) = SwingRange(swing);
-                        min + rng.GetRandMax(u32::from(max - min + 1)) as u8
-                    }
-                };
+    let mad = die.HasProperty(property::MAD);
+    if !mad && !die.HasProperty(property::MOOD) || die.HasProperty(property::KONSTANT) {
+        return;
+    }
+    let Some(swing) = die.m_swing_type.iter().flatten().next().copied() else {
+        return;
+    };
+    let (minimum, maximum) = SwingRange(swing);
+    let sizes = (minimum..=maximum)
+        .filter(|size| {
+            if mad {
+                size % 2 == 0
+            } else {
+                [1, 2, 4, 6, 8, 10, 12, 20, 30].contains(size)
             }
+        })
+        .collect::<Vec<_>>();
+    let size = sizes[rng.GetRandMax(sizes.len() as u32) as usize];
+    for index in 0..die.m_sides.len() {
+        if die.m_swing_type[index].is_some() {
+            die.m_sides[index] = size;
         }
     }
 }

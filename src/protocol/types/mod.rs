@@ -263,12 +263,13 @@ impl Capabilities {
                 "surrender",
             ],
             attack_types: &[
-                "power", "skill", "berserk", "speed", "trip", "shadow", "rush",
+                "power", "skill", "berserk", "speed", "trip", "shadow", "rush", "boom",
             ],
             ai_policies: &["bmai", "qai", "bmai3"],
             skills: &[
                 "Auxiliary",
                 "Berserk",
+                "Boom",
                 "Chance",
                 "Doppelganger",
                 "Focus",
@@ -276,6 +277,7 @@ impl Capabilities {
                 "Insult",
                 "Jolt",
                 "Konstant",
+                "Mad",
                 "Maximum",
                 "Mighty",
                 "Mood",

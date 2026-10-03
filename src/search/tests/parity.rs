@@ -121,7 +121,8 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
 }
 
 #[test]
-fn pr82_ornery_mood_only_changes_on_an_attack() {
+fn konstant_ornery_mood_die_keeps_its_size_and_value() {
+    // ButtonWeavers engine probe: Konstant blocks Mood's resize (`doesReroll`).
     let mood_die = || {
         let mut die = swing_die(
             'X',
@@ -177,8 +178,7 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
         .iter()
         .find(|die| die.m_original_index == 0)
         .unwrap();
-    assert_ne!(mood.m_sides[0], 6);
-    assert_eq!(mood.GetValueTotal(), 3);
+    assert_eq!((mood.m_sides[0], mood.GetValueTotal()), (6, 3));
 }
 
 #[test]

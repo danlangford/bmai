@@ -445,6 +445,9 @@ fn format_die(die: &Die) -> String {
     if die.HasProperty(property::MOOD) {
         output.push('?');
     }
+    if die.HasProperty(property::MAD) {
+        output.push('&');
+    }
     if let Some(value) = die.m_value_total {
         output.push(':');
         output.push_str(&value.to_string());

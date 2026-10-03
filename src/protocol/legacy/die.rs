@@ -47,6 +47,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseE
         match chars[pos] {
             '!' => properties |= property::TURBO,
             '?' => properties |= property::MOOD,
+            '&' => properties |= property::MAD,
             '-' => {
                 pos += 1;
                 while pos < chars.len() && chars[pos].is_ascii_digit() {

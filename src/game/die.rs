@@ -95,6 +95,7 @@ impl Die {
             }
             // Rush legality depends on the targets, so enumeration checks it.
             Attack::Rush => true,
+            Attack::Boom => self.HasProperty(property::BOOM),
         }
     }
 
@@ -104,7 +105,7 @@ impl Die {
         }
         // Stealth overrides Insult, as in C++ RecomputeAttacks.
         if self.HasProperty(property::STEALTH) {
-            return attack == Attack::Skill && skill_dice > 1;
+            return attack == Attack::Boom || attack == Attack::Skill && skill_dice > 1;
         }
         if self.HasProperty(property::INSULT) && attack == Attack::Skill {
             return false;
