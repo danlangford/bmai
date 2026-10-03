@@ -170,6 +170,7 @@ fn split_copies_of_a_radioactive_konstant_target_still_resize() {
 
 #[test]
 fn a_radioactive_doppelgangers_second_konstant_copy_still_resizes() {
+    // Engine probe.
     scenario()
         .attacker("%D9:9")
         .attacks(Power)
