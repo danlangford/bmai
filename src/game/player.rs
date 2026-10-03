@@ -19,20 +19,34 @@ pub struct Player {
 
 impl Player {
     pub fn OptimizeDice(&mut self) {
+        let count = self.m_die.len();
+        let mut keys = [0u16; MAX_DICE];
+        for (key, die) in keys.iter_mut().zip(&self.m_die) {
+            *key = OrderKey(die);
+        }
+        let keys = &mut keys[..count];
+        if keys.windows(2).all(|pair| pair[0] >= pair[1]) {
+            return;
+        }
         // Not a stable sort: C++'s swap order breaks ties, and search order
         // depends on it.
-        for i in 0..self.m_die.len() {
-            for j in (i + 1)..self.m_die.len() {
-                let swap = if !self.m_die[i].IsAvailable() && self.m_die[j].IsAvailable() {
-                    true
-                } else {
-                    self.m_die[j].IsAvailable()
-                        && self.m_die[i].GetValueTotal() < self.m_die[j].GetValueTotal()
-                };
-                if swap {
+        for i in 0..count {
+            for j in (i + 1)..count {
+                if keys[j] > keys[i] {
+                    keys.swap(i, j);
                     self.m_die.swap(i, j);
                 }
             }
         }
+    }
+}
+
+// Values fit in a u8, so 256 ranks every available die above every
+// unavailable one, and unavailable dice tie, as in C++.
+fn OrderKey(die: &Die) -> u16 {
+    if die.IsAvailable() {
+        256 + die.GetValueTotal()
+    } else {
+        0
     }
 }

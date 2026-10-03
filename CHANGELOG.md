@@ -16,6 +16,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
 
+## [0.18.0] - 2026-10-03
+
+### Changed
+
+- Search is about 1.4–1.8× faster with identical results; see BENCHMARKS.md.
+  All golden RNG fingerprints are unchanged.
+  - Rollouts reuse one scratch game per thread instead of cloning the
+    dice for every step.
+  - Die index sets iterate only their members.
+  - Dice ordering caches each die's sort key and skips dice already in
+    order.
+  - Captured dice rotate into place instead of being removed and
+    reinserted.
+
+- Dependabot pull requests skip the version and changelog check, and a merge
+  without a version bump no longer fails the release workflow; it waits for
+  the next release.
+- Tests:
+  - Scenario tests now read like game positions. Expected dice may list
+    skills in any order, as input dice do.
+  - Added `passes()`, an `initiative_scenario()` for Chance and Focus, and a
+    `roll()` scenario for die-size sampling.
+  - Hand-built dice and moves in the core, parity, Jolt, Doppelganger,
+    transformation, and Boom/Mad tests now use these scenarios.
+  - Boom, Mad, and Mood tests are in separate files. TESTING.md says which
+    file a test of an interaction between skills belongs in.
+
 ## [0.17.0] - 2026-10-03
 
 ### Added
@@ -470,7 +497,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...HEAD
+[0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0
 [0.17.0]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...bmair-v0.17.0
 [0.16.0]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...bmair-v0.16.0
 [0.15.0]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...bmair-v0.15.0

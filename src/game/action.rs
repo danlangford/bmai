@@ -73,7 +73,14 @@ pub struct DieIndexSet(u32);
 
 impl DieIndexSet {
     pub fn iter(self) -> impl Iterator<Item = usize> {
-        (0..MAX_DICE).filter(move |index| self.0 & (1 << index) != 0)
+        let mut bits = self.0;
+        std::iter::from_fn(move || {
+            (bits != 0).then(|| {
+                let index = bits.trailing_zeros() as usize;
+                bits &= bits - 1;
+                index
+            })
+        })
     }
 
     pub fn len(self) -> usize {

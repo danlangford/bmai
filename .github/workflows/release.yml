@@ -20,6 +20,7 @@ jobs:
     name: Validate release
     runs-on: ubuntu-24.04
     outputs:
+      publish: ${{ steps.plan.outputs.publish }}
       tag: ${{ steps.plan.outputs.tag }}
       version: ${{ steps.plan.outputs.version }}
     steps:
@@ -46,13 +47,20 @@ jobs:
             echo "tag $GITHUB_REF_NAME does not match Cargo version $version" >&2
             exit 1
           fi
+          publish=true
           if git rev-parse --quiet --verify "refs/tags/${tag}" >/dev/null; then
             tagged_commit=$(git rev-parse "${tag}^{}")
             if [[ "$tagged_commit" != "$GITHUB_SHA" ]]; then
-              echo "$tag already points at $tagged_commit, not $GITHUB_SHA" >&2
-              exit 1
+              if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+                echo "$tag already points at $tagged_commit, not $GITHUB_SHA" >&2
+                exit 1
+              fi
+              # A merge without a version bump (e.g. Dependabot) waits for the next release.
+              echo "::notice::$tag is already released; skipping publish"
+              publish=false
             fi
           fi
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
@@ -67,6 +75,7 @@ jobs:
   publish:
     name: Publish release
     needs: [release-plan, rust]
+    if: needs.release-plan.outputs.publish == 'true'
     runs-on: ubuntu-24.04
     permissions:
       contents: write
