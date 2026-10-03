@@ -41,7 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Konstant Mood dice keep their size and value.
   - Mood dice also resize when tripped and on Chance rerolls.
   - Konstant Mighty and Weak dice keep their size on every reroll,
-    including Ornery, Trip-target, and Chance rerolls.
+    including Ornery, Trip-target, and Chance rerolls. Doppelganger copies
+    still resize.
   - Warrior dice ignore Ornery rerolls.
 
 ## [0.16.0] - 2026-10-02
