@@ -78,3 +78,48 @@ the expected direction (`random` < `maximize` < `quick` < ply 1 < ply 2).
 An interval containing 0.5 is reported as inconclusive, never as a tie or a
 pass. Ply 3 is not laddered: one ply-3 decision at these settings (`bmai_in.txt`)
 takes about 5 s, against about 0.8 s at ply 2 and 5 ms at ply 1.
+
+### Result
+
+Run on 2026-10-03 from `6c02b14` with the command above; every pairing played
+its 300 pairs. Monte Carlo rows use `max_sims=100 min_sims=5 maxbranch=400`.
+
+| First | Second | Pairs | First wins | First score (95% CI) | First ms/decision | Second ms/decision |
+|---|---|---:|---:|---|---:|---:|
+| `random` | `maximize` | 300 | 193/600 | 0.322 (0.284–0.359) | 0.00 | 0.01 |
+| `random` | `quick` | 300 | 113/600 | 0.188 (0.157–0.219) | 0.00 | 0.00 |
+| `random` | `montecarlo ply=1` | 300 | 100/600 | 0.167 (0.139–0.195) | 0.00 | 5.74 |
+| `random` | `montecarlo ply=2` | 300 | 84/600 | 0.140 (0.111–0.169) | 0.01 | 1160.44 |
+| `maximize` | `quick` | 300 | 210/600 | 0.350 (0.316–0.384) | 0.01 | 0.01 |
+| `maximize` | `montecarlo ply=1` | 300 | 160/600 | 0.267 (0.231–0.302) | 0.01 | 7.06 |
+| `maximize` | `montecarlo ply=2` | 300 | 143/600 | 0.238 (0.205–0.272) | 0.01 | 1282.56 |
+| `quick` | `montecarlo ply=1` | 300 | 242/600 | 0.403 (0.366–0.440) | 0.01 | 7.96 |
+| `quick` | `montecarlo ply=2` | 300 | 230/600 | 0.383 (0.345–0.421) | 0.01 | 1153.29 |
+| `montecarlo ply=1` | `montecarlo ply=2` | 300 | 273/600 | 0.455 (0.415–0.495) | 8.30 | 1174.38 |
+
+All four adjacent comparisons exclude 0.5, so under the preregistered rule
+the ladder `random` < `maximize` < `quick` < `montecarlo ply=1` <
+`montecarlo ply=2` is confirmed. Each step is larger the further apart the
+contestants are, as a ladder should be.
+
+The ply 2 step is the weakest: its interval ends at 0.495. It is not robust
+to a correction for testing four steps; a Bonferroni-adjusted interval
+(98.75%) for that row reaches about 0.506 and would be inconclusive. Ply 2
+won that pairing by about 4.5 points while taking roughly 140 times as long
+per decision (about 1.2 s against 8 ms), so whether ply 2 is worth its cost
+is a question for a time-budgeted comparison, not this ladder.
+
+Caveats, disclosed after the run:
+
+- The intervals describe these six matchups at one round each, not Button
+  Men in general, and carry no correction for testing four steps.
+- Seeds 1 through 50 went to Park-Miller unmixed, and consecutive seeds roll
+  nearly the same opening dice (the first d6 cycles 6, 4, 3, 1). Both seats
+  of a pair saw the same skew, so the comparison is not biased, but the
+  sampled positions are not a random sample. The harness now mixes seeds.
+- In legacy mode Monte Carlo search draws from the dice generator, so the
+  two games of a pair share buttons and seats but not dice.
+- Milliseconds per decision are wall time under eight-way concurrency on a
+  shared, heavily loaded machine (load averages near 100 during parts of the
+  run). They describe relative cost, not latency.
+
