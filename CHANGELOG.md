@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `rand_f32`.
   - `Parser::GetAction`, which runs the search, is `send_action`, and
     `Bmai3::CullMoves` is `cull`.
-  - `AvailableDice` is `available_dice_count`, `notset` is `not_set`,
+  - `AvailableDice` is `available_dice_count`, `m_notset` is `not_set`,
     `ProbabilityWin` is `win_probability`, and the `Move::attack`
     constructor is `Move::new_attack`.
 - `BMAIR_TRACE_AI` prints moves with the new field names.
