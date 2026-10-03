@@ -246,11 +246,7 @@ fn TurboSizes(die: &BMC_Die, accuracy: f32) -> Vec<(i16, BMC_Die)> {
     };
     let (minimum, maximum) = turbo_swing_range(swing);
     let mut choices = vec![die.m_sides[0], minimum, maximum];
-    let step = if accuracy <= 0.0 {
-        1000.0
-    } else {
-        1.0 / accuracy
-    };
+    let step = TurboStep(accuracy);
     let mut candidate = f32::from(minimum + 1);
     while candidate < f32::from(maximum) {
         choices.push(candidate as u8);
@@ -989,13 +985,11 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             if !moves[move_index].m_fire.is_empty() {
                 continue;
             }
+            // Unlike `TurboSizes`, this keeps C++'s duplicate sizes at
+            // accuracies above 1 so non-Trip candidate order is unchanged.
             let (minimum, maximum) = turbo_swing_range(swing);
             let mut choices = vec![minimum, maximum];
-            let step = if accuracy <= 0.0 {
-                1000.0
-            } else {
-                1.0 / accuracy
-            };
+            let step = TurboStep(accuracy);
             let mut candidate = f32::from(minimum + 1);
             while candidate < f32::from(maximum) {
                 choices.push(candidate as u8);
@@ -1012,6 +1006,16 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             }
         }
     }
+}
+
+/// An infinite accuracy would make the step zero and never advance.
+fn TurboStep(accuracy: f32) -> f32 {
+    let step = if accuracy <= 0.0 {
+        1000.0
+    } else {
+        1.0 / accuracy
+    };
+    if step == 0.0 { 1.0 } else { step }
 }
 
 fn turbo_swing_range(swing: char) -> (u8, u8) {

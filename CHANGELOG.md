@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Konstant and Maximum targets raise that bar. A Turbo Trip is offered when
   any Turbo size reaches the target, and only sizes that do are offered.
   Mood Twin dice reach one subdie's swing size, as in ButtonWeavers.
+- An infinite `turbo_accuracy` now considers every Turbo size instead of
+  hanging the search.
 - Morphing now applies to single-target Berserk and Speed attacks.
 - A Trip die morphs only after a successful Trip: it rolls at its own size
   first, then rerolls at the captured die's size. A failed Trip never morphs.

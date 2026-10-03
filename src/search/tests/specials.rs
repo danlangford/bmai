@@ -119,7 +119,6 @@ fn simulations_keep_each_players_specials_after_a_side_swap() {
         "{GAME}special 0 unique_swing\nspecial 1 no_initiative\n"
     ))
     .m_game;
-    game.m_player[0].m_specials = special::UNIQUE_SWING;
     let mut simulation = game.clone();
     simulation.m_player.swap(0, 1);
     super::fight::RestoreSimulation(&mut simulation, &game);
@@ -301,7 +300,7 @@ fn mood_trip_dice_reach_their_largest_swing_size() {
 fn mood_twin_trip_dice_reach_one_subdies_swing_size() {
     // ButtonWeavers reads a Twin's swing range from a single subdie.
     scenario()
-        .attacker("t(X,X)?-10:2")
+        .attacker("t(X,X)?-15:2")
         .attacks(TRIP)
         .defender("k25:25")
         .expect_allowed(false)
@@ -447,4 +446,16 @@ fn radioactive_trip_target_decays_the_attacker_after_it_morphs() {
         .expect_no_defender_dice()
         .expect_attacker_dice(["tm2:2", "tm2:1"])
         .run();
+}
+
+#[test]
+fn infinite_turbo_accuracy_offers_every_size_instead_of_hanging() {
+    let mut game = native_fixture_game("game\nfight\nplayer 0 1 0\ntX!-4:1\nplayer 1 1 0\n20:3\n");
+    game.m_turbo_accuracy = f32::INFINITY;
+    let sizes = game
+        .GenerateValidAttacksInCppOrder()
+        .into_iter()
+        .filter(|candidate| candidate.m_attack == Some(TRIP))
+        .count();
+    assert_eq!(sizes, 17);
 }
