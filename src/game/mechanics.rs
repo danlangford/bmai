@@ -364,9 +364,10 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
         {
             // ButtonWeavers runs each product's Morphing hook again.
             MorphIntoTarget(game, attacker_player, target_player, product, target);
-        } else if !original.HasProperty(property::KONSTANT) {
-            // ButtonWeavers resets doesReroll on Doppelganger copies, so only
-            // the original die's Konstant can stop the resize.
+        } else if copies_target {
+            // ButtonWeavers resets doesReroll on Doppelganger copies.
+            ResizeMightyAndWeak(game, attacker_player, product);
+        } else {
             ApplyBeforeRollEffects(game, attacker_player, product);
         }
     }

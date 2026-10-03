@@ -156,3 +156,24 @@ fn copied_konstant_still_resizes_and_rerolls() {
         .expect_attacker_dice(["Hk6:5"])
         .run();
 }
+
+#[test]
+fn split_copies_of_a_radioactive_konstant_target_still_resize() {
+    // Engine probe.
+    scenario()
+        .attacker("D9:9")
+        .attacks(Power)
+        .defender("%kH4:3")
+        .expect_attacker_dice(["Hk4:1", "Hk4:1"])
+        .run();
+}
+
+#[test]
+fn a_radioactive_doppelgangers_second_konstant_copy_still_resizes() {
+    scenario()
+        .attacker("%D9:9")
+        .attacks(Power)
+        .defender("kH4:4")
+        .expect_attacker_dice(["Hk6:5", "Hk4:4"])
+        .run();
+}
