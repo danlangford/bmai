@@ -5,32 +5,31 @@
 use super::*;
 
 impl Parser {
-    pub(super) fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
-        let player_ai = self.PlayerAI(0).clone();
-        match self.m_game.m_phase {
+    pub(super) fn action<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
+        let player_ai = self.player_ai(0).clone();
+        match self.game.phase {
             Phase::Auxiliary => {
-                let (die, search) = if self.AIType(0) == 1 {
-                    (SelectQAIAuxiliaryAction(&self.m_game), None)
-                } else if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    let result = SelectNativeBMAIAuxiliaryAction(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let (die, search) = if self.ai_type(0) == 1 {
+                    (select_qai_auxiliary_action(&self.game), None)
+                } else if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    let result = select_native_bmai_auxiliary_action(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     );
                     let summary = (result.score, result.probability());
                     (result.die, Some(summary))
                 } else {
                     let result =
-                        SelectBMAIAuxiliaryAction(&self.m_game, &mut self.m_rng, &player_ai);
+                        select_bmai_auxiliary_action(&self.game, &mut self.rng, &player_ai);
                     let summary = (result.score, result.probability());
                     (result.die, Some(summary))
                 };
-                let original =
-                    die.map(|index| self.m_game.m_player[0].m_die[index].m_original_index);
-                self.m_last_action =
+                let original = die.map(|index| self.game.players[0].dice[index].original_index);
+                self.last_action =
                     Some(crate::protocol::ProtocolAction::Auxiliary { die: original });
                 if let Some((score, probability)) = search {
                     writeln!(
@@ -40,24 +39,24 @@ impl Parser {
                     )
                     .map_err(io_error)?;
                 }
-                self.SendStats(output)?;
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 writeln!(output, "aux {}", original.map_or(-1, |index| index as i32))
                     .map_err(io_error)
             }
             Phase::Fight => {
-                if self.m_report_sims > 0 && self.m_execution_mode != ExecutionMode::Native {
+                if self.report_sims > 0 && self.execution_mode != ExecutionMode::Native {
                     return Err(ParseError(
                         "report_sims requires native execution mode".into(),
                     ));
                 }
-                if self.m_report_sims > 0 && self.AIType(0) == 1 {
+                if self.report_sims > 0 && self.ai_type(0) == 1 {
                     return Err(ParseError("report_sims requires BMAI search".into()));
                 }
-                if self.AIType(0) != 1 {
-                    let moves = self
-                        .m_game
-                        .GenerateValidAttacksInCppOrderForSearch(player_ai.FireCandidateLimit());
+                if self.ai_type(0) != 1 {
+                    let moves = self.game.generate_valid_attacks_in_cpp_order_for_search(
+                        player_ai.FireCandidateLimit(),
+                    );
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",
@@ -66,50 +65,42 @@ impl Parser {
                     )
                     .map_err(io_error)?;
                 }
-                let (action, search, report) = if self.AIType(0) == 1 {
-                    (SelectQAIAction(&self.m_game, &mut self.m_rng), None, None)
-                } else if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    let result = SelectNativeBMAIActionWithStats(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let (action, search, report) = if self.ai_type(0) == 1 {
+                    (select_qai_action(&self.game, &mut self.rng), None, None)
+                } else if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    let result = select_native_bmai_action_with_stats(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     );
-                    let summary = (
-                        result.m_best_score,
-                        result.ProbabilityWin(),
-                        result.m_sims_run,
-                    );
-                    let report = if self.m_report_sims == 0 {
+                    let summary = (result.best_score, result.probability_win(), result.sims_run);
+                    let report = if self.report_sims == 0 {
                         None
                     } else {
-                        let estimate = EvaluateSelectedNativeBMAIMove(
-                            &self.m_game,
-                            &result.m_move,
-                            self.m_rng.Algorithm(),
+                        let estimate = evaluate_selected_native_bmai_move(
+                            &self.game,
+                            &result.best_move,
+                            self.rng.algorithm(),
                             replay,
-                            self.m_native_workers,
+                            self.native_workers,
                             &player_ai,
-                            self.m_report_sims,
+                            self.report_sims,
                         );
                         Some(estimate)
                     };
-                    (result.m_move, Some(summary), report)
+                    (result.best_move, Some(summary), report)
                 } else {
                     let result =
-                        SelectBMAIActionWithStats(&self.m_game, &mut self.m_rng, &player_ai);
-                    let summary = (
-                        result.m_best_score,
-                        result.ProbabilityWin(),
-                        result.m_sims_run,
-                    );
-                    (result.m_move, Some(summary), None)
+                        select_bmai_action_with_stats(&self.game, &mut self.rng, &player_ai);
+                    let summary = (result.best_score, result.probability_win(), result.sims_run);
+                    (result.best_move, Some(summary), None)
                 };
-                self.m_last_action = Some(protocol_attack(&self.m_game, &action)?);
+                self.last_action = Some(protocol_attack(&self.game, &action)?);
                 if let Some((best_score, probability_win, simulations)) = search {
-                    self.m_last_evaluation = Some(crate::protocol::ProbabilityEstimate {
+                    self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
                         player: 0,
                         probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
                         simulations,
@@ -124,8 +115,8 @@ impl Parser {
                     .map_err(io_error)?;
                 }
                 if let Some(estimate) = report {
-                    let probability_win = estimate.ProbabilityWin();
-                    self.m_last_evaluation = Some(crate::protocol::ProbabilityEstimate {
+                    let probability_win = estimate.probability_win();
+                    self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
                         player: 0,
                         probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
                         simulations: estimate.simulations,
@@ -140,35 +131,35 @@ impl Parser {
                     )
                     .map_err(io_error)?;
                 }
-                self.SendStats(output)?;
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
-                SendAttack(&self.m_game, &action, output)
+                send_attack(&self.game, &action, output)
             }
             Phase::Reserve => {
-                let reserve = if self.AIType(0) == 1 {
-                    SelectQAIReserveAction(&self.m_game)
-                } else if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    SelectNativeBMAIReserveAction(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let reserve = if self.ai_type(0) == 1 {
+                    select_qai_reserve_action(&self.game)
+                } else if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    select_native_bmai_reserve_action(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     )
                 } else {
-                    SelectBMAIReserveAction(&self.m_game, &mut self.m_rng, &player_ai)
+                    select_bmai_reserve_action(&self.game, &mut self.rng, &player_ai)
                 };
-                self.m_last_action = Some(crate::protocol::ProtocolAction::Reserve {
-                    die: reserve.map(|index| self.m_game.m_player[0].m_die[index].m_original_index),
+                self.last_action = Some(crate::protocol::ProtocolAction::Reserve {
+                    die: reserve.map(|index| self.game.players[0].dice[index].original_index),
                 });
-                self.SendStats(output)?;
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if let Some(index) = reserve {
                     writeln!(
                         output,
                         "reserve {}",
-                        self.m_game.m_player[0].m_die[index].m_original_index
+                        self.game.players[0].dice[index].original_index
                     )
                     .map_err(io_error)
                 } else {
@@ -176,46 +167,46 @@ impl Parser {
                 }
             }
             Phase::Preround => {
-                let action = if self.AIType(0) == 1 {
-                    SelectQAISetSwingAction(&self.m_game)
-                } else if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    SelectNativeBMAISetSwingAction(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let action = if self.ai_type(0) == 1 {
+                    select_qai_set_swing_action(&self.game)
+                } else if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    select_native_bmai_set_swing_action(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     )
                 } else {
-                    SelectBMAISetSwingAction(&self.m_game, &mut self.m_rng, &player_ai)
+                    select_bmai_set_swing_action(&self.game, &mut self.rng, &player_ai)
                 };
-                self.m_last_action = Some(protocol_swing(&self.m_game, &action));
-                self.SendStats(output)?;
+                self.last_action = Some(protocol_swing(&self.game, &action));
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
-                SendSetSwing(&self.m_game, &action, output)
+                send_set_swing(&self.game, &action, output)
             }
             Phase::Chance => {
-                if self.AIType(0) == 1 {
-                    self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
-                    self.SendStats(output)?;
+                if self.ai_type(0) == 1 {
+                    self.last_action = Some(crate::protocol::ProtocolAction::Pass);
+                    self.send_stats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action = if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    SelectNativeBMAIChanceAction(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let action = if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    select_native_bmai_chance_action(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     )
                 } else {
-                    SelectBMAIChanceAction(&self.m_game, &mut self.m_rng, &player_ai)
+                    select_bmai_chance_action(&self.game, &mut self.rng, &player_ai)
                 };
-                self.m_last_action = Some(protocol_chance(&self.m_game, &action));
-                self.SendStats(output)?;
+                self.last_action = Some(protocol_chance(&self.game, &action));
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.reroll.is_empty() {
                     writeln!(output, "pass").map_err(io_error)
@@ -224,7 +215,7 @@ impl Parser {
                         writeln!(
                             output,
                             "chance {}",
-                            self.m_game.m_player[0].m_die[index].m_original_index
+                            self.game.players[0].dice[index].original_index
                         )
                         .map_err(io_error)?;
                     }
@@ -232,26 +223,26 @@ impl Parser {
                 }
             }
             Phase::Focus => {
-                if self.AIType(0) == 1 {
-                    self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
-                    self.SendStats(output)?;
+                if self.ai_type(0) == 1 {
+                    self.last_action = Some(crate::protocol::ProtocolAction::Pass);
+                    self.send_stats(output)?;
                     writeln!(output, "action\npass").map_err(io_error)?;
                     return Ok(());
                 }
-                let action = if self.m_execution_mode == ExecutionMode::Native {
-                    let replay = self.NextNativeReplay();
-                    SelectNativeBMAIFocusAction(
-                        &self.m_game,
-                        self.m_rng.Algorithm(),
+                let action = if self.execution_mode == ExecutionMode::Native {
+                    let replay = self.next_native_replay();
+                    select_native_bmai_focus_action(
+                        &self.game,
+                        self.rng.algorithm(),
                         replay,
-                        self.m_native_workers,
+                        self.native_workers,
                         &player_ai,
                     )
                 } else {
-                    SelectBMAIFocusAction(&self.m_game, &mut self.m_rng, &player_ai)
+                    select_bmai_focus_action(&self.game, &mut self.rng, &player_ai)
                 };
-                self.m_last_action = Some(protocol_focus(&self.m_game, &action));
-                self.SendStats(output)?;
+                self.last_action = Some(protocol_focus(&self.game, &action));
+                self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
                 if action.values.is_empty() {
                     writeln!(output, "pass").map_err(io_error)
@@ -260,7 +251,7 @@ impl Parser {
                         writeln!(
                             output,
                             "focus {} {value}",
-                            self.m_game.m_player[0].m_die[index].m_original_index
+                            self.game.players[0].dice[index].original_index
                         )
                         .map_err(io_error)?;
                     }
@@ -271,27 +262,27 @@ impl Parser {
         }
     }
 
-    pub(super) fn NextNativeReplay(&mut self) -> crate::native::NativeReplayKey {
-        debug_assert_eq!(self.m_execution_mode, ExecutionMode::Native);
+    pub(super) fn next_native_replay(&mut self) -> crate::native::NativeReplayKey {
+        debug_assert_eq!(self.execution_mode, ExecutionMode::Native);
         let replay = crate::native::NativeReplayKey {
             stream_version: crate::native::NativeStreamVersion::CURRENT,
-            root_seed: self.m_native_root_seed,
-            decision_index: self.m_native_decision_index,
+            root_seed: self.native_root_seed,
+            decision_index: self.native_decision_index,
         };
-        self.m_last_replay = Some(crate::protocol::ReplayMetadata {
+        self.last_replay = Some(crate::protocol::ReplayMetadata {
             stream_partition: replay.stream_version.partition_id(),
             root_seed: replay.root_seed,
             decision_index: replay.decision_index,
         });
-        self.m_native_decision_index = self.m_native_decision_index.wrapping_add(1);
+        self.native_decision_index = self.native_decision_index.wrapping_add(1);
         replay
     }
 
-    pub(super) fn SendStats<W: Write>(&self, output: &mut W) -> Result<(), ParseError> {
+    pub(super) fn send_stats<W: Write>(&self, output: &mut W) -> Result<(), ParseError> {
         writeln!(
             output,
             "stats {}/{}-{}/{}/0.50",
-            self.m_ai.m_max_ply, self.m_ai.m_min_sims, self.m_ai.m_max_sims, self.m_ai.m_max_branch
+            self.ai.max_ply, self.ai.min_sims, self.ai.max_sims, self.ai.max_branch
         )
         .map_err(io_error)
     }

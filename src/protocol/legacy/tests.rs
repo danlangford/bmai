@@ -22,7 +22,7 @@ player 1 3 0\n\
 9/11-9:3\n\
 getaction\n";
     Parser::default()
-        .ParseString(input, &mut Vec::new())
+        .parse_string(input, &mut Vec::new())
         .unwrap();
 }
 
@@ -31,12 +31,12 @@ fn streamed_legacy_commands_match_batched_parsing() {
     let input = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 2 30\n1:1\n(30,30):60\nseed 17\nsurrender off\ngetaction\nquit\n";
     let mut batched = Parser::default();
     let mut batched_output = Vec::new();
-    batched.ParseString(input, &mut batched_output).unwrap();
+    batched.parse_string(input, &mut batched_output).unwrap();
 
     let mut streamed = Parser::default();
     let mut streamed_output = Vec::new();
     streamed
-        .ParseStream(&mut std::io::Cursor::new(input), &mut streamed_output)
+        .parse_stream(&mut std::io::Cursor::new(input), &mut streamed_output)
         .unwrap();
 
     assert_eq!(streamed_output, batched_output);
@@ -64,7 +64,7 @@ X\n\
 getaction\n";
     let mut output = Vec::new();
 
-    Parser::default().ParseString(input, &mut output).unwrap();
+    Parser::default().parse_string(input, &mut output).unwrap();
 
     assert!(
         String::from_utf8(output)
@@ -84,7 +84,7 @@ player 1 1 0\n\
 getaction\n";
     let mut output = Vec::new();
 
-    Parser::default().ParseString(input, &mut output).unwrap();
+    Parser::default().parse_string(input, &mut output).unwrap();
 
     assert!(
         String::from_utf8(output)
@@ -104,14 +104,14 @@ fn whole_line_comments_are_ignored_between_top_level_commands() {
     let parse_batched = |input: &str| {
         let mut parser = Parser::default();
         let mut output = Vec::new();
-        parser.ParseString(input, &mut output).unwrap();
+        parser.parse_string(input, &mut output).unwrap();
         (output, parser.session_metadata())
     };
     let parse_streamed = |input: &str| {
         let mut parser = Parser::default();
         let mut output = Vec::new();
         parser
-            .ParseStream(&mut std::io::Cursor::new(input), &mut output)
+            .parse_stream(&mut std::io::Cursor::new(input), &mut output)
             .unwrap();
         (output, parser.session_metadata())
     };
@@ -125,10 +125,10 @@ fn whole_line_comments_are_ignored_between_top_level_commands() {
 fn comments_inside_game_blocks_remain_invalid() {
     let input = "game\n# phase comment\nfight\n";
     let batched = Parser::default()
-        .ParseString(input, &mut Vec::new())
+        .parse_string(input, &mut Vec::new())
         .unwrap_err();
     let streamed = Parser::default()
-        .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+        .parse_stream(&mut std::io::Cursor::new(input), &mut Vec::new())
         .unwrap_err();
 
     assert_eq!(batched.to_string(), "phase not found");
@@ -138,7 +138,7 @@ fn comments_inside_game_blocks_remain_invalid() {
 #[test]
 fn inline_comments_remain_invalid() {
     let error = Parser::default()
-        .ParseString("seed 17 # comment\n", &mut Vec::new())
+        .parse_string("seed 17 # comment\n", &mut Vec::new())
         .unwrap_err();
 
     assert_eq!(error.to_string(), "invalid integer: 17 # comment");
@@ -160,7 +160,7 @@ fn streamed_game_rejects_malformed_structure_without_waiting_for_more_input() {
     ] {
         let mut parser = Parser::default();
         let error = parser
-            .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+            .parse_stream(&mut std::io::Cursor::new(input), &mut Vec::new())
             .unwrap_err();
         assert_eq!(error.to_string(), expected);
     }
@@ -172,10 +172,10 @@ fn game_rejects_more_than_ten_input_dice_in_both_parsing_paths() {
     let expected = "player dice count 11 exceeds maximum 10";
 
     let batched = Parser::default()
-        .ParseString(input, &mut Vec::new())
+        .parse_string(input, &mut Vec::new())
         .unwrap_err();
     let streamed = Parser::default()
-        .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
+        .parse_stream(&mut std::io::Cursor::new(input), &mut Vec::new())
         .unwrap_err();
 
     assert_eq!(batched.to_string(), expected);
@@ -187,13 +187,13 @@ fn cpp_parser_ai_and_per_player_search_settings() {
     let input = "ai 0 2\nply 0 3\nmax_sims 0 40\nmin_sims 0 4\nmaxbranch 0 400\ndebugply 2\nseed 17\nquit\n";
     let mut parser = Parser::default();
     let mut output = Vec::new();
-    parser.ParseString(input, &mut output).unwrap();
-    assert_eq!(parser.AIType(0), 2);
-    assert_eq!(parser.PlayerAI(0).m_max_ply, 3);
-    assert_eq!(parser.PlayerAI(0).m_max_sims, 40);
-    assert_eq!(parser.PlayerAI(0).m_min_sims, 4);
-    assert_eq!(parser.PlayerAI(0).m_max_branch, 400);
-    assert_eq!(parser.m_debug_ply, 2);
+    parser.parse_string(input, &mut output).unwrap();
+    assert_eq!(parser.ai_type(0), 2);
+    assert_eq!(parser.player_ai(0).max_ply, 3);
+    assert_eq!(parser.player_ai(0).max_sims, 40);
+    assert_eq!(parser.player_ai(0).min_sims, 4);
+    assert_eq!(parser.player_ai(0).max_branch, 400);
+    assert_eq!(parser.debug_ply, 2);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         "Setting AI for player 0 to type 2\n\
@@ -255,7 +255,7 @@ fn per_player_settings_change_the_shared_cpp_ai_object() {
     for (name, input, expected) in cases {
         let mut output = Vec::new();
         Parser::default()
-            .ParseString(&format!("seed 17\n{input}"), &mut output)
+            .parse_string(&format!("seed 17\n{input}"), &mut output)
             .unwrap();
         let output = String::from_utf8(output).unwrap();
         let observed = output
@@ -279,7 +279,7 @@ fn cpp_parser_rejects_invalid_ai_selection() {
     ] {
         assert_eq!(
             Parser::default()
-                .ParseString(input, &mut Vec::new())
+                .parse_string(input, &mut Vec::new())
                 .unwrap_err()
                 .to_string(),
             expected
@@ -291,7 +291,7 @@ fn cpp_parser_rejects_invalid_ai_selection() {
 fn cpp_playfair_out_of_range_mode_retains_current_ai() {
     let input = "game 1\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nplayfair 0 4 0.5\nquit\n";
     let mut output = Vec::new();
-    Parser::default().ParseString(input, &mut output).unwrap();
+    Parser::default().parse_string(input, &mut output).unwrap();
     assert!(
         String::from_utf8(output)
             .unwrap()
@@ -303,24 +303,24 @@ fn cpp_playfair_out_of_range_mode_retains_current_ai() {
 fn cpp_debug_command_validates_category_and_reports_setting() {
     let mut output = Vec::new();
     Parser::default()
-        .ParseString("debug SIMULATION 0\n", &mut output)
+        .parse_string("debug SIMULATION 0\n", &mut output)
         .unwrap();
     assert_eq!(output, b"Debug SIMULATION set to 0\n");
 
     let mut output = Vec::new();
     Parser::default()
-        .ParseString("debug SIMULATION -1\n", &mut output)
+        .parse_string("debug SIMULATION -1\n", &mut output)
         .unwrap();
     assert_eq!(output, b"Debug SIMULATION set to 1\n");
 
     let mut output = Vec::new();
     Parser::default()
-        .ParseString("debug ALWAYS 0\n", &mut output)
+        .parse_string("debug ALWAYS 0\n", &mut output)
         .unwrap();
     assert!(output.is_empty());
 
     let error = Parser::default()
-        .ParseString("debug simulation 0\n", &mut Vec::new())
+        .parse_string("debug simulation 0\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
         error.to_string(),
@@ -332,7 +332,7 @@ fn cpp_debug_command_validates_category_and_reports_setting() {
 fn cpp_qai_selection_drives_getaction_and_ignores_bmai_settings() {
     let input = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\nai 0 1\nmax_sims 0 5\nmin_sims 0 1\nmaxbranch 0 20\nseed 17\ngetaction\nquit\n";
     let mut output = Vec::new();
-    Parser::default().ParseString(input, &mut output).unwrap();
+    Parser::default().parse_string(input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
     assert!(!output.contains("Setting max sims for player"), "{output}");
     assert!(!output.contains("Valid Moves"), "{output}");
@@ -346,7 +346,7 @@ fn cpp_playfair_modes_report_initiative_split_stats() {
             "game 1\npreround\nplayer 0 1 0\n2\nplayer 1 1 0\n2\nseed 17\nplayfair 2 {mode} 0.5\nquit\n"
         );
         let mut output = Vec::new();
-        Parser::default().ParseString(&input, &mut output).unwrap();
+        Parser::default().parse_string(&input, &mut output).unwrap();
         let output = String::from_utf8(output).unwrap();
         assert!(
             output.contains(&format!("PlayFairGames: 2 games, mode {mode}, p 0.500000")),
@@ -360,9 +360,9 @@ fn cpp_playfair_modes_report_initiative_split_stats() {
 fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
     let input = "ai 0 1\ngame 3\ngameover\nplayer 0 0 0\nplayer 1 0 0\nquit\n";
     let mut parser = Parser::default();
-    parser.ParseString(input, &mut Vec::new()).unwrap();
-    assert_eq!(parser.m_game.m_phase, Phase::Gameover);
-    assert_eq!(parser.m_player_ai, [AiSlot::Global; 2]);
+    parser.parse_string(input, &mut Vec::new()).unwrap();
+    assert_eq!(parser.game.phase, Phase::Gameover);
+    assert_eq!(parser.player_ai, [AiSlot::Global; 2]);
 }
 
 #[test]
@@ -370,7 +370,7 @@ fn cpp_game_simulation_commands_require_preround() {
     let prefix = "game 1\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n6:6\n";
     for command in ["playgame 1", "compare 1", "playfair 1 0 0.5"] {
         let error = Parser::default()
-            .ParseString(&format!("{prefix}{command}\n"), &mut Vec::new())
+            .parse_string(&format!("{prefix}{command}\n"), &mut Vec::new())
             .unwrap_err();
         assert_eq!(error.to_string(), "Cannot PlayGame unless it is preround");
     }
@@ -378,35 +378,35 @@ fn cpp_game_simulation_commands_require_preround() {
 
 #[test]
 fn parses_twin_option_and_properties() {
-    let twin = ParseDie("p(4,4):4", 0).unwrap();
-    assert!(twin.HasProperty(property::TWIN));
-    assert!(twin.HasProperty(property::POISON));
-    assert_eq!(twin.m_sides, [4, 4]);
+    let twin = parse_die("p(4,4):4", 0).unwrap();
+    assert!(twin.has_property(property::TWIN));
+    assert!(twin.has_property(property::POISON));
+    assert_eq!(twin.sides, [4, 4]);
 
-    let first_option = ParseDie("6/20-6:4", 1).unwrap();
-    assert!(first_option.HasProperty(property::OPTION));
-    assert_eq!(first_option.m_sides, [6, 20]);
+    let first_option = parse_die("6/20-6:4", 1).unwrap();
+    assert!(first_option.has_property(property::OPTION));
+    assert_eq!(first_option.sides, [6, 20]);
 
-    let second_option = ParseDie("6/20-20:17", 2).unwrap();
-    assert!(second_option.HasProperty(property::OPTION));
-    assert_eq!(second_option.m_sides, [20, 6]);
+    let second_option = parse_die("6/20-20:17", 2).unwrap();
+    assert!(second_option.has_property(property::OPTION));
+    assert_eq!(second_option.sides, [20, 6]);
 
-    let mood_swing = ParseDie("zU?-30", 3).unwrap();
-    assert!(mood_swing.HasProperty(property::SPEED | property::MOOD));
-    assert_eq!(mood_swing.m_sides[0], 30);
+    let mood_swing = parse_die("zU?-30", 3).unwrap();
+    assert!(mood_swing.has_property(property::SPEED | property::MOOD));
+    assert_eq!(mood_swing.sides[0], 30);
 
-    let jolt = ParseDie("J^6:3", 4).unwrap();
-    assert!(jolt.HasProperty(property::JOLT | property::TIME_AND_SPACE));
+    let jolt = parse_die("J^6:3", 4).unwrap();
+    assert!(jolt.has_property(property::JOLT | property::TIME_AND_SPACE));
 }
 
 #[test]
 fn every_advertised_property_prefix_is_accepted_by_the_die_parser() {
     for notation in crate::protocol::notation::DIE_PROPERTY_PREFIXES {
         let recipe = format!("{}6", notation.token);
-        let die = ParseDie(&recipe, 0)
+        let die = parse_die(&recipe, 0)
             .unwrap_or_else(|error| panic!("{} did not parse: {error}", notation.name));
         assert!(
-            die.HasProperty(notation.property),
+            die.has_property(notation.property),
             "{} ({:?}) was not retained by {recipe}",
             notation.name,
             notation.token
@@ -429,10 +429,10 @@ fn every_wire_phase_name_maps_to_the_expected_game_phase() {
         let input = format!("game 5\n{name}\nplayer 0 0 0\nplayer 1 0 0\nquit\n");
         let mut parser = Parser::default();
         parser
-            .ParseString(&input, &mut Vec::new())
+            .parse_string(&input, &mut Vec::new())
             .unwrap_or_else(|error| panic!("{name} did not parse: {error}"));
-        assert_eq!(parser.m_game.m_phase, expected, "{name}");
-        assert_eq!(parser.m_game.m_target_wins, 5, "{name}");
+        assert_eq!(parser.game.phase, expected, "{name}");
+        assert_eq!(parser.game.target_wins, 5, "{name}");
     }
 }
 
@@ -464,7 +464,7 @@ fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
 #[test]
 fn auxiliary_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
     let error = Parser::default()
-        .ParseString(
+        .parse_string(
             "game 3\naux\nplayer 0 2 0\n+6\n+8\nplayer 1 1 0\n+6\nquit\n",
             &mut Vec::new(),
         )
@@ -494,17 +494,17 @@ fn native_auxiliary_search_is_worker_count_independent() {
 
 #[test]
 fn current_value_and_focus_dizzy_suffix_are_parsed_explicitly() {
-    let ready = ParseDie("6:4", 2).unwrap();
-    assert_eq!(ready.m_value_total, Some(4));
-    assert!(!ready.m_notset);
-    assert!(!ready.m_dizzy);
-    assert_eq!(ready.m_original_index, 2);
+    let ready = parse_die("6:4", 2).unwrap();
+    assert_eq!(ready.value, Some(4));
+    assert!(!ready.notset);
+    assert!(!ready.dizzy);
+    assert_eq!(ready.original_index, 2);
 
-    let dizzy = ParseDie("f12:7d", 4).unwrap();
-    assert_eq!(dizzy.m_value_total, Some(7));
-    assert!(!dizzy.m_notset);
-    assert!(dizzy.m_dizzy);
-    assert_eq!(dizzy.m_original_index, 4);
+    let dizzy = parse_die("f12:7d", 4).unwrap();
+    assert_eq!(dizzy.value, Some(7));
+    assert!(!dizzy.notset);
+    assert!(dizzy.dizzy);
+    assert_eq!(dizzy.original_index, 4);
 }
 
 #[test]
@@ -519,9 +519,9 @@ fn defined_swing_size_applies_to_every_swing_half_of_a_twin() {
         ("(T,T)-2?:2", [2, 2]),
         ("(T,T)?-2:2", [2, 2]),
     ] {
-        let die = ParseDie(recipe, 0).unwrap();
-        assert!(die.HasProperty(property::TWIN), "{recipe}");
-        assert_eq!(die.m_sides, expected_sides, "{recipe}");
+        let die = parse_die(recipe, 0).unwrap();
+        assert!(die.has_property(property::TWIN), "{recipe}");
+        assert_eq!(die.sides, expected_sides, "{recipe}");
     }
 }
 
@@ -529,8 +529,8 @@ fn defined_swing_size_applies_to_every_swing_half_of_a_twin() {
 fn zero_does_not_lock_a_swing_definition() {
     let input = "game 3\npreround\nplayer 0 1 0\nT-0\nplayer 1 1 0\n6\nquit\n";
     let mut parser = Parser::default();
-    parser.ParseString(input, &mut Vec::new()).unwrap();
-    assert_eq!(parser.m_game.m_player[0].m_swing_set, SwingSet::Not);
+    parser.parse_string(input, &mut Vec::new()).unwrap();
+    assert_eq!(parser.game.players[0].swing_set, SwingSet::Not);
 }
 
 #[test]
@@ -539,10 +539,10 @@ fn positive_defined_swing_and_option_values_lock_player_state() {
         let input = format!("game 3\npreround\nplayer 0 1 0\n{recipe}\nplayer 1 1 0\n6\nquit\n");
         let mut parser = Parser::default();
         parser
-            .ParseString(&input, &mut Vec::new())
+            .parse_string(&input, &mut Vec::new())
             .unwrap_or_else(|error| panic!("{recipe} did not parse: {error}"));
         assert_eq!(
-            parser.m_game.m_player[0].m_swing_set,
+            parser.game.players[0].swing_set,
             SwingSet::Locked,
             "{recipe}"
         );
@@ -569,7 +569,7 @@ fn initiative_chance_and_focus_use_bmai_search() {
 fn typed_initiative_actions_use_original_die_indices() {
     let mut parser = Parser::default();
     parser
-        .ParseString(
+        .parse_string(
             "game 3\nfocus\nplayer 0 2 0\nf10:10\nc8:8\nplayer 1 1 0\n6:6\n",
             &mut Vec::new(),
         )
@@ -577,7 +577,7 @@ fn typed_initiative_actions_use_original_die_indices() {
 
     assert_eq!(
         protocol_focus(
-            &parser.m_game,
+            &parser.game,
             &crate::search::FocusMove {
                 values: vec![(0, 4)]
             }
@@ -587,10 +587,7 @@ fn typed_initiative_actions_use_original_die_indices() {
         }
     );
     assert_eq!(
-        protocol_chance(
-            &parser.m_game,
-            &crate::search::ChanceMove { reroll: vec![1] }
-        ),
+        protocol_chance(&parser.game, &crate::search::ChanceMove { reroll: vec![1] }),
         crate::protocol::ProtocolAction::Chance { dice: vec![1] }
     );
 }
@@ -697,7 +694,7 @@ fn deeper_reference_fixtures_emit_reference_protocol_actions() {
 fn obsolete_sims_command_is_rejected_like_reference_binary() {
     let input = include_str!("../../../tests/fixtures/test_in.txt");
     let error = Parser::default()
-        .ParseString(input, &mut Vec::new())
+        .parse_string(input, &mut Vec::new())
         .unwrap_err();
     assert_eq!(error.to_string(), "unrecognized command: sims 150");
 }
@@ -710,7 +707,7 @@ fn rust_execution_and_rng_modes_are_independent_and_versioned() {
 
     let mut output = Vec::new();
     parser
-        .ParseString(
+        .parse_string(
             "mode native\nrng park-miller\nseed 17\nmode parity\nrng legacy\nquit\n",
             &mut output,
         )
@@ -730,7 +727,7 @@ fn rust_execution_and_rng_modes_are_independent_and_versioned() {
 #[test]
 fn rust_execution_and_rng_modes_reject_unknown_values() {
     let engine = Parser::default()
-        .ParseString("mode experimental\n", &mut Vec::new())
+        .parse_string("mode experimental\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
         engine.to_string(),
@@ -738,7 +735,7 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
     );
 
     let rng = Parser::default()
-        .ParseString("rng xoshiro\n", &mut Vec::new())
+        .parse_string("rng xoshiro\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
         rng.to_string(),
@@ -749,23 +746,23 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
 #[test]
 fn fire_overshooting_is_explicit_default_off_session_state() {
     let mut parser = Parser::default();
-    assert!(!parser.m_game.m_fire_overshooting);
+    assert!(!parser.game.fire_overshooting);
 
     let mut output = Vec::new();
     parser
-        .ParseString(
+        .parse_string(
             "fire_overshooting on\nfire_overshooting off\nquit\n",
             &mut output,
         )
         .unwrap();
-    assert!(!parser.m_game.m_fire_overshooting);
+    assert!(!parser.game.fire_overshooting);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         "Setting Fire overshooting on\nSetting Fire overshooting off\n"
     );
 
     let error = parser
-        .ParseString("fire_overshooting maybe\n", &mut Vec::new())
+        .parse_string("fire_overshooting maybe\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
         error.to_string(),
@@ -776,12 +773,12 @@ fn fire_overshooting_is_explicit_default_off_session_state() {
 #[test]
 fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
     let zero = Parser::default()
-        .ParseString("workers 0\n", &mut Vec::new())
+        .parse_string("workers 0\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(zero.to_string(), "native worker count must be at least 1");
 
     let malformed = Parser::default()
-        .ParseString("workers many\n", &mut Vec::new())
+        .parse_string("workers many\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(malformed.to_string(), "invalid integer: many");
 
@@ -790,7 +787,7 @@ fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
     let run = |workers: usize| {
         let input = fixture.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
-        Parser::default().ParseString(&input, &mut output).unwrap();
+        Parser::default().parse_string(&input, &mut output).unwrap();
         String::from_utf8(output).unwrap().replace(
             &format!("Setting native workers to {workers}"),
             "Setting native workers to N",
@@ -805,7 +802,7 @@ fn native_worker_auto_uses_available_logical_parallelism() {
     let mut parser = Parser::default();
     let mut output = Vec::new();
 
-    parser.ParseString("workers auto\n", &mut output).unwrap();
+    parser.parse_string("workers auto\n", &mut output).unwrap();
 
     assert_eq!(parser.session_metadata().workers, expected);
     assert_eq!(
@@ -819,16 +816,16 @@ fn native_replay_index_advances_only_for_native_bmai_searches() {
     let fixture = include_str!("../../../tests/native-fixtures/fight.txt");
 
     let mut qai = Parser::default();
-    qai.ParseString(
+    qai.parse_string(
         &fixture.replace("getaction", "ai 0 1\ngetaction"),
         &mut Vec::new(),
     )
     .unwrap();
-    assert_eq!(qai.m_native_decision_index, 0);
+    assert_eq!(qai.native_decision_index, 0);
 
     let mut bmai = Parser::default();
-    bmai.ParseString(fixture, &mut Vec::new()).unwrap();
-    assert_eq!(bmai.m_native_decision_index, 1);
+    bmai.parse_string(fixture, &mut Vec::new()).unwrap();
+    assert_eq!(bmai.native_decision_index, 1);
 }
 
 #[test]
@@ -861,7 +858,7 @@ fn native_wire_fixtures_are_deterministic() {
         let expected = expected.replace("\r\n", "\n");
         for _ in 0..2 {
             let mut output = Vec::new();
-            Parser::default().ParseString(input, &mut output).unwrap();
+            Parser::default().parse_string(input, &mut output).unwrap();
             assert_eq!(String::from_utf8(output).unwrap(), expected);
         }
     }
@@ -872,7 +869,7 @@ fn native_phases_are_worker_count_independent() {
     let run = |input: &str, workers: usize| {
         let input = input.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
-        Parser::default().ParseString(&input, &mut output).unwrap();
+        Parser::default().parse_string(&input, &mut output).unwrap();
         String::from_utf8(output).unwrap().replace(
             &format!("Setting native workers to {workers}"),
             "Setting native workers to N",
@@ -897,7 +894,7 @@ fn native_phases_are_worker_count_independent() {
 fn simulation_fixture_emits_reference_match_result() {
     let input = include_str!("../../../tests/fixtures/bmsim_in.txt");
     let mut output = Vec::new();
-    Parser::default().ParseString(input, &mut output).unwrap();
+    Parser::default().parse_string(input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
     assert!(output.ends_with("matches over 12 - 8\n"), "{output}");
 }

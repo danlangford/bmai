@@ -15,46 +15,46 @@ fn cpp_die_index_set_is_bounded_and_iterates_like_bit_array() {
 
 fn die(properties: u64) -> Die {
     Die {
-        m_properties: property::VALID | properties,
-        m_sides: [20, 0],
-        m_swing_type: [None, None],
-        m_value_total: Some(8),
-        m_captured: false,
-        m_notset: false,
-        m_dizzy: false,
-        m_original_index: 0,
-        m_in_reserve: false,
+        properties: property::VALID | properties,
+        sides: [20, 0],
+        swing_type: [None, None],
+        value: Some(8),
+        captured: false,
+        notset: false,
+        dizzy: false,
+        original_index: 0,
+        in_reserve: false,
     }
 }
 
 fn game_with(attacker: Vec<Die>, target: Vec<Die>) -> Game {
     let mut game = Game::default();
-    game.m_player[0].m_die = attacker;
-    game.m_player[1].m_die = target;
+    game.players[0].dice = attacker;
+    game.players[1].dice = target;
     game
 }
 
 fn attacks(game: &Game, kind: Attack) -> Vec<Move> {
-    game.GenerateValidAttacks()
+    game.generate_valid_attacks()
         .into_iter()
-        .filter(|action| action.m_attack == Some(kind))
+        .filter(|action| action.attack == Some(kind))
         .collect()
 }
 
 fn valued_die(value: i32, properties: u64, original_index: usize) -> Die {
     let mut result = die(properties);
-    result.m_sides[0] = value.max(1) as u8;
-    result.m_value_total = Some(value as u8);
-    result.m_original_index = original_index;
+    result.sides[0] = value.max(1) as u8;
+    result.value = Some(value as u8);
+    result.original_index = original_index;
     result
 }
 
 fn has_skill(game: &Game, attackers: &[usize], target: usize) -> bool {
     let expected: DieIndexSet = attackers.iter().copied().collect();
-    game.GenerateValidAttacks().iter().any(|action| {
-        action.m_attack == Some(Attack::Skill)
-            && action.m_attackers == expected
-            && action.m_targets.first() == Some(target)
+    game.generate_valid_attacks().iter().any(|action| {
+        action.attack == Some(Attack::Skill)
+            && action.attackers == expected
+            && action.targets.first() == Some(target)
     })
 }
 
@@ -388,50 +388,47 @@ fn pr82_signed_konstant_skill_attack_matrix() {
 #[test]
 fn cpp_player_copy_constructor_is_independent() {
     let first = Player {
-        m_id: 1,
+        id: 1,
         ..Default::default()
     };
     let mut second = first.clone();
-    assert_eq!(second.m_id, 1);
-    second.m_id = 2;
-    assert_eq!(second.m_id, 2);
-    assert_eq!(first.m_id, 1);
+    assert_eq!(second.id, 1);
+    second.id = 2;
+    assert_eq!(second.id, 2);
+    assert_eq!(first.id, 1);
 }
 
 #[test]
 fn score_matches_cpp_property_branches() {
-    assert_eq!(die(0).GetScore(true), 10.0);
-    assert_eq!(die(0).GetScore(false), 20.0);
-    assert_eq!(die(property::POISON).GetScore(true), -20.0);
-    assert_eq!(die(property::POISON).GetScore(false), -10.0);
-    assert_eq!(die(property::VALUE).GetScore(true), 4.0);
-    assert_eq!(die(property::VALUE).GetScore(false), 8.0);
-    assert_eq!(die(property::POISON | property::VALUE).GetScore(true), -8.0);
-    assert_eq!(
-        die(property::POISON | property::VALUE).GetScore(false),
-        -4.0
-    );
-    assert_eq!(die(property::NULL).GetScore(false), 0.0);
-    assert_eq!(die(property::WARRIOR).GetScore(true), 0.0);
+    assert_eq!(die(0).score(true), 10.0);
+    assert_eq!(die(0).score(false), 20.0);
+    assert_eq!(die(property::POISON).score(true), -20.0);
+    assert_eq!(die(property::POISON).score(false), -10.0);
+    assert_eq!(die(property::VALUE).score(true), 4.0);
+    assert_eq!(die(property::VALUE).score(false), 8.0);
+    assert_eq!(die(property::POISON | property::VALUE).score(true), -8.0);
+    assert_eq!(die(property::POISON | property::VALUE).score(false), -4.0);
+    assert_eq!(die(property::NULL).score(false), 0.0);
+    assert_eq!(die(property::WARRIOR).score(true), 0.0);
 }
 
 #[test]
 fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
     let mut game = Game::default();
     let mut turbo = die(property::TURBO);
-    turbo.m_sides[0] = 10;
-    turbo.m_swing_type[0] = Some('X');
-    turbo.m_value_total = Some(10);
-    game.m_player[0].m_die = vec![turbo];
+    turbo.sides[0] = 10;
+    turbo.swing_type[0] = Some('X');
+    turbo.value = Some(10);
+    game.players[0].dice = vec![turbo];
     let mut target = die(0);
-    target.m_value_total = Some(8);
-    game.m_player[1].m_die = vec![target];
+    target.value = Some(8);
+    game.players[1].dice = vec![target];
 
-    let moves = game.GenerateValidAttacks();
+    let moves = game.generate_valid_attacks();
     let mut choices = moves
         .iter()
-        .filter(|action| action.m_attack == Some(Attack::Power))
-        .map(|action| action.m_turbo_option)
+        .filter(|action| action.attack == Some(Attack::Power))
+        .map(|action| action.turbo_option)
         .collect::<Vec<_>>();
     choices.sort_unstable();
     assert_eq!(choices, (4_i16..=20).collect::<Vec<_>>());
@@ -441,25 +438,25 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
 fn cpp_order_appends_turbo_alternatives_after_every_base_attack() {
     let mut game = Game::default();
     let mut turbo = die(property::TURBO);
-    turbo.m_sides[0] = 10;
-    turbo.m_swing_type[0] = Some('X');
-    turbo.m_value_total = Some(10);
+    turbo.sides[0] = 10;
+    turbo.swing_type[0] = Some('X');
+    turbo.value = Some(10);
     let mut ordinary = die(0);
-    ordinary.m_value_total = Some(9);
-    ordinary.m_original_index = 1;
-    game.m_player[0].m_die = vec![turbo, ordinary];
+    ordinary.value = Some(9);
+    ordinary.original_index = 1;
+    game.players[0].dice = vec![turbo, ordinary];
     let mut target = die(0);
-    target.m_value_total = Some(8);
-    game.m_player[1].m_die = vec![target];
+    target.value = Some(8);
+    game.players[1].dice = vec![target];
 
-    let moves = game.GenerateValidAttacksInCppOrder();
+    let moves = game.generate_valid_attacks_in_cpp_order();
     let first_alternative = moves
         .iter()
-        .position(|action| action.m_turbo_option >= 0 && action.m_turbo_option != 10)
+        .position(|action| action.turbo_option >= 0 && action.turbo_option != 10)
         .unwrap();
     let last_base = moves
         .iter()
-        .rposition(|action| action.m_turbo_option < 0 || action.m_turbo_option == 10)
+        .rposition(|action| action.turbo_option < 0 || action.turbo_option == 10)
         .unwrap();
     assert!(first_alternative > last_base);
 }
@@ -467,101 +464,101 @@ fn cpp_order_appends_turbo_alternatives_after_every_base_attack() {
 #[test]
 fn already_legal_power_attack_does_not_offer_unrequested_fire_overshoot() {
     let mut attacker = die(0);
-    attacker.m_value_total = Some(8);
+    attacker.value = Some(8);
     let mut helper = die(property::FIRE);
-    helper.m_sides[0] = 6;
-    helper.m_value_total = Some(5);
-    helper.m_original_index = 1;
+    helper.sides[0] = 6;
+    helper.value = Some(5);
+    helper.original_index = 1;
     let mut target = die(0);
-    target.m_sides[0] = 6;
-    target.m_value_total = Some(5);
+    target.sides[0] = 6;
+    target.value = Some(5);
     let game = game_with(vec![attacker, helper], vec![target]);
 
     let matching = game
-        .GenerateValidAttacks()
+        .generate_valid_attacks()
         .into_iter()
         .filter(|action| {
-            action.m_attack == Some(Attack::Power)
-                && action.m_attackers == DieIndexSet::from([0])
-                && action.m_targets == DieIndexSet::from([0])
+            action.attack == Some(Attack::Power)
+                && action.attackers == DieIndexSet::from([0])
+                && action.targets == DieIndexSet::from([0])
         })
         .collect::<Vec<_>>();
 
     assert_eq!(matching.len(), 1);
-    assert!(matching[0].m_fire.is_empty());
+    assert!(matching[0].fire.is_empty());
 }
 
 #[test]
 fn optional_overshoots_cannot_exhaust_the_required_fire_budget() {
     let mut attacker = die(0);
-    attacker.m_sides[0] = 10;
-    attacker.m_value_total = Some(5);
+    attacker.sides[0] = 10;
+    attacker.value = Some(5);
     let mut helper = die(property::FIRE);
-    helper.m_sides[0] = 20;
-    helper.m_value_total = Some(20);
-    helper.m_original_index = 1;
+    helper.sides[0] = 20;
+    helper.value = Some(20);
+    helper.original_index = 1;
     let mut high_target = die(0);
-    high_target.m_value_total = Some(8);
+    high_target.value = Some(8);
     let mut low_target = die(0);
-    low_target.m_value_total = Some(4);
-    low_target.m_original_index = 1;
+    low_target.value = Some(4);
+    low_target.original_index = 1;
     let mut game = game_with(vec![attacker, helper], vec![high_target, low_target]);
-    game.m_fire_overshooting = true;
+    game.fire_overshooting = true;
 
     let assisted = game
-        .GenerateValidAttacksInCppOrderForSearch(1)
+        .generate_valid_attacks_in_cpp_order_for_search(1)
         .into_iter()
-        .filter(|action| !action.m_fire.is_empty())
+        .filter(|action| !action.fire.is_empty())
         .collect::<Vec<_>>();
 
     assert_eq!(assisted.len(), 1);
-    assert_eq!(assisted[0].m_targets, DieIndexSet::from([0]));
+    assert_eq!(assisted[0].targets, DieIndexSet::from([0]));
 }
 
 #[test]
 fn fire_plan_is_not_reused_for_a_different_turbo_option_size() {
     let mut turbo = die(property::TURBO | property::OPTION);
-    turbo.m_sides = [20, 6];
-    turbo.m_value_total = Some(10);
+    turbo.sides = [20, 6];
+    turbo.value = Some(10);
     let mut helper = die(property::FIRE);
-    helper.m_sides[0] = 6;
-    helper.m_value_total = Some(3);
-    helper.m_original_index = 1;
+    helper.sides[0] = 6;
+    helper.value = Some(3);
+    helper.original_index = 1;
     let mut target = die(0);
-    target.m_value_total = Some(12);
+    target.value = Some(12);
     let game = game_with(vec![turbo, helper], vec![target]);
 
     let assisted = game
-        .GenerateValidAttacksInCppOrder()
+        .generate_valid_attacks_in_cpp_order()
         .into_iter()
-        .filter(|action| action.m_attack == Some(Attack::Power) && !action.m_fire.is_empty())
+        .filter(|action| action.attack == Some(Attack::Power) && !action.fire.is_empty())
         .collect::<Vec<_>>();
 
     assert!(!assisted.is_empty());
-    assert!(assisted.iter().all(|action| action.m_turbo_option == 0));
+    assert!(assisted.iter().all(|action| action.turbo_option == 0));
 }
 
 #[test]
 fn fire_candidate_construction_obeys_the_search_budget() {
     let mut attacker = die(0);
-    attacker.m_value_total = Some(1);
+    attacker.value = Some(1);
     let mut dice = vec![attacker];
     for original_index in 1..10 {
         let mut helper = die(property::FIRE);
-        helper.m_value_total = Some(20);
-        helper.m_original_index = original_index;
+        helper.value = Some(20);
+        helper.original_index = original_index;
         dice.push(helper);
     }
     let mut target = die(0);
-    target.m_sides[0] = 200;
-    target.m_value_total = Some(50);
+    target.sides[0] = 200;
+    target.value = Some(50);
     let game = game_with(dice, vec![target]);
 
-    let moves = game.GenerateValidAttacksInCppOrderForSearch(3);
+    let moves = game.generate_valid_attacks_in_cpp_order_for_search(3);
     assert_eq!(
         moves
             .iter()
-            .filter(|action| !action.m_fire.is_empty())
+            .filter(|action| !action.fire.is_empty())
             .count(),
         3
     );
@@ -573,68 +570,69 @@ fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
 
     let mut konstant_game = Game::default();
     let mut konstant = die(property::KONSTANT);
-    konstant.m_value_total = Some(8);
-    konstant_game.m_player[0].m_die = vec![konstant];
-    konstant_game.m_player[1].m_die = vec![target];
-    assert!(konstant_game.GenerateValidAttacks().is_empty());
+    konstant.value = Some(8);
+    konstant_game.players[0].dice = vec![konstant];
+    konstant_game.players[1].dice = vec![target];
+    assert!(konstant_game.generate_valid_attacks().is_empty());
 
     let mut stealth_game = Game::default();
     let mut stealth = die(property::STEALTH);
-    stealth.m_value_total = Some(7);
-    stealth_game.m_player[0].m_die = vec![stealth];
-    stealth_game.m_player[1].m_die = vec![target];
-    assert!(stealth_game.GenerateValidAttacks().is_empty());
+    stealth.value = Some(7);
+    stealth_game.players[0].dice = vec![stealth];
+    stealth_game.players[1].dice = vec![target];
+    assert!(stealth_game.generate_valid_attacks().is_empty());
 
     let mut ordinary = die(0);
-    ordinary.m_original_index = 1;
-    ordinary.m_value_total = Some(1);
-    stealth_game.m_player[0].m_die = vec![stealth, ordinary];
+    ordinary.original_index = 1;
+    ordinary.value = Some(1);
+    stealth_game.players[0].dice = vec![stealth, ordinary];
     assert!(
-        stealth_game.GenerateValidAttacks().iter().any(|action| {
-            action.m_attack == Some(Attack::Skill) && action.m_attackers.len() == 2
-        })
+        stealth_game
+            .generate_valid_attacks()
+            .iter()
+            .any(|action| { action.attack == Some(Attack::Skill) && action.attackers.len() == 2 })
     );
 }
 
 #[test]
 fn cpp_basic_power_and_skill_attack_generation() {
     let mut a = die(0);
-    a.m_sides[0] = 9;
+    a.sides[0] = 9;
     let mut t = die(0);
-    t.m_sides[0] = 7;
-    t.m_value_total = Some(6);
+    t.sides[0] = 7;
+    t.value = Some(6);
     let game = game_with(vec![a], vec![t]);
     assert_eq!(attacks(&game, Attack::Power).len(), 1);
 
     let mut five = die(0);
-    five.m_sides[0] = 6;
-    five.m_value_total = Some(5);
+    five.sides[0] = 6;
+    five.value = Some(5);
     let mut one = five;
-    one.m_value_total = Some(1);
-    one.m_original_index = 1;
+    one.value = Some(1);
+    one.original_index = 1;
     let mut twenty = die(0);
-    twenty.m_value_total = Some(6);
+    twenty.value = Some(6);
     let game = game_with(vec![five, one], vec![twenty]);
     let skill = attacks(&game, Attack::Skill);
     assert_eq!(skill.len(), 1);
-    assert_eq!(skill[0].m_attackers, vec![0, 1]);
+    assert_eq!(skill[0].attackers, vec![0, 1]);
 
     let mut six = die(0);
-    six.m_sides[0] = 6;
-    six.m_value_total = Some(6);
+    six.sides[0] = 6;
+    six.value = Some(6);
     let mut twenty = die(0);
-    twenty.m_value_total = Some(6);
+    twenty.value = Some(6);
     let game = game_with(vec![six], vec![twenty]);
     assert_eq!(attacks(&game, Attack::Power).len(), 1);
     assert_eq!(attacks(&game, Attack::Skill).len(), 1);
 
     let mut konstant = die(property::KONSTANT);
-    konstant.m_value_total = Some(6);
+    konstant.value = Some(6);
     let mut target = die(0);
-    target.m_value_total = Some(6);
+    target.value = Some(6);
     assert!(
         game_with(vec![konstant], vec![target])
-            .GenerateValidAttacks()
+            .generate_valid_attacks()
             .is_empty()
     );
 }
@@ -642,33 +640,33 @@ fn cpp_basic_power_and_skill_attack_generation() {
 #[test]
 fn cpp_insult_and_stealth_restrictions() {
     let insult = die(property::INSULT);
-    assert!(insult.CanBeAttacked(Attack::Power, 1));
-    assert!(!insult.CanBeAttacked(Attack::Skill, 2));
+    assert!(insult.can_be_attacked(Attack::Power, 1));
+    assert!(!insult.can_be_attacked(Attack::Skill, 2));
     let stealth_insult = die(property::STEALTH | property::INSULT);
-    assert!(stealth_insult.CanBeAttacked(Attack::Skill, 2));
+    assert!(stealth_insult.can_be_attacked(Attack::Skill, 2));
 
     for active in [property::TRIP, property::SHADOW, property::BERSERK] {
         let stealth = die(property::STEALTH | active);
-        assert!(stealth.CanDoAttack(Attack::Skill, 2));
-        assert!(!stealth.CanDoAttack(Attack::Power, 1));
-        assert!(!stealth.CanDoAttack(Attack::Trip, 1));
-        assert!(!stealth.CanDoAttack(Attack::Shadow, 1));
-        assert!(!stealth.CanDoAttack(Attack::Berserk, 1));
+        assert!(stealth.can_do_attack(Attack::Skill, 2));
+        assert!(!stealth.can_do_attack(Attack::Power, 1));
+        assert!(!stealth.can_do_attack(Attack::Trip, 1));
+        assert!(!stealth.can_do_attack(Attack::Shadow, 1));
+        assert!(!stealth.can_do_attack(Attack::Berserk, 1));
     }
 
     let mut ordinary = die(0);
-    ordinary.m_value_total = Some(6);
+    ordinary.value = Some(6);
     let mut stealth_target = die(property::STEALTH);
-    stealth_target.m_value_total = Some(6);
+    stealth_target.value = Some(6);
     assert!(
         game_with(vec![ordinary], vec![stealth_target])
-            .GenerateValidAttacks()
+            .generate_valid_attacks()
             .is_empty()
     );
     let mut second = ordinary;
-    second.m_original_index = 1;
-    second.m_value_total = Some(1);
-    ordinary.m_value_total = Some(5);
+    second.original_index = 1;
+    second.value = Some(1);
+    ordinary.value = Some(5);
     assert_eq!(
         attacks(
             &game_with(vec![ordinary, second], vec![stealth_target]),
@@ -682,59 +680,50 @@ fn cpp_insult_and_stealth_restrictions() {
 #[test]
 fn pr82_variable_skill_stack_disables_legacy_value_pruning() {
     let mut stinger = die(property::STINGER);
-    stinger.m_value_total = Some(5);
+    stinger.value = Some(5);
     let mut three = die(0);
-    three.m_value_total = Some(3);
-    three.m_original_index = 1;
+    three.value = Some(3);
+    three.original_index = 1;
     let mut two = die(0);
-    two.m_value_total = Some(2);
-    two.m_original_index = 2;
+    two.value = Some(2);
+    two.original_index = 2;
     let mut target = die(0);
-    target.m_value_total = Some(8);
+    target.value = Some(8);
 
     let skill = attacks(
         &game_with(vec![stinger, three, two], vec![target]),
         Attack::Skill,
     );
-    assert!(skill.iter().any(|action| action.m_attackers.len() == 2));
-    assert!(skill.iter().any(|action| action.m_attackers.len() == 3));
+    assert!(skill.iter().any(|action| action.attackers.len() == 2));
+    assert!(skill.iter().any(|action| action.attackers.len() == 3));
 }
 
 #[test]
 fn cpp_speed_generation_and_property_score_combinations() {
     let mut speed = die(property::SPEED);
-    speed.m_sides[0] = 10;
-    speed.m_value_total = Some(8);
+    speed.sides[0] = 10;
+    speed.value = Some(8);
     let mut four = die(0);
-    four.m_sides[0] = 4;
-    four.m_value_total = Some(3);
+    four.sides[0] = 4;
+    four.value = Some(3);
     let mut six = die(0);
-    six.m_sides[0] = 6;
-    six.m_value_total = Some(5);
-    six.m_original_index = 1;
+    six.sides[0] = 6;
+    six.value = Some(5);
+    six.original_index = 1;
     let game = game_with(vec![speed], vec![four, six]);
     let speed_attacks = attacks(&game, Attack::Speed);
     assert_eq!(speed_attacks.len(), 1);
-    assert_eq!(speed_attacks[0].m_targets, vec![0, 1]);
+    assert_eq!(speed_attacks[0].targets, vec![0, 1]);
 
     let mut scored = die(0);
-    scored.m_sides[0] = 30;
-    assert_eq!(
-        (scored.GetScore(true), scored.GetScore(false)),
-        (15.0, 30.0)
-    );
-    scored.m_properties |= property::MORPHING | property::MAXIMUM;
-    assert_eq!(
-        (scored.GetScore(true), scored.GetScore(false)),
-        (15.0, 30.0)
-    );
-    scored.m_properties |= property::VALUE;
-    assert_eq!((scored.GetScore(true), scored.GetScore(false)), (4.0, 8.0));
-    scored.m_properties |= property::POISON;
-    assert_eq!(
-        (scored.GetScore(true), scored.GetScore(false)),
-        (-8.0, -4.0)
-    );
-    scored.m_properties |= property::NULL;
-    assert_eq!((scored.GetScore(true), scored.GetScore(false)), (0.0, 0.0));
+    scored.sides[0] = 30;
+    assert_eq!((scored.score(true), scored.score(false)), (15.0, 30.0));
+    scored.properties |= property::MORPHING | property::MAXIMUM;
+    assert_eq!((scored.score(true), scored.score(false)), (15.0, 30.0));
+    scored.properties |= property::VALUE;
+    assert_eq!((scored.score(true), scored.score(false)), (4.0, 8.0));
+    scored.properties |= property::POISON;
+    assert_eq!((scored.score(true), scored.score(false)), (-8.0, -4.0));
+    scored.properties |= property::NULL;
+    assert_eq!((scored.score(true), scored.score(false)), (0.0, 0.0));
 }

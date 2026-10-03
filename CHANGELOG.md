@@ -14,7 +14,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
+- A playing-strength harness: seeded matches between two versions or AI
+  policies over fixed button pairings, reporting win rate with a confidence
+  interval, so every AI change is measured.
+- Stronger QAI rollouts from a few cheap rules, kept within QAI's time and
+  memory budget and measured with the harness.
+- A `minimax` AI policy (expectiminimax), built in measured steps:
+  - Exact reroll odds instead of sampling, starting with a Turbo pre-screen
+    that drops dominated sizes before simulating the rest.
+  - Exact Chance and Focus decisions.
+  - A short search with exact chance nodes, so forced attacks and pressure on
+    an opponent's critical die emerge on their own.
+  - Leaf scoring from the keep-threshold (two-thirds of the side-total
+    difference), critical dice, and capture odds, after the Cheapass Games
+    strategy articles.
+  - Exact endgame solving for small positions (retrograde analysis).
+  - Swing-size ranking from the same threshold math.
+- Review the protocol and JSONL schema while they can still change, then
+  freeze them for 1.0.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
+## [0.19.0] - 2026-10-03
+
+### Changed
+
+- Functions, methods, and fields use Rust naming, completing the 0.17.0
+  type rename. CamelCase functions are snake_case (`ApplyAttack` is
+  `apply_attack`), `Get` prefixes are gone (`GetValueTotal` is `value_total`),
+  and fields drop `m_` (`m_die` is `dice`, `m_player` is `players`). The crate
+  no longer allows `non_snake_case`. Library callers must update; protocol
+  output is unchanged.
 
 ## [0.18.0] - 2026-10-03
 
@@ -497,7 +526,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...HEAD
+[0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0
 [0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0
 [0.17.0]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...bmair-v0.17.0
 [0.16.0]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...bmair-v0.16.0

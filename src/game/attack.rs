@@ -17,8 +17,8 @@ impl<'a> AvailableDiceList<'a> {
             dice: [None; MAX_DICE],
             len: 0,
         };
-        for (index, die) in player.m_die.iter().enumerate() {
-            if die.IsAvailable() {
+        for (index, die) in player.dice.iter().enumerate() {
+            if die.is_available() {
                 available.dice[available.len] = Some((index, die));
                 available.len += 1;
             }
@@ -82,11 +82,11 @@ impl DieIndexStack {
     fn push(&mut self, index: usize, dice: &AvailableDiceList<'_>) {
         self.indices[self.len] = index;
         self.len += 1;
-        self.value_total += dice[index].1.GetValueTotal();
+        self.value_total += dice[index].1.value_total();
     }
 
     fn pop(&mut self, dice: &AvailableDiceList<'_>) {
-        self.value_total -= dice[self.indices[self.len - 1]].1.GetValueTotal();
+        self.value_total -= dice[self.indices[self.len - 1]].1.value_total();
         self.len -= 1;
     }
 
@@ -102,16 +102,16 @@ impl DieIndexStack {
             self.push(self.indices[self.len - 1] + 1, dice);
         } else {
             let top = self.len - 1;
-            self.value_total -= dice[self.indices[top]].1.GetValueTotal();
+            self.value_total -= dice[self.indices[top]].1.value_total();
             self.indices[top] += 1;
-            self.value_total += dice[self.indices[top]].1.GetValueTotal();
+            self.value_total += dice[self.indices[top]].1.value_total();
         }
         false
     }
 }
 
-fn DieCount(die: &Die) -> i32 {
-    if die.HasProperty(property::TWIN) {
+fn die_count(die: &Die) -> i32 {
+    if die.has_property(property::TWIN) {
         2
     } else {
         1
@@ -119,11 +119,15 @@ fn DieCount(die: &Die) -> i32 {
 }
 
 /// Konstant dice may add or subtract their value in a Skill attack.
-fn SkillStackCanHit(stack: &DieIndexStack, available: &AvailableDiceList<'_>, target: u16) -> bool {
-    SkillStackCanHitWithFire(stack, available, target, &[0; MAX_DICE])
+fn skill_stack_can_hit(
+    stack: &DieIndexStack,
+    available: &AvailableDiceList<'_>,
+    target: u16,
+) -> bool {
+    skill_stack_can_hit_with_fire(stack, available, target, &[0; MAX_DICE])
 }
 
-fn SkillStackCanHitWithFire(
+fn skill_stack_can_hit_with_fire(
     stack: &DieIndexStack,
     available: &AvailableDiceList<'_>,
     target: u16,
@@ -134,7 +138,7 @@ fn SkillStackCanHitWithFire(
         .iter()
         .filter(|position| {
             let die = available[**position].1;
-            die.HasProperty(property::KONSTANT) && !die.HasProperty(property::WARRIOR)
+            die.has_property(property::KONSTANT) && !die.has_property(property::WARRIOR)
         })
         .count();
 
@@ -144,18 +148,18 @@ fn SkillStackCanHitWithFire(
         let mut sign_bit = 0usize;
         for position in stack.values() {
             let (die_index, die) = available[*position];
-            let value = i32::from(die.GetValueTotal()) + i32::from(increases[die_index]);
-            let is_konstant = die.HasProperty(property::KONSTANT);
+            let value = i32::from(die.value_total()) + i32::from(increases[die_index]);
+            let is_konstant = die.has_property(property::KONSTANT);
             let variable_stinger =
-                die.HasProperty(property::STINGER) && !die.HasProperty(property::WARRIOR);
+                die.has_property(property::STINGER) && !die.has_property(property::WARRIOR);
             let term_minimum = if variable_stinger {
-                DieCount(die)
+                die_count(die)
             } else {
                 value
             };
 
             if is_konstant {
-                let may_subtract = !die.HasProperty(property::WARRIOR);
+                let may_subtract = !die.has_property(property::WARRIOR);
                 let subtract = may_subtract && signs & (1 << sign_bit) != 0;
                 if may_subtract {
                     sign_bit += 1;
@@ -180,23 +184,23 @@ fn SkillStackCanHitWithFire(
 }
 
 /// Mirrors ButtonWeavers `post_trip_roll_max`, including its Mood Twin quirk.
-fn TripRollMax(die: &Die, smallest_mood_size: bool) -> u16 {
-    if die.HasProperty(property::MOOD)
-        && let Some(swing) = die.m_swing_type[0]
+fn trip_roll_max(die: &Die, smallest_mood_size: bool) -> u16 {
+    if die.has_property(property::MOOD)
+        && let Some(swing) = die.swing_type[0]
     {
-        let (minimum, maximum) = super::SwingRange(swing);
+        let (minimum, maximum) = super::swing_range(swing);
         return u16::from(if smallest_mood_size { minimum } else { maximum });
     }
-    let dice = DieCount(die) as usize;
-    die.m_sides[..dice]
+    let dice = die_count(die) as usize;
+    die.sides[..dice]
         .iter()
         .map(|sides| {
             let mut sides = *sides;
-            if die.HasProperty(property::WEAK) {
-                sides = super::mechanics::WeakSides(sides);
+            if die.has_property(property::WEAK) {
+                sides = super::mechanics::weak_sides(sides);
             }
-            if die.HasProperty(property::MIGHTY) {
-                sides = super::mechanics::MightySides(sides);
+            if die.has_property(property::MIGHTY) {
+                sides = super::mechanics::mighty_sides(sides);
             }
             u16::from(sides)
         })
@@ -204,37 +208,37 @@ fn TripRollMax(die: &Die, smallest_mood_size: bool) -> u16 {
 }
 
 /// Mirrors ButtonWeavers `BMAttackTrip::validate_attack`.
-fn TripCanCapture(attacker: &Die, target: &Die) -> bool {
-    let target_minimum = DieCount(target) as u16;
-    let attacker_maximum = if attacker.HasProperty(property::KONSTANT) {
-        attacker.GetValueTotal()
+fn trip_can_capture(attacker: &Die, target: &Die) -> bool {
+    let target_minimum = die_count(target) as u16;
+    let attacker_maximum = if attacker.has_property(property::KONSTANT) {
+        attacker.value_total()
     } else {
-        TripRollMax(attacker, false)
+        trip_roll_max(attacker, false)
     };
-    if target.HasProperty(property::KONSTANT) && attacker_maximum < target.GetValueTotal() {
+    if target.has_property(property::KONSTANT) && attacker_maximum < target.value_total() {
         return false;
     }
-    if target.HasProperty(property::MAXIMUM) && attacker_maximum < TripRollMax(target, true) {
+    if target.has_property(property::MAXIMUM) && attacker_maximum < trip_roll_max(target, true) {
         return false;
     }
     attacker_maximum >= target_minimum
 }
 
-fn TurboSizes(die: &Die, accuracy: f32) -> Vec<(i16, Die)> {
-    if !die.HasProperty(property::TURBO) {
+fn turbo_sizes(die: &Die, accuracy: f32) -> Vec<(i16, Die)> {
+    if !die.has_property(property::TURBO) {
         return vec![(-1, *die)];
     }
-    if die.HasProperty(property::OPTION) {
+    if die.has_property(property::OPTION) {
         let mut swapped = *die;
-        swapped.m_sides.swap(0, 1);
+        swapped.sides.swap(0, 1);
         return vec![(0, *die), (1, swapped)];
     }
-    let Some(swing) = die.m_swing_type[0] else {
+    let Some(swing) = die.swing_type[0] else {
         return vec![(-1, *die)];
     };
     let (minimum, maximum) = turbo_swing_range(swing);
-    let mut choices = vec![die.m_sides[0], minimum, maximum];
-    let step = TurboStep(accuracy);
+    let mut choices = vec![die.sides[0], minimum, maximum];
+    let step = turbo_step(accuracy);
     let mut candidate = f32::from(minimum + 1);
     while candidate < f32::from(maximum) {
         choices.push(candidate as u8);
@@ -246,58 +250,58 @@ fn TurboSizes(die: &Die, accuracy: f32) -> Vec<(i16, Die)> {
             continue;
         }
         let mut resized = *die;
-        resized.m_sides[0] = sides;
+        resized.sides[0] = sides;
         sizes.push((i16::from(sides), resized));
     }
     sizes
 }
 
-/// Only sizes `ExpandTurboMoves` can submit count, so every Trip keeps one.
-fn TripReachableAtSomeTurboSize(
+/// Only sizes `expand_turbo_moves` can submit count, so every Trip keeps one.
+fn trip_reachable_at_some_turbo_size(
     attacker: &Die,
     target: &Die,
     expandable_turbo: bool,
     accuracy: f32,
 ) -> bool {
     if !expandable_turbo {
-        return TripCanCapture(attacker, target);
+        return trip_can_capture(attacker, target);
     }
-    TurboSizes(attacker, accuracy)
+    turbo_sizes(attacker, accuracy)
         .iter()
-        .any(|(_, resized)| TripCanCapture(resized, target))
+        .any(|(_, resized)| trip_can_capture(resized, target))
 }
 
-fn FireHelperCapacities(player: &Player, attackers: DieIndexSet) -> Vec<(usize, u8)> {
+fn fire_helper_capacities(player: &Player, attackers: DieIndexSet) -> Vec<(usize, u8)> {
     player
-        .m_die
+        .dice
         .iter()
         .enumerate()
         .filter(|(index, die)| {
-            !attackers.contains(*index) && die.IsAvailable() && die.HasProperty(property::FIRE)
+            !attackers.contains(*index) && die.is_available() && die.has_property(property::FIRE)
         })
         .filter_map(|(index, die)| {
-            let minimum = DieCount(die) as u16;
-            let capacity = die.GetValueTotal().saturating_sub(minimum);
+            let minimum = die_count(die) as u16;
+            let capacity = die.value_total().saturating_sub(minimum);
             (capacity > 0).then_some((index, capacity as u8))
         })
         .collect()
 }
 
-fn AttackerFireCapacities(player: &Player, attackers: DieIndexSet) -> Vec<(usize, u8)> {
+fn attacker_fire_capacities(player: &Player, attackers: DieIndexSet) -> Vec<(usize, u8)> {
     attackers
         .iter()
         .filter_map(|index| {
-            let die = &player.m_die[index];
+            let die = &player.dice[index];
             let capacity = die
-                .GetSidesMax()
+                .sides_max()
                 .min(u16::from(u8::MAX))
-                .saturating_sub(die.GetValueTotal());
+                .saturating_sub(die.value_total());
             (capacity > 0).then_some((index, capacity as u8))
         })
         .collect()
 }
 
-fn FireAllocations(entries: &[(usize, u8)], total: u16, limit: usize) -> Vec<[u8; MAX_DICE]> {
+fn fire_allocations(entries: &[(usize, u8)], total: u16, limit: usize) -> Vec<[u8; MAX_DICE]> {
     fn visit(
         entries: &[(usize, u8)],
         position: usize,
@@ -354,19 +358,19 @@ fn FireAllocations(entries: &[(usize, u8)], total: u16, limit: usize) -> Vec<[u8
     results
 }
 
-fn FirePlansForPower(
+fn fire_plans_for_power(
     player: &Player,
     attacker: usize,
     minimum: u16,
     limit: usize,
 ) -> Vec<FireAdjustment> {
     let attackers = DieIndexSet::from([attacker]);
-    let die = &player.m_die[attacker];
+    let die = &player.dice[attacker];
     let attacker_capacity = die
-        .GetSidesMax()
+        .sides_max()
         .min(u16::from(u8::MAX))
-        .saturating_sub(die.GetValueTotal());
-    let helper_capacities = FireHelperCapacities(player, attackers);
+        .saturating_sub(die.value_total());
+    let helper_capacities = fire_helper_capacities(player, attackers);
     let helper_capacity = helper_capacities
         .iter()
         .map(|(_, capacity)| u16::from(*capacity))
@@ -379,7 +383,7 @@ fn FirePlansForPower(
     for amount in minimum..=maximum {
         let remaining = limit - plans.len();
         plans.extend(
-            FireAllocations(&helper_capacities, amount, remaining)
+            fire_allocations(&helper_capacities, amount, remaining)
                 .into_iter()
                 .map(|reductions| {
                     let mut increases = [0; MAX_DICE];
@@ -394,7 +398,7 @@ fn FirePlansForPower(
     plans
 }
 
-fn FirePlansForSkill(
+fn fire_plans_for_skill(
     player: &Player,
     available: &AvailableDiceList<'_>,
     stack: &DieIndexStack,
@@ -406,8 +410,8 @@ fn FirePlansForSkill(
         .iter()
         .map(|position| available[*position].0)
         .collect::<DieIndexSet>();
-    let attacker_capacities = AttackerFireCapacities(player, attackers);
-    let helper_capacities = FireHelperCapacities(player, attackers);
+    let attacker_capacities = attacker_fire_capacities(player, attackers);
+    let helper_capacities = fire_helper_capacities(player, attackers);
     let maximum: u16 = attacker_capacities
         .iter()
         .map(|(_, capacity)| u16::from(*capacity))
@@ -423,12 +427,12 @@ fn FirePlansForSkill(
     }
     let mut plans = Vec::new();
     for amount in 1..=maximum {
-        let reductions = FireAllocations(&helper_capacities, amount, limit - plans.len());
+        let reductions = fire_allocations(&helper_capacities, amount, limit - plans.len());
         if reductions.is_empty() {
             continue;
         }
-        for increases in FireAllocations(&attacker_capacities, amount, limit - plans.len()) {
-            if !SkillStackCanHitWithFire(stack, available, target, &increases) {
+        for increases in fire_allocations(&attacker_capacities, amount, limit - plans.len()) {
+            if !skill_stack_can_hit_with_fire(stack, available, target, &increases) {
                 continue;
             }
             let remaining = limit - plans.len();
@@ -447,26 +451,26 @@ fn FirePlansForSkill(
 }
 
 impl Game {
-    fn GenerateValidAttackCandidatesInCppOrder(&self, fire_limit: usize) -> Vec<Move> {
-        let attacker = &self.m_player[0];
-        let target = &self.m_player[1];
+    fn generate_valid_attack_candidates_in_cpp_order(&self, fire_limit: usize) -> Vec<Move> {
+        let attacker = &self.players[0];
+        let target = &self.players[1];
         let available = AvailableDiceList::new(attacker);
         let targets = AvailableDiceList::new(target);
-        let target_max = targets.first().map_or(0, |(_, die)| die.GetValueTotal());
-        let target_min = targets.last().map_or(0, |(_, die)| die.GetValueTotal());
+        let target_max = targets.first().map_or(0, |(_, die)| die.value_total());
+        let target_min = targets.last().map_or(0, |(_, die)| die.value_total());
         let player_has_variable_skill_value = available.iter().any(|(_, die)| {
-            !die.HasProperty(property::WARRIOR)
-                && die.HasProperty(property::STINGER | property::KONSTANT)
+            !die.has_property(property::WARRIOR)
+                && die.has_property(property::STINGER | property::KONSTANT)
         });
-        let first_turbo = FirstTurboDie(attacker).map(|(index, _)| index);
-        let skill_attacks_allowed = attacker.m_specials & special::NO_SKILL_ATTACKS == 0
-            && target.m_specials & special::SKILL_IMMUNE == 0;
+        let first_turbo = first_turbo_die(attacker).map(|(index, _)| index);
+        let skill_attacks_allowed = attacker.specials & special::NO_SKILL_ATTACKS == 0
+            && target.specials & special::SKILL_IMMUNE == 0;
         let player_has_fire = available.iter().any(|(_, die)| {
-            die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
+            die.has_property(property::FIRE) && die.value_total() > die_count(die) as u16
         });
         let targets_have_rush = targets
             .iter()
-            .any(|(_, die)| die.HasProperty(property::RUSH));
+            .any(|(_, die)| die.has_property(property::RUSH));
         let mut moves = Vec::with_capacity(32);
         // Reserve the bounded Fire budget for required attacks before optional overshoots.
         let mut optional_fire_moves = Vec::new();
@@ -486,41 +490,41 @@ impl Game {
             ] {
                 match attack {
                     Attack::Power | Attack::Trip | Attack::Shadow => {
-                        if !attacker_die.CanDoAttack(attack, 1) {
+                        if !attacker_die.can_do_attack(attack, 1) {
                             continue;
                         }
                         for (target_index, target_die) in targets.iter().rev() {
-                            if !target_die.CanBeAttacked(attack, 1) {
+                            if !target_die.can_be_attacked(attack, 1) {
                                 continue;
                             }
                             let legal = match attack {
                                 Attack::Power => {
-                                    attacker_die.GetValueTotal() >= target_die.GetValueTotal()
+                                    attacker_die.value_total() >= target_die.value_total()
                                 }
                                 Attack::Shadow => {
-                                    attacker_die.GetValueTotal() <= target_die.GetValueTotal()
-                                        && attacker_die.GetSidesMax() >= target_die.GetValueTotal()
+                                    attacker_die.value_total() <= target_die.value_total()
+                                        && attacker_die.sides_max() >= target_die.value_total()
                                 }
-                                Attack::Trip => TripReachableAtSomeTurboSize(
+                                Attack::Trip => trip_reachable_at_some_turbo_size(
                                     attacker_die,
                                     target_die,
                                     first_turbo == Some(attacker_index),
-                                    self.m_turbo_accuracy,
+                                    self.turbo_accuracy,
                                 ),
                                 _ => unreachable!(),
                             };
                             if legal {
                                 let score = match attack {
                                     Attack::Power => {
-                                        target_die.GetScore(false)
-                                            - if attacker_die.HasProperty(property::VALUE) {
-                                                attacker_die.GetValueTotal() as f32 * 0.02
+                                        target_die.score(false)
+                                            - if attacker_die.has_property(property::VALUE) {
+                                                attacker_die.value_total() as f32 * 0.02
                                             } else {
                                                 0.0
                                             }
                                     }
-                                    Attack::Trip => target_die.GetScore(false) * 0.2,
-                                    Attack::Shadow => target_die.GetScore(false),
+                                    Attack::Trip => target_die.score(false) * 0.2,
+                                    Attack::Shadow => target_die.score(false),
                                     _ => unreachable!(),
                                 };
                                 moves.push(Move::attack(
@@ -532,10 +536,10 @@ impl Game {
                             }
                             if player_has_fire && attack == Attack::Power && !legal {
                                 let minimum = target_die
-                                    .GetValueTotal()
-                                    .saturating_sub(attacker_die.GetValueTotal())
+                                    .value_total()
+                                    .saturating_sub(attacker_die.value_total())
                                     .max(1);
-                                for fire in FirePlansForPower(
+                                for fire in fire_plans_for_power(
                                     attacker,
                                     attacker_index,
                                     minimum,
@@ -545,17 +549,17 @@ impl Game {
                                         attack,
                                         [attacker_index],
                                         [*target_index],
-                                        target_die.GetScore(false),
+                                        target_die.score(false),
                                     );
-                                    candidate.m_fire = fire;
+                                    candidate.fire = fire;
                                     moves.push(candidate);
                                     fire_remaining -= 1;
                                 }
                             } else if player_has_fire
                                 && attack == Attack::Power
-                                && self.m_fire_overshooting
+                                && self.fire_overshooting
                             {
-                                for fire in FirePlansForPower(
+                                for fire in fire_plans_for_power(
                                     attacker,
                                     attacker_index,
                                     1,
@@ -565,9 +569,9 @@ impl Game {
                                         attack,
                                         [attacker_index],
                                         [*target_index],
-                                        target_die.GetScore(false),
+                                        target_die.score(false),
                                     );
-                                    candidate.m_fire = fire;
+                                    candidate.fire = fire;
                                     optional_fire_moves.push(candidate);
                                     optional_fire_remaining -= 1;
                                 }
@@ -581,19 +585,21 @@ impl Game {
                         loop {
                             let stack_len = stack.len;
                             let dice_legal = stack.values().iter().all(|position| {
-                                available[*position].1.CanDoAttack(Attack::Skill, stack_len)
+                                available[*position]
+                                    .1
+                                    .can_do_attack(Attack::Skill, stack_len)
                             });
                             let warriors = stack
                                 .values()
                                 .iter()
                                 .filter(|position| {
-                                    available[**position].1.HasProperty(property::WARRIOR)
+                                    available[**position].1.has_property(property::WARRIOR)
                                 })
                                 .count();
                             let single_konstant = stack_len == 1
                                 && available[stack.values()[0]]
                                     .1
-                                    .HasProperty(property::KONSTANT);
+                                    .has_property(property::KONSTANT);
                             // ButtonWeavers requires a non-Warrior participant.
                             if dice_legal
                                 && warriors <= 1
@@ -602,52 +608,53 @@ impl Game {
                             {
                                 let stack_has_stinger = stack.values().iter().any(|position| {
                                     let die = available[*position].1;
-                                    !die.HasProperty(property::WARRIOR)
-                                        && die.HasProperty(property::STINGER)
+                                    !die.has_property(property::WARRIOR)
+                                        && die.has_property(property::STINGER)
                                 });
                                 let stack_has_konstant = stack.values().iter().any(|position| {
                                     let die = available[*position].1;
-                                    !die.HasProperty(property::WARRIOR)
-                                        && die.HasProperty(property::KONSTANT)
+                                    !die.has_property(property::WARRIOR)
+                                        && die.has_property(property::KONSTANT)
                                 });
                                 let minimum = stack
                                     .values()
                                     .iter()
                                     .map(|position| {
                                         let die = available[*position].1;
-                                        if die.HasProperty(property::STINGER) {
+                                        if die.has_property(property::STINGER) {
                                             1
                                         } else {
-                                            die.GetValueTotal()
+                                            die.value_total()
                                         }
                                     })
                                     .sum::<u16>();
                                 let flexible_stinger =
                                     stack_has_stinger && !stack_has_konstant && stack_len > 1;
                                 for (target_index, target_die) in targets.iter() {
-                                    if flexible_stinger && target_die.GetValueTotal() < minimum {
+                                    if flexible_stinger && target_die.value_total() < minimum {
                                         break;
                                     }
                                     if !stack_has_konstant
                                         && !flexible_stinger
-                                        && target_die.GetValueTotal() < stack.value_total
+                                        && target_die.value_total() < stack.value_total
                                     {
                                         break;
                                     }
                                     let candidate_value = if stack_has_konstant {
                                         true
                                     } else if flexible_stinger {
-                                        target_die.GetValueTotal() <= stack.value_total
+                                        target_die.value_total() <= stack.value_total
                                     } else {
-                                        target_die.GetValueTotal() == stack.value_total
+                                        target_die.value_total() == stack.value_total
                                     };
                                     let direct = candidate_value
-                                        && SkillStackCanHit(
+                                        && skill_stack_can_hit(
                                             &stack,
                                             &available,
-                                            target_die.GetValueTotal(),
+                                            target_die.value_total(),
                                         );
-                                    if direct && target_die.CanBeAttacked(Attack::Skill, stack_len)
+                                    if direct
+                                        && target_die.can_be_attacked(Attack::Skill, stack_len)
                                     {
                                         moves.push(Move::attack(
                                             attack,
@@ -657,32 +664,32 @@ impl Game {
                                                 .map(|position| available[*position].0)
                                                 .collect::<DieIndexSet>(),
                                             [*target_index],
-                                            target_die.GetScore(false),
+                                            target_die.score(false),
                                         ));
                                     }
                                     if player_has_fire
                                         && !direct
-                                        && target_die.CanBeAttacked(Attack::Skill, stack_len)
+                                        && target_die.can_be_attacked(Attack::Skill, stack_len)
                                     {
                                         let attacker_indices = stack
                                             .values()
                                             .iter()
                                             .map(|position| available[*position].0)
                                             .collect::<DieIndexSet>();
-                                        for fire in FirePlansForSkill(
+                                        for fire in fire_plans_for_skill(
                                             attacker,
                                             &available,
                                             &stack,
-                                            target_die.GetValueTotal(),
+                                            target_die.value_total(),
                                             fire_remaining,
                                         ) {
                                             let mut candidate = Move::attack(
                                                 attack,
                                                 attacker_indices,
                                                 [*target_index],
-                                                target_die.GetScore(false),
+                                                target_die.score(false),
                                             );
-                                            candidate.m_fire = fire;
+                                            candidate.fire = fire;
                                             moves.push(candidate);
                                             fire_remaining -= 1;
                                         }
@@ -708,11 +715,11 @@ impl Game {
                         }
                     }
                     Attack::Boom => {
-                        if !attacker_die.CanDoAttack(attack, 1) {
+                        if !attacker_die.can_do_attack(attack, 1) {
                             continue;
                         }
                         for (target_index, target_die) in targets.iter() {
-                            if target_die.CanBeAttacked(attack, 1) {
+                            if target_die.can_be_attacked(attack, 1) {
                                 moves.push(Move::attack(
                                     attack,
                                     [attacker_index],
@@ -724,28 +731,28 @@ impl Game {
                     }
                     Attack::Rush => {
                         // A Speed die's two-target Speed attack resolves identically.
-                        let attacker_has_rush = attacker_die.HasProperty(property::RUSH);
+                        let attacker_has_rush = attacker_die.has_property(property::RUSH);
                         if !attacker_has_rush && !targets_have_rush
-                            || !attacker_die.CanDoAttack(attack, 1)
-                            || attacker_die.CanDoAttack(Attack::Speed, 1)
+                            || !attacker_die.can_do_attack(attack, 1)
+                            || attacker_die.can_do_attack(Attack::Speed, 1)
                         {
                             continue;
                         }
                         for first in 0..targets.len() {
                             let (first_index, first_die) = targets[first];
-                            if !first_die.CanBeAttacked(attack, 1) {
+                            if !first_die.can_be_attacked(attack, 1) {
                                 continue;
                             }
                             for &(second_index, second_die) in targets.iter().skip(first + 1) {
-                                if first_die.GetValueTotal() + second_die.GetValueTotal()
-                                    != attacker_die.GetValueTotal()
-                                    || !second_die.CanBeAttacked(attack, 1)
+                                if first_die.value_total() + second_die.value_total()
+                                    != attacker_die.value_total()
+                                    || !second_die.can_be_attacked(attack, 1)
                                 {
                                     continue;
                                 }
                                 if !attacker_has_rush
-                                    && !first_die.HasProperty(property::RUSH)
-                                    && !second_die.HasProperty(property::RUSH)
+                                    && !first_die.has_property(property::RUSH)
+                                    && !second_die.has_property(property::RUSH)
                                 {
                                     continue;
                                 }
@@ -753,23 +760,23 @@ impl Game {
                                     attack,
                                     [attacker_index],
                                     [first_index, second_index],
-                                    first_die.GetScore(false) + second_die.GetScore(false),
+                                    first_die.score(false) + second_die.score(false),
                                 ));
                             }
                         }
                     }
                     Attack::Berserk | Attack::Speed => {
-                        if !attacker_die.CanDoAttack(attack, 1) || targets.is_empty() {
+                        if !attacker_die.can_do_attack(attack, 1) || targets.is_empty() {
                             continue;
                         }
                         let mut stack = DieIndexStack::new();
                         stack.push(0, &targets);
                         loop {
-                            if attacker_die.GetValueTotal() == stack.value_total
+                            if attacker_die.value_total() == stack.value_total
                                 && stack
                                     .values()
                                     .iter()
-                                    .all(|position| targets[*position].1.CanBeAttacked(attack, 1))
+                                    .all(|position| targets[*position].1.can_be_attacked(attack, 1))
                             {
                                 let target_indices = stack
                                     .values()
@@ -779,7 +786,7 @@ impl Game {
                                 let score = stack
                                     .values()
                                     .iter()
-                                    .map(|position| targets[*position].1.GetScore(false))
+                                    .map(|position| targets[*position].1.score(false))
                                     .sum();
                                 moves.push(Move::attack(
                                     attack,
@@ -789,11 +796,11 @@ impl Game {
                                 ));
                             }
                             if stack.len == targets.len()
-                                && attacker_die.GetValueTotal() >= stack.value_total
+                                && attacker_die.value_total() >= stack.value_total
                             {
                                 break;
                             }
-                            let finished = if attacker_die.GetValueTotal() <= stack.value_total {
+                            let finished = if attacker_die.value_total() <= stack.value_total {
                                 stack.cycle(false, &targets)
                             } else {
                                 stack.cycle(true, &targets)
@@ -811,173 +818,176 @@ impl Game {
         moves
     }
 
-    pub fn GenerateValidAttacks(&self) -> Vec<Move> {
+    pub fn generate_valid_attacks(&self) -> Vec<Move> {
         // QAI and protocol users depend on this API's score order.
-        self.GenerateValidAttacksForSearch(usize::MAX)
+        self.generate_valid_attacks_for_search(usize::MAX)
     }
 
-    pub fn GenerateValidAttacksInCppOrder(&self) -> Vec<Move> {
-        let mut moves = self.GenerateValidAttackCandidatesInCppOrder(usize::MAX);
-        ExpandTurboMoves(self, &mut moves);
+    pub fn generate_valid_attacks_in_cpp_order(&self) -> Vec<Move> {
+        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(usize::MAX);
+        expand_turbo_moves(self, &mut moves);
         moves
     }
 
-    fn GenerateValidAttacksForSearch(&self, fire_limit: usize) -> Vec<Move> {
-        let mut moves = self.GenerateValidAttackCandidatesInCppOrder(fire_limit);
+    fn generate_valid_attacks_for_search(&self, fire_limit: usize) -> Vec<Move> {
+        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(fire_limit);
         moves.sort_by(|a, b| {
-            b.m_score
-                .total_cmp(&a.m_score)
-                .then_with(|| attack_preference(a.m_attack).cmp(&attack_preference(b.m_attack)))
+            b.score
+                .total_cmp(&a.score)
+                .then_with(|| attack_preference(a.attack).cmp(&attack_preference(b.attack)))
         });
-        ExpandTurboMoves(self, &mut moves);
+        expand_turbo_moves(self, &mut moves);
         moves
     }
 
-    pub(crate) fn GenerateValidAttacksInCppOrderForSearch(&self, fire_limit: usize) -> Vec<Move> {
-        let mut moves = self.GenerateValidAttackCandidatesInCppOrder(fire_limit);
-        ExpandTurboMoves(self, &mut moves);
+    pub(crate) fn generate_valid_attacks_in_cpp_order_for_search(
+        &self,
+        fire_limit: usize,
+    ) -> Vec<Move> {
+        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(fire_limit);
+        expand_turbo_moves(self, &mut moves);
         moves
     }
 
-    pub fn GetAttackAction(&self) -> Move {
-        let moves = self.GenerateValidAttacksForSearch(DEFAULT_FIRE_CANDIDATE_LIMIT);
-        if self.m_surrender_allowed && self.m_player[1].m_score - self.m_player[0].m_score >= 20.0 {
+    pub fn attack_action(&self) -> Move {
+        let moves = self.generate_valid_attacks_for_search(DEFAULT_FIRE_CANDIDATE_LIMIT);
+        if self.surrender_allowed && self.players[1].score - self.players[0].score >= 20.0 {
             return Move {
-                m_action: Action::Surrender,
-                m_attack: None,
-                m_attackers: Vec::new().into(),
-                m_targets: Vec::new().into(),
-                m_score: 0.0,
-                m_turbo_option: -1,
-                m_fire: FireAdjustment::default(),
+                action: Action::Surrender,
+                attack: None,
+                attackers: Vec::new().into(),
+                targets: Vec::new().into(),
+                score: 0.0,
+                turbo_option: -1,
+                fire: FireAdjustment::default(),
             };
         }
         if let Some(best) = moves.first() {
             return best.clone();
         }
         Move {
-            m_action: if self.m_surrender_allowed {
+            action: if self.surrender_allowed {
                 Action::Surrender
             } else {
                 Action::Pass
             },
-            m_attack: None,
-            m_attackers: Vec::new().into(),
-            m_targets: Vec::new().into(),
-            m_score: 0.0,
-            m_turbo_option: -1,
-            m_fire: FireAdjustment::default(),
+            attack: None,
+            attackers: Vec::new().into(),
+            targets: Vec::new().into(),
+            score: 0.0,
+            turbo_option: -1,
+            fire: FireAdjustment::default(),
         }
     }
 
-    pub fn GetAttackActionDeep(&self) -> Move {
-        let moves = self.GenerateValidAttacksForSearch(DEFAULT_FIRE_CANDIDATE_LIMIT);
+    pub fn attack_action_deep(&self) -> Move {
+        let moves = self.generate_valid_attacks_for_search(DEFAULT_FIRE_CANDIDATE_LIMIT);
         moves
             .into_iter()
-            .filter(|candidate| candidate.m_action == Action::Attack)
+            .filter(|candidate| candidate.action == Action::Attack)
             .min_by(|a, b| {
                 let a_target = a
-                    .m_targets
+                    .targets
                     .iter()
-                    .map(|index| self.m_player[1].m_die[index].GetScore(false))
+                    .map(|index| self.players[1].dice[index].score(false))
                     .sum::<f32>();
                 let b_target = b
-                    .m_targets
+                    .targets
                     .iter()
-                    .map(|index| self.m_player[1].m_die[index].GetScore(false))
+                    .map(|index| self.players[1].dice[index].score(false))
                     .sum::<f32>();
-                let a_attacker = a.m_attackers.first().unwrap_or(0);
-                let b_attacker = b.m_attackers.first().unwrap_or(0);
+                let a_attacker = a.attackers.first().unwrap_or(0);
+                let b_attacker = b.attackers.first().unwrap_or(0);
                 a_target
                     .total_cmp(&b_target)
                     .then_with(|| {
-                        self.m_player[0].m_die[b_attacker]
-                            .GetSidesMax()
-                            .cmp(&self.m_player[0].m_die[a_attacker].GetSidesMax())
+                        self.players[0].dice[b_attacker]
+                            .sides_max()
+                            .cmp(&self.players[0].dice[a_attacker].sides_max())
                     })
                     .then_with(|| b_attacker.cmp(&a_attacker))
             })
-            .unwrap_or_else(|| self.GetAttackAction())
+            .unwrap_or_else(|| self.attack_action())
     }
 }
 
-fn FirstTurboDie(player: &Player) -> Option<(usize, &Die)> {
+fn first_turbo_die(player: &Player) -> Option<(usize, &Die)> {
     player
-        .m_die
+        .dice
         .iter()
         .enumerate()
-        .find(|(_, die)| die.IsAvailable() && die.HasProperty(property::TURBO))
+        .find(|(_, die)| die.is_available() && die.has_property(property::TURBO))
 }
 
-fn MoveInvolvesDie(action: &Move, die: usize) -> bool {
-    match action.m_attack {
+fn move_involves_die(action: &Move, die: usize) -> bool {
+    match action.attack {
         Some(Attack::Power | Attack::Shadow | Attack::Trip)
         | Some(Attack::Berserk | Attack::Speed | Attack::Rush) => {
-            action.m_attackers.first() == Some(die)
+            action.attackers.first() == Some(die)
         }
-        Some(Attack::Skill) => action.m_attackers.contains(die),
+        Some(Attack::Skill) => action.attackers.contains(die),
         // The Boom die leaves play without rolling, so Turbo never applies.
         Some(Attack::Boom) | None => false,
     }
 }
 
-fn ExpandTurboMoves(game: &Game, moves: &mut Vec<Move>) {
-    let player = &game.m_player[0];
-    let accuracy = game.m_turbo_accuracy;
-    let Some((turbo_index, turbo_die)) = FirstTurboDie(player) else {
+fn expand_turbo_moves(game: &Game, moves: &mut Vec<Move>) {
+    let player = &game.players[0];
+    let accuracy = game.turbo_accuracy;
+    let Some((turbo_index, turbo_die)) = first_turbo_die(player) else {
         return;
     };
     let original_move_count = moves.len();
     for move_index in 0..original_move_count {
-        if !MoveInvolvesDie(&moves[move_index], turbo_index) {
+        if !move_involves_die(&moves[move_index], turbo_index) {
             continue;
         }
         // Decay strips Turbo before the attack reroll, so sizes only matter for
         // Trip, which ButtonWeavers rolls at the chosen size before decaying.
-        if moves[move_index].m_attack != Some(Attack::Trip)
-            && super::mechanics::RadioactiveDecayApplies(game, &moves[move_index], 0, 1)
+        if moves[move_index].attack != Some(Attack::Trip)
+            && super::mechanics::radioactive_decay_applies(game, &moves[move_index], 0, 1)
         {
             continue;
         }
-        if moves[move_index].m_attack == Some(Attack::Trip) {
-            let target = moves[move_index].m_targets.first().expect("Trip target");
-            let target_die = &game.m_player[1].m_die[target];
-            let legal = TurboSizes(turbo_die, accuracy)
+        if moves[move_index].attack == Some(Attack::Trip) {
+            let target = moves[move_index].targets.first().expect("Trip target");
+            let target_die = &game.players[1].dice[target];
+            let legal = turbo_sizes(turbo_die, accuracy)
                 .into_iter()
-                .filter(|(_, resized)| TripCanCapture(resized, target_die))
+                .filter(|(_, resized)| trip_can_capture(resized, target_die))
                 .map(|(size, _)| size)
                 .collect::<Vec<_>>();
             let (first, rest) = legal
                 .split_first()
                 .expect("generated Trips have a legal Turbo size");
-            moves[move_index].m_turbo_option = *first;
+            moves[move_index].turbo_option = *first;
             for size in rest {
                 let mut changed = moves[move_index].clone();
-                changed.m_turbo_option = *size;
+                changed.turbo_option = *size;
                 moves.push(changed);
             }
             continue;
         }
-        if turbo_die.HasProperty(property::OPTION) {
-            moves[move_index].m_turbo_option = 0;
+        if turbo_die.has_property(property::OPTION) {
+            moves[move_index].turbo_option = 0;
             // The Fire plan assumed the current size and may not fit another.
-            if !moves[move_index].m_fire.is_empty() {
+            if !moves[move_index].fire.is_empty() {
                 continue;
             }
             let mut changed = moves[move_index].clone();
-            changed.m_turbo_option = 1;
+            changed.turbo_option = 1;
             moves.push(changed);
-        } else if let Some(swing) = turbo_die.m_swing_type[0] {
-            let current = i16::from(turbo_die.m_sides[0]);
-            moves[move_index].m_turbo_option = current;
-            if !moves[move_index].m_fire.is_empty() {
+        } else if let Some(swing) = turbo_die.swing_type[0] {
+            let current = i16::from(turbo_die.sides[0]);
+            moves[move_index].turbo_option = current;
+            if !moves[move_index].fire.is_empty() {
                 continue;
             }
-            // Unlike `TurboSizes`, this keeps C++'s duplicate sizes at
+            // Unlike `turbo_sizes`, this keeps C++'s duplicate sizes at
             // accuracies above 1 so non-Trip candidate order is unchanged.
             let (minimum, maximum) = turbo_swing_range(swing);
             let mut choices = vec![minimum, maximum];
-            let step = TurboStep(accuracy);
+            let step = turbo_step(accuracy);
             let mut candidate = f32::from(minimum + 1);
             while candidate < f32::from(maximum) {
                 choices.push(candidate as u8);
@@ -989,7 +999,7 @@ fn ExpandTurboMoves(game: &Game, moves: &mut Vec<Move>) {
                     continue;
                 }
                 let mut changed = moves[move_index].clone();
-                changed.m_turbo_option = sides;
+                changed.turbo_option = sides;
                 moves.push(changed);
             }
         }
@@ -997,7 +1007,7 @@ fn ExpandTurboMoves(game: &Game, moves: &mut Vec<Move>) {
 }
 
 /// An infinite accuracy would make the step zero and never advance.
-fn TurboStep(accuracy: f32) -> f32 {
+fn turbo_step(accuracy: f32) -> f32 {
     let step = if accuracy <= 0.0 {
         1000.0
     } else {

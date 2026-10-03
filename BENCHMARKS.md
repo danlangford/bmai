@@ -127,7 +127,7 @@ Measured on 2026-10-03 on an Intel Core i7-7820HQ Mac (load average about 4,
 from other work). Each fixture ran once per binary, back to back, with user CPU
 time from the shell's `time`. The baseline was 0.17.0 plus the test-only DSL
 commits (`8561427`); 0.18.0 adds the four retained changes together: a reused
-per-thread rollout game, set-bit `DieIndexSet` iteration, cached `OptimizeDice`
+per-thread rollout game, set-bit `DieIndexSet` iteration, cached `optimize_dice`
 keys, and rotating captured dice into place. Output and RNG fingerprints were
 identical on every golden fixture.
 

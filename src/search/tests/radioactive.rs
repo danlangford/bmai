@@ -279,7 +279,7 @@ fn decay_removes_turbo_and_turbo_sizes_are_not_offered() {
 
     let turbo_sizes = attacks_by(&["%X!-12:12"], &["1:1"])
         .into_iter()
-        .map(|candidate| candidate.m_turbo_option)
+        .map(|candidate| candidate.turbo_option)
         .collect::<Vec<_>>();
     assert_eq!(turbo_sizes, vec![-1]);
     assert!(attacks_by(&["X!-12:12"], &["1:1"]).len() > 2);
@@ -356,7 +356,7 @@ fn null_decay_products_still_null_their_capture() {
 fn turbo_trip_still_offers_sizes_because_it_rolls_before_decaying() {
     let sizes = attacks_by(&["tX!-4:1"], &["%H20:3"])
         .into_iter()
-        .map(|candidate| candidate.m_turbo_option)
+        .map(|candidate| candidate.turbo_option)
         .collect::<Vec<_>>();
     assert!(sizes.contains(&4) && sizes.contains(&20), "{sizes:?}");
 
@@ -374,19 +374,19 @@ fn decay_is_skipped_rather_than_overflowing_the_dice_pool() {
     let mut game = Game::default();
     for original_index in 0..MAX_DICE {
         let mut attacker = swing_die('P', 0, original_index);
-        attacker.m_sides[0] = 20;
-        attacker.m_value_total = Some(20);
-        game.m_player[0].m_die.push(attacker);
+        attacker.sides[0] = 20;
+        attacker.value = Some(20);
+        game.players[0].dice.push(attacker);
     }
     let mut target = swing_die('P', property::RADIOACTIVE, 0);
-    target.m_sides[0] = 1;
-    target.m_value_total = Some(1);
-    game.m_player[1].m_die.push(target);
+    target.sides[0] = 1;
+    target.value = Some(1);
+    game.players[1].dice.push(target);
     let action = Move::attack(Power, [0], [0], 0.0);
 
-    ApplyAttack(&mut game, &action, &mut Rng::default());
+    apply_attack(&mut game, &action, &mut Rng::default());
 
-    assert_eq!(game.m_player[0].m_die.len(), MAX_DICE);
+    assert_eq!(game.players[0].dice.len(), MAX_DICE);
 }
 
 #[test]
@@ -424,8 +424,8 @@ fn radioactive_morphing_trip_decays_into_two_full_size_morphs() {
     // ButtonWeavers engine probe: %tm(4) Tripping (6) leaves two tm(6).
     let draws = |seed: u32| {
         let mut rng = Rng::default();
-        rng.SRand(seed);
-        [4, 6, 6, 6].map(|sides| rng.GetRandMax(sides) + 1)
+        rng.srand(seed);
+        [4, 6, 6, 6].map(|sides| rng.rand_max(sides) + 1)
     };
     let seed = (1..10_000)
         .find(|seed| {

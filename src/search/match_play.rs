@@ -4,8 +4,8 @@
 
 use super::*;
 
-pub fn PlayGames(template: &Game, games: usize, rng: &mut Rng, ai: &Bmai3) -> [usize; 2] {
-    PlayGamesWithPolicies(
+pub fn play_games(template: &Game, games: usize, rng: &mut Rng, ai: &Bmai3) -> [usize; 2] {
+    play_games_with_policies(
         template,
         games,
         rng,
@@ -16,16 +16,16 @@ pub fn PlayGames(template: &Game, games: usize, rng: &mut Rng, ai: &Bmai3) -> [u
     )
 }
 
-pub(crate) fn PlayGamesWithPolicies(
+pub(crate) fn play_games_with_policies(
     template: &Game,
     games: usize,
     rng: &mut Rng,
     policies: &[AiPolicy; 2],
 ) -> [usize; 2] {
-    PlayGamesWithPoliciesInternal(template, games, rng, policies, None)
+    play_games_with_policies_internal(template, games, rng, policies, None)
 }
 
-pub(crate) fn PlayGamesWithPoliciesNative(
+pub(crate) fn play_games_with_policies_native(
     template: &Game,
     games: usize,
     rng: &mut Rng,
@@ -35,15 +35,15 @@ pub(crate) fn PlayGamesWithPoliciesNative(
     decision_index: &mut u64,
 ) -> [usize; 2] {
     let mut native = NativeReplaySequence {
-        algorithm: rng.Algorithm(),
+        algorithm: rng.algorithm(),
         root_seed,
         workers,
         decision_index,
     };
-    PlayGamesWithPoliciesInternal(template, games, rng, policies, Some(&mut native))
+    play_games_with_policies_internal(template, games, rng, policies, Some(&mut native))
 }
 
-pub(super) fn PlayGamesWithPoliciesInternal(
+pub(super) fn play_games_with_policies_internal(
     template: &Game,
     games: usize,
     rng: &mut Rng,
@@ -52,7 +52,7 @@ pub(super) fn PlayGamesWithPoliciesInternal(
 ) -> [usize; 2] {
     let mut matches = [0, 0];
     for _ in 0..games {
-        let result = PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
+        let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
         matches[result.winner] += 1;
         println!(
             "game over {} - {} - {}",
@@ -71,7 +71,7 @@ pub(super) struct MatchResult {
     pub(super) reserves_used: usize,
 }
 
-pub(super) fn PlayMatchWithPolicies(
+pub(super) fn play_match_with_policies(
     template: &Game,
     rng: &mut Rng,
     policies: &[AiPolicy; 2],
@@ -82,9 +82,9 @@ pub(super) fn PlayMatchWithPolicies(
     let mut ties = 0usize;
     let mut initiative = 0;
     let mut reserves_used = 0;
-    while wins[0] < template.m_target_wins && wins[1] < template.m_target_wins {
-        RestoreDiceForNewRound(&mut game, template);
-        let round = PlayRoundWithPolicies(&mut game, rng, policies, native.as_deref_mut());
+    while wins[0] < template.target_wins && wins[1] < template.target_wins {
+        restore_dice_for_new_round(&mut game, template);
+        let round = play_round_with_policies(&mut game, rng, policies, native.as_deref_mut());
         let Some(winner) = round.0 else {
             ties += 1;
             continue;
@@ -92,27 +92,24 @@ pub(super) fn PlayMatchWithPolicies(
         initiative = round.1;
         wins[winner] += 1;
         let loser = 1 - winner;
-        game.m_player[loser].m_swing_set = SwingSet::Not;
-        for die in &mut game.m_player[loser].m_die {
-            if die.m_swing_type.iter().any(Option::is_some) {
-                die.m_notset = true;
+        game.players[loser].swing_set = SwingSet::Not;
+        for die in &mut game.players[loser].dice {
+            if die.swing_type.iter().any(Option::is_some) {
+                die.notset = true;
             }
         }
-        if wins[0] < template.m_target_wins
-            && wins[1] < template.m_target_wins
-            && game.m_player[loser]
-                .m_die
-                .iter()
-                .any(|die| die.m_in_reserve)
+        if wins[0] < template.target_wins
+            && wins[1] < template.target_wins
+            && game.players[loser].dice.iter().any(|die| die.in_reserve)
         {
             let mut oriented = game.clone();
             if loser == 1 {
-                oriented.m_player.swap(0, 1);
+                oriented.players.swap(0, 1);
             }
             let selected = match &policies[loser] {
                 AiPolicy::Bmai(ai) => {
                     if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
-                        SelectNativeBMAIReserveAction(
+                        select_native_bmai_reserve_action(
                             &oriented,
                             context.algorithm,
                             context.replay,
@@ -120,15 +117,15 @@ pub(super) fn PlayMatchWithPolicies(
                             ai,
                         )
                     } else {
-                        SelectBMAIReserveAction(&oriented, rng, ai)
+                        select_bmai_reserve_action(&oriented, rng, ai)
                     }
                 }
                 AiPolicy::Qai | AiPolicy::Random | AiPolicy::Maximize => {
-                    SelectQAIReserveAction(&oriented)
+                    select_qai_reserve_action(&oriented)
                 }
             };
             if let Some(index) = selected {
-                ApplyUseReserve(&mut game.m_player[loser].m_die[index]);
+                apply_use_reserve(&mut game.players[loser].dice[index]);
                 reserves_used += 1;
             }
         }
@@ -142,16 +139,16 @@ pub(super) fn PlayMatchWithPolicies(
     }
 }
 
-pub(crate) fn PlayFairGames(
+pub(crate) fn play_fair_games(
     template: &Game,
     games: usize,
     rng: &mut Rng,
     policies: &[AiPolicy; 2],
 ) -> [[usize; 2]; 2] {
-    PlayFairGamesInternal(template, games, rng, policies, None)
+    play_fair_games_internal(template, games, rng, policies, None)
 }
 
-pub(crate) fn PlayFairGamesNative(
+pub(crate) fn play_fair_games_native(
     template: &Game,
     games: usize,
     rng: &mut Rng,
@@ -161,15 +158,15 @@ pub(crate) fn PlayFairGamesNative(
     decision_index: &mut u64,
 ) -> [[usize; 2]; 2] {
     let mut native = NativeReplaySequence {
-        algorithm: rng.Algorithm(),
+        algorithm: rng.algorithm(),
         root_seed,
         workers,
         decision_index,
     };
-    PlayFairGamesInternal(template, games, rng, policies, Some(&mut native))
+    play_fair_games_internal(template, games, rng, policies, Some(&mut native))
 }
 
-pub(super) fn PlayFairGamesInternal(
+pub(super) fn play_fair_games_internal(
     template: &Game,
     games: usize,
     rng: &mut Rng,
@@ -178,57 +175,57 @@ pub(super) fn PlayFairGamesInternal(
 ) -> [[usize; 2]; 2] {
     let mut wins = [[0usize; 2]; 2];
     for _ in 0..games {
-        let result = PlayMatchWithPolicies(template, rng, policies, native.as_deref_mut());
+        let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
         wins[result.initiative_winner][result.winner] += 1;
     }
     wins
 }
 
-pub(super) fn PlayRoundWithPolicies(
+pub(super) fn play_round_with_policies(
     game: &mut Game,
     rng: &mut Rng,
     policies: &[AiPolicy; 2],
     mut native: Option<&mut NativeReplaySequence<'_>>,
 ) -> (Option<usize>, usize) {
-    PlayPreroundWithPolicies(game, rng, policies, native.as_deref_mut());
-    for player in &mut game.m_player {
-        player.m_score = 0.0;
-        for die in &mut player.m_die {
-            die.m_notset = true;
-            RollDie(die, rng);
+    play_preround_with_policies(game, rng, policies, native.as_deref_mut());
+    for player in &mut game.players {
+        player.score = 0.0;
+        for die in &mut player.dice {
+            die.notset = true;
+            roll_die(die, rng);
         }
-        player.m_score = player
-            .m_die
+        player.score = player
+            .dice
             .iter()
-            .filter(|die| die.IsAvailable())
-            .map(|die| die.GetScore(true))
+            .filter(|die| die.is_available())
+            .map(|die| die.score(true))
             .sum();
-        OptimizeDice(player);
+        optimize_dice(player);
     }
-    let mut phase_player = InitiativeWinner(game);
+    let mut phase_player = initiative_winner(game);
     let initiative_winner = phase_player;
     loop {
         let player = 1 - phase_player;
-        if !HasAvailableProperty(&game.m_player[player], property::CHANCE) {
+        if !has_available_property(&game.players[player], property::CHANCE) {
             break;
         }
         let action = match &policies[player] {
             AiPolicy::Bmai(ai) => {
                 let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
-                SelectChanceAction(game, player, rng, ai, 1, phase_player, native_evaluation).0
+                select_chance_action(game, player, rng, ai, 1, phase_player, native_evaluation).0
             }
             AiPolicy::Qai | AiPolicy::Random | AiPolicy::Maximize => {
                 ChanceMove { reroll: Vec::new() }
             }
         };
-        let (next_phase, continues) = ApplyChanceMove(game, player, phase_player, &action, rng);
-        if TraceSettings().chance {
+        let (next_phase, continues) = apply_chance_move(game, player, phase_player, &action, rng);
+        if trace_settings().chance {
             eprintln!(
                 "CHANCE_APPLY player={player} previous={phase_player} next={next_phase} continues={continues} values={:?}",
-                game.m_player[player]
-                    .m_die
+                game.players[player]
+                    .dice
                     .iter()
-                    .map(Die::GetValueTotal)
+                    .map(Die::value_total)
                     .collect::<Vec<_>>()
             );
         }
@@ -239,13 +236,13 @@ pub(super) fn PlayRoundWithPolicies(
     }
     loop {
         let player = 1 - phase_player;
-        if !HasAvailableProperty(&game.m_player[player], property::FOCUS) {
+        if !has_available_property(&game.players[player], property::FOCUS) {
             break;
         }
         let action = match &policies[player] {
             AiPolicy::Bmai(ai) => {
                 let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
-                SelectFocusAction(game, player, rng, ai, 1, phase_player, native_evaluation).0
+                select_focus_action(game, player, rng, ai, 1, phase_player, native_evaluation).0
             }
             AiPolicy::Qai | AiPolicy::Random | AiPolicy::Maximize => {
                 FocusMove { values: Vec::new() }
@@ -254,22 +251,22 @@ pub(super) fn PlayRoundWithPolicies(
         if action.values.is_empty() {
             break;
         }
-        ApplyFocusMove(game, player, &action);
+        apply_focus_move(game, player, &action);
         phase_player = player;
     }
     let mut consecutive_passes = 0;
     for _ in 0..256 {
-        if FightOver(game) {
+        if fight_over(game) {
             break;
         }
         let mut oriented = game.clone();
         if phase_player == 1 {
-            oriented.m_player.swap(0, 1);
+            oriented.players.swap(0, 1);
         }
         let action = match &policies[phase_player] {
             AiPolicy::Bmai(ai) => {
                 if let Some(context) = native.as_deref_mut().map(NativeReplaySequence::next) {
-                    SelectNativeBMAIAction(
+                    select_native_bmai_action(
                         &oriented,
                         context.algorithm,
                         context.replay,
@@ -277,45 +274,42 @@ pub(super) fn PlayRoundWithPolicies(
                         ai,
                     )
                 } else {
-                    SelectBMAIAction(&oriented, rng, ai)
+                    select_bmai_action(&oriented, rng, ai)
                 }
             }
-            AiPolicy::Qai => SelectQAIAction(&oriented, rng),
+            AiPolicy::Qai => select_qai_action(&oriented, rng),
             AiPolicy::Random => {
-                SelectRandomAction(&oriented, rng, Bmai3::default().FireCandidateLimit())
+                select_random_action(&oriented, rng, Bmai3::default().FireCandidateLimit())
             }
             AiPolicy::Maximize => {
-                SelectMaximizeAction(&oriented, rng, Bmai3::default().FireCandidateLimit())
+                select_maximize_action(&oriented, rng, Bmai3::default().FireCandidateLimit())
             }
         };
-        if action.m_action == Action::Surrender {
-            game.m_player[phase_player].m_score = -1000.0;
+        if action.action == Action::Surrender {
+            game.players[phase_player].score = -1000.0;
             break;
-        } else if action.m_action != Action::Attack {
+        } else if action.action != Action::Attack {
             consecutive_passes += 1;
             if consecutive_passes == 2 {
                 break;
             }
-            RecoverDizzyDice(&mut game.m_player[phase_player]);
+            recover_dizzy_dice(&mut game.players[phase_player]);
         } else {
             consecutive_passes = 0;
             let extra_turn =
-                ApplyAttackForPlayers(game, &action, phase_player, 1 - phase_player, rng);
-            RecoverDizzyDice(&mut game.m_player[phase_player]);
+                apply_attack_for_players(game, &action, phase_player, 1 - phase_player, rng);
+            recover_dizzy_dice(&mut game.players[phase_player]);
             if extra_turn {
                 continue;
             }
         }
         phase_player = 1 - phase_player;
     }
-    (RoundWinner(game), initiative_winner)
+    (round_winner(game), initiative_winner)
 }
 
-pub(super) fn RoundWinner(game: &Game) -> Option<usize> {
-    match game.m_player[1]
-        .m_score
-        .partial_cmp(&game.m_player[0].m_score)
-    {
+pub(super) fn round_winner(game: &Game) -> Option<usize> {
+    match game.players[1].score.partial_cmp(&game.players[0].score) {
         Some(std::cmp::Ordering::Greater) => Some(1),
         Some(std::cmp::Ordering::Less) => Some(0),
         Some(std::cmp::Ordering::Equal) => None,
@@ -323,50 +317,50 @@ pub(super) fn RoundWinner(game: &Game) -> Option<usize> {
     }
 }
 
-pub(super) fn PlayPreroundWithPolicies(
+pub(super) fn play_preround_with_policies(
     game: &mut Game,
     rng: &mut Rng,
     policies: &[AiPolicy; 2],
     mut native: Option<&mut NativeReplaySequence<'_>>,
 ) {
     for (player, policy) in policies.iter().enumerate() {
-        if game.m_player[player].m_swing_set != SwingSet::Not
-            || !NeedsSetSwing(&game.m_player[player])
+        if game.players[player].swing_set != SwingSet::Not
+            || !needs_set_swing(&game.players[player])
         {
-            game.m_player[player].m_swing_set = SwingSet::Locked;
+            game.players[player].swing_set = SwingSet::Locked;
             continue;
         }
         let selected = match policy {
             AiPolicy::Bmai(ai) => {
                 let native_evaluation = native.as_deref_mut().map(NativeReplaySequence::next);
-                SelectSwingAction(game, player, rng, ai, 1, native_evaluation).0
+                select_swing_action(game, player, rng, ai, 1, native_evaluation).0
             }
             AiPolicy::Qai | AiPolicy::Random | AiPolicy::Maximize => {
-                GenerateSwingMoves(&game.m_player[player])
+                generate_swing_moves(&game.players[player])
                     .into_iter()
                     .next()
                     .unwrap_or_else(SwingMove::empty)
             }
         };
-        ApplySwingMove(&mut game.m_player[player], &selected);
-        game.m_player[player].m_swing_set = SwingSet::Locked;
+        apply_swing_move(&mut game.players[player], &selected);
+        game.players[player].swing_set = SwingSet::Locked;
     }
 }
 
-pub(super) fn PlayPreround(game: &mut Game, rng: &mut Rng, ai: &Bmai3, level: usize) -> usize {
+pub(super) fn play_preround(game: &mut Game, rng: &mut Rng, ai: &Bmai3, level: usize) -> usize {
     // C++ never restores the level after a simulated preround, so the next
     // player's choice starts a ply deeper.
     let mut player_level = level;
     for player in 0..2 {
-        if game.m_player[player].m_swing_set != SwingSet::Not
-            || !NeedsSetSwing(&game.m_player[player])
+        if game.players[player].swing_set != SwingSet::Not
+            || !needs_set_swing(&game.players[player])
         {
-            game.m_player[player].m_swing_set = SwingSet::Locked;
+            game.players[player].swing_set = SwingSet::Locked;
             continue;
         }
-        let (selected, _) = SelectSwingAction(game, player, rng, ai, player_level, None);
-        ApplySwingMove(&mut game.m_player[player], &selected);
-        game.m_player[player].m_swing_set = SwingSet::Locked;
+        let (selected, _) = select_swing_action(game, player, rng, ai, player_level, None);
+        apply_swing_move(&mut game.players[player], &selected);
+        game.players[player].swing_set = SwingSet::Locked;
         if level > 1 {
             player_level += 1;
         }

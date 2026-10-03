@@ -2,19 +2,17 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-#![allow(non_snake_case)]
-
 pub(crate) mod ai;
 
 use self::ai::{Bmai3, EvaluationCoordinate, RolloutPolicy};
 use crate::game::{
-    Action, ApplyAttack, ApplyAttackForPlayers, ApplyBeforeRollEffects, AvailableDice,
-    CheckInitiative, Die, Game, InitiativeWinner, Move, OptimizeDice, RecoverDizzyDice,
-    RestoreDiceForNewRound, RollDie, RollRoundDice, RollScheduledDie, SwingRange, SwingSet,
-    property, special,
+    Action, Die, Game, Move, SwingSet, apply_attack, apply_attack_for_players,
+    apply_before_roll_effects, available_dice, check_initiative, initiative_winner, optimize_dice,
+    property, recover_dizzy_dice, restore_dice_for_new_round, roll_die, roll_round_dice,
+    roll_scheduled_die, special, swing_range,
 };
 #[cfg(test)]
-use crate::game::{ApplyAttackPlayerEffects, MAX_DICE};
+use crate::game::{MAX_DICE, apply_attack_player_effects};
 use crate::rng::Rng;
 
 #[derive(Clone, Copy)]
@@ -24,7 +22,7 @@ struct NativeEvaluation {
     workers: usize,
 }
 
-fn CompletesNativeProbabilitySample(native: Option<NativeEvaluation>) -> bool {
+fn completes_native_probability_sample(native: Option<NativeEvaluation>) -> bool {
     native.is_some_and(|context| context.replay.stream_version.completes_probability_sample())
 }
 
@@ -80,7 +78,7 @@ struct TraceSettings {
     qai_moves: bool,
 }
 
-fn TraceSettings() -> &'static TraceSettings {
+fn trace_settings() -> &'static TraceSettings {
     static QUIET: TraceSettings = TraceSettings {
         swing_list: false,
         swing_candidate: false,
@@ -199,21 +197,23 @@ use match_play::*;
 use preround::*;
 
 pub(crate) use fight::{
-    EvaluateSelectedNativeBMAIMove, SelectBMAIActionWithStats, SelectNativeBMAIActionWithStats,
-    SelectQAIAction,
+    evaluate_selected_native_bmai_move, select_bmai_action_with_stats,
+    select_native_bmai_action_with_stats, select_qai_action,
 };
 pub(crate) use initiative::{
-    SelectBMAIChanceAction, SelectBMAIFocusAction, SelectNativeBMAIChanceAction,
-    SelectNativeBMAIFocusAction,
+    select_bmai_chance_action, select_bmai_focus_action, select_native_bmai_chance_action,
+    select_native_bmai_focus_action,
 };
-pub use match_play::PlayGames;
+pub use match_play::play_games;
 pub(crate) use match_play::{
-    PlayFairGames, PlayFairGamesNative, PlayGamesWithPolicies, PlayGamesWithPoliciesNative,
+    play_fair_games, play_fair_games_native, play_games_with_policies,
+    play_games_with_policies_native,
 };
 pub(crate) use preround::{
-    SelectBMAIAuxiliaryAction, SelectBMAIReserveAction, SelectBMAISetSwingAction,
-    SelectNativeBMAIAuxiliaryAction, SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction,
-    SelectQAIAuxiliaryAction, SelectQAIReserveAction, SelectQAISetSwingAction,
+    select_bmai_auxiliary_action, select_bmai_reserve_action, select_bmai_set_swing_action,
+    select_native_bmai_auxiliary_action, select_native_bmai_reserve_action,
+    select_native_bmai_set_swing_action, select_qai_auxiliary_action, select_qai_reserve_action,
+    select_qai_set_swing_action,
 };
 
 #[cfg(test)]

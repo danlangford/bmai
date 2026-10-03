@@ -114,7 +114,7 @@ fn typed_actions_share_the_exact_legacy_execution_path() {
         let mut legacy_parser = Parser::default();
         let mut legacy_output = Vec::new();
         legacy_parser
-            .ParseString(script, &mut legacy_output)
+            .parse_string(script, &mut legacy_output)
             .unwrap();
 
         let value = response(

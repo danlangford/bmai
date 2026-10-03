@@ -7,11 +7,11 @@ use super::*;
 #[test]
 fn unique_rejects_equal_values_on_lower_swing_types() {
     let player = Player {
-        m_die: vec![swing_die('P', 0, 0), swing_die('Q', property::UNIQUE, 1)],
+        dice: vec![swing_die('P', 0, 0), swing_die('Q', property::UNIQUE, 1)],
         ..Default::default()
     };
 
-    let moves = GenerateSwingMoves(&player);
+    let moves = generate_swing_moves(&player);
     assert_eq!(moves.len(), 30 * 19 - 19);
     assert!(moves.iter().all(|candidate| {
         let p = candidate
@@ -69,18 +69,18 @@ fn pr82_participating_ornery_before_roll_effect_triggers_once() {
 fn pr82_ordinary_side_change_invalidates_value() {
     let mut game = Game::default();
     let mut attacker = swing_die('P', property::MIGHTY, 0);
-    attacker.m_sides[0] = 6;
-    attacker.m_value_total = Some(3);
+    attacker.sides[0] = 6;
+    attacker.value = Some(3);
     let mut target = swing_die('P', 0, 0);
-    target.m_sides[0] = 1;
-    target.m_value_total = Some(1);
-    game.m_player[0].m_die = vec![attacker];
-    game.m_player[1].m_die = vec![target];
+    target.sides[0] = 1;
+    target.value = Some(1);
+    game.players[0].dice = vec![attacker];
+    game.players[1].dice = vec![target];
     let action = Move::attack(Power, [0], [0], 0.0);
 
-    ApplyAttackPlayerEffects(&mut game, &action, 0, 1, 0, true);
-    assert!(game.m_player[0].m_die[0].m_notset);
-    assert_eq!(game.m_player[0].m_die[0].m_sides[0], 8);
+    apply_attack_player_effects(&mut game, &action, 0, 1, 0, true);
+    assert!(game.players[0].dice[0].notset);
+    assert_eq!(game.players[0].dice[0].sides[0], 8);
 }
 
 #[test]
@@ -162,26 +162,26 @@ fn cpp_maximum_die_always_rolls_its_maximum() {
 #[should_panic(expected = "Die::Roll requires NOTSET state")]
 fn cpp_roll_requires_notset_state() {
     let mut die = swing_die('P', 0, 0);
-    die.m_sides[0] = 6;
-    die.m_value_total = Some(1);
-    die.m_notset = false;
-    RollDie(&mut die, &mut Rng::default());
+    die.sides[0] = 6;
+    die.value = Some(1);
+    die.notset = false;
+    roll_die(&mut die, &mut Rng::default());
 }
 
 #[test]
 #[should_panic(expected = "Die::OnSwingSet requires NOTSET state")]
 fn cpp_swing_set_requires_notset_state() {
     let mut die = swing_die('X', 0, 0);
-    die.m_sides[0] = 6;
-    die.m_value_total = Some(1);
-    die.m_notset = false;
+    die.sides[0] = 6;
+    die.value = Some(1);
+    die.notset = false;
     let mut player = crate::game::Player {
-        m_die: vec![die],
+        dice: vec![die],
         ..Default::default()
     };
     let mut action = SwingMove::empty();
     action.push_value(('X', 8));
-    ApplySwingMove(&mut player, &action);
+    apply_swing_move(&mut player, &action);
 }
 
 #[test]

@@ -7,13 +7,13 @@ use crate::{Action, Attack};
 
 fn test_move(score: f32) -> Move {
     Move {
-        m_action: Action::Attack,
-        m_attack: Some(Attack::Power),
-        m_attackers: vec![0].into(),
-        m_targets: vec![0].into(),
-        m_score: score,
-        m_turbo_option: -1,
-        m_fire: crate::game::FireAdjustment::default(),
+        action: Action::Attack,
+        attack: Some(Attack::Power),
+        attackers: vec![0].into(),
+        targets: vec![0].into(),
+        score,
+        turbo_option: -1,
+        fire: crate::game::FireAdjustment::default(),
     }
 }
 
@@ -30,7 +30,7 @@ fn simulation_count_matches_cpp_decay_and_clamps() {
 #[test]
 fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
     let ai = Bmai3 {
-        m_max_sims: 5,
+        max_sims: 5,
         ..Default::default()
     };
     assert_eq!(ai.ComputeNumberSims(1000, 1), 10);
@@ -40,32 +40,32 @@ fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
 #[test]
 fn evaluation_selects_the_highest_probability_move() {
     let mut ai = Bmai3 {
-        m_max_sims: 20,
-        m_max_branch: 40,
+        max_sims: 20,
+        max_branch: 40,
         ..Default::default()
     };
-    let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, _| m.m_score);
-    assert_eq!(selected.m_score, 0.8);
-    assert!(ai.m_last_sims_run > 0);
-    assert!((ai.m_last_best_score / ai.m_last_sims_run as f32 - 0.8).abs() < f32::EPSILON * 2.0);
-    assert!((ai.m_last_probability_win - 0.8).abs() < f32::EPSILON * 2.0);
+    let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, _| m.score);
+    assert_eq!(selected.score, 0.8);
+    assert!(ai.last_sims_run > 0);
+    assert!((ai.last_best_score / ai.last_sims_run as f32 - 0.8).abs() < f32::EPSILON * 2.0);
+    assert!((ai.last_probability_win - 0.8).abs() < f32::EPSILON * 2.0);
 }
 
 #[test]
 fn legacy_bmai_evaluates_each_move_to_completion_without_culling() {
     let mut ai = Bmai3 {
-        m_cull_moves: false,
-        m_min_sims: 20,
-        m_max_sims: 20,
-        m_max_branch: 100,
+        cull_moves: false,
+        min_sims: 20,
+        max_sims: 20,
+        max_branch: 100,
         ..Default::default()
     };
     let mut order = Vec::new();
     let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, coordinate| {
-        order.push((m.m_score, coordinate));
-        m.m_score
+        order.push((m.score, coordinate));
+        m.score
     });
-    assert_eq!(selected.m_score, 0.8);
+    assert_eq!(selected.score, 0.8);
     assert_eq!(
         order[..20],
         (0..20)
@@ -97,10 +97,10 @@ fn legacy_bmai_evaluates_each_move_to_completion_without_culling() {
 #[test]
 fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
     let mut ai = Bmai3 {
-        m_min_sims: 20,
-        m_max_sims: 20,
-        m_max_branch: 100,
-        m_sims_per_check: 10,
+        min_sims: 20,
+        max_sims: 20,
+        max_branch: 100,
+        sims_per_check: 10,
         ..Default::default()
     };
     let mut coordinates = Vec::new();
@@ -108,8 +108,8 @@ fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
         vec![test_move(1.0), test_move(0.8)],
         1,
         |candidate, coordinate| {
-            coordinates.push((candidate.m_score, coordinate));
-            candidate.m_score
+            coordinates.push((candidate.score, coordinate));
+            candidate.score
         },
     );
 
@@ -134,9 +134,9 @@ fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
 #[test]
 fn native_probability_evaluation_completes_the_surviving_candidate() {
     let mut ai = Bmai3 {
-        m_max_sims: 100,
-        m_max_branch: 200,
-        m_min_sims: 5,
+        max_sims: 100,
+        max_branch: 200,
+        min_sims: 5,
         ..Default::default()
     };
     let mut evaluations = [0usize; 2];
@@ -146,14 +146,14 @@ fn native_probability_evaluation_completes_the_surviving_candidate() {
                 .iter()
                 .map(|request| {
                     evaluations[request.coordinate.candidate_index] += 1;
-                    request.candidate.m_score
+                    request.candidate.score
                 })
                 .collect()
         });
 
-    assert_eq!(selected.m_score, 1.0);
-    assert_eq!(ai.m_last_sims_run, 100);
-    assert_eq!(ai.m_last_probability_win, 1.0);
+    assert_eq!(selected.score, 1.0);
+    assert_eq!(ai.last_sims_run, 100);
+    assert_eq!(ai.last_probability_win, 1.0);
     assert_eq!(evaluations[0], 100);
     assert!(evaluations[1] < evaluations[0]);
 }

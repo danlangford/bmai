@@ -12,7 +12,7 @@ const REROLL_SEED: u32 = 3;
 fn boom_choices(attacker: &str, target: &str) -> Vec<Move> {
     attacks_by(&[attacker], &[target])
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(Boom))
+        .filter(|candidate| candidate.attack == Some(Boom))
         .collect()
 }
 
@@ -266,7 +266,7 @@ fn fire_cannot_assist_a_boom() {
 fn turbo_boom_dice_offer_no_turbo_sizes() {
     let choices = boom_choices("bX!-6:2", "6:5")
         .into_iter()
-        .map(|candidate| candidate.m_turbo_option)
+        .map(|candidate| candidate.turbo_option)
         .collect::<Vec<_>>();
     assert_eq!(choices, vec![-1]);
 }

@@ -8,7 +8,7 @@ use super::*;
 
 fn parsed(input: &str) -> crate::Parser {
     let mut parser = crate::Parser::default();
-    parser.ParseString(input, &mut Vec::new()).unwrap();
+    parser.parse_string(input, &mut Vec::new()).unwrap();
     parser
 }
 
@@ -19,16 +19,16 @@ fn special_command_sets_and_reports_each_players_specials() {
     let mut output = Vec::new();
     let mut parser = crate::Parser::default();
     parser
-        .ParseString(
+        .parse_string(
             &format!("{GAME}special 1 no_skill_attacks skill_immune\n"),
             &mut output,
         )
         .unwrap();
     assert_eq!(
-        parser.m_game.m_player[1].m_specials,
+        parser.game.players[1].specials,
         special::NO_SKILL_ATTACKS | special::SKILL_IMMUNE
     );
-    assert_eq!(parser.m_game.m_player[0].m_specials, 0);
+    assert_eq!(parser.game.players[0].specials, 0);
     assert!(
         String::from_utf8(output)
             .unwrap()
@@ -39,19 +39,19 @@ fn special_command_sets_and_reports_each_players_specials() {
 #[test]
 fn each_game_block_clears_specials() {
     let parser = parsed(&format!("{GAME}special 0 no_initiative\n{GAME}"));
-    assert_eq!(parser.m_game.m_player[0].m_specials, 0);
+    assert_eq!(parser.game.players[0].specials, 0);
 }
 
 #[test]
 fn unknown_specials_and_players_are_rejected() {
     let error = crate::Parser::default()
-        .ParseString(&format!("{GAME}special 0 flying\n"), &mut Vec::new())
+        .parse_string(&format!("{GAME}special 0 flying\n"), &mut Vec::new())
         .unwrap_err()
         .to_string();
     assert!(error.contains("unknown button special: flying"), "{error}");
     assert!(
         crate::Parser::default()
-            .ParseString(&format!("{GAME}special 2 no_initiative\n"), &mut Vec::new())
+            .parse_string(&format!("{GAME}special 2 no_initiative\n"), &mut Vec::new())
             .is_err()
     );
 }
@@ -118,12 +118,12 @@ fn simulations_keep_each_players_specials_after_a_side_swap() {
     let game = parsed(&format!(
         "{GAME}special 0 unique_swing\nspecial 1 no_initiative\n"
     ))
-    .m_game;
+    .game;
     let mut simulation = game.clone();
-    simulation.m_player.swap(0, 1);
-    super::fight::RestoreSimulation(&mut simulation, &game);
-    assert_eq!(simulation.m_player[0].m_specials, special::UNIQUE_SWING);
-    assert_eq!(simulation.m_player[1].m_specials, special::NO_INITIATIVE);
+    simulation.players.swap(0, 1);
+    super::fight::restore_simulation(&mut simulation, &game);
+    assert_eq!(simulation.players[0].specials, special::UNIQUE_SWING);
+    assert_eq!(simulation.players[1].specials, special::NO_INITIATIVE);
 }
 
 #[test]
@@ -133,21 +133,21 @@ fn no_initiative_loses_to_lower_dice_and_to_a_button_with_no_initiative_dice() {
             "game\ninitiative\nplayer 0 1 0\n1:1\nplayer 1 1 0\n{dice}\nspecial 0 no_initiative\n"
         )
     };
-    assert_eq!(CheckInitiative(&parsed(&input("20:20")).m_game), Some(1));
+    assert_eq!(check_initiative(&parsed(&input("20:20")).game), Some(1));
     // A Trip die does not count for initiative, but only Giant is ranked last.
-    assert_eq!(CheckInitiative(&parsed(&input("t4:4")).m_game), Some(1));
+    assert_eq!(check_initiative(&parsed(&input("t4:4")).game), Some(1));
 
     let both = parsed(
         "game\ninitiative\nplayer 0 1 0\n1:1\nplayer 1 1 0\n20:20\nspecial 0 no_initiative\nspecial 1 no_initiative\n",
     );
-    assert_eq!(CheckInitiative(&both.m_game), None);
+    assert_eq!(check_initiative(&both.game), None);
 }
 
 #[test]
 fn unique_swing_assigns_different_swing_types_different_sizes() {
     let parser =
         parsed("game\npreround\nplayer 0 3 0\nX\nY\nY\nplayer 1 1 0\n6\nspecial 0 unique_swing\n");
-    let moves = GenerateSwingMoves(&parser.m_game.m_player[0]);
+    let moves = generate_swing_moves(&parser.game.players[0]);
     // X is 4-20 and Y is 1-20, so 17 of the 17 * 20 pairs share a size.
     assert_eq!(moves.len(), 17 * 20 - 17);
     assert!(moves.iter().all(|candidate| {
@@ -160,7 +160,7 @@ fn unique_swing_assigns_different_swing_types_different_sizes() {
 fn unique_sizes_also_avoids_fixed_die_sizes() {
     let parser =
         parsed("game\npreround\nplayer 0 2 0\n8\nV\nplayer 1 1 0\n6\nspecial 0 unique_sizes\n");
-    let sizes = GenerateSwingMoves(&parser.m_game.m_player[0])
+    let sizes = generate_swing_moves(&parser.game.players[0])
         .iter()
         .map(|candidate| candidate.values()[0].1)
         .collect::<Vec<_>>();
@@ -171,7 +171,7 @@ fn unique_sizes_also_avoids_fixed_die_sizes() {
 fn unique_sizes_compares_option_dice_at_their_chosen_side() {
     let parser =
         parsed("game\npreround\nplayer 0 2 0\n8/10\nV\nplayer 1 1 0\n6\nspecial 0 unique_sizes\n");
-    let moves = GenerateSwingMoves(&parser.m_game.m_player[0]);
+    let moves = generate_swing_moves(&parser.game.players[0]);
     let chose = |size: u8, second: bool| {
         moves
             .iter()
@@ -187,13 +187,13 @@ fn gordo_auxiliary(player_0: &str, player_1: &str, gordo: usize) -> Game {
     parsed(&format!(
         "game 3\naux\nplayer 0 2 0\nV\n{player_0}\nplayer 1 2 0\n8\n{player_1}\nspecial {gordo} unique_sizes\nquit\n"
     ))
-    .m_game
+    .game
 }
 
 #[test]
 fn gordo_declines_a_v_to_z_auxiliary_swing_die() {
     assert_eq!(
-        SelectQAIAuxiliaryAction(&gordo_auxiliary("+X", "+6", 0)),
+        select_qai_auxiliary_action(&gordo_auxiliary("+X", "+6", 0)),
         None
     );
 }
@@ -202,7 +202,7 @@ fn gordo_declines_a_v_to_z_auxiliary_swing_die() {
 fn gordo_accepts_other_auxiliary_dice() {
     for auxiliary in ["+4", "+Q", "+(X,X)"] {
         assert_eq!(
-            SelectQAIAuxiliaryAction(&gordo_auxiliary(auxiliary, "+6", 0)),
+            select_qai_auxiliary_action(&gordo_auxiliary(auxiliary, "+6", 0)),
             Some(1),
             "{auxiliary}"
         );
@@ -213,9 +213,9 @@ fn gordo_accepts_other_auxiliary_dice() {
 fn either_players_gordo_decline_removes_both_auxiliary_dice() {
     for (player_0, player_1, gordo) in [("+X", "+6", 0), ("+6", "+X", 1)] {
         let mut game = gordo_auxiliary(player_0, player_1, gordo);
-        ApplyAuxiliaryDecision(&mut game, true);
-        assert_eq!(game.m_player[0].m_die.len(), 1, "Gordo is player {gordo}");
-        assert_eq!(game.m_player[1].m_die.len(), 1, "Gordo is player {gordo}");
+        apply_auxiliary_decision(&mut game, true);
+        assert_eq!(game.players[0].dice.len(), 1, "Gordo is player {gordo}");
+        assert_eq!(game.players[1].dice.len(), 1, "Gordo is player {gordo}");
     }
 }
 
@@ -330,8 +330,8 @@ fn mighty_trip_dice_reach_further() {
 fn trip_turbo_choices(attacker: &str, target: &str) -> Vec<i16> {
     attacks_by(&[attacker], &[target])
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(Trip))
-        .map(|candidate| candidate.m_turbo_option)
+        .filter(|candidate| candidate.attack == Some(Trip))
+        .map(|candidate| candidate.turbo_option)
         .collect()
 }
 
@@ -389,10 +389,10 @@ fn failed_trip_does_not_morph() {
 /// In attack order: Trip roll, target reroll, morphed reroll.
 fn trip_morph_draws(seed: u32, attacker_sides: u32, target_sides: u32) -> [u32; 3] {
     let mut rng = Rng::default();
-    rng.SRand(seed);
-    let trip = rng.GetRandMax(attacker_sides) + 1;
-    let target = rng.GetRandMax(target_sides) + 1;
-    let morphed = rng.GetRandMax(target_sides) + 1;
+    rng.srand(seed);
+    let trip = rng.rand_max(attacker_sides) + 1;
+    let target = rng.rand_max(target_sides) + 1;
+    let morphed = rng.rand_max(target_sides) + 1;
     [trip, target, morphed]
 }
 
@@ -450,11 +450,11 @@ fn radioactive_trip_target_decays_the_attacker_after_it_morphs() {
 #[test]
 fn infinite_turbo_accuracy_offers_every_size_instead_of_hanging() {
     let mut game = native_fixture_game("game\nfight\nplayer 0 1 0\ntX!-4:1\nplayer 1 1 0\n20:3\n");
-    game.m_turbo_accuracy = f32::INFINITY;
+    game.turbo_accuracy = f32::INFINITY;
     let sizes = game
-        .GenerateValidAttacksInCppOrder()
+        .generate_valid_attacks_in_cpp_order()
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(Trip))
+        .filter(|candidate| candidate.attack == Some(Trip))
         .count();
     assert_eq!(sizes, 17);
 }

@@ -65,10 +65,10 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(path) = arguments.first() {
         writeln!(output, "Reading from {path}")?;
         let input = fs::read_to_string(path)?;
-        parser.ParseString(&input, &mut output)?;
+        parser.parse_string(&input, &mut output)?;
     } else {
         let mut input = io::stdin().lock();
-        parser.ParseStream(&mut input, &mut output)?;
+        parser.parse_stream(&mut input, &mut output)?;
     }
     Ok(())
 }

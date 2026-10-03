@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseError> {
+pub(super) fn parse_die(input: &str, original_index: usize) -> Result<Die, ParseError> {
     let (definition, value_part) = input
         .split_once(':')
         .map_or((input, None), |(a, b)| (a, Some(b)));
@@ -60,7 +60,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseE
         pos += 1;
     }
     // The shared `-N` applies to every swing half: `(T,T)-2` is two d2s.
-    if let Some(value) = ParseDieDefinedSides(definition).filter(|value| *value > 0) {
+    if let Some(value) = parse_die_defined_sides(definition).filter(|value| *value > 0) {
         for side in 0..2 {
             if swings[side].is_some() {
                 sides[side] = value;
@@ -71,7 +71,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseE
             swings.swap(0, 1);
         }
     }
-    let m_value_total = value_part
+    let value = value_part
         .map(|v| {
             v.trim_end_matches('d')
                 .parse::<u8>()
@@ -79,20 +79,20 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseE
         })
         .transpose()?;
     Ok(Die {
-        m_properties: properties,
-        m_sides: sides,
-        m_swing_type: swings,
-        m_value_total,
-        m_captured: false,
-        m_notset: m_value_total.is_none() && properties & property::RESERVE == 0,
-        m_dizzy: value_part.is_some_and(|value| value.ends_with('d')),
-        m_original_index: original_index,
-        m_in_reserve: properties & property::RESERVE != 0,
+        properties,
+        sides,
+        swing_type: swings,
+        value,
+        captured: false,
+        notset: value.is_none() && properties & property::RESERVE == 0,
+        dizzy: value_part.is_some_and(|value| value.ends_with('d')),
+        original_index,
+        in_reserve: properties & property::RESERVE != 0,
     })
 }
 
 /// Postfix properties may appear on either side of the `-N` suffix.
-pub(super) fn ParseDieDefinedSides(definition: &str) -> Option<u8> {
+pub(super) fn parse_die_defined_sides(definition: &str) -> Option<u8> {
     let (_, suffix) = definition.split_once('-')?;
     let digit_count = suffix.bytes().take_while(u8::is_ascii_digit).count();
     suffix.get(..digit_count)?.parse().ok()

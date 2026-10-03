@@ -8,13 +8,13 @@ pub enum RngAlgorithm {
 }
 
 impl RngAlgorithm {
-    pub const fn ReplayId(self) -> &'static str {
+    pub const fn replay_id(self) -> &'static str {
         match self {
             Self::LegacyParkMillerV1 => "bmai-park-miller-16807-v1",
         }
     }
 
-    pub fn Parse(value: &str) -> Option<Self> {
+    pub fn parse(value: &str) -> Option<Self> {
         match value {
             "legacy" | "park-miller" | "bmai-park-miller-16807-v1" => {
                 Some(Self::LegacyParkMillerV1)
@@ -28,122 +28,122 @@ impl RngAlgorithm {
 /// seeded legacy replays reproducible.
 #[derive(Clone, Debug)]
 pub struct Rng {
-    m_algorithm: RngAlgorithm,
-    m_seed: u32,
-    m_trace_raw: bool,
-    m_trace_hash: bool,
-    m_trace_count: u64,
-    m_trace_fingerprint: u64,
-    m_native_stratum: Option<crate::native::NativeStratum>,
+    algorithm: RngAlgorithm,
+    seed: u32,
+    trace_raw: bool,
+    trace_hash: bool,
+    trace_count: u64,
+    trace_fingerprint: u64,
+    native_stratum: Option<crate::native::NativeStratum>,
 }
 
 impl Default for Rng {
     fn default() -> Self {
         Self {
-            m_algorithm: RngAlgorithm::LegacyParkMillerV1,
-            m_seed: 78_904_497,
-            m_trace_raw: std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
-            m_trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
-            m_trace_count: 0,
-            m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
-            m_native_stratum: None,
+            algorithm: RngAlgorithm::LegacyParkMillerV1,
+            seed: 78_904_497,
+            trace_raw: std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
+            trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
+            trace_count: 0,
+            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            native_stratum: None,
         }
     }
 }
 
 impl Rng {
-    pub(crate) fn UntracedDefault() -> Self {
+    pub(crate) fn untraced_default() -> Self {
         Self {
-            m_algorithm: RngAlgorithm::LegacyParkMillerV1,
-            m_seed: 78_904_497,
-            m_trace_raw: false,
-            m_trace_hash: false,
-            m_trace_count: 0,
-            m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
-            m_native_stratum: None,
+            algorithm: RngAlgorithm::LegacyParkMillerV1,
+            seed: 78_904_497,
+            trace_raw: false,
+            trace_hash: false,
+            trace_count: 0,
+            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            native_stratum: None,
         }
     }
 
-    pub(crate) fn FromNativeStream(
+    pub(crate) fn from_native_stream(
         algorithm: RngAlgorithm,
         seed: crate::native::NativeStreamSeed,
         stratum: Option<crate::native::NativeStratum>,
     ) -> Self {
         Self {
-            m_algorithm: algorithm,
-            m_seed: seed.legacy_park_miller_state(),
-            m_trace_raw: false,
-            m_trace_hash: false,
-            m_trace_count: 0,
-            m_trace_fingerprint: 0xcbf2_9ce4_8422_2325,
-            m_native_stratum: stratum,
+            algorithm,
+            seed: seed.legacy_park_miller_state(),
+            trace_raw: false,
+            trace_hash: false,
+            trace_count: 0,
+            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            native_stratum: stratum,
         }
     }
 
-    pub const fn Algorithm(&self) -> RngAlgorithm {
-        self.m_algorithm
+    pub const fn algorithm(&self) -> RngAlgorithm {
+        self.algorithm
     }
 
-    pub const fn ReplayId(&self) -> &'static str {
-        self.m_algorithm.ReplayId()
+    pub const fn replay_id(&self) -> &'static str {
+        self.algorithm.replay_id()
     }
 
-    pub fn SetAlgorithm(&mut self, algorithm: RngAlgorithm) {
-        self.m_algorithm = algorithm;
+    pub fn set_algorithm(&mut self, algorithm: RngAlgorithm) {
+        self.algorithm = algorithm;
     }
 
-    pub(crate) fn DebugSeed(&self) -> u32 {
-        self.m_seed
+    pub(crate) fn debug_seed(&self) -> u32 {
+        self.seed
     }
 
-    pub fn SRand(&mut self, seed: u32) {
+    pub fn srand(&mut self, seed: u32) {
         // A zero seed is time-based in C++. Callers that need reproducibility
         // must resolve it at the I/O boundary before invoking this method.
-        self.m_seed = if seed >> 16 == 0 {
+        self.seed = if seed >> 16 == 0 {
             seed | seed << 16
         } else {
             seed
         };
     }
 
-    pub fn GetRand(&mut self) -> u32 {
-        self.m_native_stratum = None;
-        match self.m_algorithm {
-            RngAlgorithm::LegacyParkMillerV1 => self.GetLegacyParkMillerRand(),
+    pub fn rand(&mut self) -> u32 {
+        self.native_stratum = None;
+        match self.algorithm {
+            RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),
         }
     }
 
-    fn GetLegacyParkMillerRand(&mut self) -> u32 {
-        let mut lo = i64::from(self.m_seed & 0xffff) * 16_807;
-        let mut hi = i64::from(self.m_seed >> 16) * 16_807 + (lo >> 16);
+    fn legacy_park_miller_rand(&mut self) -> u32 {
+        let mut lo = i64::from(self.seed & 0xffff) * 16_807;
+        let mut hi = i64::from(self.seed >> 16) * 16_807 + (lo >> 16);
         lo = (lo & 0xffff) + (hi >> 15);
         hi = (hi & 0x7fff) + (lo >> 16);
         lo = (lo & 0xffff) + (hi >> 15);
         hi = ((hi & 0x7fff) << 16) + lo;
-        self.m_seed = hi as u32;
-        if self.m_trace_hash {
-            self.m_trace_count += 1;
-            self.m_trace_fingerprint ^= u64::from(self.m_seed);
-            self.m_trace_fingerprint = self.m_trace_fingerprint.wrapping_mul(0x0000_0100_0000_01b3);
+        self.seed = hi as u32;
+        if self.trace_hash {
+            self.trace_count += 1;
+            self.trace_fingerprint ^= u64::from(self.seed);
+            self.trace_fingerprint = self.trace_fingerprint.wrapping_mul(0x0000_0100_0000_01b3);
         }
-        if self.m_trace_raw {
-            eprintln!("RNG {}", self.m_seed);
+        if self.trace_raw {
+            eprintln!("RNG {}", self.seed);
         }
-        self.m_seed
+        self.seed
     }
 
-    pub fn GetRandMax(&mut self, upper: u32) -> u32 {
+    pub fn rand_max(&mut self, upper: u32) -> u32 {
         assert!(upper > 0, "GetRandMax requires a nonzero upper bound");
-        let random = match self.m_algorithm {
-            RngAlgorithm::LegacyParkMillerV1 => self.GetLegacyParkMillerRand(),
+        let random = match self.algorithm {
+            RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),
         };
-        let Some(stratum) = self.m_native_stratum.as_mut() else {
+        let Some(stratum) = self.native_stratum.as_mut() else {
             return random % upper;
         };
 
         let upper_u64 = u64::from(upper);
         let Some(next_radix) = stratum.radix.checked_mul(upper_u64) else {
-            self.m_native_stratum = None;
+            self.native_stratum = None;
             return random % upper;
         };
         let position = ((u128::from(stratum.index % next_radix)
@@ -157,18 +157,15 @@ impl Rng {
         value as u32
     }
 
-    pub fn GetFRand(&mut self) -> f32 {
-        self.GetRand() as f32 / 0x8000_0000u32 as f32
+    pub fn frand(&mut self) -> f32 {
+        self.rand() as f32 / 0x8000_0000u32 as f32
     }
 }
 
 impl Drop for Rng {
     fn drop(&mut self) {
-        if self.m_trace_hash {
-            eprintln!(
-                "RNG_HASH {} {}",
-                self.m_trace_count, self.m_trace_fingerprint
-            );
+        if self.trace_hash {
+            eprintln!("RNG_HASH {} {}", self.trace_count, self.trace_fingerprint);
         }
     }
 }
@@ -180,33 +177,33 @@ mod tests {
     #[test]
     fn default_sequence_is_stable() {
         let mut rng = Rng::default();
-        assert_eq!(rng.Algorithm(), RngAlgorithm::LegacyParkMillerV1);
-        assert_eq!(rng.ReplayId(), "bmai-park-miller-16807-v1");
-        assert_eq!(rng.GetRand(), 1_150_470_880);
-        assert_eq!(rng.GetRand(), 21_322_572);
-        assert_eq!(rng.GetRand(), 1_886_182_202);
+        assert_eq!(rng.algorithm(), RngAlgorithm::LegacyParkMillerV1);
+        assert_eq!(rng.replay_id(), "bmai-park-miller-16807-v1");
+        assert_eq!(rng.rand(), 1_150_470_880);
+        assert_eq!(rng.rand(), 21_322_572);
+        assert_eq!(rng.rand(), 1_886_182_202);
     }
 
     #[test]
     fn legacy_rng_names_select_the_same_versioned_stream_without_reseeding() {
         for name in ["legacy", "park-miller", "bmai-park-miller-16807-v1"] {
             assert_eq!(
-                RngAlgorithm::Parse(name),
+                RngAlgorithm::parse(name),
                 Some(RngAlgorithm::LegacyParkMillerV1)
             );
         }
-        assert_eq!(RngAlgorithm::Parse("unknown"), None);
+        assert_eq!(RngAlgorithm::parse("unknown"), None);
 
         let mut rng = Rng::default();
-        rng.SRand(17);
-        let first = rng.GetRand();
-        rng.SetAlgorithm(RngAlgorithm::LegacyParkMillerV1);
-        let second = rng.GetRand();
+        rng.srand(17);
+        let first = rng.rand();
+        rng.set_algorithm(RngAlgorithm::LegacyParkMillerV1);
+        let second = rng.rand();
         let mut uninterrupted = Rng::default();
-        uninterrupted.SRand(17);
+        uninterrupted.srand(17);
         assert_eq!(
             (first, second),
-            (uninterrupted.GetRand(), uninterrupted.GetRand())
+            (uninterrupted.rand(), uninterrupted.rand())
         );
     }
 
@@ -219,7 +216,7 @@ mod tests {
         for offset in [0, 7, u64::MAX] {
             let mut counts = [0usize; 20];
             for index in 0..100 {
-                let mut rng = Rng::FromNativeStream(
+                let mut rng = Rng::from_native_stream(
                     RngAlgorithm::LegacyParkMillerV1,
                     seed,
                     Some(crate::native::NativeStratum {
@@ -228,7 +225,7 @@ mod tests {
                         radix: 1,
                     }),
                 );
-                counts[rng.GetRandMax(20) as usize] += 1;
+                counts[rng.rand_max(20) as usize] += 1;
             }
             assert_eq!(counts, [5; 20]);
         }
@@ -244,7 +241,7 @@ mod tests {
             for offset in [0, 17, u64::MAX] {
                 let mut outcomes = vec![vec![0usize; second_bound]; first_bound];
                 for index in 0..(first_bound * second_bound) {
-                    let mut rng = Rng::FromNativeStream(
+                    let mut rng = Rng::from_native_stream(
                         RngAlgorithm::LegacyParkMillerV1,
                         seed,
                         Some(crate::native::NativeStratum {
@@ -253,8 +250,8 @@ mod tests {
                             radix: 1,
                         }),
                     );
-                    let first = rng.GetRandMax(first_bound as u32) as usize;
-                    let second = rng.GetRandMax(second_bound as u32) as usize;
+                    let first = rng.rand_max(first_bound as u32) as usize;
+                    let second = rng.rand_max(second_bound as u32) as usize;
                     outcomes[first][second] += 1;
                 }
                 assert!(
@@ -271,7 +268,7 @@ mod tests {
             state: 123,
             stream: 456,
         };
-        let mut stratified = Rng::FromNativeStream(
+        let mut stratified = Rng::from_native_stream(
             RngAlgorithm::LegacyParkMillerV1,
             seed,
             Some(crate::native::NativeStratum {
@@ -280,10 +277,10 @@ mod tests {
                 radix: 1,
             }),
         );
-        let mut ordinary = Rng::FromNativeStream(RngAlgorithm::LegacyParkMillerV1, seed, None);
+        let mut ordinary = Rng::from_native_stream(RngAlgorithm::LegacyParkMillerV1, seed, None);
 
-        assert_eq!(stratified.GetRand(), ordinary.GetRand());
-        assert_eq!(stratified.GetRandMax(20), ordinary.GetRandMax(20));
+        assert_eq!(stratified.rand(), ordinary.rand());
+        assert_eq!(stratified.rand_max(20), ordinary.rand_max(20));
     }
 
     /// The C++ test is statistical, so its sample count and tolerances stay.
@@ -293,7 +290,7 @@ mod tests {
         let mut rng = Rng::default();
         let mut bins = [0usize; 10];
         for _ in 0..SAMPLES {
-            let sample = rng.GetFRand();
+            let sample = rng.frand();
             assert!((0.0..1.0).contains(&sample));
             bins[(sample / 0.1) as usize] += 1;
         }

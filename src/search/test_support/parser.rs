@@ -65,7 +65,7 @@ impl ParserScenario {
         let mut parser = Parser::default();
         let mut output = Vec::new();
         parser
-            .ParseString(&self.input, &mut output)
+            .parse_string(&self.input, &mut output)
             .unwrap_or_else(|error| panic!("invalid parser scenario: {error}\n{}", self.input));
         assert_eq!(
             parser.last_action(),

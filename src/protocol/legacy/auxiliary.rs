@@ -4,12 +4,12 @@
 
 use super::*;
 
-pub(super) fn PrepareAuxiliaryPhase(game: &mut Game) -> Result<(), ParseError> {
-    let auxiliary = game.m_player.each_ref().map(|player| {
+pub(super) fn prepare_auxiliary_phase(game: &mut Game) -> Result<(), ParseError> {
+    let auxiliary = game.players.each_ref().map(|player| {
         player
-            .m_die
+            .dice
             .iter()
-            .filter(|die| die.HasProperty(property::AUXILIARY))
+            .filter(|die| die.has_property(property::AUXILIARY))
             .count()
     });
     for (player, count) in auxiliary.into_iter().enumerate() {
@@ -20,31 +20,31 @@ pub(super) fn PrepareAuxiliaryPhase(game: &mut Game) -> Result<(), ParseError> {
         }
     }
     match auxiliary {
-        [1, 0] => AddCourtesyAuxiliary(game, 0, 1),
-        [0, 1] => AddCourtesyAuxiliary(game, 1, 0),
+        [1, 0] => add_courtesy_auxiliary(game, 0, 1),
+        [0, 1] => add_courtesy_auxiliary(game, 1, 0),
         _ => Ok(()),
     }
 }
 
-pub(super) fn AddCourtesyAuxiliary(
+pub(super) fn add_courtesy_auxiliary(
     game: &mut Game,
     source_player: usize,
     target_player: usize,
 ) -> Result<(), ParseError> {
-    if game.m_player[target_player].m_die.len() >= MAX_DICE {
+    if game.players[target_player].dice.len() >= MAX_DICE {
         return Err(ParseError(format!(
             "courtesy Auxiliary die exceeds player {target_player} capacity {MAX_DICE}"
         )));
     }
-    let mut die = *game.m_player[source_player]
-        .m_die
+    let mut die = *game.players[source_player]
+        .dice
         .iter()
-        .find(|die| die.HasProperty(property::AUXILIARY))
+        .find(|die| die.has_property(property::AUXILIARY))
         .expect("source player has one Auxiliary die");
-    die.m_original_index = game.m_player[target_player].m_die.len();
-    die.m_value_total = None;
-    die.m_notset = true;
-    game.m_player[target_player].m_die.push(die);
-    game.m_player[target_player].m_swing_set = SwingSet::Not;
+    die.original_index = game.players[target_player].dice.len();
+    die.value = None;
+    die.notset = true;
+    game.players[target_player].dice.push(die);
+    game.players[target_player].swing_set = SwingSet::Not;
     Ok(())
 }

@@ -46,6 +46,6 @@ Full parity requires all of the following:
    ported or explicitly justified in `PARITY.md`.
 
 Keep `PARITY.md` current as work is completed. A checked item must cite concrete
-evidence. Preserve C++ naming and control-flow correspondence where practical;
+evidence. Use Rust naming, and keep C++ control-flow correspondence where practical;
 optimization must not weaken parity evidence. Local commits are allowed. Never
 push unless the user explicitly asks.

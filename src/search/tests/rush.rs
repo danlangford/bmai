@@ -8,7 +8,7 @@ use test_support::{LEGACY, NATIVE, native, search_scenario};
 fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     attacks_by(attacker_dice, defender_dice)
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(Rush))
+        .filter(|candidate| candidate.attack == Some(Rush))
         .collect()
 }
 
@@ -106,9 +106,9 @@ fn rush_enumerates_every_qualifying_target_pair_once() {
         .iter()
         .map(|candidate| {
             let mut pair = candidate
-                .m_targets
+                .targets
                 .iter()
-                .map(|index| game.m_player[1].m_die[index].GetValueTotal())
+                .map(|index| game.players[1].dice[index].value_total())
                 .collect::<Vec<_>>();
             pair.sort_unstable_by(|a, b| b.cmp(a));
             pair
@@ -224,10 +224,10 @@ fn speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush() {
     assert!(rush_attacks(&["#z6:6"], &["2:2", "4:4"]).is_empty());
     let game = native_fixture_game("game\nfight\nplayer 0 1 0\n#z6:6\nplayer 1 2 0\n2:2\n4:4\n");
     let speed = game
-        .GenerateValidAttacksInCppOrder()
+        .generate_valid_attacks_in_cpp_order()
         .into_iter()
-        .filter(|candidate| candidate.m_targets.len() == 2)
-        .map(|candidate| candidate.m_attack)
+        .filter(|candidate| candidate.targets.len() == 2)
+        .map(|candidate| candidate.attack)
         .collect::<Vec<_>>();
     assert_eq!(speed, vec![Some(Speed)]);
 }
@@ -455,7 +455,7 @@ fn turbo_rush_attacker_offers_each_turbo_size() {
     let attacks = rush_attacks(&["#X!-6:6"], &["2:2", "4:4"]);
     let sizes = attacks
         .iter()
-        .map(|candidate| candidate.m_turbo_option)
+        .map(|candidate| candidate.turbo_option)
         .collect::<Vec<_>>();
     assert_eq!(sizes.first(), Some(&6));
     assert!(sizes.contains(&4) && sizes.contains(&20));
@@ -479,19 +479,19 @@ fn reserve_rush_dice_are_not_targets() {
 fn rush_notation_inside_game_blocks_is_not_a_comment() {
     let input = "# top-level comment\ngame\nfight\nplayer 0 1 0\n#6:6\nplayer 1 2 0\n2:2\n#4:4\n";
     let game = native_fixture_game(input);
-    assert!(game.m_player[0].m_die[0].HasProperty(property::RUSH));
+    assert!(game.players[0].dice[0].has_property(property::RUSH));
     assert!(
-        game.m_player[1]
-            .m_die
+        game.players[1]
+            .dice
             .iter()
-            .any(|die| die.HasProperty(property::RUSH) && die.GetValueTotal() == 4)
+            .any(|die| die.has_property(property::RUSH) && die.value_total() == 4)
     );
 
     let mut streamed = crate::Parser::default();
     streamed
-        .ParseStream(&mut input.as_bytes(), &mut Vec::new())
+        .parse_stream(&mut input.as_bytes(), &mut Vec::new())
         .unwrap();
-    assert!(streamed.m_game.m_player[0].m_die[0].HasProperty(property::RUSH));
+    assert!(streamed.game.players[0].dice[0].has_property(property::RUSH));
 }
 
 #[test]
@@ -517,9 +517,9 @@ fn shadow_rush_die_offers_both_attack_types() {
     let game =
         native_fixture_game("game\nfight\nplayer 0 1 0\n#s6:3\nplayer 1 3 0\n1:1\n2:2\n5:5\n");
     let attacks = game
-        .GenerateValidAttacksInCppOrder()
+        .generate_valid_attacks_in_cpp_order()
         .into_iter()
-        .filter_map(|candidate| candidate.m_attack)
+        .filter_map(|candidate| candidate.attack)
         .collect::<Vec<_>>();
     assert!(attacks.contains(&Rush));
     assert!(attacks.contains(&Shadow));

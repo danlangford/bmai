@@ -73,7 +73,7 @@ initiative_scenario()
 `.seated_as(1)` puts the player in seat 1, for C++'s seat-keyed Chance rule.
 `.expect_initiative(...)` checks who wins initiative on the dice, and
 `.expect_chance_success(...)` and `.expect_next_initiative(...)` check what
-`ApplyChanceMove` reports.
+`apply_chance_move` reports.
 
 `roll(die)` rerolls one die many times on a single RNG stream, for rules about
 which sizes or values a reroll can produce:
@@ -88,10 +88,10 @@ roll("(Y,Y)&-13:13")
 
 The DSL is deliberately test-only and dependency-free. It is not a second game
 implementation: setup is parsed by `Parser`, attack legality comes from
-`GenerateValidAttacksInCppOrder` (`.passes()` skips it), resolution comes from
-`ApplyAttack`, round restoration comes from `RestoreDiceForNewRound`, and
-Chance, Focus, and rerolls use `ApplyChanceMove`, `ApplyFocusMove`, and
-`RollScheduledDie`. Expected dice are written using the protocol notation and
+`generate_valid_attacks_in_cpp_order` (`.passes()` skips it), resolution comes from
+`apply_attack`, round restoration comes from `restore_dice_for_new_round`, and
+Chance, Focus, and rerolls use `apply_chance_move`, `apply_focus_move`, and
+`roll_scheduled_die`. Expected dice are written using the protocol notation and
 failures show canonical expected and actual recipes.
 
 Skill tests live in `src/search/tests/<skill>.rs`, one file per skill. A test

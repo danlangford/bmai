@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-#![allow(non_snake_case)]
-
 mod game;
 mod mode;
 pub mod native;
@@ -26,6 +24,6 @@ pub use protocol::{
 };
 pub use rng::{Rng, RngAlgorithm};
 pub use search::ai::{Bmai3, EvaluationCoordinate, RolloutPolicy, Stats};
-pub use search::{AiPolicy, PlayGames};
+pub use search::{AiPolicy, play_games};
 #[cfg(test)]
 mod build_metadata;
