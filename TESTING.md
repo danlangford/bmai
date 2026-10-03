@@ -91,6 +91,15 @@ rerolls use `ApplyChanceMove`, `ApplyFocusMove`, and `RollScheduledDie`. Expecte
 written using the protocol notation and failures show canonical expected and
 actual recipes.
 
+Skill tests live in `src/search/tests/<skill>.rs`, one file per skill. A test
+of an interaction between skills goes in the file of the skill whose
+ButtonWeavers skills-page entry documents that interaction. For example, Mad's
+entry says Mad dice lose Mad when they decay, so that test is in `mad.rs`.
+When no entry documents the interaction, the test goes with the skill whose
+rule decides the outcome; a Mighty target growing on a Boom reroll is a Boom
+rule, so it is in `boom.rs`. `parity.rs` keeps the tests mapped to upstream
+C++ tests.
+
 Prefer a scenario when its recipe and outcome tell the whole rules story. Keep
 a lower-level test when it needs to inspect an intermediate state, exercise a
 phase the DSL does not cover (swing selection, reserve, auxiliary), or prove a particular internal

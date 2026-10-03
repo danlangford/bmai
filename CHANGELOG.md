@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `roll()` scenario for die-size sampling.
   - Hand-built dice and moves in the core, parity, Jolt, Doppelganger,
     transformation, and Boom/Mad tests now use these scenarios.
+  - Boom, Mad, and Mood tests are in separate files. TESTING.md says which
+    file a test of an interaction between skills belongs in.
 
 ## [0.17.0] - 2026-10-03
 
