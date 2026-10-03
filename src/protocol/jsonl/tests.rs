@@ -413,3 +413,26 @@ fn phase_specific_declines_have_unambiguous_typed_results() {
         .unwrap();
     assert_eq!(preround.action, Some(crate::protocol::ProtocolAction::Pass));
 }
+
+#[test]
+fn a_time_limit_stops_the_search_before_its_simulation_budget() {
+    let script = "seed 17\nmax_sims 1000000\nmin_sims 1000000\nmaxbranch 100000000\n\
+game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";
+    let unlimited_budget = 1_000_000;
+    for (cull, limit) in [("on", "0.01"), ("off", "0.01")] {
+        let result = BmairSession::default()
+            .execute(&format!("{script}cull {cull}\ntime_limit {limit}\ngetaction\n"))
+            .unwrap();
+        let evaluation = result.evaluation.unwrap();
+        assert!(
+            evaluation.simulations < unlimited_budget,
+            "cull {cull}: {} simulations",
+            evaluation.simulations
+        );
+        assert!(matches!(
+            result.action,
+            Some(crate::protocol::ProtocolAction::Attack { .. })
+        ));
+    }
+}
+

@@ -78,6 +78,8 @@ pub struct MonteCarloMetadata {
     pub cull: bool,
     pub playout: &'static str,
     pub playout_random: ProtocolFloat,
+    /// Seconds per decision, or null for none.
+    pub time_limit: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -248,6 +250,7 @@ impl Capabilities {
                 "cull",
                 "playout",
                 "playout_random",
+                "time_limit",
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",

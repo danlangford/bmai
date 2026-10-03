@@ -48,6 +48,7 @@ impl Engine for MonteCarlo {
                 ));
             }
             Setting::PlayoutRandom(chance) => self.search.playout_random = chance,
+            Setting::TimeLimit(limit) => self.search.time_limit = limit,
         }
         Ok(())
     }

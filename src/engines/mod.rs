@@ -30,6 +30,7 @@ pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
     "cull",
     "playout",
     "playout_random",
+    "time_limit",
 ];
 
 pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
@@ -51,6 +52,8 @@ pub enum Setting {
     Cull(bool),
     Playout(crate::Playout),
     PlayoutRandom(f32),
+    /// None turns the limit off.
+    TimeLimit(Option<std::time::Duration>),
 }
 
 impl Setting {
@@ -79,6 +82,15 @@ impl Setting {
                     "playout needs quick, maximize, or random, not {value}"
                 )),
             },
+            "time_limit" => match value.parse::<f64>() {
+                Ok(seconds) if seconds == 0.0 => Ok(Self::TimeLimit(None)),
+                Ok(seconds) if seconds > 0.0 && seconds.is_finite() => Ok(Self::TimeLimit(Some(
+                    std::time::Duration::from_secs_f64(seconds),
+                ))),
+                _ => Err(format!(
+                    "time_limit needs seconds, or 0 for none, not {value}"
+                )),
+            },
             "playout_random" => value
                 .parse::<f32>()
                 .map(Self::PlayoutRandom)
@@ -96,6 +108,7 @@ impl Setting {
             Self::Cull(_) => "cull",
             Self::Playout(_) => "playout",
             Self::PlayoutRandom(_) => "playout_random",
+            Self::TimeLimit(_) => "time_limit",
         }
     }
 }

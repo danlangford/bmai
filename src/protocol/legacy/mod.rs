@@ -116,6 +116,7 @@ impl Parser {
                             playout_random: crate::protocol::ProtocolFloat::from_f32(
                                 search.playout_random,
                             ),
+                            time_limit: search.time_limit.map(|limit| limit.as_secs_f64()),
                         }
                     }),
                     specials: crate::protocol::notation::BUTTON_SPECIALS

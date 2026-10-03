@@ -124,6 +124,8 @@ impl Parser {
                 self.apply_setting_command(arguments, "playout", output)?;
             } else if let Some(arguments) = line.strip_prefix("playout_random ") {
                 self.apply_setting_command(arguments, "playout_random", output)?;
+            } else if let Some(arguments) = line.strip_prefix("time_limit ") {
+                self.apply_setting_command(arguments, "time_limit", output)?;
             } else if let Some(arguments) = line.strip_prefix("cull ") {
                 self.apply_setting_command(arguments, "cull", output)?;
             } else if let Some(value) = argument(line, "report_sims") {

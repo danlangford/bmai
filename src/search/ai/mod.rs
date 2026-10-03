@@ -75,6 +75,9 @@ pub struct Bmai3 {
     pub min_sims: usize,
     pub max_sims: usize,
     pub sims_per_check: usize,
+    /// Each decision stops sampling once this passes and plays its best move
+    /// so far; the simulation settings still cap the work.
+    pub time_limit: Option<std::time::Duration>,
     pub min_best_score_threshold: f32,
     pub max_best_score_threshold: f32,
     pub last_best_score: f32,
@@ -95,6 +98,7 @@ impl Default for Bmai3 {
             min_sims: MIN_SIMS,
             max_sims: DEFAULT_SIMS,
             sims_per_check: 10,
+            time_limit: None,
             min_best_score_threshold: 0.25,
             max_best_score_threshold: 0.90,
             last_best_score: 0.0,
@@ -177,7 +181,13 @@ impl Bmai3 {
         assert!(!moves.is_empty());
         let sims = self.compute_number_sims(moves.len(), level);
         self.stats.on_ply_action(level, moves.len(), sims);
-        if !self.cull_moves {
+        // Only the root is timed: a cut-short deeper search would hand its
+        // parent a worse estimate than a finished one.
+        let deadline = self
+            .time_limit
+            .filter(|_| level == 1)
+            .map(|limit| std::time::Instant::now() + limit);
+        if !self.cull_moves && deadline.is_none() {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
             let requests = moves
@@ -259,10 +269,12 @@ impl Bmai3 {
                 }
             }
             state.sims_run += check_sims;
-            if state.sims_run >= state.sims {
+            if state.sims_run >= state.sims
+                || deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
+            {
                 break;
             }
-            let multiple_candidates_remain = self.cull(&mut state);
+            let multiple_candidates_remain = !self.cull_moves || self.cull(&mut state);
             if !multiple_candidates_remain && !complete_survivor {
                 break;
             }
