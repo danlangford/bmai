@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
+- Consider button-level game setup (for example `player 0 * 0 Echo`), so
+  BMAIR could build pre-game specials such as Echo, Zero, Bruno, Pappy, and
+  RandomBM recipes itself. Today the caller resolves them before sending dice.
 - Check ButtonWeavers' by-reference attacker loop for same-die Radioactive
   Doppelganger and Morphing dice against a running engine.
 - Confirm whether a Doppelganger copy of a Mighty or Weak die resizes on the
@@ -36,13 +39,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `no_initiative` (Giant): ranked below every other button for initiative.
 - Advertised the specials, with the buttons that use them, in capabilities
   `button_specials`.
+- Reported each player's specials in JSONL session metadata.
 
 ### Fixed
 
 - Trip legality now follows ButtonWeavers instead of C++: a Trip die may Trip
   any die it can roll at least the minimum of, including Twin dice, and
-  Konstant and Maximum targets raise that bar. Turbo sizes too small for the
-  target are no longer offered.
+  Konstant and Maximum targets raise that bar. A Turbo Trip is offered when
+  any Turbo size reaches the target, and only sizes that do are offered.
+  Mood Twin dice reach one subdie's swing size, as in ButtonWeavers.
 - Morphing now applies to single-target Berserk and Speed attacks.
 - A Trip die morphs only after a successful Trip: it rolls at its own size
   first, then rerolls at the captured die's size. A failed Trip never morphs.

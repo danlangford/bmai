@@ -92,7 +92,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] SpeedSkill -> `cpp_speed_generation_and_property_score_combinations`.
 - [x] MorphingSkill, MorphingTwinSkill, MorphingSpeedSkill ->
   `cpp_morphing_copies_single_and_twin_target_sizes` and
-  `copied_cpp_morphing_speed_attack_does_not_morph`.
+  `copied_cpp_multi_target_speed_attack_does_not_morph`.
 - [x] All ten `BMAIActionTests` parameter cases -> parser fixture tests.
 - [x] Debug-only RollRequiresNotSetState and SwingSetRequiresNotSetState ->
   `cpp_roll_requires_notset_state` and `cpp_swing_set_requires_notset_state`,
@@ -416,14 +416,14 @@ because the wire state carries no button identity.
 
 | ButtonWeavers rule | Rust evidence |
 |---|---|
-| `special` sets, reports, validates, and resets per game | `special_command_sets_and_reports_each_players_specials`, `each_game_block_clears_specials`, `unknown_specials_and_players_are_rejected` |
-| Largo and The Flying Squirrel cannot Skill attack | `no_skill_attacks_removes_only_skill_attacks` |
-| The Japanese Beetle cannot be Skill attacked | `skill_immune_dice_cannot_be_skill_attacked` |
+| `special` sets, reports, validates, resets per game, and survives simulation side swaps | `special_command_sets_and_reports_each_players_specials`, `each_game_block_clears_specials`, `unknown_specials_and_players_are_rejected`, `simulations_keep_each_players_specials_after_a_side_swap`, `largo_search_reports_a_power_attack_over_the_wire` |
+| Largo and The Flying Squirrel cannot Skill attack | `largo_cannot_skill_attack`, `largo_may_still_power_attack` |
+| The Japanese Beetle cannot be Skill attacked | `japanese_beetle_cannot_be_skill_attacked`, `japanese_beetle_may_still_be_power_attacked` |
 | Giant cannot win initiative, even against a button without initiative dice | `no_initiative_loses_to_lower_dice_and_to_a_button_with_no_initiative_dice` |
 | Guillermo and Oregon assign different swing types different sizes | `unique_swing_assigns_different_swing_types_different_sizes` |
-| Gordo also avoids fixed die sizes and declines an Auxiliary swing die | `unique_sizes_also_avoids_fixed_die_sizes`, `unique_sizes_declines_an_auxiliary_swing_die_and_so_do_both_players` |
-| A Trip needs only to reach the target's minimum, with Konstant, Maximum, Mighty, and Turbo adjustments | `single_trip_dice_may_trip_twin_dice_they_can_reach`, `trip_must_be_able_to_reach_a_konstant_or_maximum_target`, `mighty_trip_dice_reach_further`, `turbo_trip_sizes_too_small_for_the_target_are_not_offered` |
-| Morphing applies to any single-target attack, and only after a successful one | `single_target_berserk_and_speed_attacks_morph`, `failed_trip_does_not_morph`, `successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls` |
+| Gordo also avoids fixed die sizes, comparing option dice at their chosen side, and declines a single V-Z Auxiliary swing die for both players | `unique_sizes_also_avoids_fixed_die_sizes`, `unique_sizes_compares_option_dice_at_their_chosen_side`, `gordo_declines_a_v_to_z_auxiliary_swing_die`, `gordo_accepts_other_auxiliary_dice`, `either_players_gordo_decline_removes_both_auxiliary_dice` |
+| A Trip needs only to reach the target's minimum, with Konstant, Maximum, Mighty, Weak, Mood, and Turbo adjustments | `single_trip_dice_may_trip_twin_dice_they_can_reach`, `trip_must_reach_a_konstant_targets_value`, `trip_must_reach_a_maximum_targets_size`, `konstant_trip_dice_reach_only_their_value`, `mighty_trip_dice_reach_further`, `weak_trip_dice_reach_less_far`, `mood_trip_dice_reach_their_largest_swing_size`, `mood_twin_trip_dice_reach_one_subdies_swing_size`, `a_mood_maximum_target_counts_at_its_smallest_swing_size`, `turbo_trip_sizes_too_small_for_the_target_are_not_offered`, `turbo_trip_is_offered_when_only_a_larger_size_reaches_the_target`, `option_turbo_trip_offers_only_the_side_that_reaches_the_target` |
+| Morphing applies to any single-target attack, and only after a successful one | `single_target_berserk_attack_morphs`, `single_target_speed_attack_morphs`, `failed_trip_does_not_morph`, `successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls`, `time_and_space_counts_the_reroll_after_a_trip_morph`, `radioactive_trip_target_decays_the_attacker_after_it_morphs` |
 
 The Trip and Morphing rows intentionally depart from C++, which forbade a
 non-Twin Trip against a Twin die and limited Morphing to its 1_1 and N_1
@@ -468,8 +468,9 @@ Rush dice keep their C++ candidate order and RNG consumption.
   `parity_trip_morphing_in.txt` seeded fixtures plus unit tests).
 - [x] Trip with Mighty/Weak and Konstant targets (`parity_trip_morphing_in.txt`
   plus unit tests).
-- [x] Morphing/Twin and Morphing Speed non-effect
-  (`parity_trip_morphing_in.txt` plus unit tests).
+- [x] Morphing/Twin and multi-target Morphing Speed non-effect
+  (`parity_trip_morphing_in.txt` plus unit tests). Single-target Speed now
+  morphs, as ButtonWeavers does.
 - [x] Combined Stealth+Insult precedence, Stinger stack pruning, Null+Value,
   Poison, Queer, Morphing Twin, Time and Space, Ornery, Mood, Mighty and Weak
   seeded game coverage (`parity_combined_mechanics_in.txt`).

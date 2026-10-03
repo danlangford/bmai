@@ -194,9 +194,9 @@ phases rather than direct action requests. In an Auxiliary state, the action is
 player supplies an Auxiliary die, BMAIR creates ButtonWeavers' courtesy copy
 for the other player before evaluating the choice.
 
-Button-specific eligibility such as Gordo's restriction is not represented in
-the BMAIR game-state protocol. Callers must provide a site-legal Auxiliary
-state; BMAIR validates the engine-level limit of one Auxiliary die per player.
+Gordo's restriction is applied when the caller sends `special N unique_sizes`;
+other button-specific eligibility is the caller's responsibility. BMAIR
+validates the engine-level limit of one Auxiliary die per player.
 Legacy parser errors terminate the process with a nonzero exit status. JSONL
 converts those same errors into recoverable `execution_error` responses and
 rolls back the request.

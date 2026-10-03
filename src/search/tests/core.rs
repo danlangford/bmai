@@ -167,7 +167,7 @@ fn copied_cpp_konstant_skill_attacker_keeps_its_value() {
 }
 
 #[test]
-fn copied_cpp_morphing_speed_attack_does_not_morph() {
+fn copied_cpp_multi_target_speed_attack_does_not_morph() {
     let mut game = BMC_Game::default();
     let mut attacker = swing_die('P', property::MORPHING | property::SPEED, 0);
     attacker.m_sides[0] = 10;

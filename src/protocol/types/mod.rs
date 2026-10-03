@@ -61,6 +61,8 @@ pub struct PlayerAiMetadata {
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
+    /// Button specials applied with `special`.
+    pub specials: Vec<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]

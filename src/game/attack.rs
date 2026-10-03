@@ -188,10 +188,10 @@ fn SkillStackCanHitWithFire(
 }
 
 /// ButtonWeavers `BMAttackTrip::post_trip_roll_max`: the largest value the
-/// die can show after the resizing its Trip reroll triggers.
+/// die can show after the resizing its Trip reroll triggers. A Mood Twin
+/// reports one subdie's swing range there, so this does too.
 fn TripRollMax(die: &BMC_Die, smallest_mood_size: bool) -> u16 {
     if die.HasProperty(property::MOOD)
-        && !die.HasProperty(property::TWIN)
         && let Some(swing) = die.m_swing_type[0]
     {
         let (minimum, maximum) = super::SwingRange(swing);
@@ -229,6 +229,60 @@ fn TripCanCapture(attacker: &BMC_Die, target: &BMC_Die) -> bool {
         return false;
     }
     attacker_maximum >= target_minimum
+}
+
+/// The die at each size a Turbo choice can give it, current size first.
+fn TurboSizes(die: &BMC_Die, accuracy: f32) -> Vec<(i16, BMC_Die)> {
+    if !die.HasProperty(property::TURBO) {
+        return vec![(-1, *die)];
+    }
+    if die.HasProperty(property::OPTION) {
+        let mut swapped = *die;
+        swapped.m_sides.swap(0, 1);
+        return vec![(0, *die), (1, swapped)];
+    }
+    let Some(swing) = die.m_swing_type[0] else {
+        return vec![(-1, *die)];
+    };
+    let (minimum, maximum) = turbo_swing_range(swing);
+    let mut choices = vec![die.m_sides[0], minimum, maximum];
+    let step = if accuracy <= 0.0 {
+        1000.0
+    } else {
+        1.0 / accuracy
+    };
+    let mut candidate = f32::from(minimum + 1);
+    while candidate < f32::from(maximum) {
+        choices.push(candidate as u8);
+        candidate += step;
+    }
+    let mut sizes = Vec::with_capacity(choices.len());
+    for sides in choices {
+        if sizes.iter().any(|(chosen, _)| *chosen == i16::from(sides)) {
+            continue;
+        }
+        let mut resized = *die;
+        resized.m_sides[0] = sides;
+        sizes.push((i16::from(sides), resized));
+    }
+    sizes
+}
+
+/// ButtonWeavers offers a Trip if any Turbo size reaches the target, then
+/// validates the size actually submitted. Only the sizes `ExpandTurboMoves`
+/// can submit count, so every generated Trip keeps a legal size.
+fn TripReachableAtSomeTurboSize(
+    attacker: &BMC_Die,
+    target: &BMC_Die,
+    expandable_turbo: bool,
+    accuracy: f32,
+) -> bool {
+    if !expandable_turbo {
+        return TripCanCapture(attacker, target);
+    }
+    TurboSizes(attacker, accuracy)
+        .iter()
+        .any(|(_, resized)| TripCanCapture(resized, target))
 }
 
 fn FireHelperCapacities(player: &BMC_Player, attackers: BMC_DieIndexSet) -> Vec<(usize, u8)> {
@@ -429,6 +483,7 @@ impl BMC_Game {
             !die.HasProperty(property::WARRIOR)
                 && die.HasProperty(property::STINGER | property::KONSTANT)
         });
+        let first_turbo = FirstTurboDie(attacker).map(|(index, _)| index);
         let skill_attacks_allowed = attacker.m_specials & special::NO_SKILL_ATTACKS == 0
             && target.m_specials & special::SKILL_IMMUNE == 0;
         let player_has_fire = available.iter().any(|(_, die)| {
@@ -470,7 +525,12 @@ impl BMC_Game {
                                     attacker_die.GetValueTotal() <= target_die.GetValueTotal()
                                         && attacker_die.GetSidesMax() >= target_die.GetValueTotal()
                                 }
-                                BME_ATTACK::TRIP => TripCanCapture(attacker_die, target_die),
+                                BME_ATTACK::TRIP => TripReachableAtSomeTurboSize(
+                                    attacker_die,
+                                    target_die,
+                                    first_turbo == Some(attacker_index),
+                                    self.m_turbo_accuracy,
+                                ),
                                 _ => unreachable!(),
                             };
                             if legal {
@@ -894,6 +954,25 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
         {
             continue;
         }
+        if moves[move_index].m_attack == Some(BME_ATTACK::TRIP) {
+            let target = moves[move_index].m_targets.first().expect("Trip target");
+            let target_die = &game.m_player[1].m_die[target];
+            let legal = TurboSizes(turbo_die, accuracy)
+                .into_iter()
+                .filter(|(_, resized)| TripCanCapture(resized, target_die))
+                .map(|(size, _)| size)
+                .collect::<Vec<_>>();
+            let (first, rest) = legal
+                .split_first()
+                .expect("generated Trips have a legal Turbo size");
+            moves[move_index].m_turbo_option = *first;
+            for size in rest {
+                let mut changed = moves[move_index].clone();
+                changed.m_turbo_option = *size;
+                moves.push(changed);
+            }
+            continue;
+        }
         if turbo_die.HasProperty(property::OPTION) {
             moves[move_index].m_turbo_option = 0;
             // Fire capacities were calculated for the current Turbo size.
@@ -923,9 +1002,6 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
                 candidate += step;
             }
             for sides in choices {
-                if !TurboSizeKeepsTripLegal(game, &moves[move_index], turbo_die, sides) {
-                    continue;
-                }
                 let sides = i16::from(sides);
                 if sides == current {
                     continue;
@@ -936,18 +1012,6 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             }
         }
     }
-}
-
-/// ButtonWeavers validates a Trip at the submitted Turbo size, so a size too
-/// small to reach the target makes the attack illegal.
-fn TurboSizeKeepsTripLegal(game: &BMC_Game, action: &BMC_Move, die: &BMC_Die, sides: u8) -> bool {
-    if action.m_attack != Some(BME_ATTACK::TRIP) {
-        return true;
-    }
-    let target = action.m_targets.first().expect("Trip target");
-    let mut resized = *die;
-    resized.m_sides[0] = sides;
-    TripCanCapture(&resized, &game.m_player[1].m_die[target])
 }
 
 fn turbo_swing_range(swing: char) -> (u8, u8) {

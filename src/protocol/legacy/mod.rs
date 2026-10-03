@@ -133,6 +133,13 @@ impl BMC_Parser {
                     min_simulations: ai.m_min_sims,
                     max_simulations: ai.m_max_sims,
                     max_branch: ai.m_max_branch,
+                    specials: crate::protocol::notation::BUTTON_SPECIALS
+                        .iter()
+                        .filter(|special| {
+                            self.m_game.m_player[player].m_specials & special.special != 0
+                        })
+                        .map(|special| special.id)
+                        .collect(),
                 }
             }),
         }

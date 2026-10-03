@@ -280,16 +280,14 @@ pub(super) fn AuxiliaryDie(player: &crate::game::BMC_Player) -> Option<usize> {
         .position(|die| die.HasProperty(property::AUXILIARY))
 }
 
-/// The Auxiliary die this player may accept. Gordo's button refuses a swing
-/// die of its own V-Z types, which would force two dice to share a size.
+/// Gordo refuses a single swing die of its own V-Z types, which would force
+/// two dice to share a size; ButtonWeavers lets a Twin swing die through.
 fn AcceptableAuxiliaryDie(player: &crate::game::BMC_Player) -> Option<usize> {
     AuxiliaryDie(player).filter(|index| {
+        let die = &player.m_die[*index];
         player.m_specials & special::UNIQUE_SIZES == 0
-            || !player.m_die[*index]
-                .m_swing_type
-                .iter()
-                .flatten()
-                .any(|swing| ('V'..='Z').contains(swing))
+            || die.HasProperty(property::TWIN)
+            || !die.m_swing_type[0].is_some_and(|swing| ('V'..='Z').contains(&swing))
     })
 }
 
@@ -666,13 +664,27 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::BMC_Player) -> Vec<SwingM
     }
     let unique_sizes = player.m_specials & special::UNIQUE_SIZES != 0;
     if unique_sizes || player.m_specials & special::UNIQUE_SWING != 0 {
-        let fixed_sizes = player
-            .m_die
-            .iter()
-            .filter(|die| !die.m_in_reserve && die.m_swing_type.iter().all(Option::is_none))
-            .map(|die| die.GetSidesMax())
-            .collect::<Vec<_>>();
         moves.retain(|candidate| {
+            // Option dice count at the side this candidate chooses.
+            let fixed_sizes = player
+                .m_die
+                .iter()
+                .enumerate()
+                .filter(|(_, die)| {
+                    !die.m_in_reserve && die.m_swing_type.iter().all(Option::is_none)
+                })
+                .map(|(index, die)| {
+                    let second = candidate
+                        .options()
+                        .iter()
+                        .any(|(option, second)| *option == index && *second);
+                    if die.HasProperty(property::OPTION) {
+                        u16::from(die.m_sides[usize::from(second)])
+                    } else {
+                        die.GetSidesMax()
+                    }
+                })
+                .collect::<Vec<_>>();
             let values = candidate.values();
             values.iter().enumerate().all(|(index, (_, value))| {
                 !values[..index].iter().any(|(_, other)| other == value)
