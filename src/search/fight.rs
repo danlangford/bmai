@@ -430,10 +430,9 @@ pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize
     let moves = MovesIncludingPass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
-    let mut simulation = ScratchGame(game);
+    let mut simulation = ScratchGame::new(game);
     for candidate in moves {
         if candidate.m_action != Action::Attack {
-            ReturnScratchGame(simulation);
             return candidate;
         }
         RestoreSimulation(&mut simulation, game);
@@ -444,7 +443,6 @@ pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize
             best = candidate;
         }
     }
-    ReturnScratchGame(simulation);
     best
 }
 
@@ -480,7 +478,7 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
     }
     let mut best: Option<(f32, Move)> = None;
     let mut move_count = 0usize;
-    let mut simulation = ScratchGame(game);
+    let mut simulation = ScratchGame::new(game);
     for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
         move_count += 1;
         if trace_rng {
@@ -526,7 +524,6 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
             best = Some((score, candidate));
         }
     }
-    ReturnScratchGame(simulation);
     let selected = best.map_or_else(PassMove, |(_, action)| action);
     if trace {
         let values = |player: usize| {
@@ -555,20 +552,45 @@ thread_local! {
     static SCRATCH_GAME: std::cell::Cell<Option<Box<Game>>> = const { std::cell::Cell::new(None) };
 }
 
-// Rollouts evaluate every candidate on a copy; reusing one per thread avoids
-// allocating dice for each rollout step.
-fn ScratchGame(source: &Game) -> Box<Game> {
-    match SCRATCH_GAME.take() {
-        Some(mut scratch) => {
-            RestoreSimulation(&mut scratch, source);
-            scratch
-        }
-        None => Box::new(source.clone()),
+/// Rollouts evaluate every candidate on a copy; reusing one per thread avoids
+/// allocating dice for each rollout step. Dropping it hands it back.
+struct ScratchGame(Option<Box<Game>>);
+
+impl ScratchGame {
+    fn new(source: &Game) -> Self {
+        let scratch = match SCRATCH_GAME.take() {
+            Some(mut scratch) => {
+                RestoreSimulation(&mut scratch, source);
+                scratch
+            }
+            None => Box::new(source.clone()),
+        };
+        Self(Some(scratch))
     }
 }
 
-fn ReturnScratchGame(scratch: Box<Game>) {
-    SCRATCH_GAME.set(Some(scratch));
+impl std::ops::Deref for ScratchGame {
+    type Target = Game;
+
+    fn deref(&self) -> &Game {
+        self.0
+            .as_deref()
+            .expect("scratch game is present until dropped")
+    }
+}
+
+impl std::ops::DerefMut for ScratchGame {
+    fn deref_mut(&mut self) -> &mut Game {
+        self.0
+            .as_deref_mut()
+            .expect("scratch game is present until dropped")
+    }
+}
+
+impl Drop for ScratchGame {
+    fn drop(&mut self) {
+        SCRATCH_GAME.set(self.0.take());
+    }
 }
 
 /// Field by field, so the scratch players keep their dice allocations. The

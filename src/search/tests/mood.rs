@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! "Engine probe" cases ran ButtonWeavers' `BMAttack::commit_attack` under PHP.
-
 use super::*;
 
 #[test]

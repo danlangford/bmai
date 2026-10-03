@@ -56,7 +56,7 @@ jobs:
                 exit 1
               fi
               # A merge without a version bump (e.g. Dependabot) waits for the next release.
-              echo "$tag is already released; skipping publish" >&2
+              echo "::notice::$tag is already released; skipping publish"
               publish=false
             fi
           fi

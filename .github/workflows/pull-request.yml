@@ -18,6 +18,7 @@ jobs:
   release-policy:
     name: Validate version and changelog
     # Dependency bumps ride along with the next release instead of cutting one.
+    # Keyed on the PR author, so human commits pushed to a Dependabot branch skip it too.
     if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-24.04
     steps:

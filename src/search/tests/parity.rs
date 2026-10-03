@@ -19,7 +19,7 @@ fn konstant_chance_dice_keep_their_size_and_value() {
 }
 
 #[test]
-fn chance_rerolls_resize_mighty_and_weak_dice() {
+fn pr82_chance_rerolls_resize_mighty_and_weak_dice_once() {
     for (die, expected) in [("cH6:1", "cH8:8"), ("ch6:1", "ch4:4")] {
         initiative_scenario()
             .player([die])

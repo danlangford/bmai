@@ -71,6 +71,8 @@ impl Scenario {
         self
     }
 
+    /// Skips the legality check: the engine offers Pass only when no attack
+    /// exists, but these tests want a Pass beside a possible attack.
     pub(crate) fn passes(mut self) -> Self {
         self.passes = true;
         self
@@ -204,6 +206,15 @@ impl Scenario {
         assert!(
             self.passes != self.attack.is_some(),
             "scenario needs exactly one of attacks() or passes()"
+        );
+        assert!(
+            !self.passes
+                || self.attackers.is_none()
+                    && self.targets.is_none()
+                    && self.turbo_option.is_none()
+                    && self.fire_values.is_empty()
+                    && self.boosted_values.is_empty(),
+            "passes() takes no attackers, targets, Turbo, or Fire"
         );
         let mut game =
             parse_game_with_specials(&self.attacker_dice, &self.defender_dice, &self.specials);
@@ -416,6 +427,8 @@ fn assert_die_by_original_index(
 }
 
 /// Lets tests spell expected dice in any token order, as they spell inputs.
+/// Dice the parser rejects, such as Radioactive products below their swing
+/// range, are compared as written.
 fn normalize_die(expected: &str) -> String {
     let mut parser = Parser::default();
     let input = format!("game\nfight\nplayer 0 1 0\n{expected}\nplayer 1 1 0\n1:1\n");

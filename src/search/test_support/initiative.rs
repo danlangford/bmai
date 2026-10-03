@@ -16,6 +16,7 @@ pub(crate) struct InitiativeScenario {
     expected_player_dice: Option<Vec<String>>,
     expected_dice_next_turn: Option<Vec<String>>,
     expected_chance_success: Option<bool>,
+    expected_next_initiative: Option<usize>,
     expected_initiative: Option<Option<usize>>,
 }
 
@@ -72,6 +73,12 @@ impl InitiativeScenario {
         self
     }
 
+    /// The player Chance hands the initiative to, which C++ keys to seat 0.
+    pub(crate) fn expect_next_initiative(mut self, player: usize) -> Self {
+        self.expected_next_initiative = Some(player);
+        self
+    }
+
     pub(crate) fn expect_initiative(mut self, player: Option<usize>) -> Self {
         self.expected_initiative = Some(player);
         self
@@ -83,6 +90,13 @@ impl InitiativeScenario {
             self.chance_rerolls.is_some() != self.focus_values.is_some(),
             "initiative scenario needs exactly one of chance_rerolls() or focuses()"
         );
+        assert!(
+            self.chance_rerolls.is_some()
+                || self.expected_chance_success.is_none()
+                    && self.expected_next_initiative.is_none(),
+            "Chance expectations need chance_rerolls()"
+        );
+        assert!(self.player_index < 2, "seated_as() takes seat 0 or 1");
         let player = self.player_index;
         let opponent = 1 - player;
         let mut seats = [&self.opponent_dice, &self.opponent_dice];
@@ -94,7 +108,7 @@ impl InitiativeScenario {
         }
 
         if let Some(reroll) = self.chance_rerolls {
-            let (_, success) = ApplyChanceMove(
+            let (initiative, success) = ApplyChanceMove(
                 &mut game,
                 player,
                 opponent,
@@ -103,6 +117,12 @@ impl InitiativeScenario {
             );
             if let Some(expected) = self.expected_chance_success {
                 assert_eq!(success, expected, "unexpected Chance result");
+            }
+            if let Some(expected) = self.expected_next_initiative {
+                assert_eq!(
+                    initiative, expected,
+                    "unexpected initiative holder after Chance"
+                );
             }
         }
         if let Some(values) = self.focus_values {
