@@ -373,7 +373,7 @@ pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, a
     }
 }
 
-pub(super) fn pass_move() -> Move {
+pub(crate) fn pass_move() -> Move {
     Move {
         action: Action::Pass,
         attack: None,
@@ -399,7 +399,7 @@ pub(super) fn win_probability(game: &Game) -> f32 {
     }
 }
 
-pub(super) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
+pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
     let mut moves = game.generate_valid_attacks_in_cpp_order_for_search(fire_limit);
     if moves.is_empty() {
         moves.push(pass_move());
@@ -407,137 +407,19 @@ pub(super) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> 
     moves
 }
 
-pub(crate) fn select_random_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let moves = moves_including_pass(game, fire_limit);
-    moves[rng.rand_below(moves.len() as u32) as usize].clone()
-}
-
-pub(crate) fn select_maximize_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let moves = moves_including_pass(game, fire_limit);
-    let mut best = moves[0].clone();
-    let mut best_score = f32::NEG_INFINITY;
-    let mut simulation = ScratchGame::new(game);
-    for candidate in moves {
-        if candidate.action != Action::Attack {
-            return candidate;
-        }
-        restore_simulation(&mut simulation, game);
-        apply_attack(&mut simulation, &candidate, rng);
-        let score = simulation.players[0].score - simulation.players[1].score;
-        if score > best_score {
-            best_score = score;
-            best = candidate;
-        }
-    }
-    best
-}
-
 pub(super) fn select_rollout_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Move {
-    match ai.rollout_policy {
-        RolloutPolicy::Qai => {
-            select_qai_action_with_fire_limit(game, rng, ai.fire_candidate_limit())
-        }
-        RolloutPolicy::MaximizeOrRandom(probability) => {
-            if rng.rand_f32() < probability {
-                select_maximize_action(game, rng, ai.fire_candidate_limit())
-            } else {
-                select_random_action(game, rng, ai.fire_candidate_limit())
-            }
-        }
+    let fire_limit = ai.fire_candidate_limit();
+    // No draw when playouts never randomize, so the default stream is unchanged.
+    let playout = if ai.playout_random > 0.0 && rng.rand_f32() >= 1.0 - ai.playout_random {
+        Playout::Random
+    } else {
+        ai.playout
+    };
+    match playout {
+        Playout::Quick => crate::engines::quick::attack(game, rng, fire_limit),
+        Playout::Maximize => crate::engines::maximize::attack(game, rng, fire_limit),
+        Playout::Random => crate::engines::random::attack(game, rng, fire_limit),
     }
-}
-
-pub(crate) fn select_qai_action(game: &Game, rng: &mut Rng) -> Move {
-    select_qai_action_with_fire_limit(game, rng, Bmai3::default().fire_candidate_limit())
-}
-
-pub(super) fn select_qai_action_with_fire_limit(
-    game: &Game,
-    rng: &mut Rng,
-    fire_limit: usize,
-) -> Move {
-    let traces = trace_settings();
-    let trace = traces.qai;
-    let trace_rng = traces.rng;
-    let trace_moves = traces.qai_moves;
-    if trace {
-        eprintln!(
-            "QAI_BEGIN seed={} scores={:.1},{:.1}",
-            rng.debug_seed(),
-            game.players[0].score,
-            game.players[1].score
-        );
-    }
-    let mut best: Option<(f32, Move)> = None;
-    let mut move_count = 0usize;
-    let mut simulation = ScratchGame::new(game);
-    for candidate in game.generate_valid_attacks_in_cpp_order_for_search(fire_limit) {
-        move_count += 1;
-        if trace_rng {
-            eprintln!(
-                "QAI_RNG before={} move={} attack={:?} attacker={} target={} scores={:.2},{:.2}",
-                rng.debug_seed(),
-                move_count - 1,
-                candidate.attack,
-                candidate.attackers.first().unwrap_or(usize::MAX),
-                candidate.targets.first().unwrap_or(usize::MAX),
-                game.players[0].score,
-                game.players[1].score
-            );
-        }
-        restore_simulation(&mut simulation, game);
-        apply_attack(&mut simulation, &candidate, rng);
-        let mut score = simulation.players[0].score - simulation.players[1].score;
-        for attacker in candidate.attackers.iter() {
-            let die = &game.players[0].dice[attacker];
-            let delta = (die.sides_max() as f32 + 1.0) * 0.5 - die.value_total() as f32;
-            if !die.has_property(property::SHADOW) {
-                score += if die.has_property(property::POISON) {
-                    -delta
-                } else {
-                    delta
-                };
-            }
-        }
-        score += rng.rand_below(5) as f32;
-        if trace_rng {
-            eprintln!("QAI_RNG after={} score={score:.2}", rng.debug_seed());
-        }
-        if trace_moves {
-            eprintln!(
-                "QAI_MOVE {score:.2} {:?} {:?}->{:?}",
-                candidate.attack, candidate.attackers, candidate.targets
-            );
-        }
-        if best
-            .as_ref()
-            .is_none_or(|(best_score, _)| score > *best_score)
-        {
-            best = Some((score, candidate));
-        }
-    }
-    let selected = best.map_or_else(pass_move, |(_, action)| action);
-    if trace {
-        let values = |player: usize| {
-            game.players[player]
-                .dice
-                .iter()
-                .filter(|die| die.is_available())
-                .map(Die::value_total)
-                .collect::<Vec<_>>()
-        };
-        eprintln!(
-            "QAI_BEST seed={} moves={move_count} {:?}|{:?} action={:?} attack={:?} {:?}->{:?}",
-            rng.debug_seed(),
-            values(0),
-            values(1),
-            selected.action,
-            selected.attack,
-            selected.attackers,
-            selected.targets
-        );
-    }
-    selected
 }
 
 thread_local! {
@@ -546,10 +428,10 @@ thread_local! {
 
 /// Rollouts evaluate every candidate on a copy; reusing one per thread avoids
 /// allocating dice for each rollout step. Dropping it hands it back.
-struct ScratchGame(Option<Box<Game>>);
+pub(crate) struct ScratchGame(Option<Box<Game>>);
 
 impl ScratchGame {
-    fn new(source: &Game) -> Self {
+    pub(crate) fn new(source: &Game) -> Self {
         let scratch = match SCRATCH_GAME.take() {
             Some(mut scratch) => {
                 restore_simulation(&mut scratch, source);
@@ -587,7 +469,7 @@ impl Drop for ScratchGame {
 
 /// Field by field, so the scratch players keep their dice allocations. The
 /// destructuring makes a new field a compile error here.
-pub(super) fn restore_simulation(simulation: &mut Game, source: &Game) {
+pub(crate) fn restore_simulation(simulation: &mut Game, source: &Game) {
     let Game {
         players,
         phase,

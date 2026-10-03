@@ -4,10 +4,10 @@
 //! Every AI implements [`Engine`], so match play, the legacy protocol, and the
 //! strength harness pick engines by name instead of matching on each one.
 
-mod maximize;
+pub(crate) mod maximize;
 mod montecarlo;
-mod quick;
-mod random;
+pub(crate) mod quick;
+pub(crate) mod random;
 
 pub(crate) use maximize::Maximize;
 pub(crate) use montecarlo::MonteCarlo;
@@ -21,6 +21,17 @@ use crate::search::{ChanceMove, FocusMove, NativeEvaluation, NativeReplaySequenc
 /// The names `ai PLAYER NAME` accepts, in the order capabilities list them.
 pub const ENGINE_NAMES: [&str; 4] = ["random", "maximize", "quick", "montecarlo"];
 
+/// Capabilities list these; a test checks `MonteCarlo::set` accepts exactly them.
+pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
+    "ply",
+    "max_sims",
+    "min_sims",
+    "maxbranch",
+    "cull",
+    "playout",
+    "playout_random",
+];
+
 pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
     match name {
         "random" => Some(Box::new(Random)),
@@ -31,13 +42,15 @@ pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Setting {
     Ply(usize),
     MaxSims(usize),
     MinSims(usize),
     MaxBranch(usize),
     Cull(bool),
+    Playout(crate::Playout),
+    PlayoutRandom(f32),
 }
 
 impl Setting {
@@ -58,6 +71,18 @@ impl Setting {
                 "off" => Ok(Self::Cull(false)),
                 _ => Err(format!("cull needs on or off, not {value}")),
             },
+            "playout" => match value {
+                "quick" => Ok(Self::Playout(crate::Playout::Quick)),
+                "maximize" => Ok(Self::Playout(crate::Playout::Maximize)),
+                "random" => Ok(Self::Playout(crate::Playout::Random)),
+                _ => Err(format!(
+                    "playout needs quick, maximize, or random, not {value}"
+                )),
+            },
+            "playout_random" => value
+                .parse::<f32>()
+                .map(Self::PlayoutRandom)
+                .map_err(|_| format!("playout_random needs a number, not {value}")),
             _ => Err(format!("unknown setting {name}")),
         }
     }
@@ -69,6 +94,8 @@ impl Setting {
             Self::MinSims(_) => "min_sims",
             Self::MaxBranch(_) => "maxbranch",
             Self::Cull(_) => "cull",
+            Self::Playout(_) => "playout",
+            Self::PlayoutRandom(_) => "playout_random",
         }
     }
 }
@@ -171,5 +198,35 @@ impl<'a, 'b> DecisionContext<'a, 'b> {
     /// The replay key this decision used, if it searched natively.
     pub(crate) const fn issued_replay(&self) -> Option<crate::native::NativeReplayKey> {
         self.issued
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(name: &str) -> Setting {
+        let value = match name {
+            "cull" => "off",
+            "playout" => "random",
+            "playout_random" => "0.5",
+            _ => "2",
+        };
+        Setting::parse(name, value).unwrap()
+    }
+
+    #[test]
+    fn each_engine_accepts_exactly_the_settings_capabilities_list() {
+        for name in ENGINE_NAMES {
+            let listed: &[&str] = if name == "montecarlo" {
+                MONTECARLO_SETTINGS
+            } else {
+                &[]
+            };
+            for setting in MONTECARLO_SETTINGS {
+                let accepted = engine(name).unwrap().set(sample(setting)).is_ok();
+                assert_eq!(accepted, listed.contains(setting), "{name} {setting}");
+            }
+        }
     }
 }

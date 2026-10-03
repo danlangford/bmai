@@ -2,8 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::{Choice, DecisionContext, Engine, Quick};
+use crate::Rng;
 use crate::game::{Game, Move};
-use crate::search::{ChanceMove, FocusMove, SwingMove, select_random_action};
+use crate::search::{ChanceMove, FocusMove, SwingMove, moves_including_pass};
 
 /// Attacks with any legal move. A floor for the strength ladder; outside the
 /// fight it decides as [`Quick`] does.
@@ -50,7 +51,7 @@ impl Engine for Random {
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
         let fire_limit = crate::Bmai3::default().fire_candidate_limit();
-        Choice::unsearched(select_random_action(game, context.rng, fire_limit))
+        Choice::unsearched(attack(game, context.rng, fire_limit))
     }
 
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
@@ -64,4 +65,9 @@ impl Engine for Random {
     ) -> Choice<Option<usize>> {
         Quick.auxiliary(game, context)
     }
+}
+
+pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+    let moves = moves_including_pass(game, fire_limit);
+    moves[rng.rand_below(moves.len() as u32) as usize].clone()
 }

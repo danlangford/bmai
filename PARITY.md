@@ -142,11 +142,15 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] Global `ply`, `max_sims`, `min_sims`, `maxbranch`, `turbo_accuracy`.
 - [x] `compare` (the upstream implementation is currently identical to
   `playgame`, despite its stale OLD-AI comment).
-- [x] `playfair` modes 0 random, 1 maximizer, 2 legacy BMAI with
-  Maximize-or-Random rollout policy, and 3 legacy BMAI with QAI, including
-  initiative-split reporting.
-- [x] `ai <player> <type>`: type 0 legacy fixed-simulation BMAI, type 1 QAI,
-  and type 2 batched/culling BMAI3 are wired for parser actions and games.
+- [x] `playfair`, with initiative-split reporting. Intentional difference
+  since 0.20.0: C++ modes 0-3 picked random, maximizer, or a non-culling BMAI
+  with one of two rollout policies for both players. BMAIR's `playfair GAMES`
+  plays the engines the players already have, so every C++ mode is an `ai`
+  and setting choice: mode 2 is `montecarlo` with `cull off`,
+  `playout maximize`, and `playout_random` 1 - P.
+- [x] Intentional difference since 0.20.0: C++ `ai <player> <type>` types 0
+  (fixed-simulation BMAI), 1 (QAI), and 2 (culling BMAI3) are the named
+  engines `montecarlo` with `cull off`, `quick`, and `montecarlo`.
 - [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing.
   Intentional difference since 0.20.0: C++ players share AI objects by
   pointer, so a per-player setting also reaches the other player and later
@@ -155,14 +159,6 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   engine with its own defaults, and `game` returns both players to the global
   settings. `each_player_owns_its_engine_settings` and
   `per_player_ai_settings_in.txt` cover it.
-  Explicit exclusion: C++ `playfair` modes 0-3 leave both players pointing at
-  the playfair mode AIs (random, maximizer, or a non-culling BMAI with its own
-  rollout policy) until the next `game` or `ai`. BMAIR builds those policies
-  only for the `playfair` run and leaves the previous AI selection in place, so
-  a `getaction`, `playgame`, `compare`, or per-player command issued after
-  `playfair` and before the next `game` block differs. Matching it would add
-  random and maximizer `getaction` selectors for every phase; no known client
-  issues commands in that order.
 - [x] `debug` category validation/state and `debugply` parsing/state, including
   C++'s exact uppercase category and boolean-setting behavior.
 - [x] Error messages, invalid inputs, phase restrictions, and exit behavior:
@@ -188,8 +184,10 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   `play_games`, with `Game` serving as the explicit game template instead
   of C++ `PlayGame(BMC_Man*, BMC_Man*)` setup pointers.
 - `BMC_AI`, Maximizer, QAI, legacy BMAI, and BMAI3 virtual dispatch maps to
-  `AiPolicy` plus `Bmai3`; its search settings, simulation-count
-  computation, evaluator, rollout selection, and last probability are public.
+  the crate-internal `Engine` trait and its `random`, `maximize`, `quick`,
+  and `montecarlo` engines; `Bmai3` keeps the public search settings,
+  simulation-count computation, evaluator, and last probability, and
+  `Playout` selects the simulated games' engine.
 - `BMC_Move`'s tagged union maps to `Move` for fight actions and internal
   typed Swing/Chance/Focus/Reserve moves. Protocol clients observe those move
   types through the same parser action output rather than union field access.
@@ -224,9 +222,9 @@ case named in the final column.
 | simultaneous preround evaluation, option/swing Cartesian product, `UNIQUE` | `search::preround` generation, evaluation, and application | exact bug11/preround traces, locked swing/option regressions, Unique unit test | covered |
 | ButtonWeavers Auxiliary mutual accept/decline lifecycle and courtesy copy | `prepare_auxiliary_phase`, `apply_auxiliary_decision`, legacy/native Auxiliary selectors | readable wire-protocol, mechanics, invalid-input, and worker-independence tests | covered Rust extension |
 | reserve activation and BMAI/BMAI3 evaluation | `search::preround` selection plus `search::match_play` dispatch | exact bug16 candidate/simulation/RNG trace plus `complete_native_match_uses_reserve_after_a_round_loss` | covered |
-| base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | `search::fight` policy dispatch and `search::ai` evaluators | seeded `ai` and all four `playfair` mode comparisons | covered |
+| base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | `engines` (`random`, `maximize`, `quick`, `montecarlo`) and `search::ai` evaluators | seeded `ai` and `playfair` comparisons for every engine | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `search::fight` rollout control plus `search::ai` batching/culling | exact ply-2 and full bug16 traces, evaluator tests | covered |
-| round/match standings including ties, loser swing reset, initiative fairness matrix | `search::match_play` round, match, and fairness orchestration | bmsim fixture, four playfair mode comparisons, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
+| round/match standings including ties, loser swing reset, initiative fairness matrix | `search::match_play` round, match, and fairness orchestration | bmsim fixture, `playfair` for every engine, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `Rng` dispatching `LegacyParkMillerV1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Native search deliberately advances beyond C++ BMAI3's probability-reporting

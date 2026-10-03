@@ -11,8 +11,7 @@ use crate::search::{
     select_native_bmai_reserve_action, select_swing_action,
 };
 
-/// Estimates each candidate's win rate by playing simulated games, as BMAI's
-/// search always has. `search` keeps the settings and last-search figures.
+/// Estimates each candidate's win rate by playing simulated games.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct MonteCarlo {
     pub(crate) search: Bmai3,
@@ -35,13 +34,20 @@ impl Engine for MonteCarlo {
 
     fn set(&mut self, setting: Setting) -> Result<(), String> {
         match setting {
-            // A search must simulate at least the root moves.
+            // Ply 0 always searched exactly as ply 1, so it only misled.
             Setting::Ply(0) => return Err("montecarlo ply must be at least 1".into()),
             Setting::Ply(ply) => self.search.max_ply = ply,
             Setting::MaxSims(sims) => self.search.max_sims = sims,
             Setting::MinSims(sims) => self.search.min_sims = sims,
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
+            Setting::Playout(playout) => self.search.playout = playout,
+            Setting::PlayoutRandom(chance) if !(0.0..=1.0).contains(&chance) => {
+                return Err(format!(
+                    "montecarlo playout_random must be between 0 and 1, not {chance}"
+                ));
+            }
+            Setting::PlayoutRandom(chance) => self.search.playout_random = chance,
         }
         Ok(())
     }

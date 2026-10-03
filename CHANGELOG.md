@@ -52,20 +52,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each with the settings it takes.
 - `cull [PLAYER] on|off` makes Monte Carlo culling a setting instead of a
   separate AI type.
+- `playout [PLAYER] quick|maximize|random` chooses the engine that plays
+  Monte Carlo's simulated games, and `playout_random [PLAYER] P` makes each
+  simulated move random with probability P. They replace the C++ rollout
+  policies; the defaults keep every search unchanged.
 - A strength harness: `strength::play_pairing` plays two engine
   configurations over the same seeds from both seats and reports the paired
   win rate with a 95% interval and milliseconds per decision.
   `cargo run --release --example ladder` runs a round-robin over
-  `tests/strength/matchups.txt`.
+  `tests/strength/matchups.txt`. Seeds are mixed before seeding Park-Miller,
+  whose consecutive seeds roll nearly the same opening dice.
 
 ### Changed
 
 - The numeric AI types `0`, `1`, and `2` are gone; use `montecarlo` with
   `cull off`, `quick`, and `montecarlo`.
-- Each player owns its engine. A per-player setting copies the global
-  settings for that player only, instead of changing an AI object C++ shares
-  between players and games; `game` returns both players to the global
-  settings.
+- `playfair GAMES` plays the engines the players already have. The C++ modes
+  and probability argument are gone; mode 2 is `montecarlo` with `cull off`,
+  `playout maximize`, and `playout_random` 1 - P.
+- Quick, Random, and Maximize move logic lives in their engine files, and
+  Monte Carlo playouts call those engines directly.
+- Native-mode traces of swing, Chance, and Focus searches print the session
+  seed instead of a placeholder generator's.
+- Each player owns its engine. A per-player setting, or `ai PLAYER
+  montecarlo`, copies the global settings for that player only, instead of
+  changing an AI object C++ shares between players and games; `game` returns
+  both players to the global settings.
 - An engine rejects settings it does not use, so `ply` on `quick` is an
   error rather than silently ignored, and Monte Carlo `ply 0` is an error.
 - JSONL session metadata reports each player's `engine` and, for

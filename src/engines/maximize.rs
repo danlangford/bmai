@@ -2,8 +2,12 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::{Choice, DecisionContext, Engine, Quick};
+use crate::Rng;
+use crate::game::{Action, apply_attack};
 use crate::game::{Game, Move};
-use crate::search::{ChanceMove, FocusMove, SwingMove, select_maximize_action};
+use crate::search::{
+    ChanceMove, FocusMove, ScratchGame, SwingMove, moves_including_pass, restore_simulation,
+};
 
 /// Attacks for the most points this turn. Outside the fight it decides as
 /// [`Quick`] does.
@@ -50,7 +54,7 @@ impl Engine for Maximize {
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
         let fire_limit = crate::Bmai3::default().fire_candidate_limit();
-        Choice::unsearched(select_maximize_action(game, context.rng, fire_limit))
+        Choice::unsearched(attack(game, context.rng, fire_limit))
     }
 
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
@@ -64,4 +68,24 @@ impl Engine for Maximize {
     ) -> Choice<Option<usize>> {
         Quick.auxiliary(game, context)
     }
+}
+
+pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+    let moves = moves_including_pass(game, fire_limit);
+    let mut best = moves[0].clone();
+    let mut best_score = f32::NEG_INFINITY;
+    let mut simulation = ScratchGame::new(game);
+    for candidate in moves {
+        if candidate.action != Action::Attack {
+            return candidate;
+        }
+        restore_simulation(&mut simulation, game);
+        apply_attack(&mut simulation, &candidate, rng);
+        let score = simulation.players[0].score - simulation.players[1].score;
+        if score > best_score {
+            best_score = score;
+            best = candidate;
+        }
+    }
+    best
 }

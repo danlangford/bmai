@@ -6,12 +6,13 @@
 
 use bmair::strength::{Contestant, Matchup, markdown_table, play_pairing};
 
+/// The preregistered 0.20.0 ladder in STRENGTH.md.
 const DEFAULT_ENGINES: [&str; 5] = [
     "random",
     "maximize",
     "quick",
-    "montecarlo ply=1",
-    "montecarlo ply=2",
+    "montecarlo ply=1 max_sims=100 min_sims=5 maxbranch=400",
+    "montecarlo ply=2 max_sims=100 min_sims=5 maxbranch=400",
 ];
 
 fn main() -> Result<(), String> {

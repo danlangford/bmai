@@ -11,7 +11,7 @@ use crate::search::{
     Engines, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move, play_fair_games,
     play_fair_games_native, play_games_with_policies, play_games_with_policies_native,
 };
-use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm, RolloutPolicy};
+use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm};
 
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
@@ -112,6 +112,10 @@ impl Parser {
                             max_simulations: search.max_sims,
                             max_branch: search.max_branch,
                             cull: search.cull_moves,
+                            playout: search.playout.name(),
+                            playout_random: crate::protocol::ProtocolFloat::from_f32(
+                                search.playout_random,
+                            ),
                         }
                     }),
                     specials: crate::protocol::notation::BUTTON_SPECIALS

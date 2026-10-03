@@ -64,23 +64,6 @@ pub(super) fn two_usize_arguments(
     }
     Ok(Some((parse_usize(values[0])?, parse_usize(values[1])?)))
 }
-pub(super) fn playfair_arguments(line: &str) -> Result<Option<(usize, usize, f32)>, ParseError> {
-    let Some(rest) = line.strip_prefix("playfair ") else {
-        return Ok(None);
-    };
-    let values = rest.split_whitespace().collect::<Vec<_>>();
-    if values.len() != 3 {
-        return Ok(None);
-    }
-    let probability = values[2]
-        .parse()
-        .map_err(|_| ParseError(format!("invalid float: {}", values[2])))?;
-    Ok(Some((
-        parse_usize(values[0])?,
-        parse_usize(values[1])?,
-        probability,
-    )))
-}
 pub(super) fn parse_usize(input: &str) -> Result<usize, ParseError> {
     input
         .parse()

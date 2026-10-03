@@ -65,6 +65,11 @@ Committed before any ladder results were inspected.
   from both seats (600 games), every contestant against every other.
 - Legacy execution, eight threads; milliseconds per decision are wall time on
   the deciding thread.
+- Command, from `6c02b14`:
+  `ladder --engine random --engine maximize --engine quick --engine
+  "montecarlo ply=1 max_sims=100 min_sims=5 maxbranch=400" --engine
+  "montecarlo ply=2 max_sims=100 min_sims=5 maxbranch=400" --seeds 1..50
+  --threads 8`.
 
 For each pairing report the first contestant's mean paired score (0, 0.5, or
 1 per pair) with a two-sided 95% normal interval. The ladder is confirmed

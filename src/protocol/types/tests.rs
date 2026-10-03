@@ -18,7 +18,15 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
     assert_eq!(names, crate::engines::ENGINE_NAMES);
     assert_eq!(
         engines[3]["settings"],
-        serde_json::json!(["ply", "max_sims", "min_sims", "maxbranch", "cull"])
+        serde_json::json!([
+            "ply",
+            "max_sims",
+            "min_sims",
+            "maxbranch",
+            "cull",
+            "playout",
+            "playout_random"
+        ])
     );
     assert_eq!(value["protocols"][0], "legacy-v1");
     assert_eq!(value["protocols"][1], "jsonl-v1");
@@ -43,6 +51,8 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "min_sims",
             "maxbranch",
             "cull",
+            "playout",
+            "playout_random",
             "report_sims",
             "turbo_accuracy",
             "fire_overshooting",

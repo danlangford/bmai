@@ -193,7 +193,7 @@ fn gordo_auxiliary(player_0: &str, player_1: &str, gordo: usize) -> Game {
 #[test]
 fn gordo_declines_a_v_to_z_auxiliary_swing_die() {
     assert_eq!(
-        select_qai_auxiliary_action(&gordo_auxiliary("+X", "+6", 0)),
+        acceptable_auxiliary_die(&gordo_auxiliary("+X", "+6", 0).players[0]),
         None
     );
 }
@@ -202,7 +202,7 @@ fn gordo_declines_a_v_to_z_auxiliary_swing_die() {
 fn gordo_accepts_other_auxiliary_dice() {
     for auxiliary in ["+4", "+Q", "+(X,X)"] {
         assert_eq!(
-            select_qai_auxiliary_action(&gordo_auxiliary(auxiliary, "+6", 0)),
+            acceptable_auxiliary_die(&gordo_auxiliary(auxiliary, "+6", 0).players[0]),
             Some(1),
             "{auxiliary}"
         );

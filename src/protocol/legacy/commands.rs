@@ -72,13 +72,16 @@ impl Parser {
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                let engine = crate::engines::engine(name.trim()).ok_or_else(|| {
+                let mut engine = crate::engines::engine(name.trim()).ok_or_else(|| {
                     ParseError(format!(
                         "unknown ai {}; choose one of: {}",
                         name.trim(),
                         crate::engines::ENGINE_NAMES.join(", ")
                     ))
                 })?;
+                if engine.montecarlo().is_some() {
+                    engine = Box::new(MonteCarlo::new(self.ai.clone()));
+                }
                 writeln!(
                     output,
                     "Setting AI for player {player} to {}",
@@ -117,20 +120,12 @@ impl Parser {
                 self.set_global_setting(Setting::MaxBranch(value?))?;
                 writeln!(output, "Setting max branch to {}", self.ai.max_branch)
                     .map_err(io_error)?;
+            } else if let Some(arguments) = line.strip_prefix("playout ") {
+                self.apply_setting_command(arguments, "playout", output)?;
+            } else if let Some(arguments) = line.strip_prefix("playout_random ") {
+                self.apply_setting_command(arguments, "playout_random", output)?;
             } else if let Some(arguments) = line.strip_prefix("cull ") {
-                match arguments.split_once(' ') {
-                    Some((player, value)) => {
-                        let player = parse_usize(player)?;
-                        let cull = parse_on_off("cull", value)?;
-                        self.set_player_setting(player, Setting::Cull(cull))?;
-                        writeln!(output, "Setting cull for player {player} {value}")
-                            .map_err(io_error)?;
-                    }
-                    None => {
-                        self.set_global_setting(Setting::Cull(parse_on_off("cull", arguments)?))?;
-                        writeln!(output, "Setting cull {arguments}").map_err(io_error)?;
-                    }
-                }
+                self.apply_setting_command(arguments, "cull", output)?;
             } else if let Some(value) = argument(line, "report_sims") {
                 self.report_sims = value?;
                 writeln!(
@@ -217,31 +212,10 @@ impl Parser {
                     play_games_with_policies(&self.game, games, &mut self.rng, &policies)
                 };
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
-            } else if let Some((games, mode, probability)) = playfair_arguments(line)? {
+            } else if let Some(games) = line.strip_prefix("playfair ") {
                 self.require_preround()?;
-                // C++ accepts out-of-range modes and simply leaves the game's
-                // currently selected AIs unchanged.
-                let policies = if mode > 3 {
-                    self.policies()
-                } else {
-                    std::array::from_fn(|_| -> Box<dyn Engine> {
-                        match mode {
-                            0 => Box::new(crate::engines::Random),
-                            1 => Box::new(crate::engines::Maximize),
-                            2 | 3 => Box::new(MonteCarlo::new(Bmai3 {
-                                cull_moves: false,
-                                max_ply: self.ai.max_ply,
-                                rollout_policy: if mode == 2 {
-                                    RolloutPolicy::MaximizeOrRandom(probability)
-                                } else {
-                                    RolloutPolicy::Qai
-                                },
-                                ..Default::default()
-                            })),
-                            _ => unreachable!(),
-                        }
-                    })
-                };
+                let games = parse_usize(games.trim())?;
+                let policies = self.policies();
                 let wins = if self.execution_mode == ExecutionMode::Native {
                     play_fair_games_native(
                         &self.game,
@@ -255,11 +229,7 @@ impl Parser {
                 } else {
                     play_fair_games(&self.game, games, &mut self.rng, &policies)
                 };
-                writeln!(
-                    output,
-                    "PlayFairGames: {games} games, mode {mode}, p {probability:.6}"
-                )
-                .map_err(io_error)?;
+                writeln!(output, "PlayFairGames: {games} games").map_err(io_error)?;
                 for player in 0..2 {
                     let initiatives = if player == 0 { [0, 1] } else { [1, 0] };
                     for initiative in initiatives {
@@ -380,6 +350,27 @@ impl Parser {
         engine
             .set(setting)
             .map_err(|error| ParseError(format!("player {player}: {error}")))
+    }
+
+    /// `NAME [PLAYER] VALUE` for settings that have no C++ confirmation text.
+    pub(super) fn apply_setting_command<W: Write>(
+        &mut self,
+        arguments: &str,
+        name: &str,
+        output: &mut W,
+    ) -> Result<(), ParseError> {
+        let parse = |value: &str| Setting::parse(name, value).map_err(ParseError);
+        match arguments.split_once(' ') {
+            Some((player, value)) => {
+                let player = parse_usize(player)?;
+                self.set_player_setting(player, parse(value)?)?;
+                writeln!(output, "Setting {name} for player {player} to {value}").map_err(io_error)
+            }
+            None => {
+                self.set_global_setting(parse(arguments)?)?;
+                writeln!(output, "Setting {name} to {arguments}").map_err(io_error)
+            }
+        }
     }
 
     pub(super) fn set_global_setting(&mut self, setting: Setting) -> Result<(), ParseError> {

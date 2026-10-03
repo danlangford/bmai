@@ -59,7 +59,7 @@ pub struct EngineCapability {
     pub settings: &'static [&'static str],
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct PlayerAiMetadata {
     pub engine: &'static str,
@@ -68,7 +68,7 @@ pub struct PlayerAiMetadata {
     pub specials: Vec<&'static str>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct MonteCarloMetadata {
     pub max_ply: usize,
@@ -76,6 +76,8 @@ pub struct MonteCarloMetadata {
     pub max_simulations: usize,
     pub max_branch: usize,
     pub cull: bool,
+    pub playout: &'static str,
+    pub playout_random: ProtocolFloat,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -244,6 +246,8 @@ impl Capabilities {
                 "min_sims",
                 "maxbranch",
                 "cull",
+                "playout",
+                "playout_random",
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",
@@ -296,7 +300,7 @@ impl Capabilities {
                 },
                 EngineCapability {
                     name: "montecarlo",
-                    settings: &["ply", "max_sims", "min_sims", "maxbranch", "cull"],
+                    settings: crate::engines::MONTECARLO_SETTINGS,
                 },
             ],
             skills: &[

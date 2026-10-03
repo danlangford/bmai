@@ -189,13 +189,6 @@ pub(crate) fn select_swing_action(
     (best, probability)
 }
 
-pub(crate) fn select_qai_set_swing_action_for(game: &Game, player: usize) -> SwingMove {
-    generate_swing_moves(&game.players[player])
-        .into_iter()
-        .next()
-        .unwrap_or_else(SwingMove::empty)
-}
-
 pub(crate) fn select_bmai_reserve_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Option<usize> {
     let reserve_indices = game.players[0]
         .dice
@@ -247,7 +240,7 @@ pub(super) fn auxiliary_die(player: &crate::game::Player) -> Option<usize> {
 
 /// Gordo refuses a single swing die of its own V-Z types, which would force
 /// two dice to share a size; ButtonWeavers lets a Twin swing die through.
-fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<usize> {
+pub(crate) fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<usize> {
     auxiliary_die(player).filter(|index| {
         let die = &player.dice[*index];
         player.specials & special::UNIQUE_SIZES == 0
@@ -375,10 +368,6 @@ pub(crate) fn select_native_bmai_auxiliary_action(
     best
 }
 
-pub(crate) fn select_qai_auxiliary_action(game: &Game) -> Option<usize> {
-    acceptable_auxiliary_die(&game.players[0])
-}
-
 pub(crate) fn select_native_bmai_reserve_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
@@ -431,10 +420,6 @@ pub(crate) fn select_native_bmai_reserve_action(
         }
     }
     best
-}
-
-pub(crate) fn select_qai_reserve_action(game: &Game) -> Option<usize> {
-    game.players[0].dice.iter().position(|die| die.in_reserve)
 }
 
 pub(super) fn apply_use_reserve(die: &mut Die) {
@@ -578,7 +563,7 @@ pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     action
 }
 
-pub(super) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
+pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
     let mut actions = Vec::<(Option<char>, usize, Vec<u8>)>::new();
     let mut swings = player
         .dice

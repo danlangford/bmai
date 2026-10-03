@@ -166,13 +166,8 @@ The stable command forms are:
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `cull [PLAYER] on\|off` | Let Monte Carlo search drop clearly losing candidates early (default on). |
 
-Unqualified settings change the global Monte Carlo settings, which the `stats`
-line reports and every player starts each `game` with. A per-player setting
-gives only that player its own copy, and `ai PLAYER NAME` gives the player a
-fresh engine with that engine's defaults; neither reaches the other player.
-A setting the player's engine does not use is an error, as is Monte Carlo
-`ply 0`. JSONL session metadata reports each player's `engine` and, for
-`montecarlo`, its `montecarlo` settings.
+| `playout [PLAYER] quick\|maximize\|random` | Choose the engine that plays Monte Carlo's simulated games (default `quick`). |
+| `playout_random [PLAYER] P` | Make each simulated move a random legal move with probability P, from 0 (the default) to 1. |
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
@@ -180,9 +175,16 @@ A setting the player's engine does not use is an error, as is Monte Carlo
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |
-| `playfair N MODE P` | Run position-swapped games with the selected rollout mode. |
+| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. |
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
+
+Unqualified settings change the global Monte Carlo settings, which the `stats`
+line reports and every player starts each `game` with. A per-player setting,
+or `ai PLAYER montecarlo`, gives only that player its own copy of the global
+settings; neither reaches the other player. A setting the player's engine does
+not use is an error, as is Monte Carlo `ply 0`. JSONL session metadata reports
+each player's `engine` and, for `montecarlo`, its `montecarlo` settings.
 
 Phases are `aux`, `preround`, `reserve`, `initiative`, `chance`, `focus`,
 `fight`, and `gameover`. `getaction` is defined for Auxiliary, preround,

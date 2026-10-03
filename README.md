@@ -136,8 +136,8 @@ always a die.
 
 Each player is driven by a named engine: `random`, `maximize`, `quick` (the
 C++ Quick AI), or `montecarlo` (BMAI's simulation search, the default).
-`ai PLAYER NAME` selects one. `ply`, `max_sims`, `min_sims`, `maxbranch`, and
-`cull` take an optional player. Without one they set the global Monte Carlo
+`ai PLAYER NAME` selects one. `ply`, `max_sims`, `min_sims`, `maxbranch`,
+`cull`, `playout`, and `playout_random` take an optional player. Without one they set the global Monte Carlo
 settings every player starts each `game` with; with one they change only that
 player's engine. An engine rejects settings it does not use, and Monte Carlo
 `ply` must be at least 1.

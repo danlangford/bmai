@@ -2,8 +2,10 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 //! Measures one engine configuration against another. Every seed is played
-//! from both seats, so the luck of the dice and the buttons largely cancels
-//! and a small sample can still separate the contestants.
+//! with each contestant in each seat, so neither gains from a seat or button
+//! advantage. The dice are not shared: in legacy mode a search draws from the
+//! same generator as the dice, so the two games of a pair diverge at the
+//! first search.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -135,7 +137,7 @@ pub fn play_pairing(
                         ];
                         let [as_seat_0, as_seat_1] = seated.map(|engines: Engines| {
                             let mut rng = Rng::default();
-                            rng.reseed(*seed);
+                            rng.reseed(game_seed(*seed));
                             play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
                         });
                         results.push((index, [as_seat_0 == 0, as_seat_1 == 1]));
@@ -167,8 +169,18 @@ pub fn play_pairing(
     }
 }
 
-/// A normal 95% interval over the paired scores; the pairing keeps each
-/// sample's variance low enough for this to be useful at a few hundred pairs.
+/// Park-Miller seeded with consecutive integers rolls nearly the same opening
+/// dice for neighbouring seeds, so each seed is mixed first (murmur3 fmix32).
+fn game_seed(seed: u32) -> u32 {
+    let mut mixed = seed;
+    mixed = (mixed ^ (mixed >> 16)).wrapping_mul(0x85eb_ca6b);
+    mixed = (mixed ^ (mixed >> 13)).wrapping_mul(0xc2b2_ae35);
+    mixed ^= mixed >> 16;
+    // Seed 0 asks the generator for the clock.
+    mixed.max(1)
+}
+
+/// A normal 95% interval over the paired scores.
 fn mean_with_interval(scores: &[f64]) -> (f64, (f64, f64)) {
     if scores.is_empty() {
         return (f64::NAN, (f64::NAN, f64::NAN));
@@ -253,6 +265,14 @@ impl Engine for Timed {
         Box::new(self.clone())
     }
 
+    fn set(&mut self, setting: Setting) -> Result<(), String> {
+        self.inner.set(setting)
+    }
+
+    fn montecarlo(&self) -> Option<&crate::Bmai3> {
+        self.inner.montecarlo()
+    }
+
     fn swing(
         &self,
         game: &Game,
@@ -326,6 +346,29 @@ mod tests {
                 .unwrap_err()
                 .starts_with("unknown engine expert")
         );
+    }
+
+    #[test]
+    fn swapping_contestants_mirrors_the_result() {
+        let quick = Contestant::parse("quick").unwrap();
+        let random = Contestant::parse("random").unwrap();
+        let matchups = [Matchup::parse("Avis vs Hammer | 4 4 10 12 X | 6 12 20 20 X", 1).unwrap()];
+        let forward = play_pairing(&quick, &random, &matchups, 1..=30, 2);
+        let backward = play_pairing(&random, &quick, &matchups, 1..=30, 2);
+        assert_eq!(forward.first_wins, backward.second_wins);
+        assert!((forward.first_score - (1.0 - backward.first_score)).abs() < 1e-9);
+        assert!(forward.first_score > 0.5, "{forward:?}");
+    }
+
+    #[test]
+    fn the_ladder_matchups_parse() {
+        let matchups = include_str!("../tests/strength/matchups.txt")
+            .lines()
+            .filter(|line| !line.trim().is_empty() && !line.starts_with('#'))
+            .map(|line| Matchup::parse(line, 1))
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(matchups.len(), 6);
     }
 
     #[test]

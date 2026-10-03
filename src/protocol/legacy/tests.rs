@@ -210,7 +210,7 @@ Setting max ply for player 0 to 3\n\
 Setting max sims for player 0 to 40\n\
 Setting min sims for player 0 to 4\n\
 Setting max branch for player 0 to 400\n\
-Setting cull for player 0 off\n\
+Setting cull for player 0 to off\n\
 Setting debug ply to 2\n\
 Seeding with 17\n"
     );
@@ -231,9 +231,9 @@ fn each_player_owns_its_engine_settings() {
             &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-40/5000/0.50"],
         ),
         (
-            "ai montecarlo starts from the engine defaults",
-            format!("ply 2\nmin_sims 2\n{GAME}ai 0 montecarlo\ngetaction\n"),
-            &["l1 p0 Valid Moves 5 Sims 500", "stats 2/2-500/5000/0.50"],
+            "ai montecarlo starts from the global settings",
+            format!("ply 2\nmax_sims 7\n{GAME}ai 0 montecarlo\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 7", "stats 2/10-7/5000/0.50"],
         ),
         (
             "game returns both players to the global settings",
@@ -268,6 +268,24 @@ fn each_player_owns_its_engine_settings() {
 }
 
 #[test]
+fn global_cull_and_playout_settings_reach_players_following_them() {
+    let mut parser = Parser::default();
+    parser
+        .parse_string(
+            "cull off\nplayout maximize\nplayout_random 0.25\ngame\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\nai 1 montecarlo\n",
+            &mut Vec::new(),
+        )
+        .unwrap();
+    for player in 0..2 {
+        let engine = parser.player_engine(player);
+        let search = engine.montecarlo().unwrap();
+        assert!(!search.cull_moves, "player {player}");
+        assert_eq!(search.playout, crate::Playout::Maximize, "player {player}");
+        assert_eq!(search.playout_random, 0.25, "player {player}");
+    }
+}
+
+#[test]
 fn engines_reject_settings_they_do_not_use() {
     for (input, expected) in [
         ("ply 0\n", "montecarlo ply must be at least 1"),
@@ -284,9 +302,18 @@ fn engines_reject_settings_they_do_not_use() {
             "ai 1 maximize\ncull 1 off\n",
             "player 1: maximize has no cull setting",
         ),
+        ("cull maybe\n", "cull needs on or off, not maybe"),
         (
-            "cull maybe\n",
-            "invalid cull setting: maybe (expected on or off)",
+            "playout_random 1.5\n",
+            "montecarlo playout_random must be between 0 and 1, not 1.5",
+        ),
+        (
+            "playout best\n",
+            "playout needs quick, maximize, or random, not best",
+        ),
+        (
+            "ai 0 quick\nplayout 0 random\n",
+            "player 0: quick has no playout setting",
         ),
     ] {
         assert_eq!(
@@ -321,18 +348,6 @@ fn ai_rejects_unknown_engines_and_players() {
 }
 
 #[test]
-fn cpp_playfair_out_of_range_mode_retains_current_ai() {
-    let input = "game 1\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nplayfair 0 4 0.5\nquit\n";
-    let mut output = Vec::new();
-    Parser::default().parse_string(input, &mut output).unwrap();
-    assert!(
-        String::from_utf8(output)
-            .unwrap()
-            .contains("PlayFairGames: 0 games, mode 4")
-    );
-}
-
-#[test]
 fn cpp_debug_command_validates_category_and_reports_setting() {
     let mut output = Vec::new();
     Parser::default()
@@ -362,6 +377,42 @@ fn cpp_debug_command_validates_category_and_reports_setting() {
 }
 
 #[test]
+fn random_and_maximize_attack_in_the_fight_and_decide_as_quick_elsewhere() {
+    let fight = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\n";
+    let preround = "game 1\npreround\nplayer 0 2 0\n6\nX\nplayer 1 1 0\n20\n";
+    let action = |input: String| {
+        let mut parser = Parser::default();
+        let mut output = Vec::new();
+        parser.parse_string(&input, &mut output).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(!output.contains("Valid Moves"), "{output}");
+        parser.last_action().cloned()
+    };
+    let quick_swing = action(format!("{preround}ai 0 quick\ngetaction\n"));
+    for engine in ["random", "maximize"] {
+        assert_eq!(
+            action(format!("{preround}ai 0 {engine}\ngetaction\n")),
+            quick_swing,
+            "{engine}"
+        );
+        assert!(matches!(
+            action(format!("{fight}ai 0 {engine}\nseed 17\ngetaction\n")),
+            Some(crate::protocol::ProtocolAction::Attack { .. })
+        ));
+    }
+    assert_eq!(
+        action(format!("{fight}ai 0 maximize\nseed 17\ngetaction\n")),
+        Some(crate::protocol::ProtocolAction::Attack {
+            attack_type: "skill",
+            attackers: vec![0, 1],
+            targets: vec![0],
+            turbo: None,
+            fire: Vec::new(),
+        })
+    );
+}
+
+#[test]
 fn quick_engine_drives_getaction_without_search_output() {
     let input = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\nai 0 quick\nseed 17\ngetaction\nquit\n";
     let mut output = Vec::new();
@@ -372,18 +423,15 @@ fn quick_engine_drives_getaction_without_search_output() {
 }
 
 #[test]
-fn cpp_playfair_modes_report_initiative_split_stats() {
-    for mode in 0..=3 {
+fn playfair_plays_the_selected_engines_and_reports_initiative_split_stats() {
+    for engine in crate::engines::ENGINE_NAMES {
         let input = format!(
-            "game 1\npreround\nplayer 0 1 0\n2\nplayer 1 1 0\n2\nseed 17\nplayfair 2 {mode} 0.5\nquit\n"
+            "game 1\npreround\nplayer 0 1 0\n2\nplayer 1 1 0\n2\nai 0 {engine}\nai 1 {engine}\nseed 17\nplayfair 2\nquit\n"
         );
         let mut output = Vec::new();
         Parser::default().parse_string(&input, &mut output).unwrap();
         let output = String::from_utf8(output).unwrap();
-        assert!(
-            output.contains(&format!("PlayFairGames: 2 games, mode {mode}, p 0.500000")),
-            "{output}"
-        );
+        assert!(output.contains("PlayFairGames: 2 games\n"), "{output}");
         assert_eq!(output.matches(" stats: initiative ").count(), 4, "{output}");
     }
 }
@@ -405,7 +453,7 @@ fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
 #[test]
 fn cpp_game_simulation_commands_require_preround() {
     let prefix = "game 1\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n6:6\n";
-    for command in ["playgame 1", "compare 1", "playfair 1 0 0.5"] {
+    for command in ["playgame 1", "compare 1", "playfair 1"] {
         let error = Parser::default()
             .parse_string(&format!("{prefix}{command}\n"), &mut Vec::new())
             .unwrap_err();
