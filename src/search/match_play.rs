@@ -95,7 +95,7 @@ pub(super) fn play_match_with_policies(
         game.players[loser].swing_set = SwingSet::Not;
         for die in &mut game.players[loser].dice {
             if die.swing_type.iter().any(Option::is_some) {
-                die.notset = true;
+                die.not_set = true;
             }
         }
         if wins[0] < template.target_wins
@@ -191,7 +191,7 @@ pub(super) fn play_round_with_policies(
     for player in &mut game.players {
         player.score = 0.0;
         for die in &mut player.dice {
-            die.notset = true;
+            die.not_set = true;
             roll_die(die, rng);
         }
         player.score = player
@@ -279,10 +279,10 @@ pub(super) fn play_round_with_policies(
             }
             AiPolicy::Qai => select_qai_action(&oriented, rng),
             AiPolicy::Random => {
-                select_random_action(&oriented, rng, Bmai3::default().FireCandidateLimit())
+                select_random_action(&oriented, rng, Bmai3::default().fire_candidate_limit())
             }
             AiPolicy::Maximize => {
-                select_maximize_action(&oriented, rng, Bmai3::default().FireCandidateLimit())
+                select_maximize_action(&oriented, rng, Bmai3::default().fire_candidate_limit())
             }
         };
         if action.action == Action::Surrender {

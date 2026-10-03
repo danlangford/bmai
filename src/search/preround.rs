@@ -53,7 +53,7 @@ pub(super) fn select_swing_action(
             );
         }
     }
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
     let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
@@ -230,7 +230,7 @@ pub(crate) fn select_bmai_reserve_action(game: &Game, rng: &mut Rng, ai: &Bmai3)
         .enumerate()
         .filter_map(|(index, die)| die.in_reserve.then_some(index))
         .collect::<Vec<_>>();
-    let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
+    let sims = ai.compute_number_sims(reserve_indices.len() + 1, 1);
     let mut best_score = -1.0f32;
     let mut best = None;
     let mut simulation = game.clone();
@@ -297,7 +297,7 @@ pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
             if keep && die.has_property(property::AUXILIARY) {
                 die.properties &= !property::AUXILIARY;
                 die.value = None;
-                die.notset = true;
+                die.not_set = true;
             }
             index += 1;
             keep
@@ -331,7 +331,7 @@ pub(crate) fn select_bmai_auxiliary_action(
             simulations: 0,
         };
     };
-    let simulations = ai.ComputeNumberSims(2, 1);
+    let simulations = ai.compute_number_sims(2, 1);
     let candidates = [Some(auxiliary), None];
     let mut best = AuxiliarySearchResult {
         die: None,
@@ -364,7 +364,7 @@ pub(crate) fn select_native_bmai_auxiliary_action(
             simulations: 0,
         };
     };
-    let simulations = ai.ComputeNumberSims(2, 1);
+    let simulations = ai.compute_number_sims(2, 1);
     let candidates = [Some(auxiliary), None];
     let tasks = candidates
         .iter()
@@ -419,7 +419,7 @@ pub(crate) fn select_native_bmai_reserve_action(
         .enumerate()
         .filter_map(|(index, die)| die.in_reserve.then_some(index))
         .collect::<Vec<_>>();
-    let sims = ai.ComputeNumberSims(reserve_indices.len() + 1, 1);
+    let sims = ai.compute_number_sims(reserve_indices.len() + 1, 1);
     let candidates = reserve_indices
         .into_iter()
         .map(Some)
@@ -468,7 +468,7 @@ pub(super) fn apply_use_reserve(die: &mut Die) {
     die.in_reserve = false;
     die.properties &= !property::RESERVE;
     die.value = None;
-    die.notset = true;
+    die.not_set = true;
 }
 
 pub(super) fn randomly_select_swing_moves(
@@ -513,9 +513,9 @@ pub(super) fn randomly_select_swing_moves(
     }
 
     while moves.len() > max {
-        let index = rng.rand_max(moves.len() as u32) as usize;
+        let index = rng.rand_below(moves.len() as u32) as usize;
         let percentage_extreme = extreme_settings(&moves[index]) as f32 / swing_dice as f32;
-        if rng.frand() >= percentage_extreme {
+        if rng.rand_f32() >= percentage_extreme {
             moves.swap_remove(index);
         }
     }
@@ -706,7 +706,7 @@ pub(super) fn apply_swing_move(player: &mut crate::game::Player, action: &SwingM
             if let Some(s) = die.swing_type[side]
                 && let Some((_, v)) = action.values().iter().find(|(kind, _)| *kind == s)
             {
-                assert!(die.notset, "Die::OnSwingSet requires NOTSET state");
+                assert!(die.not_set, "Die::OnSwingSet requires NOTSET state");
                 die.sides[side] = *v;
             }
         }

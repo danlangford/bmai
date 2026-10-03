@@ -54,7 +54,7 @@ impl RollScenario {
         let mut values = BTreeSet::new();
         for _ in 0..self.times {
             let mut game = template.clone();
-            game.players[0].dice[0].notset = true;
+            game.players[0].dice[0].not_set = true;
             roll_scheduled_die(&mut game, 0, 0, &mut rng);
             let die = &game.players[0].dice[0];
             if self.expect_twin_halves_match {

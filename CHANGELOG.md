@@ -17,8 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A playing-strength harness: seeded matches between two versions or AI
   policies over fixed button pairings, reporting win rate with a confidence
   interval, so every AI change is measured.
-- Stronger QAI rollouts from a few cheap rules, kept within QAI's time and
-  memory budget and measured with the harness.
+- Stronger QAI rollouts within QAI's time and memory budget, measured with the
+  harness. Candidate rules: prefer attacks that leave the opponent's capture
+  options smallest, and avoid rerolling a die the keep-threshold says must
+  survive.
 - A `minimax` AI policy (expectiminimax), built in measured steps:
   - Exact reroll odds instead of sampling, starting with a Turbo pre-screen
     that drops dominated sizes before simulating the rest.
@@ -44,6 +46,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and fields drop `m_` (`m_die` is `dice`, `m_player` is `players`). The crate
   no longer allows `non_snake_case`. Library callers must update; protocol
   output is unchanged.
+- Some names now say what they do instead of mirroring C++:
+  - `Die::m_value_total` is `value`, since `value_total()` is the method.
+  - `Rng::GetRandMax`, `SRand`, and `GetFRand` are `rand_below`, `reseed`, and
+    `rand_f32`.
+  - `Parser::GetAction`, which runs the search, is `send_action`, and
+    `Bmai3::CullMoves` is `cull`.
+  - `AvailableDice` is `available_dice_count`, `notset` is `not_set`,
+    `ProbabilityWin` is `win_probability`, and the `Move::attack`
+    constructor is `Move::new_attack`.
+- `BMAIR_TRACE_AI` prints moves with the new field names.
 
 ## [0.18.0] - 2026-10-03
 

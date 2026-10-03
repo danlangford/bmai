@@ -11,7 +11,7 @@ pub struct Die {
     pub swing_type: [Option<char>; 2],
     pub value: Option<u8>,
     pub captured: bool,
-    pub notset: bool,
+    pub not_set: bool,
     pub dizzy: bool,
     pub original_index: usize,
     pub in_reserve: bool,
@@ -32,7 +32,7 @@ impl Die {
         u16::from(self.value.unwrap_or(0))
     }
     pub fn is_available(&self) -> bool {
-        self.value.is_some() && !self.captured && !self.notset && !self.in_reserve
+        self.value.is_some() && !self.captured && !self.not_set && !self.in_reserve
     }
 
     pub fn score(&self, own: bool) -> f32 {
@@ -40,8 +40,8 @@ impl Die {
             return 0.0;
         }
         let poison = self.has_property(property::POISON);
-        let value = self.has_property(property::VALUE);
-        match (poison, value, own) {
+        let is_value_die = self.has_property(property::VALUE);
+        match (poison, is_value_die, own) {
             (true, true, true) => -(self.value_total() as f32),
             (true, true, false) => -(self.value_total() as f32) * 0.5,
             (true, false, true) => -(self.sides_max() as f32),
@@ -58,7 +58,7 @@ impl Die {
     }
 
     pub fn on_swing_set(&mut self, swing: char, value: u8) {
-        assert!(self.notset, "Die::OnSwingSet requires NOTSET state");
+        assert!(self.not_set, "Die::OnSwingSet requires NOTSET state");
         for side in 0..2 {
             if self.swing_type[side] == Some(swing) {
                 self.sides[side] = value;

@@ -5,7 +5,7 @@
 use super::*;
 
 impl Parser {
-    pub(super) fn action<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
+    pub(super) fn send_action<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
         let player_ai = self.player_ai(0).clone();
         match self.game.phase {
             Phase::Auxiliary => {
@@ -55,13 +55,13 @@ impl Parser {
                 }
                 if self.ai_type(0) != 1 {
                     let moves = self.game.generate_valid_attacks_in_cpp_order_for_search(
-                        player_ai.FireCandidateLimit(),
+                        player_ai.fire_candidate_limit(),
                     );
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",
                         moves.len(),
-                        player_ai.ComputeNumberSims(moves.len().max(1), 1)
+                        player_ai.compute_number_sims(moves.len().max(1), 1)
                     )
                     .map_err(io_error)?;
                 }
@@ -76,7 +76,7 @@ impl Parser {
                         self.native_workers,
                         &player_ai,
                     );
-                    let summary = (result.best_score, result.probability_win(), result.sims_run);
+                    let summary = (result.best_score, result.win_probability(), result.sims_run);
                     let report = if self.report_sims == 0 {
                         None
                     } else {
@@ -95,14 +95,14 @@ impl Parser {
                 } else {
                     let result =
                         select_bmai_action_with_stats(&self.game, &mut self.rng, &player_ai);
-                    let summary = (result.best_score, result.probability_win(), result.sims_run);
+                    let summary = (result.best_score, result.win_probability(), result.sims_run);
                     (result.best_move, Some(summary), None)
                 };
                 self.last_action = Some(protocol_attack(&self.game, &action)?);
-                if let Some((best_score, probability_win, simulations)) = search {
+                if let Some((best_score, win_probability, simulations)) = search {
                     self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
                         player: 0,
-                        probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
+                        probability: crate::protocol::ProtocolFloat::from_f32(win_probability),
                         simulations,
                         source: "move_selection",
                     });
@@ -110,15 +110,15 @@ impl Parser {
                         output,
                         "l1 p0 best move ({:.1} points, {:.1}% win)",
                         best_score,
-                        probability_win * 100.0
+                        win_probability * 100.0
                     )
                     .map_err(io_error)?;
                 }
                 if let Some(estimate) = report {
-                    let probability_win = estimate.probability_win();
+                    let win_probability = estimate.win_probability();
                     self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
                         player: 0,
-                        probability: crate::protocol::ProtocolFloat::from_f32(probability_win),
+                        probability: crate::protocol::ProtocolFloat::from_f32(win_probability),
                         simulations: estimate.simulations,
                         source: "selected_move_resample",
                     });
@@ -127,7 +127,7 @@ impl Parser {
                         "l1 p0 selected move report ({:.1}/{}, {:.1}% win)",
                         estimate.score,
                         estimate.simulations,
-                        probability_win * 100.0
+                        win_probability * 100.0
                     )
                     .map_err(io_error)?;
                 }

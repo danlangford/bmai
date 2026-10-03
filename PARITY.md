@@ -194,8 +194,8 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - `BMC_Move`'s tagged union maps to `Move` for fight actions and internal
   typed Swing/Chance/Focus/Reserve moves. Protocol clients observe those move
   types through the same parser action output rather than union field access.
-- `BMC_RNG` maps directly to public `srand`, `rand`, `rand_max`, and
-  `frand`. Logger and stats presentation are transport diagnostics; parser
+- `BMC_RNG` maps directly to public `reseed`, `rand`, `rand_below`, and
+  `rand_f32`. Logger and stats presentation are transport diagnostics; parser
   debug settings and stable stats/action output are externally preserved.
 
 ## Feature and search matrix

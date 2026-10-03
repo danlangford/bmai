@@ -389,10 +389,10 @@ fn failed_trip_does_not_morph() {
 /// In attack order: Trip roll, target reroll, morphed reroll.
 fn trip_morph_draws(seed: u32, attacker_sides: u32, target_sides: u32) -> [u32; 3] {
     let mut rng = Rng::default();
-    rng.srand(seed);
-    let trip = rng.rand_max(attacker_sides) + 1;
-    let target = rng.rand_max(target_sides) + 1;
-    let morphed = rng.rand_max(target_sides) + 1;
+    rng.reseed(seed);
+    let trip = rng.rand_below(attacker_sides) + 1;
+    let target = rng.rand_below(target_sides) + 1;
+    let morphed = rng.rand_below(target_sides) + 1;
     [trip, target, morphed]
 }
 

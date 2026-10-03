@@ -126,11 +126,11 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
         let attacker = resolve_original_indices("attacker", &game.players[0].dice, &[0]);
         let target = resolve_original_indices("target", &game.players[1].dice, &[1]);
         let mut rng = Rng::default();
-        rng.srand(seed_for_first_roll(poison_roll, 20));
+        rng.reseed(seed_for_first_roll(poison_roll, 20));
 
         apply_attack(
             &mut game,
-            &Move::attack(Power, attacker, target, 0.0),
+            &Move::new_attack(Power, attacker, target, 0.0),
             &mut rng,
         );
         assert_eq!(game.players[0].dice[0].value_total(), poison_roll);
@@ -172,8 +172,8 @@ fn seed_for_first_roll(value: u16, sides: u32) -> u32 {
     (1..=u32::MAX)
         .find(|seed| {
             let mut rng = Rng::default();
-            rng.srand(*seed);
-            rng.rand_max(sides) + 1 == u32::from(value)
+            rng.reseed(*seed);
+            rng.rand_below(sides) + 1 == u32::from(value)
         })
         .expect("every die face must be reachable from the legacy RNG")
 }

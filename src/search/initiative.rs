@@ -46,10 +46,10 @@ pub(super) fn apply_chance_move(
     }
     for index in &action.reroll {
         if !game.players[player].dice[*index].has_property(property::KONSTANT) {
-            game.players[player].dice[*index].notset = true;
+            game.players[player].dice[*index].not_set = true;
         }
         apply_before_roll_effects(game, player, *index);
-        if game.players[player].dice[*index].notset {
+        if game.players[player].dice[*index].not_set {
             roll_scheduled_die(game, player, *index, rng);
         }
     }
@@ -72,7 +72,7 @@ pub(super) fn select_chance_action(
     native: Option<NativeEvaluation>,
 ) -> (ChanceMove, f32) {
     let mut moves = generate_chance_moves(game, player);
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
     let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
@@ -317,7 +317,7 @@ pub(super) fn select_focus_action(
 ) -> (FocusMove, f32) {
     let trace = trace_settings().focus;
     let mut moves = generate_focus_moves(game, player);
-    let sims = ai.ComputeNumberSims(moves.len(), level);
+    let sims = ai.compute_number_sims(moves.len(), level);
     if trace {
         eprintln!(
             "FOCUS_BEGIN l{level} seed={} moves={} sims={sims}",
@@ -679,7 +679,7 @@ pub(super) fn play_fight_qai_from_phase(
 ) -> f32 {
     let mut oriented = game.clone();
     for _ in 0..256 {
-        if game.players.iter().any(|p| available_dice(p) == 0) {
+        if game.players.iter().any(|p| available_dice_count(p) == 0) {
             break;
         }
         restore_simulation(&mut oriented, game);

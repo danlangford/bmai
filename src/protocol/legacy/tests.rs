@@ -496,13 +496,13 @@ fn native_auxiliary_search_is_worker_count_independent() {
 fn current_value_and_focus_dizzy_suffix_are_parsed_explicitly() {
     let ready = parse_die("6:4", 2).unwrap();
     assert_eq!(ready.value, Some(4));
-    assert!(!ready.notset);
+    assert!(!ready.not_set);
     assert!(!ready.dizzy);
     assert_eq!(ready.original_index, 2);
 
     let dizzy = parse_die("f12:7d", 4).unwrap();
     assert_eq!(dizzy.value, Some(7));
-    assert!(!dizzy.notset);
+    assert!(!dizzy.not_set);
     assert!(dizzy.dizzy);
     assert_eq!(dizzy.original_index, 4);
 }

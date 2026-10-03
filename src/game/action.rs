@@ -48,7 +48,7 @@ impl FireAdjustment {
 }
 
 impl Move {
-    pub(crate) fn attack(
+    pub(crate) fn new_attack(
         kind: Attack,
         attackers: impl Into<DieIndexSet>,
         targets: impl Into<DieIndexSet>,

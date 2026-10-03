@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-#![allow(non_camel_case_types, non_snake_case)]
-
 use crate::Move;
 use std::sync::OnceLock;
 
@@ -40,11 +38,11 @@ pub struct EvaluationRequest<'a> {
 }
 
 impl Stats {
-    pub fn OnFullSimulation(&mut self) {
+    pub fn on_full_simulation(&mut self) {
         self.sims += 1;
     }
 
-    pub fn OnPlyAction(&mut self, ply: usize, moves: usize, sims: usize) {
+    pub fn on_ply_action(&mut self, ply: usize, moves: usize, sims: usize) {
         if let Some(total) = self.total_sims.get_mut(ply) {
             *total += sims;
             self.total_moves[ply] += moves;
@@ -93,11 +91,11 @@ impl Default for Bmai3 {
 }
 
 impl Bmai3 {
-    pub(crate) fn FireCandidateLimit(&self) -> usize {
+    pub(crate) fn fire_candidate_limit(&self) -> usize {
         (self.max_branch / self.min_sims.max(1)).max(1)
     }
 
-    pub fn ComputeNumberSims(&self, moves: usize, level: usize) -> usize {
+    pub fn compute_number_sims(&self, moves: usize, level: usize) -> usize {
         assert!(moves > 0);
         assert!(level > 0);
         let decay = self.ply_decay.powi(level as i32 - 1);
@@ -112,11 +110,11 @@ impl Bmai3 {
     }
 
     /// The callback returns the mover's win probability.
-    pub fn EvaluateMoves<F>(&mut self, moves: Vec<Move>, level: usize, mut evaluate: F) -> Move
+    pub fn evaluate_moves<F>(&mut self, moves: Vec<Move>, level: usize, mut evaluate: F) -> Move
     where
         F: FnMut(&Move, EvaluationCoordinate) -> f32,
     {
-        self.EvaluateMovesBatched(moves, level, |requests| {
+        self.evaluate_moves_batched(moves, level, |requests| {
             requests
                 .iter()
                 .map(|request| evaluate(request.candidate, request.coordinate))
@@ -125,7 +123,7 @@ impl Bmai3 {
     }
 
     /// Native mode parallelizes here, so results must match requests by position.
-    pub fn EvaluateMovesBatched<F>(
+    pub fn evaluate_moves_batched<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -134,11 +132,11 @@ impl Bmai3 {
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
-        self.EvaluateMovesBatchedInner(moves, level, false, evaluate_batch)
+        self.evaluate_moves_batched_inner(moves, level, false, evaluate_batch)
     }
 
     /// Keeps sampling the survivor so reported odds use the whole budget.
-    pub(crate) fn EvaluateMovesBatchedToCompletion<F>(
+    pub(crate) fn evaluate_moves_batched_to_completion<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -147,10 +145,10 @@ impl Bmai3 {
     where
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
-        self.EvaluateMovesBatchedInner(moves, level, true, evaluate_batch)
+        self.evaluate_moves_batched_inner(moves, level, true, evaluate_batch)
     }
 
-    fn EvaluateMovesBatchedInner<F>(
+    fn evaluate_moves_batched_inner<F>(
         &mut self,
         moves: Vec<Move>,
         level: usize,
@@ -161,8 +159,8 @@ impl Bmai3 {
         F: FnMut(&[EvaluationRequest<'_>]) -> Vec<f32>,
     {
         assert!(!moves.is_empty());
-        let sims = self.ComputeNumberSims(moves.len(), level);
-        self.stats.OnPlyAction(level, moves.len(), sims);
+        let sims = self.compute_number_sims(moves.len(), level);
+        self.stats.on_ply_action(level, moves.len(), sims);
         if !self.cull_moves {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
@@ -186,7 +184,7 @@ impl Bmai3 {
                 let start = candidate_index * sims;
                 let score = results[start..start + sims].iter().sum();
                 for _ in 0..sims {
-                    self.stats.OnFullSimulation();
+                    self.stats.on_full_simulation();
                 }
                 if score > best_score {
                     best_score = score;
@@ -231,7 +229,7 @@ impl Bmai3 {
                 let start = index * check_sims;
                 for score in &results[start..start + check_sims] {
                     state.score[index] += score;
-                    self.stats.OnFullSimulation();
+                    self.stats.on_full_simulation();
                 }
                 if state.score[index] > state.best_score {
                     state.best_score = state.score[index];
@@ -248,7 +246,7 @@ impl Bmai3 {
             if state.sims_run >= state.sims {
                 break;
             }
-            let multiple_candidates_remain = self.CullMoves(&mut state);
+            let multiple_candidates_remain = self.cull(&mut state);
             if !multiple_candidates_remain && !complete_survivor {
                 break;
             }
@@ -260,7 +258,7 @@ impl Bmai3 {
         state.best_move
     }
 
-    fn CullMoves(&self, state: &mut ThinkState) -> bool {
+    fn cull(&self, state: &mut ThinkState) -> bool {
         if state.movelist.len() == 1 {
             return false;
         }

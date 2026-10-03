@@ -382,7 +382,7 @@ fn decay_is_skipped_rather_than_overflowing_the_dice_pool() {
     target.sides[0] = 1;
     target.value = Some(1);
     game.players[1].dice.push(target);
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
 
     apply_attack(&mut game, &action, &mut Rng::default());
 
@@ -424,8 +424,8 @@ fn radioactive_morphing_trip_decays_into_two_full_size_morphs() {
     // ButtonWeavers engine probe: %tm(4) Tripping (6) leaves two tm(6).
     let draws = |seed: u32| {
         let mut rng = Rng::default();
-        rng.srand(seed);
-        [4, 6, 6, 6].map(|sides| rng.rand_max(sides) + 1)
+        rng.reseed(seed);
+        [4, 6, 6, 6].map(|sides| rng.rand_below(sides) + 1)
     };
     let seed = (1..10_000)
         .find(|seed| {

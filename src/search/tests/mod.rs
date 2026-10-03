@@ -175,7 +175,7 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
     ];
     let run = |workers| {
         let mut rng = Rng::default();
-        rng.srand(17);
+        rng.reseed(17);
         let mut decision_index = 0;
         let mut native = NativeReplaySequence {
             algorithm: rng.algorithm(),
@@ -243,7 +243,7 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
         swing_type: [Some(swing), None],
         value: None,
         captured: false,
-        notset: false,
+        not_set: false,
         dizzy: false,
         original_index,
         in_reserve: false,

@@ -43,7 +43,7 @@ pub(super) fn add_courtesy_auxiliary(
         .expect("source player has one Auxiliary die");
     die.original_index = game.players[target_player].dice.len();
     die.value = None;
-    die.notset = true;
+    die.not_set = true;
     game.players[target_player].dice.push(die);
     game.players[target_player].swing_set = SwingSet::Not;
     Ok(())

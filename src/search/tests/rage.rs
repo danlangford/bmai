@@ -259,7 +259,7 @@ fn rage_replacement_reports_transformed_capacity_exhaustion() {
         }
         game.players[1].dice.push(target);
     }
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
 
     apply_attack(&mut game, &action, &mut Rng::default());
 }

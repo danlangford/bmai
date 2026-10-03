@@ -527,7 +527,7 @@ impl Game {
                                     Attack::Shadow => target_die.score(false),
                                     _ => unreachable!(),
                                 };
-                                moves.push(Move::attack(
+                                moves.push(Move::new_attack(
                                     attack,
                                     [attacker_index],
                                     [*target_index],
@@ -545,7 +545,7 @@ impl Game {
                                     minimum,
                                     fire_remaining,
                                 ) {
-                                    let mut candidate = Move::attack(
+                                    let mut candidate = Move::new_attack(
                                         attack,
                                         [attacker_index],
                                         [*target_index],
@@ -565,7 +565,7 @@ impl Game {
                                     1,
                                     optional_fire_remaining,
                                 ) {
-                                    let mut candidate = Move::attack(
+                                    let mut candidate = Move::new_attack(
                                         attack,
                                         [attacker_index],
                                         [*target_index],
@@ -656,7 +656,7 @@ impl Game {
                                     if direct
                                         && target_die.can_be_attacked(Attack::Skill, stack_len)
                                     {
-                                        moves.push(Move::attack(
+                                        moves.push(Move::new_attack(
                                             attack,
                                             stack
                                                 .values()
@@ -683,7 +683,7 @@ impl Game {
                                             target_die.value_total(),
                                             fire_remaining,
                                         ) {
-                                            let mut candidate = Move::attack(
+                                            let mut candidate = Move::new_attack(
                                                 attack,
                                                 attacker_indices,
                                                 [*target_index],
@@ -720,7 +720,7 @@ impl Game {
                         }
                         for (target_index, target_die) in targets.iter() {
                             if target_die.can_be_attacked(attack, 1) {
-                                moves.push(Move::attack(
+                                moves.push(Move::new_attack(
                                     attack,
                                     [attacker_index],
                                     [*target_index],
@@ -756,7 +756,7 @@ impl Game {
                                 {
                                     continue;
                                 }
-                                moves.push(Move::attack(
+                                moves.push(Move::new_attack(
                                     attack,
                                     [attacker_index],
                                     [first_index, second_index],
@@ -788,7 +788,7 @@ impl Game {
                                     .iter()
                                     .map(|position| targets[*position].1.score(false))
                                     .sum();
-                                moves.push(Move::attack(
+                                moves.push(Move::new_attack(
                                     attack,
                                     [attacker_index],
                                     target_indices,

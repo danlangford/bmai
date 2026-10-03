@@ -236,7 +236,7 @@ impl Scenario {
             self.targets.as_deref().unwrap_or(&[0]),
         );
         let mut move_to_apply = match self.attack {
-            Some(attack) => Move::attack(attack, attackers, targets, 0.0),
+            Some(attack) => Move::new_attack(attack, attackers, targets, 0.0),
             None => super::super::fight::pass_move(),
         };
         if let Some(selection) = self.turbo_option {
@@ -291,7 +291,7 @@ impl Scenario {
 
         let mut rng = Rng::default();
         if let Some(seed) = self.seed {
-            rng.srand(seed);
+            rng.reseed(seed);
         }
         let extra_turn = apply_attack(&mut game, &move_to_apply, &mut rng);
 

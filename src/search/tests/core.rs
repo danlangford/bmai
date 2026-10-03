@@ -76,10 +76,10 @@ fn pr82_ordinary_side_change_invalidates_value() {
     target.value = Some(1);
     game.players[0].dice = vec![attacker];
     game.players[1].dice = vec![target];
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
 
     apply_attack_player_effects(&mut game, &action, 0, 1, 0, true);
-    assert!(game.players[0].dice[0].notset);
+    assert!(game.players[0].dice[0].not_set);
     assert_eq!(game.players[0].dice[0].sides[0], 8);
 }
 
@@ -164,7 +164,7 @@ fn cpp_roll_requires_notset_state() {
     let mut die = swing_die('P', 0, 0);
     die.sides[0] = 6;
     die.value = Some(1);
-    die.notset = false;
+    die.not_set = false;
     roll_die(&mut die, &mut Rng::default());
 }
 
@@ -174,7 +174,7 @@ fn cpp_swing_set_requires_notset_state() {
     let mut die = swing_die('X', 0, 0);
     die.sides[0] = 6;
     die.value = Some(1);
-    die.notset = false;
+    die.not_set = false;
     let mut player = crate::game::Player {
         dice: vec![die],
         ..Default::default()

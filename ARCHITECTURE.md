@@ -70,4 +70,5 @@ instead of adding a circular dependency.
 Names follow Rust conventions; `PARITY.md` maps each C++ name to its Rust
 name (for example `GetValueTotal` to `value_total`). Structural cleanup must
 not alter action ordering, RNG consumption, simulation counts, state
-restoration, or protocol output. `PARITY.md` defines the evidence required for such changes.
+restoration, or protocol output. `PARITY.md` defines the evidence required for
+such changes.

@@ -176,7 +176,7 @@ impl Parser {
             } else if let Some(value) = line.strip_prefix("surrender ") {
                 self.game.surrender_allowed = value == "on";
             } else if line == "getaction" {
-                self.action(output)?;
+                self.send_action(output)?;
             } else if line.starts_with("playgame ") {
                 self.require_preround()?;
                 let games = parse_usize(line.trim_start_matches("playgame "))?;
@@ -287,7 +287,7 @@ impl Parser {
                 } else {
                     seed as u32
                 };
-                self.rng.srand(resolved);
+                self.rng.reseed(resolved);
                 self.native_root_seed = u64::from(resolved);
                 self.native_decision_index = 0;
                 writeln!(output, "Seeding with {seed}").map_err(io_error)?;

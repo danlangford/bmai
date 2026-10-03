@@ -104,7 +104,7 @@ impl InitiativeScenario {
         let mut game = parse_game(seats[0], seats[1]);
         let mut rng = Rng::default();
         if let Some(seed) = self.seed {
-            rng.srand(seed);
+            rng.reseed(seed);
         }
 
         if let Some(reroll) = self.chance_rerolls {

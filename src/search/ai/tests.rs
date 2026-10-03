@@ -20,11 +20,11 @@ fn test_move(score: f32) -> Move {
 #[test]
 fn simulation_count_matches_cpp_decay_and_clamps() {
     let ai = Bmai3::default();
-    assert_eq!(ai.FireCandidateLimit(), 500);
-    assert_eq!(ai.ComputeNumberSims(1, 1), 500);
-    assert_eq!(ai.ComputeNumberSims(12, 1), 416);
-    assert_eq!(ai.ComputeNumberSims(12, 2), 208);
-    assert_eq!(ai.ComputeNumberSims(1000, 1), 10);
+    assert_eq!(ai.fire_candidate_limit(), 500);
+    assert_eq!(ai.compute_number_sims(1, 1), 500);
+    assert_eq!(ai.compute_number_sims(12, 1), 416);
+    assert_eq!(ai.compute_number_sims(12, 2), 208);
+    assert_eq!(ai.compute_number_sims(1000, 1), 10);
 }
 
 #[test]
@@ -33,8 +33,8 @@ fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
         max_sims: 5,
         ..Default::default()
     };
-    assert_eq!(ai.ComputeNumberSims(1000, 1), 10);
-    assert_eq!(ai.ComputeNumberSims(1, 1), 5);
+    assert_eq!(ai.compute_number_sims(1000, 1), 10);
+    assert_eq!(ai.compute_number_sims(1, 1), 5);
 }
 
 #[test]
@@ -44,7 +44,7 @@ fn evaluation_selects_the_highest_probability_move() {
         max_branch: 40,
         ..Default::default()
     };
-    let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, _| m.score);
+    let selected = ai.evaluate_moves(vec![test_move(0.2), test_move(0.8)], 1, |m, _| m.score);
     assert_eq!(selected.score, 0.8);
     assert!(ai.last_sims_run > 0);
     assert!((ai.last_best_score / ai.last_sims_run as f32 - 0.8).abs() < f32::EPSILON * 2.0);
@@ -61,7 +61,7 @@ fn legacy_bmai_evaluates_each_move_to_completion_without_culling() {
         ..Default::default()
     };
     let mut order = Vec::new();
-    let selected = ai.EvaluateMoves(vec![test_move(0.2), test_move(0.8)], 1, |m, coordinate| {
+    let selected = ai.evaluate_moves(vec![test_move(0.2), test_move(0.8)], 1, |m, coordinate| {
         order.push((m.score, coordinate));
         m.score
     });
@@ -104,7 +104,7 @@ fn culled_evaluations_keep_canonical_candidate_and_simulation_indices() {
         ..Default::default()
     };
     let mut coordinates = Vec::new();
-    ai.EvaluateMoves(
+    ai.evaluate_moves(
         vec![test_move(1.0), test_move(0.8)],
         1,
         |candidate, coordinate| {
@@ -140,8 +140,10 @@ fn native_probability_evaluation_completes_the_surviving_candidate() {
         ..Default::default()
     };
     let mut evaluations = [0usize; 2];
-    let selected =
-        ai.EvaluateMovesBatchedToCompletion(vec![test_move(1.0), test_move(0.0)], 1, |requests| {
+    let selected = ai.evaluate_moves_batched_to_completion(
+        vec![test_move(1.0), test_move(0.0)],
+        1,
+        |requests| {
             requests
                 .iter()
                 .map(|request| {
@@ -149,7 +151,8 @@ fn native_probability_evaluation_completes_the_surviving_candidate() {
                     request.candidate.score
                 })
                 .collect()
-        });
+        },
+    );
 
     assert_eq!(selected.score, 1.0);
     assert_eq!(ai.last_sims_run, 100);

@@ -96,7 +96,7 @@ impl Rng {
         self.seed
     }
 
-    pub fn srand(&mut self, seed: u32) {
+    pub fn reseed(&mut self, seed: u32) {
         // A zero seed is time-based in C++. Callers that need reproducibility
         // must resolve it at the I/O boundary before invoking this method.
         self.seed = if seed >> 16 == 0 {
@@ -132,8 +132,8 @@ impl Rng {
         self.seed
     }
 
-    pub fn rand_max(&mut self, upper: u32) -> u32 {
-        assert!(upper > 0, "GetRandMax requires a nonzero upper bound");
+    pub fn rand_below(&mut self, upper: u32) -> u32 {
+        assert!(upper > 0, "rand_below requires a nonzero upper bound");
         let random = match self.algorithm {
             RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),
         };
@@ -157,7 +157,7 @@ impl Rng {
         value as u32
     }
 
-    pub fn frand(&mut self) -> f32 {
+    pub fn rand_f32(&mut self) -> f32 {
         self.rand() as f32 / 0x8000_0000u32 as f32
     }
 }
@@ -195,12 +195,12 @@ mod tests {
         assert_eq!(RngAlgorithm::parse("unknown"), None);
 
         let mut rng = Rng::default();
-        rng.srand(17);
+        rng.reseed(17);
         let first = rng.rand();
         rng.set_algorithm(RngAlgorithm::LegacyParkMillerV1);
         let second = rng.rand();
         let mut uninterrupted = Rng::default();
-        uninterrupted.srand(17);
+        uninterrupted.reseed(17);
         assert_eq!(
             (first, second),
             (uninterrupted.rand(), uninterrupted.rand())
@@ -225,7 +225,7 @@ mod tests {
                         radix: 1,
                     }),
                 );
-                counts[rng.rand_max(20) as usize] += 1;
+                counts[rng.rand_below(20) as usize] += 1;
             }
             assert_eq!(counts, [5; 20]);
         }
@@ -250,8 +250,8 @@ mod tests {
                             radix: 1,
                         }),
                     );
-                    let first = rng.rand_max(first_bound as u32) as usize;
-                    let second = rng.rand_max(second_bound as u32) as usize;
+                    let first = rng.rand_below(first_bound as u32) as usize;
+                    let second = rng.rand_below(second_bound as u32) as usize;
                     outcomes[first][second] += 1;
                 }
                 assert!(
@@ -280,7 +280,7 @@ mod tests {
         let mut ordinary = Rng::from_native_stream(RngAlgorithm::LegacyParkMillerV1, seed, None);
 
         assert_eq!(stratified.rand(), ordinary.rand());
-        assert_eq!(stratified.rand_max(20), ordinary.rand_max(20));
+        assert_eq!(stratified.rand_below(20), ordinary.rand_below(20));
     }
 
     /// The C++ test is statistical, so its sample count and tolerances stay.
@@ -290,7 +290,7 @@ mod tests {
         let mut rng = Rng::default();
         let mut bins = [0usize; 10];
         for _ in 0..SAMPLES {
-            let sample = rng.frand();
+            let sample = rng.rand_f32();
             assert!((0.0..1.0).contains(&sample));
             bins[(sample / 0.1) as usize] += 1;
         }

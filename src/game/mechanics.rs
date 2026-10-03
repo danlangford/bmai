@@ -21,7 +21,7 @@ pub(crate) fn apply_attack_for_players(
     }
     apply_fire_adjustments(game, action, attacker_player);
     // A cached count, so attackers marked NOTSET below still count.
-    let mut available_attackers = available_dice(&game.players[attacker_player]);
+    let mut available_attackers = available_dice_count(&game.players[attacker_player]);
     let is_trip = action.attack == Some(Attack::Trip);
     let attacking_jolt_dice = action
         .attackers
@@ -86,7 +86,7 @@ pub(crate) fn apply_attack_for_players(
     if is_trip {
         let target = action.targets.first().expect("Trip target");
         if !game.players[target_player].dice[target].has_property(property::KONSTANT) {
-            game.players[target_player].dice[target].notset = true;
+            game.players[target_player].dice[target].not_set = true;
         }
         apply_before_roll_effects(game, target_player, target);
     }
@@ -95,11 +95,11 @@ pub(crate) fn apply_attack_for_players(
     if action.attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.players[attacker_player].dice[attacker];
-            if !rerolls_when_ornery(die) || die.notset {
+            if !rerolls_when_ornery(die) || die.not_set {
                 continue;
             }
             if !die.has_property(property::KONSTANT) {
-                game.players[attacker_player].dice[attacker].notset = true;
+                game.players[attacker_player].dice[attacker].not_set = true;
             }
             apply_before_roll_effects(game, attacker_player, attacker);
         }
@@ -124,7 +124,7 @@ pub(crate) fn apply_attack_for_players(
     }
     if is_trip {
         let target = action.targets.first().expect("Trip target");
-        if game.players[target_player].dice[target].notset {
+        if game.players[target_player].dice[target].not_set {
             roll_scheduled_die(game, target_player, target, rng);
         }
         consume_attacking_jolt(game, attacker_player, jolt_dice_to_consume);
@@ -155,7 +155,7 @@ pub(crate) fn apply_attack_for_players(
             morph_into_target(game, attacker_player, target_player, attacker, target);
             if !decays {
                 let die = &mut game.players[attacker_player].dice[attacker];
-                die.notset = true;
+                die.not_set = true;
                 roll_die(die, rng);
                 morph_extra_turn =
                     die.has_property(property::TIME_AND_SPACE) && die.value_total() % 2 == 1;
@@ -227,7 +227,7 @@ fn apply_boom_attack(
     on_die_lost(&mut game.players[attacker_player], attacker);
 
     if !game.players[target_player].dice[target].has_property(property::KONSTANT) {
-        game.players[target_player].dice[target].notset = true;
+        game.players[target_player].dice[target].not_set = true;
         apply_before_roll_effects(game, target_player, target);
         reroll_and_rescore(game, target_player, target, rng);
     }
@@ -237,7 +237,7 @@ fn apply_boom_attack(
             continue;
         }
         if !die.has_property(property::KONSTANT) {
-            game.players[attacker_player].dice[index].notset = true;
+            game.players[attacker_player].dice[index].not_set = true;
         }
         apply_before_roll_effects(game, attacker_player, index);
         apply_attacker_nature_roll(game, attacker_player, index, rng);
@@ -364,7 +364,7 @@ pub(crate) fn apply_radioactive_attack_effects(
             if position == 0 {
                 // ButtonWeavers' attacker loop never rerolls the first copy,
                 // which keeps the captured die's value and size.
-                game.players[attacker_player].dice[product].notset = false;
+                game.players[attacker_player].dice[product].not_set = false;
             } else {
                 resize_mighty_and_weak(game, attacker_player, product);
             }
@@ -425,7 +425,7 @@ pub(crate) fn split_radioactive_attacker(
     }
     for die in [&mut first, &mut second] {
         die.value = None;
-        die.notset = true;
+        die.not_set = true;
         die.captured = false;
         die.dizzy = false;
     }
@@ -497,7 +497,7 @@ fn copy_doppelganger_target(
         game.players[attacker_player].round_transformed |= transformed;
     }
     copied.captured = false;
-    copied.notset = true;
+    copied.not_set = true;
     copied.dizzy = false;
     copied.original_index = original_index;
     copied.in_reserve = false;
@@ -551,7 +551,7 @@ pub(super) fn create_and_roll_rage_replacement(
     replacement.properties &= !property::RAGE;
     replacement.value = None;
     replacement.captured = false;
-    replacement.notset = true;
+    replacement.not_set = true;
     replacement.dizzy = false;
     replacement.original_index = synthetic_index;
     // ButtonWeavers' replacement roll skips Mighty, Weak, and Mood.
@@ -562,7 +562,7 @@ pub(super) fn create_and_roll_rage_replacement(
 pub(super) fn add_rage_replacement(game: &mut Game, player: usize, replacement: Die) {
     game.players[player].rage_replacements |= 1 << replacement.original_index;
     game.players[player].score += replacement.score(true);
-    let available = available_dice(&game.players[player]);
+    let available = available_dice_count(&game.players[player]);
     game.players[player].dice.insert(available, replacement);
 }
 
@@ -575,14 +575,14 @@ pub(crate) fn apply_attack_player_effects(
     actually_attacking: bool,
 ) {
     if !game.players[attacker_player].dice[attacker].has_property(property::KONSTANT) {
-        game.players[attacker_player].dice[attacker].notset = true;
+        game.players[attacker_player].dice[attacker].not_set = true;
     }
 
     if actually_attacking && action.attack == Some(Attack::Berserk) {
         halve_berserk_attacker(game, attacker_player, attacker);
     }
 
-    if game.players[attacker_player].dice[attacker].notset {
+    if game.players[attacker_player].dice[attacker].not_set {
         apply_before_roll_effects(game, attacker_player, attacker);
     }
 
@@ -685,7 +685,7 @@ pub(super) fn apply_attacker_nature_roll(
     apply_mood(die, rng);
     // C++ never rescores after the reroll, so a Value die keeps its old score.
     game.players[player].score += die.score(true) - old_score;
-    if die.notset {
+    if die.not_set {
         roll_die(die, rng);
     }
 }
@@ -697,7 +697,7 @@ pub(crate) fn roll_scheduled_die(game: &mut Game, player: usize, index: usize, r
 }
 
 pub(super) fn on_die_lost(player: &mut crate::game::Player, index: usize) {
-    let available = available_dice(player);
+    let available = available_dice_count(player);
     player.dice[index].captured = true;
     player.dice[index..available].rotate_left(1);
 }
@@ -723,7 +723,7 @@ pub(super) fn apply_mood(die: &mut Die, rng: &mut Rng) {
             }
         })
         .collect::<Vec<_>>();
-    let size = sizes[rng.rand_max(sizes.len() as u32) as usize];
+    let size = sizes[rng.rand_below(sizes.len() as u32) as usize];
     for index in 0..die.sides.len() {
         if die.swing_type[index].is_some() {
             die.sides[index] = size;
@@ -759,9 +759,9 @@ pub(crate) fn optimize_dice(player: &mut Player) {
 }
 
 pub(crate) fn roll_die(die: &mut Die, rng: &mut Rng) {
-    assert!(die.notset, "Die::Roll requires NOTSET state");
+    assert!(die.not_set, "Die::Roll requires NOTSET state");
     die.captured = false;
-    die.notset = false;
+    die.not_set = false;
     die.dizzy = false;
     if die.in_reserve {
         die.value = None;
@@ -778,7 +778,7 @@ pub(crate) fn roll_die(die: &mut Die, rng: &mut Rng) {
             if die.has_property(property::WARRIOR | property::MAXIMUM) {
                 value += u16::from(*sides);
             } else {
-                value += u16::from(rng.rand_max(u32::from(*sides)) as u8 + 1);
+                value += u16::from(rng.rand_below(u32::from(*sides)) as u8 + 1);
             }
         }
     }
@@ -829,7 +829,7 @@ pub(crate) fn check_initiative(game: &Game) -> Option<usize> {
     None
 }
 
-pub(crate) fn available_dice(player: &Player) -> usize {
+pub(crate) fn available_dice_count(player: &Player) -> usize {
     player.dice.iter().filter(|die| die.is_available()).count()
 }
 
@@ -914,7 +914,7 @@ pub(crate) fn roll_round_dice(game: &mut Game, rng: &mut Rng) {
     for player in &mut game.players {
         player.score = 0.0;
         for die in &mut player.dice {
-            die.notset = true;
+            die.not_set = true;
             roll_die(die, rng);
         }
         player.score = player

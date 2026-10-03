@@ -45,7 +45,7 @@ fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
     game.players[0].dice = vec![attacker];
     game.players[1].dice = vec![target];
 
-    let action = Move::attack(Power, [0], [0], 0.0);
+    let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
 
     let copied = &game.players[0].dice[0];

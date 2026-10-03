@@ -20,7 +20,7 @@ fn die(properties: u64) -> Die {
         swing_type: [None, None],
         value: Some(8),
         captured: false,
-        notset: false,
+        not_set: false,
         dizzy: false,
         original_index: 0,
         in_reserve: false,

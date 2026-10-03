@@ -84,7 +84,7 @@ pub(super) fn parse_die(input: &str, original_index: usize) -> Result<Die, Parse
         swing_type: swings,
         value,
         captured: false,
-        notset: value.is_none() && properties & property::RESERVE == 0,
+        not_set: value.is_none() && properties & property::RESERVE == 0,
         dizzy: value_part.is_some_and(|value| value.ends_with('d')),
         original_index,
         in_reserve: properties & property::RESERVE != 0,
