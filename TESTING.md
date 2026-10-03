@@ -91,9 +91,8 @@ implementation: setup is parsed by `Parser`, attack legality comes from
 `GenerateValidAttacksInCppOrder` (`.passes()` skips it), resolution comes from
 `ApplyAttack`, round restoration comes from `RestoreDiceForNewRound`, and
 Chance, Focus, and rerolls use `ApplyChanceMove`, `ApplyFocusMove`, and
-`RollScheduledDie`. Expected dice are
-written using the protocol notation and failures show canonical expected and
-actual recipes.
+`RollScheduledDie`. Expected dice are written using the protocol notation and
+failures show canonical expected and actual recipes.
 
 Skill tests live in `src/search/tests/<skill>.rs`, one file per skill. A test
 of an interaction between skills goes with the skill whose rule decides the
