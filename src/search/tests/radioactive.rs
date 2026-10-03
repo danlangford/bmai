@@ -169,14 +169,12 @@ fn successful_trip_decays_after_the_trip_roll() {
 #[test]
 fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
     // Responder log: t(4) fails to Trip %Ho(1,2) -> t(2), t(2), and Ho(2,4).
-    // BMAIR forbids non-Twin Trips on Twin dice (planned fix), so the target
-    // is single; the default seed makes this Trip fail.
     scenario()
         .attacker("t4:1")
         .attacks(TRIP)
-        .defender("%H20:3")
+        .defender("%Ho(1,2):3")
         .expect_attacker_dice(["t2:2", "t2:1"])
-        .expect_defender_dice(["H30:13"])
+        .expect_defender_dice(["Ho(2,4):4"])
         .run();
 }
 
@@ -235,12 +233,14 @@ fn morphing_attacker_morphs_before_a_radioactive_target_decays_it() {
 }
 
 #[test]
-fn radioactive_morphing_attacker_morphs_before_it_decays() {
+fn radioactive_morphing_attacker_decays_into_two_full_size_morphs() {
+    // ButtonWeavers engine probe: each product's Morphing hook runs again, so
+    // %m(4) capturing (6,6) leaves two m(6,6), not the documented halves.
     scenario()
         .attacker("%m4:4")
         .attacks(POWER)
         .defender("(6,6):3")
-        .expect_attacker_dice(["m(3,3):5", "m(3,3):3"])
+        .expect_attacker_dice(["m(6,6):6", "m(6,6):5"])
         .run();
 }
 
@@ -404,5 +404,44 @@ fn search_reports_a_radioactive_attack_in_legacy_and_native_modes() {
         .expect_attack(POWER)
         .using([0])
         .targeting([0])
+        .run();
+}
+
+#[test]
+fn radioactive_doppelganger_keeps_the_first_copy_unrolled() {
+    // ButtonWeavers engine probe: %D(9) capturing H(4):4 leaves H(4):4, never
+    // rerolled, and an H(6) that grew and rerolled.
+    scenario()
+        .attacker("%D9:9")
+        .attacks(POWER)
+        .defender("H4:4")
+        .expect_attacker_dice(["H6:5", "H4:4"])
+        .run();
+}
+
+#[test]
+fn radioactive_morphing_trip_decays_into_two_full_size_morphs() {
+    // ButtonWeavers engine probe: %tm(4) Tripping (6) leaves two tm(6).
+    let draws = |seed: u32| {
+        let mut rng = BMC_RNG::default();
+        rng.SRand(seed);
+        [4, 6, 6, 6].map(|sides| rng.GetRandMax(sides) + 1)
+    };
+    let seed = (1..10_000)
+        .find(|seed| {
+            let [trip, target, _, _] = draws(*seed);
+            trip >= target
+        })
+        .expect("a successful Trip");
+    let [_, _, first, second] = draws(seed);
+    scenario()
+        .attacker("%tm4:1")
+        .attacks(TRIP)
+        .defender("6:3")
+        .seed(seed)
+        .expect_no_defender_dice()
+        .expect_attacker_dice(
+            [first.max(second), first.min(second)].map(|value| format!("tm6:{value}")),
+        )
         .run();
 }

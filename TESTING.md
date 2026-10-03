@@ -35,6 +35,8 @@ use BMAIR's stable test default; `.seed(...)` selects a specific replay seed
 when the exact roll matters. `.turbo(...)` chooses an option-die branch (`0` or
 `1`) or a Turbo swing size. `.with_scores(...)` overrides the scores derived
 from the starting dice when a scoring rule needs a specific baseline.
+`.attacker_special(id)` and `.defender_special(id)` apply a `special` button
+rule to either side.
 `.expect_attacker_die(index, recipe)` checks one surviving die by declaration
 index when other rerolled dice are irrelevant to the rule under test.
 `.expect_no_defender_dice()` keeps an empty defending side equally readable.

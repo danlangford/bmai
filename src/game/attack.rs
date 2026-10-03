@@ -90,8 +90,6 @@ impl BMC_DieIndexStack {
         self.len -= 1;
     }
 
-    /// Direct port of `BMC_DieIndexStack::Cycle` over positions in the
-    /// optimized available-dice sequence.
     fn cycle(&mut self, mut add_die: bool, dice: &BMC_AvailableDice<'_>) -> bool {
         if self.indices[self.len - 1] == dice.len() - 1 {
             self.pop(dice);
@@ -120,9 +118,7 @@ fn DieCount(die: &BMC_Die) -> i32 {
     }
 }
 
-/// Port of PR #82's signed-Konstant `BMC_Game::ValidAttack` calculation.
-/// For one sign assignment, non-Warrior Stinger values form a continuous
-/// interval. Konstant dice may contribute either sign unless they are Warrior.
+/// Konstant dice may add or subtract their value in a Skill attack.
 fn SkillStackCanHit(
     stack: &BMC_DieIndexStack,
     available: &BMC_AvailableDice<'_>,
@@ -185,6 +181,94 @@ fn SkillStackCanHitWithFire(
         }
     }
     false
+}
+
+/// Mirrors ButtonWeavers `post_trip_roll_max`, including its Mood Twin quirk.
+fn TripRollMax(die: &BMC_Die, smallest_mood_size: bool) -> u16 {
+    if die.HasProperty(property::MOOD)
+        && let Some(swing) = die.m_swing_type[0]
+    {
+        let (minimum, maximum) = super::SwingRange(swing);
+        return u16::from(if smallest_mood_size { minimum } else { maximum });
+    }
+    let dice = DieCount(die) as usize;
+    die.m_sides[..dice]
+        .iter()
+        .map(|sides| {
+            let mut sides = *sides;
+            if die.HasProperty(property::WEAK) {
+                sides = super::mechanics::WeakSides(sides);
+            }
+            if die.HasProperty(property::MIGHTY) {
+                sides = super::mechanics::MightySides(sides);
+            }
+            u16::from(sides)
+        })
+        .sum()
+}
+
+/// Mirrors ButtonWeavers `BMAttackTrip::validate_attack`.
+fn TripCanCapture(attacker: &BMC_Die, target: &BMC_Die) -> bool {
+    let target_minimum = DieCount(target) as u16;
+    let attacker_maximum = if attacker.HasProperty(property::KONSTANT) {
+        attacker.GetValueTotal()
+    } else {
+        TripRollMax(attacker, false)
+    };
+    if target.HasProperty(property::KONSTANT) && attacker_maximum < target.GetValueTotal() {
+        return false;
+    }
+    if target.HasProperty(property::MAXIMUM) && attacker_maximum < TripRollMax(target, true) {
+        return false;
+    }
+    attacker_maximum >= target_minimum
+}
+
+fn TurboSizes(die: &BMC_Die, accuracy: f32) -> Vec<(i16, BMC_Die)> {
+    if !die.HasProperty(property::TURBO) {
+        return vec![(-1, *die)];
+    }
+    if die.HasProperty(property::OPTION) {
+        let mut swapped = *die;
+        swapped.m_sides.swap(0, 1);
+        return vec![(0, *die), (1, swapped)];
+    }
+    let Some(swing) = die.m_swing_type[0] else {
+        return vec![(-1, *die)];
+    };
+    let (minimum, maximum) = turbo_swing_range(swing);
+    let mut choices = vec![die.m_sides[0], minimum, maximum];
+    let step = TurboStep(accuracy);
+    let mut candidate = f32::from(minimum + 1);
+    while candidate < f32::from(maximum) {
+        choices.push(candidate as u8);
+        candidate += step;
+    }
+    let mut sizes = Vec::with_capacity(choices.len());
+    for sides in choices {
+        if sizes.iter().any(|(chosen, _)| *chosen == i16::from(sides)) {
+            continue;
+        }
+        let mut resized = *die;
+        resized.m_sides[0] = sides;
+        sizes.push((i16::from(sides), resized));
+    }
+    sizes
+}
+
+/// Only sizes `ExpandTurboMoves` can submit count, so every Trip keeps one.
+fn TripReachableAtSomeTurboSize(
+    attacker: &BMC_Die,
+    target: &BMC_Die,
+    expandable_turbo: bool,
+    accuracy: f32,
+) -> bool {
+    if !expandable_turbo {
+        return TripCanCapture(attacker, target);
+    }
+    TurboSizes(attacker, accuracy)
+        .iter()
+        .any(|(_, resized)| TripCanCapture(resized, target))
 }
 
 fn FireHelperCapacities(player: &BMC_Player, attackers: BMC_DieIndexSet) -> Vec<(usize, u8)> {
@@ -385,6 +469,9 @@ impl BMC_Game {
             !die.HasProperty(property::WARRIOR)
                 && die.HasProperty(property::STINGER | property::KONSTANT)
         });
+        let first_turbo = FirstTurboDie(attacker).map(|(index, _)| index);
+        let skill_attacks_allowed = attacker.m_specials & special::NO_SKILL_ATTACKS == 0
+            && target.m_specials & special::SKILL_IMMUNE == 0;
         let player_has_fire = available.iter().any(|(_, die)| {
             die.HasProperty(property::FIRE) && die.GetValueTotal() > DieCount(die) as u16
         });
@@ -424,10 +511,12 @@ impl BMC_Game {
                                     attacker_die.GetValueTotal() <= target_die.GetValueTotal()
                                         && attacker_die.GetSidesMax() >= target_die.GetValueTotal()
                                 }
-                                BME_ATTACK::TRIP => {
-                                    attacker_die.HasProperty(property::TWIN)
-                                        || !target_die.HasProperty(property::TWIN)
-                                }
+                                BME_ATTACK::TRIP => TripReachableAtSomeTurboSize(
+                                    attacker_die,
+                                    target_die,
+                                    first_turbo == Some(attacker_index),
+                                    self.m_turbo_accuracy,
+                                ),
                                 _ => unreachable!(),
                             };
                             if legal {
@@ -495,6 +584,7 @@ impl BMC_Game {
                             }
                         }
                     }
+                    BME_ATTACK::SKILL if !skill_attacks_allowed => {}
                     BME_ATTACK::SKILL => {
                         let mut stack = BMC_DieIndexStack::new();
                         stack.push(attacker_position, &available);
@@ -720,8 +810,7 @@ impl BMC_Game {
     }
 
     pub fn GenerateValidAttacks(&self) -> Vec<BMC_Move> {
-        // Use the direct C++ enumeration for the complete candidate set, then
-        // retain this API's historical score ordering for QAI/protocol users.
+        // QAI and protocol users depend on this API's score order.
         self.GenerateValidAttacksForSearch(usize::MAX)
     }
 
@@ -850,10 +939,28 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
         {
             continue;
         }
+        if moves[move_index].m_attack == Some(BME_ATTACK::TRIP) {
+            let target = moves[move_index].m_targets.first().expect("Trip target");
+            let target_die = &game.m_player[1].m_die[target];
+            let legal = TurboSizes(turbo_die, accuracy)
+                .into_iter()
+                .filter(|(_, resized)| TripCanCapture(resized, target_die))
+                .map(|(size, _)| size)
+                .collect::<Vec<_>>();
+            let (first, rest) = legal
+                .split_first()
+                .expect("generated Trips have a legal Turbo size");
+            moves[move_index].m_turbo_option = *first;
+            for size in rest {
+                let mut changed = moves[move_index].clone();
+                changed.m_turbo_option = *size;
+                moves.push(changed);
+            }
+            continue;
+        }
         if turbo_die.HasProperty(property::OPTION) {
             moves[move_index].m_turbo_option = 0;
-            // Fire capacities were calculated for the current Turbo size.
-            // Reusing that plan after changing size can exceed the new maximum.
+            // The Fire plan assumed the current size and may not fit another.
             if !moves[move_index].m_fire.is_empty() {
                 continue;
             }
@@ -866,13 +973,11 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             if !moves[move_index].m_fire.is_empty() {
                 continue;
             }
+            // Unlike `TurboSizes`, this keeps C++'s duplicate sizes at
+            // accuracies above 1 so non-Trip candidate order is unchanged.
             let (minimum, maximum) = turbo_swing_range(swing);
             let mut choices = vec![minimum, maximum];
-            let step = if accuracy <= 0.0 {
-                1000.0
-            } else {
-                1.0 / accuracy
-            };
+            let step = TurboStep(accuracy);
             let mut candidate = f32::from(minimum + 1);
             while candidate < f32::from(maximum) {
                 choices.push(candidate as u8);
@@ -889,6 +994,16 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
             }
         }
     }
+}
+
+/// An infinite accuracy would make the step zero and never advance.
+fn TurboStep(accuracy: f32) -> f32 {
+    let step = if accuracy <= 0.0 {
+        1000.0
+    } else {
+        1.0 / accuracy
+    };
+    if step == 0.0 { 1.0 } else { step }
 }
 
 fn turbo_swing_range(swing: char) -> (u8, u8) {

@@ -8,6 +8,7 @@ mod die;
 mod mechanics;
 mod player;
 pub mod property;
+pub mod special;
 mod state;
 mod types;
 

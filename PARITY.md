@@ -92,7 +92,7 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] SpeedSkill -> `cpp_speed_generation_and_property_score_combinations`.
 - [x] MorphingSkill, MorphingTwinSkill, MorphingSpeedSkill ->
   `cpp_morphing_copies_single_and_twin_target_sizes` and
-  `copied_cpp_morphing_speed_attack_does_not_morph`.
+  `copied_cpp_multi_target_speed_attack_does_not_morph`.
 - [x] All ten `BMAIActionTests` parameter cases -> parser fixture tests.
 - [x] Debug-only RollRequiresNotSetState and SwingSetRequiresNotSetState ->
   `cpp_roll_requires_notset_state` and `cpp_swing_set_requires_notset_state`,
@@ -381,7 +381,7 @@ reproduce dice from ButtonWeavers' own `responder0*Test.php` action logs.
 | Doppelganger decays, then each product copies the target | `radioactive_doppelganger_decays_before_each_product_copies_the_target`, `radioactive_doppelganger_decays_before_both_products_copy_the_target`; the Radioactive-target order is `doppelganger_copy_of_a_radioactive_target_decays` (responder log) |
 | Mad is lost on decay | not applicable: BMAIR does not implement Mad, and BMAIBagels refuses Mad games |
 | Mood is lost on decay | `decay_removes_mood_so_the_products_keep_their_halved_size` |
-| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`, `radioactive_morphing_attacker_morphs_before_it_decays` |
+| Morphing morphs, then decays | `morphing_attacker_morphs_before_a_radioactive_target_decays_it`; a Radioactive Morphing attacker follows the engine instead: `radioactive_morphing_attacker_decays_into_two_full_size_morphs` |
 | Time and Space is lost on decay | `decay_removes_time_and_space_so_an_odd_reroll_grants_no_extra_turn` |
 | Turbo is lost on decay | `decay_removes_turbo_and_turbo_sizes_are_not_offered`; Trip keeps its sizes because it rolls first: `turbo_trip_still_offers_sizes_because_it_rolls_before_decaying` |
 
@@ -397,13 +397,48 @@ Further scenarios cover Konstant and Weak products, Rage on both sides, Null,
 scoring, next-round restoration, the dice-pool limit, and legacy/native search.
 Decay products always roll fresh values, including Konstant and Trip
 attackers. Mighty and Weak resize the products of ordinary attackers and of a
-Doppelganger copy of a Radioactive target, but not Konstant products. The
-copies made by a Radioactive Doppelganger do not resize, matching BMAIR's
-existing Doppelganger rule; whether ButtonWeavers resizes copies is an open
-question in the CHANGELOG. Same-die Radioactive+Morphing, +Berserk, and
-+Doppelganger follow the documented interactions; ButtonWeavers' by-reference
-attacker loop may differ there, and no current button has those combinations.
+Doppelganger copy of a Radioactive target, but not Konstant products.
+
+Same-die combinations were settled by running the ButtonWeavers engine
+(`BMAttack::commit_attack` under PHP 8.5), because its by-reference attacker
+loop contradicts two documented interactions. BMAIR follows the engine:
+
+| Engine probe | Result | Rust evidence |
+|---|---|---|
+| `D(20)` captures `H(6)` / `h(12)` / `kH(4)` | `H(8)` / `h(10)` / rerolled `kH(6)` | `copied_mighty_grows_but_copied_turbo_does_not_resize`, `copied_weak_shrinks_on_the_doppelganger_reroll`, `copied_konstant_still_resizes_and_rerolls` |
+| `%D(9)` captures `H(4):4` | `H(4):4` never rerolled, plus a rerolled `H(6)` | `radioactive_doppelganger_keeps_the_first_copy_unrolled` |
+| `%m(4)` captures `(6,6)` | two full-size `m(6,6)`, not halves | `radioactive_morphing_attacker_decays_into_two_full_size_morphs` |
+| `%tm(4)` Trips `(6)` | two full-size `tm(6)` | `radioactive_morphing_trip_decays_into_two_full_size_morphs` |
+| `%B(12)` Berserk vs `(6)` | `(3)` and `(3)` | `radioactive_berserk_attacker_halves_before_it_decays` |
+| `m(4)` captures `%(10)` | `m(5)` and `m(5)` | `morphing_attacker_morphs_before_a_radioactive_target_decays_it` |
+
+No current button has same-die Radioactive Morphing or Doppelganger dice.
 A decay that would exceed the 20-die pool is skipped instead of panicking.
+
+### Button specials and rule corrections
+
+Source: ButtonWeavers `BMBtnSkillUniqueSwing`, `BMBtnSkillGordo`,
+`BMBtnSkillLargo`, `BMBtnSkillTheFlyingSquirrel`, `BMAttackSkill::
+are_button_skills_compatible` (The Japanese Beetle), `BMBtnSkillGiant` with
+`BMGame::is_button_slow`, `BMAttackTrip::validate_attack`, and
+`BMSkillMorphing::capture`. Clients name specials with the `special` command
+because the wire state carries no button identity.
+
+| ButtonWeavers rule | Rust evidence |
+|---|---|
+| `special` sets, reports, validates, resets per game, and survives simulation side swaps | `special_command_sets_and_reports_each_players_specials`, `each_game_block_clears_specials`, `unknown_specials_and_players_are_rejected`, `simulations_keep_each_players_specials_after_a_side_swap`, `largo_search_reports_a_power_attack_over_the_wire` |
+| Largo and The Flying Squirrel cannot Skill attack | `largo_cannot_skill_attack`, `largo_may_still_power_attack` |
+| The Japanese Beetle cannot be Skill attacked | `japanese_beetle_cannot_be_skill_attacked`, `japanese_beetle_may_still_be_power_attacked` |
+| Giant cannot win initiative, even against a button without initiative dice | `no_initiative_loses_to_lower_dice_and_to_a_button_with_no_initiative_dice` |
+| Guillermo and Oregon assign different swing types different sizes | `unique_swing_assigns_different_swing_types_different_sizes` |
+| Gordo also avoids fixed die sizes, comparing option dice at their chosen side, and declines a single V-Z Auxiliary swing die for both players | `unique_sizes_also_avoids_fixed_die_sizes`, `unique_sizes_compares_option_dice_at_their_chosen_side`, `gordo_declines_a_v_to_z_auxiliary_swing_die`, `gordo_accepts_other_auxiliary_dice`, `either_players_gordo_decline_removes_both_auxiliary_dice` |
+| A Trip needs only to reach the target's minimum, with Konstant, Maximum, Mighty, Weak, Mood, and Turbo adjustments | `single_trip_dice_may_trip_twin_dice_they_can_reach`, `trip_must_reach_a_konstant_targets_value`, `trip_must_reach_a_maximum_targets_size`, `konstant_trip_dice_reach_only_their_value`, `mighty_trip_dice_reach_further`, `weak_trip_dice_reach_less_far`, `mood_trip_dice_reach_their_largest_swing_size`, `mood_twin_trip_dice_reach_one_subdies_swing_size`, `a_mood_maximum_target_counts_at_its_smallest_swing_size`, `turbo_trip_sizes_too_small_for_the_target_are_not_offered`, `turbo_trip_is_offered_when_only_a_larger_size_reaches_the_target`, `option_turbo_trip_offers_only_the_side_that_reaches_the_target` |
+| Morphing applies to any single-target attack, and only after a successful one | `single_target_berserk_attack_morphs`, `single_target_speed_attack_morphs`, `failed_trip_does_not_morph`, `successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls`, `time_and_space_counts_the_reroll_after_a_trip_morph`, `radioactive_trip_target_decays_the_attacker_after_it_morphs` |
+
+The Trip and Morphing rows intentionally depart from C++, which forbade a
+non-Twin Trip against a Twin die and limited Morphing to its 1_1 and N_1
+attack types. `parity_trip_morphing_in.txt`'s golden output changed
+accordingly in 0.16.0.
 
 ### Rush rule and interaction coverage
 
@@ -443,8 +478,9 @@ Rush dice keep their C++ candidate order and RNG consumption.
   `parity_trip_morphing_in.txt` seeded fixtures plus unit tests).
 - [x] Trip with Mighty/Weak and Konstant targets (`parity_trip_morphing_in.txt`
   plus unit tests).
-- [x] Morphing/Twin and Morphing Speed non-effect
-  (`parity_trip_morphing_in.txt` plus unit tests).
+- [x] Morphing/Twin and multi-target Morphing Speed non-effect
+  (`parity_trip_morphing_in.txt` plus unit tests). Single-target Speed now
+  morphs, as ButtonWeavers does.
 - [x] Combined Stealth+Insult precedence, Stinger stack pruning, Null+Value,
   Poison, Queer, Morphing Twin, Time and Space, Ornery, Mood, Mighty and Weak
   seeded game coverage (`parity_combined_mechanics_in.txt`).

@@ -256,4 +256,5 @@ mod parity;
 mod radioactive;
 mod rage;
 mod rush;
+mod specials;
 mod transformations;

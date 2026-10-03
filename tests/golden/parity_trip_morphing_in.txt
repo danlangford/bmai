@@ -10,7 +10,7 @@ game over 0 - 1 - 0
 game over 1 - 0 - 0
 game over 0 - 1 - 0
 game over 0 - 1 - 0
-game over 1 - 0 - 0
-matches over 2 - 3
+game over 0 - 1 - 0
+matches over 1 - 4
 --- stderr
-RNG_HASH 228 1138580343598639408
+RNG_HASH 241 17534652921982199436

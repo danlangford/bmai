@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Deterministic replay identities and ordered native worker execution.
-
 mod replay;
 mod worker;
 

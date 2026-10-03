@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Golden output for every `tests/fixtures/*in*.txt`. The RNG draw count and
-//! hash are recorded too, so a change in search order or randomness fails even
-//! when the chosen move survives it. After an intentional change, regenerate
-//! with `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
+//! The RNG fingerprint catches search changes even when the chosen move
+//! survives them. After an intentional change, regenerate with
+//! `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
 //! and review the diff.
 
 use std::fs;

@@ -1,11 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Human-readable mechanics and parser/search scenarios.
-//!
-//! This is deliberately a thin test adapter. Game setup goes through the
-//! production parser, legality goes through production attack enumeration,
-//! and resolution goes through the production simulator.
+//! A thin adapter: setup, legality, and resolution all use production code,
+//! so scenarios cannot drift from the real rules.
 
 use super::{ApplyAttack, RestoreDiceForNewRound};
 use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
@@ -87,8 +84,6 @@ impl ActionExpectation {
     }
 }
 
-/// Runs existing wire input through the production parser while keeping action
-/// expectations in the vocabulary used by a game transcript.
 mod mechanics;
 mod parser;
 mod search;

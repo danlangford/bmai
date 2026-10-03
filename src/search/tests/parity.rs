@@ -4,7 +4,6 @@
 
 use super::*;
 
-/// Ports PR #82's Chance Mighty/Weak/Maximum Konstant regressions.
 #[test]
 fn pr82_chance_effects_run_once_while_konstant_retains_value() {
     for (properties, expected_sides) in [
@@ -46,7 +45,6 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
     }
 }
 
-/// Ports the PR #82 Konstant Trip Mighty/Weak cases.
 #[test]
 fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
@@ -69,7 +67,6 @@ fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
     }
 }
 
-/// Ports KonstantOrneryMighty/Weak and NonparticipatingOrneryDieRerolls.
 #[test]
 fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
@@ -123,7 +120,6 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
     assert_ne!(ornery.GetValueTotal(), 100);
 }
 
-/// Ports OrneryMoodDoesNotChangeOnPass and the Konstant Mood attack case.
 #[test]
 fn pr82_ornery_mood_only_changes_on_an_attack() {
     let mood_die = || {
@@ -185,7 +181,6 @@ fn pr82_ornery_mood_only_changes_on_an_attack() {
     assert_eq!(mood.GetValueTotal(), 3);
 }
 
-/// Ports both Konstant Time-and-Space no-extra-turn cases.
 #[test]
 fn pr82_konstant_time_and_space_never_grants_extra_turn() {
     for attack in [TRIP, SKILL] {
@@ -219,7 +214,6 @@ fn pr82_konstant_time_and_space_never_grants_extra_turn() {
     }
 }
 
-/// Ports TimeAndSpaceOddRerollGrantsExtraTurn.
 #[test]
 fn pr82_ordinary_time_and_space_uses_its_rerolled_value() {
     let mut game = BMC_Game::default();

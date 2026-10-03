@@ -102,9 +102,7 @@ impl BMC_Die {
         if self.HasProperty(property::WARRIOR) {
             return false;
         }
-        // RecomputeAttacks applies INSULT before STEALTH. STEALTH clears all
-        // vulnerabilities and then restores multi-die Skill, so it overrides
-        // Insult when both properties are present.
+        // Stealth overrides Insult, as in C++ RecomputeAttacks.
         if self.HasProperty(property::STEALTH) {
             return attack == BME_ATTACK::SKILL && skill_dice > 1;
         }

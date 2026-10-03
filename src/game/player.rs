@@ -10,22 +10,17 @@ pub struct BMC_Player {
     pub m_score: f32,
     pub m_die: Vec<BMC_Die>,
     pub m_swing_set: BME_SWING_SET,
-    /// Dynamic sides of original recipes transformed during this round.
     pub m_round_original_sides: [[u8; 2]; BMD_MAX_DICE],
-    /// Stable indices whose original recipe must return next round.
     pub m_round_transformed: u32,
-    /// Synthetic Radioactive decay products removed before the next round.
     pub m_radioactive_products: u32,
-    /// Synthetic Rage replacements removed before the next round.
     pub m_rage_replacements: u32,
+    pub m_specials: u8,
 }
 
 impl BMC_Player {
     pub fn OptimizeDice(&mut self) {
-        // Preserve BMC_Player::OptimizeDice exactly. This is deliberately not
-        // equivalent to a stable descending sort: an available die can swap
-        // through several positions while the outer index is held, changing
-        // the relative order of equal-valued dice after captures and rerolls.
+        // Not a stable sort: C++'s swap order breaks ties, and search order
+        // depends on it.
         for i in 0..self.m_die.len() {
             for j in (i + 1)..self.m_die.len() {
                 let swap = if !self.m_die[i].IsAvailable() && self.m_die[j].IsAvailable() {

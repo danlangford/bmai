@@ -3,10 +3,8 @@
 
 use serde::Serialize;
 
-use crate::game::property;
+use crate::game::{property, special};
 
-/// Whether a die property is fully implemented or accepted only for upstream
-/// notation compatibility.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
@@ -15,7 +13,6 @@ pub enum CapabilitySupport {
     ParsingOnly,
 }
 
-/// One property prefix in BMAIR's die notation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DiePropertyNotation {
@@ -27,7 +24,6 @@ pub struct DiePropertyNotation {
     pub(crate) property: u64,
 }
 
-/// One property suffix in BMAIR's die notation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DiePostfixNotation {
@@ -36,7 +32,6 @@ pub struct DiePostfixNotation {
     pub name: &'static str,
 }
 
-/// Discoverable grammar elements used to describe dice on the wire.
 #[derive(Debug, Serialize)]
 #[non_exhaustive]
 pub struct DieNotationCapabilities {
@@ -64,8 +59,7 @@ macro_rules! die_property {
     };
 }
 
-/// The parser and capability response deliberately share this table. Adding or
-/// changing a prefix therefore changes accepted syntax and discovery together.
+/// Shared by the parser and capabilities so syntax and discovery cannot drift.
 pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
     die_property!(
         '^',
@@ -141,4 +135,54 @@ impl DieNotationCapabilities {
             dizzy_value_suffix: 'd',
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct ButtonSpecialNotation {
+    pub id: &'static str,
+    pub buttons: &'static [&'static str],
+    pub rule: &'static str,
+    #[serde(skip)]
+    pub(crate) special: u8,
+}
+
+pub(crate) const BUTTON_SPECIALS: &[ButtonSpecialNotation] = &[
+    ButtonSpecialNotation {
+        id: "unique_swing",
+        buttons: &["Guillermo", "Oregon"],
+        rule: "Different swing types must be assigned unique values.",
+        special: special::UNIQUE_SWING,
+    },
+    ButtonSpecialNotation {
+        id: "unique_sizes",
+        buttons: &["Gordo"],
+        rule: "No two dice may be the same size, and no Auxiliary swing die may be added.",
+        special: special::UNIQUE_SIZES,
+    },
+    ButtonSpecialNotation {
+        id: "no_skill_attacks",
+        buttons: &["Largo", "The Flying Squirrel"],
+        rule: "Cannot perform skill attacks.",
+        special: special::NO_SKILL_ATTACKS,
+    },
+    ButtonSpecialNotation {
+        id: "skill_immune",
+        buttons: &["The Japanese Beetle"],
+        rule: "Cannot be attacked by skill attacks.",
+        special: special::SKILL_IMMUNE,
+    },
+    ButtonSpecialNotation {
+        id: "no_initiative",
+        buttons: &["Giant"],
+        rule: "Cannot win initiative.",
+        special: special::NO_INITIATIVE,
+    },
+];
+
+pub(crate) fn button_special(id: &str) -> Option<u8> {
+    BUTTON_SPECIALS
+        .iter()
+        .find(|special| special.id == id)
+        .map(|special| special.special)
 }

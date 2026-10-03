@@ -192,6 +192,10 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
     assert_eq!(changed["result"]["session"]["max_ply"], 2);
     assert_eq!(changed["result"]["session"]["players"][0]["max_ply"], 2);
     assert_eq!(
+        changed["result"]["session"]["players"][0]["specials"],
+        json!([])
+    );
+    assert_eq!(
         changed["result"]["build"]["version"],
         env!("BMAIR_BUILD_VERSION")
     );
@@ -207,6 +211,26 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
     assert_eq!(reset["result"]["session"]["execution_mode"], "legacy");
     assert_eq!(reset["result"]["session"]["workers"], 1);
     assert_eq!(reset["result"]["session"]["max_ply"], 1);
+}
+
+#[test]
+fn session_metadata_reports_only_each_players_own_specials() {
+    let mut session = BmairSession::default();
+    let value = response(
+        &mut session,
+        json!({
+            "protocol": "jsonl-v1",
+            "id": 1,
+            "method": "session.execute",
+            "params": { "script": "game\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\nspecial 1 skill_immune no_initiative\n" }
+        }),
+    );
+    let players = &value["result"]["session"]["players"];
+    assert_eq!(players[0]["specials"], json!([]));
+    assert_eq!(
+        players[1]["specials"],
+        json!(["skill_immune", "no_initiative"])
+    );
 }
 
 #[test]

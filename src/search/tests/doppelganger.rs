@@ -33,9 +33,7 @@ fn doppelganger_does_not_copy_a_skill_attack_target() {
 
 #[test]
 fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
-    // This state cannot be expressed by one parser recipe because its two
-    // Twin swing types have independently selected sizes. Keep this as a
-    // lower-level test of the in-round transformation.
+    // No recipe gives two Twin swing types different sizes.
     let mut game = BMC_Game::default();
     let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
     attacker.m_sides = [20, 0];
@@ -81,12 +79,13 @@ fn copied_time_and_space_runs_after_the_doppelganger_reroll() {
 }
 
 #[test]
-fn copied_mighty_and_turbo_do_not_run_before_the_doppelganger_reroll() {
+fn copied_mighty_grows_but_copied_turbo_does_not_resize() {
+    // ButtonWeavers engine probe: D(20) capturing H(6) leaves H(8).
     scenario()
         .attacker("D20:20")
         .attacks(POWER)
         .defender("HM6!:6")
-        .expect_attacker_dice(["HM6!:6"])
+        .expect_attacker_dice(["HM8!:8"])
         .expect_no_defender_dice()
         .run();
 }
@@ -133,5 +132,27 @@ fn value_doppelganger_still_values_its_capture_after_transforming() {
         .attacks(POWER)
         .defender("6:6")
         .expect_captured_defender_dice(["v6:6"])
+        .run();
+}
+
+#[test]
+fn copied_weak_shrinks_on_the_doppelganger_reroll() {
+    // ButtonWeavers engine probe: D(20) capturing h(12) leaves h(10).
+    scenario()
+        .attacker("D20:20")
+        .attacks(POWER)
+        .defender("h12:12")
+        .expect_attacker_dice(["h10:1"])
+        .run();
+}
+
+#[test]
+fn copied_konstant_still_resizes_and_rerolls() {
+    // ButtonWeavers engine probe: D(20) capturing kH(4) leaves kH(6) rerolled.
+    scenario()
+        .attacker("D20:20")
+        .attacks(POWER)
+        .defender("kH4:4")
+        .expect_attacker_dice(["Hk6:5"])
         .run();
 }

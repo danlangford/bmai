@@ -133,7 +133,6 @@ fn konstant_jolt_grants_an_extra_turn_without_rerolling() {
         .run();
 }
 
-/// Ports the Konstant Morphing and Berserk side-change regressions.
 #[test]
 fn pr82_konstant_attack_side_changes_preserve_value() {
     let mut morph_game = BMC_Game::default();

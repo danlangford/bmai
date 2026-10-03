@@ -19,8 +19,7 @@ pub(crate) fn ApplyAttackForPlayers(
     rng: &mut BMC_RNG,
 ) -> bool {
     ApplyFireAdjustments(game, action, attacker_player);
-    // C++ GetAvailableDice() is a cached boundary and does not shrink merely
-    // because an attacker is marked NOTSET during this phase.
+    // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
     let is_trip = action.m_attack == Some(BME_ATTACK::TRIP);
     let attacking_jolt_dice = action
@@ -79,7 +78,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ApplyBeforeRollEffects(game, target_player, target);
     }
 
-    // C++ handles Ornery dice that were not already scheduled by the attack.
+    // Ornery dice reroll after every attack their player makes.
     if action.m_attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.m_player[attacker_player].m_die[attacker];
@@ -93,14 +92,12 @@ pub(crate) fn ApplyAttackForPlayers(
         }
     }
 
-    // ButtonWeavers consumes ordinary attacking Jolt before the attack reroll.
-    // Trip resolves both rerolls first and consumes attacking Jolt below.
+    // Trip consumes these after its rolls instead, below.
     if !is_trip {
         ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
         ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
-    // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
-    // that did not participate, and finally a Trip target.
+    // This roll order determines RNG consumption.
     for attacker in actual_attackers.iter() {
         ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
     }
@@ -121,8 +118,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
 
-    // Time and Space is a post-roll effect. It applies even when a Trip fails,
-    // but Konstant attackers cannot trigger it because they do not reroll.
+    // Konstant attackers never reroll, so they cannot trigger it.
     let time_and_space_extra_turn = actual_attackers.iter().any(|index| {
         let die = &game.m_player[attacker_player].m_die[index];
         die.HasProperty(property::TIME_AND_SPACE)
@@ -130,16 +126,37 @@ pub(crate) fn ApplyAttackForPlayers(
             && die.GetValueTotal() % 2 == 1
     });
 
+    let mut morph_extra_turn = false;
     if is_trip {
         let target = action.m_targets.first().expect("Trip target");
         let attacker = action.m_attackers.first().expect("Trip attacker");
         let trip_failed = game.m_player[attacker_player].m_die[attacker].GetValueTotal()
             < game.m_player[target_player].m_die[target].GetValueTotal();
+        let morphs = !trip_failed
+            && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING);
+        let attacker_is_radioactive =
+            game.m_player[attacker_player].m_die[attacker].HasProperty(property::RADIOACTIVE);
+        if morphs {
+            // ButtonWeavers morphs after the Trip roll and gives the new die
+            // no value, so it rerolls at the captured die's size.
+            MorphIntoTarget(game, attacker_player, target_player, attacker, target);
+            if !decays {
+                let die = &mut game.m_player[attacker_player].m_die[attacker];
+                die.m_notset = true;
+                RollDie(die, rng);
+                morph_extra_turn =
+                    die.HasProperty(property::TIME_AND_SPACE) && die.GetValueTotal() % 2 == 1;
+            }
+        }
         if decays {
             // Trip rolls resolve before ButtonWeavers' capture hooks, so decay
             // happens after them, even when the Trip fails.
             let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
             for product in products.iter() {
+                if morphs && attacker_is_radioactive {
+                    // ButtonWeavers runs each product's Morphing hook again.
+                    MorphIntoTarget(game, attacker_player, target_player, product, target);
+                }
                 RollDie(&mut game.m_player[attacker_player].m_die[product], rng);
             }
             if trip_failed {
@@ -178,7 +195,7 @@ pub(crate) fn ApplyAttackForPlayers(
     if created_rage_replacement {
         OptimizeDice(&mut game.m_player[target_player]);
     }
-    attacking_jolt || captured_jolt || time_and_space_extra_turn
+    attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
 
 pub(super) fn ApplyFireAdjustments(game: &mut BMC_Game, action: &BMC_Move, player: usize) {
@@ -280,9 +297,22 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
     }
 
     let products = SplitRadioactiveAttacker(game, attacker_player, attacker);
-    for product in products.iter() {
+    for (position, product) in products.iter().enumerate() {
         if copies_target && attacker_is_radioactive {
             CopyDoppelgangerTarget(game, attacker_player, target_player, product, target);
+            if position == 0 {
+                // ButtonWeavers' attacker loop never rerolls the first copy,
+                // which keeps the captured die's value and size.
+                game.m_player[attacker_player].m_die[product].m_notset = false;
+            } else {
+                ApplyBeforeRollEffects(game, attacker_player, product);
+            }
+        } else if attacker_is_radioactive
+            && MorphingApplies(action)
+            && original.HasProperty(property::MORPHING)
+        {
+            // ButtonWeavers runs each product's Morphing hook again.
+            MorphIntoTarget(game, attacker_player, target_player, product, target);
         } else if !original.HasProperty(property::KONSTANT) {
             // ButtonWeavers resets doesReroll on Doppelganger copies, so only
             // the original die's Konstant can stop the resize.
@@ -362,12 +392,9 @@ fn HalveBerserkAttacker(game: &mut BMC_Game, attacker_player: usize, attacker: u
     game.m_player[attacker_player].m_score += die.GetScore(true) - old_score;
 }
 
+/// Trip morphs only once its roll has succeeded, so it is handled separately.
 fn MorphingApplies(action: &BMC_Move) -> bool {
-    action.m_targets.len() == 1
-        && !matches!(
-            action.m_attack,
-            Some(BME_ATTACK::BERSERK | BME_ATTACK::SPEED)
-        )
+    action.m_targets.len() == 1 && action.m_attack != Some(BME_ATTACK::TRIP)
 }
 
 fn MorphIntoTarget(
@@ -464,9 +491,7 @@ pub(super) fn CreateAndRollRageReplacement(
     replacement.m_notset = true;
     replacement.m_dizzy = false;
     replacement.m_original_index = synthetic_index;
-    // ButtonWeavers marks Rage replacements specially: Mighty and Weak do not
-    // change size on this initial roll, and Mood does not trigger because the
-    // newly cloned die has no value yet.
+    // ButtonWeavers' replacement roll skips Mighty, Weak, and Mood.
     RollDie(&mut replacement, rng);
     Some(replacement)
 }
@@ -498,7 +523,6 @@ pub(crate) fn ApplyAttackPlayerEffects(
         ApplyBeforeRollEffects(game, attacker_player, attacker);
     }
 
-    // Morphing is implemented by C++ only for its 1_1 and N_1 attack types.
     if MorphingApplies(action)
         && game.m_player[attacker_player].m_die[attacker].HasProperty(property::MORPHING)
     {
@@ -533,9 +557,8 @@ pub(crate) fn ApplyAttackPlayerEffects(
         }
     }
 
-    // ButtonWeavers runs Doppelganger after Mighty, Weak, and Turbo, but
-    // before Warrior and the attack reroll. A successful single-die Power
-    // attack replaces the attacking recipe with an exact copy of its target.
+    // ButtonWeavers copies before the attack reroll, so the copy's own Mighty
+    // or Weak applies; Warrior is lost after.
     if actually_attacking
         && action.m_attack == Some(BME_ATTACK::POWER)
         && action.m_attackers.len() == 1
@@ -544,6 +567,8 @@ pub(crate) fn ApplyAttackPlayerEffects(
     {
         let target = action.m_targets.first().expect("Doppelganger target");
         CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
+        // The copy rerolls even if Konstant, so Mighty and Weak resize it.
+        ApplyBeforeRollEffects(game, attacker_player, attacker);
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {
@@ -584,9 +609,7 @@ pub(super) fn ApplyAttackerNatureRoll(
     let die = &mut game.m_player[player].m_die[index];
     let old_score = die.GetScore(true);
     ApplyMood(die, rng);
-    // C++ score bookkeeping surrounds side/property changes, but Roll itself
-    // does not notify the owner. In particular, a Value die keeps the score
-    // contributed by its pre-attack value after the nature reroll.
+    // C++ never rescores after the reroll, so a Value die keeps its old score.
     game.m_player[player].m_score += die.GetScore(true) - old_score;
     if die.m_notset {
         RollDie(die, rng);
@@ -700,6 +723,19 @@ pub(crate) fn CheckInitiative(game: &BMC_Game) -> Option<usize> {
             .map(BMC_Die::GetValueTotal)
             .collect();
         output.sort_unstable();
+    }
+    // ButtonWeavers ranks a no-initiative button below every other button,
+    // even one with no initiative dice, by giving the others a sentinel.
+    let no_initiative =
+        [0, 1].map(|player| game.m_player[player].m_specials & super::special::NO_INITIATIVE != 0);
+    if no_initiative.contains(&true) {
+        for (player, output) in values.iter_mut().enumerate() {
+            if no_initiative[player] {
+                output.clear();
+            } else {
+                output.push(u16::MAX);
+            }
+        }
     }
     for index in 0..values[0].len().max(values[1].len()) {
         match (values[0].get(index), values[1].get(index)) {

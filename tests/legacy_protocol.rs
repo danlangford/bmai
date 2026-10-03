@@ -60,8 +60,7 @@ fn legacy_stdin_matches_bmaibagels_write_flush_read_contract() {
         sender.send(response).ok();
     });
 
-    // Keep stdin open while reading, exactly as BMAIBagels does. The child
-    // must recognize `quit`, emit the action, and exit without waiting for EOF.
+    // BMAIBagels keeps stdin open, so `quit` must exit without waiting for EOF.
     let response = receive_or_stop(
         receiver,
         &mut child,

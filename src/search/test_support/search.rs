@@ -93,9 +93,7 @@ impl SearchScenario {
         self
     }
 
-    /// Asserts the percentage printed for the player whose action is requested.
-    /// A range keeps seeded statistical scenarios readable without hiding their
-    /// acceptable uncertainty.
+    /// A range keeps seeded statistical scenarios honest about uncertainty.
     pub(crate) fn expect_player_win_percent(
         mut self,
         player: usize,

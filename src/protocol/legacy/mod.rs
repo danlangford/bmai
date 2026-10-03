@@ -36,9 +36,7 @@ impl std::error::Error for ParseError {}
 #[allow(clippy::upper_case_acronyms)]
 enum BMC_AI_SLOT {
     UNBOUND,
-    /// `g_ai`
     GLOBAL,
-    /// `c_ai_type[N]`
     TYPE(usize),
 }
 
@@ -51,9 +49,7 @@ pub struct BMC_Parser {
     m_native_decision_index: u64,
     m_native_workers: usize,
     m_rng: BMC_RNG,
-    /// C++ `g_ai`, which `stats` reports.
     m_ai: BMC_BMAI3,
-    /// C++ `c_ai_type`
     m_type_ai: [BMC_BMAI3; 3],
     m_player_ai: [BMC_AI_SLOT; 2],
     m_debug_ply: usize,
@@ -133,6 +129,13 @@ impl BMC_Parser {
                     min_simulations: ai.m_min_sims,
                     max_simulations: ai.m_max_sims,
                     max_branch: ai.m_max_branch,
+                    specials: crate::protocol::notation::BUTTON_SPECIALS
+                        .iter()
+                        .filter(|special| {
+                            self.m_game.m_player[player].m_specials & special.special != 0
+                        })
+                        .map(|special| special.id)
+                        .collect(),
                 }
             }),
         }
@@ -157,10 +160,7 @@ impl BMC_Parser {
         self.ParseStringCommands(data, output)
     }
 
-    /// Parse the legacy protocol incrementally, matching the C++ stdin
-    /// contract: each top-level command is executed as soon as its complete
-    /// line or game block arrives, and `quit` terminates without waiting for
-    /// EOF.
+    /// Clients keep stdin open, so each command runs as soon as it arrives.
     pub fn ParseStream<R: BufRead, W: Write>(
         &mut self,
         input: &mut R,

@@ -147,6 +147,40 @@ impl BMC_Parser {
                     }
                 )
                 .map_err(io_error)?;
+            } else if let Some(arguments) = line.strip_prefix("special ") {
+                let mut fields = arguments.split_whitespace();
+                let player = parse_usize(fields.next().unwrap_or_default())?;
+                if player > 1 {
+                    return Err(ParseError(format!(
+                        "invalid special player number: {player}"
+                    )));
+                }
+                let names = fields.collect::<Vec<_>>();
+                let mut specials = 0;
+                for name in &names {
+                    specials |=
+                        crate::protocol::notation::button_special(name).ok_or_else(|| {
+                            ParseError(format!(
+                                "unknown button special: {name} (expected one of {})",
+                                crate::protocol::notation::BUTTON_SPECIALS
+                                    .iter()
+                                    .map(|special| special.id)
+                                    .collect::<Vec<_>>()
+                                    .join(", ")
+                            ))
+                        })?;
+                }
+                self.m_game.m_player[player].m_specials = specials;
+                writeln!(
+                    output,
+                    "Setting specials for player {player} to {}",
+                    if names.is_empty() {
+                        "none".to_string()
+                    } else {
+                        names.join(" ")
+                    }
+                )
+                .map_err(io_error)?;
             } else if let Some(value) = line.strip_prefix("surrender ") {
                 self.m_game.m_surrender_allowed = value == "on";
             } else if line == "getaction" {
@@ -396,10 +430,7 @@ impl BMC_Parser {
                 return Err(ParseError(format!("expected player {expected}")));
             }
             let mut dice = Vec::with_capacity(count);
-            // BMC_Parser::ParseDieSides updates this status as each die is
-            // parsed.  A defined swing/option locks it; a later undefined one
-            // changes it back to NOT.  The order matters for exact parser
-            // state parity.
+            // A later undefined swing unlocks it again, as in C++.
             let mut swing_set = BME_SWING_SET::NOT;
             for original_index in 0..count {
                 let definition = lines
@@ -429,6 +460,7 @@ impl BMC_Parser {
             self.m_game.m_player[id].m_round_transformed = 0;
             self.m_game.m_player[id].m_radioactive_products = 0;
             self.m_game.m_player[id].m_rage_replacements = 0;
+            self.m_game.m_player[id].m_specials = 0;
             self.m_game.m_player[id].m_score = if matches!(
                 self.m_game.m_phase,
                 BME_PHASE::INITIATIVE | BME_PHASE::CHANCE | BME_PHASE::FOCUS

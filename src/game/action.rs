@@ -11,16 +11,14 @@ pub struct BMC_Move {
     pub m_attackers: BMC_DieIndexSet,
     pub m_targets: BMC_DieIndexSet,
     pub m_score: f32,
-    /// C++ BMC_MoveAttack::m_turbo_option. -1 means no Turbo decision;
-    /// option dice use 0/1 and swing dice store the selected side count.
+    /// -1 means no Turbo decision; option dice use 0/1; swing dice store a size.
     pub m_turbo_option: i16,
     pub m_fire: BMC_FireAdjustment,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BMC_FireAdjustment {
-    /// Per-die Fire deltas. Entries for attackers are increases; entries for
-    /// nonattacking Fire dice are reductions.
+    /// Attackers' entries are increases; other dice's entries are reductions.
     pub m_amounts: [u8; BMD_MAX_DICE],
 }
 
