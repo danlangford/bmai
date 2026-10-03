@@ -5,12 +5,9 @@
 use super::*;
 
 #[test]
-fn pr82_chance_effects_run_once_while_konstant_retains_value() {
-    for (properties, expected_sides) in [
-        (property::MIGHTY, 8),
-        (property::WEAK, 4),
-        (property::MAXIMUM, 6),
-    ] {
+fn konstant_chance_dice_keep_their_size_and_value() {
+    // Engine probe.
+    for properties in [property::MIGHTY, property::WEAK, property::MAXIMUM] {
         let mut game = Game::default();
         let mut chance = swing_die('P', property::CHANCE | property::KONSTANT | properties, 0);
         chance.m_sides[0] = 6;
@@ -25,7 +22,7 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
         rng.SRand(1);
         ApplyChanceMove(&mut game, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 3);
-        assert_eq!(game.m_player[0].m_die[0].m_sides[0], expected_sides);
+        assert_eq!(game.m_player[0].m_die[0].m_sides[0], 6);
     }
 
     for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
@@ -46,8 +43,9 @@ fn pr82_chance_effects_run_once_while_konstant_retains_value() {
 }
 
 #[test]
-fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
-    for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
+fn konstant_trip_targets_keep_their_size_and_value() {
+    // Engine probe.
+    for effect in [property::MIGHTY, property::WEAK] {
         let mut game = Game::default();
         let mut attacker = swing_die('P', property::TRIP, 0);
         attacker.m_sides[0] = 6;
@@ -63,13 +61,14 @@ fn pr82_konstant_trip_target_retains_value_and_changes_sides_once() {
         rng.SRand(1);
         ApplyAttack(&mut game, &action, &mut rng);
         assert_eq!(game.m_player[1].m_die[0].GetValueTotal(), 3);
-        assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
+        assert_eq!(game.m_player[1].m_die[0].m_sides[0], 6);
     }
 }
 
 #[test]
-fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
-    for (effect, expected_sides) in [(property::MIGHTY, 8), (property::WEAK, 4)] {
+fn konstant_ornery_mighty_and_weak_dice_keep_their_size_while_others_reroll() {
+    // Engine probe.
+    for effect in [property::MIGHTY, property::WEAK] {
         let mut game = Game::default();
         let mut attacker = swing_die('P', 0, 0);
         attacker.m_sides[0] = 6;
@@ -94,7 +93,7 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
             .find(|die| die.m_original_index == 1)
             .unwrap();
         assert_eq!(ornery.GetValueTotal(), 3);
-        assert_eq!(ornery.m_sides[0], expected_sides);
+        assert_eq!(ornery.m_sides[0], 6);
     }
 
     let mut game = Game::default();
@@ -219,4 +218,43 @@ fn pr82_ordinary_time_and_space_uses_its_rerolled_value() {
     let extra_turn = ApplyAttack(&mut game, &Move::attack(Power, [0], [0], 0.0), &mut rng);
     assert_eq!(game.m_player[0].m_die[0].GetValueTotal() % 2, 1);
     assert!(extra_turn);
+}
+
+#[test]
+fn warrior_dice_ignore_ornery_rerolls() {
+    // Engine probe.
+    scenario()
+        .attackers(["6:6", "o`10:3", "o10:3"])
+        .attacks(Power)
+        .using([0])
+        .defender("1:1")
+        .seed(1)
+        .expect_attacker_die(1, "o`10:3")
+        .expect_attacker_die(2, "o10:4")
+        .run();
+}
+
+#[test]
+fn konstant_mighty_and_weak_attackers_keep_their_size() {
+    // Engine probe.
+    for (attacker, expected) in [("kH6:3", "Hk6:3"), ("kh12:3", "hk12:3")] {
+        scenario()
+            .attackers([attacker, "1:1"])
+            .attacks(Skill)
+            .using([0, 1])
+            .defender("4:4")
+            .expect_attacker_die(0, expected)
+            .run();
+    }
+}
+
+#[test]
+fn boom_skips_warrior_and_konstant_effects_on_ornery_bystanders() {
+    scenario()
+        .attackers(["b4:2", "o`10:3", "Hok6:3"])
+        .attacks(crate::Attack::Boom)
+        .using([0])
+        .defender("6:5")
+        .expect_attacker_dice(["o`10:3", "Hok6:3"])
+        .run();
 }

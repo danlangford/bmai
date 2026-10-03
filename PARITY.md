@@ -56,11 +56,14 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   unused-pool cases are individually named in the table-driven Rust test, so
   failures report the corresponding upstream GoogleTest name.
 - [x] Trip and Chance Mighty/Weak/Maximum sequencing maps to
-  `pr82_konstant_trip_target_retains_value_and_changes_sides_once`,
+  `konstant_trip_targets_keep_their_size_and_value`,
   `pr82_trip_target_before_roll_effect_triggers_once`, and
-  `pr82_chance_effects_run_once_while_konstant_retains_value`.
+  `konstant_chance_dice_keep_their_size_and_value`. The Konstant cases follow
+  the ButtonWeavers engine, where Konstant also blocks Mighty and Weak,
+  instead of C++.
 - [x] Participating/nonparticipating Ornery, Konstant Mighty/Weak, Mood, and
-  pass behavior maps to `pr82_nonparticipating_ornery_effects_and_rolls_match_cpp`,
+  pass behavior maps to
+  `konstant_ornery_mighty_and_weak_dice_keep_their_size_while_others_reroll`,
   `ornery_mood_dice_change_after_an_attack_but_not_a_pass`,
   `pr82_participating_ornery_before_roll_effect_triggers_once`, and
   `konstant_ornery_mood_die_keeps_its_size_and_value`,

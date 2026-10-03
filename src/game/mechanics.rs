@@ -83,7 +83,7 @@ pub(crate) fn ApplyAttackForPlayers(
     if action.m_attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.m_player[attacker_player].m_die[attacker];
-            if !die.HasProperty(property::ORNERY) || die.m_notset {
+            if !RerollsWhenOrnery(die) || die.m_notset {
                 continue;
             }
             if !die.HasProperty(property::KONSTANT) {
@@ -105,7 +105,7 @@ pub(crate) fn ApplyAttackForPlayers(
     if action.m_attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.m_player[attacker_player].m_die[attacker];
-            if die.HasProperty(property::ORNERY) && !actual_attackers.contains(attacker) {
+            if RerollsWhenOrnery(die) && !actual_attackers.contains(attacker) {
                 ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
             }
         }
@@ -222,7 +222,7 @@ fn ApplyBoomAttack(
     }
     for index in 0..game.m_player[attacker_player].m_die.len() {
         let die = &game.m_player[attacker_player].m_die[index];
-        if !die.IsAvailable() || !die.HasProperty(property::ORNERY) {
+        if !die.IsAvailable() || !RerollsWhenOrnery(die) {
             continue;
         }
         if !die.HasProperty(property::KONSTANT) {
@@ -356,7 +356,7 @@ pub(crate) fn ApplyRadioactiveAttackEffects(
                 // which keeps the captured die's value and size.
                 game.m_player[attacker_player].m_die[product].m_notset = false;
             } else {
-                ApplyBeforeRollEffects(game, attacker_player, product);
+                ResizeMightyAndWeak(game, attacker_player, product);
             }
         } else if attacker_is_radioactive
             && MorphingApplies(action)
@@ -620,7 +620,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
         let target = action.m_targets.first().expect("Doppelganger target");
         CopyDoppelgangerTarget(game, attacker_player, target_player, attacker, target);
         // The copy rerolls even if Konstant, so Mighty and Weak resize it.
-        ApplyBeforeRollEffects(game, attacker_player, attacker);
+        ResizeMightyAndWeak(game, attacker_player, attacker);
     }
 
     if game.m_player[attacker_player].m_die[attacker].HasProperty(property::WARRIOR) {
@@ -631,7 +631,18 @@ pub(crate) fn ApplyAttackPlayerEffects(
     }
 }
 
+// ButtonWeavers Konstant clears `doesReroll`, which Mighty and Weak require.
 pub(crate) fn ApplyBeforeRollEffects(game: &mut Game, player: usize, index: usize) {
+    if !game.m_player[player].m_die[index].HasProperty(property::KONSTANT) {
+        ResizeMightyAndWeak(game, player, index);
+    }
+}
+
+fn RerollsWhenOrnery(die: &Die) -> bool {
+    die.HasProperty(property::ORNERY) && !die.HasProperty(property::WARRIOR)
+}
+
+fn ResizeMightyAndWeak(game: &mut Game, player: usize, index: usize) {
     let die = &mut game.m_player[player].m_die[index];
     let old_score = die.GetScore(true);
     let dice = if die.HasProperty(property::TWIN) {
