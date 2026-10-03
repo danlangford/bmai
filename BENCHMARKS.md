@@ -120,3 +120,24 @@ Release builds. Published 0.4.0 took 7.60s wall / 7.03s user; local 0.4.1 took
 claimed speedup. The change records two already-computed evaluation scalars
 and formats one line only after the top-level search completes, so it adds no
 work to simulation, branching, culling, or RNG consumption.
+
+## 0.18.0 search speedups
+
+Measured on 2026-10-03 on an Intel Core i7-7820HQ Mac (load average about 4,
+from other work). Each fixture ran once per binary, back to back, with user CPU
+time from the shell's `time`. The baseline was 0.17.0 plus the test-only DSL
+commits (`8561427`); 0.18.0 adds the four retained changes together: a reused
+per-thread rollout game, set-bit `DieIndexSet` iteration, cached `OptimizeDice`
+keys, and rotating captured dice into place. Output and RNG fingerprints were
+identical on every golden fixture.
+
+| Fixture | Baseline | 0.18.0 | Speedup |
+|---|---:|---:|---:|
+| `bmai_in.txt` | 9.51s | 5.41s | 1.76x |
+| `bmsim_in.txt` | 25.24s | 14.84s | 1.70x |
+| `bug11_in.txt` | 62.46s | 37.61s | 1.66x |
+| `bug16_in.txt` | 294.23s | 208.63s | 1.41x |
+
+In native mode on `bmai_in.txt`, user CPU fell from 10.71s to 6.66s with one
+worker and from 17.18s to 10.41s with `workers auto`.
+

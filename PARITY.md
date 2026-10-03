@@ -57,7 +57,8 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   failures report the corresponding upstream GoogleTest name.
 - [x] Trip and Chance Mighty/Weak/Maximum sequencing maps to
   `konstant_trip_targets_keep_their_size_and_value`,
-  `pr82_trip_target_before_roll_effect_triggers_once`, and
+  `pr82_trip_target_before_roll_effect_triggers_once`,
+  `pr82_chance_rerolls_resize_mighty_and_weak_dice_once`, and
   `konstant_chance_dice_keep_their_size_and_value`. The Konstant cases follow
   the ButtonWeavers engine, where Konstant also blocks Mighty and Weak,
   instead of C++.

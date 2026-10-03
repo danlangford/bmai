@@ -4,7 +4,7 @@
 //! "Engine probe" cases ran ButtonWeavers' `BMAttack::commit_attack` under PHP.
 
 use super::*;
-use crate::Attack::{Boom, Shadow};
+use crate::Attack::Boom;
 use test_support::{LEGACY, NATIVE, native, search_scenario};
 
 const REROLL_SEED: u32 = 3;
@@ -14,23 +14,6 @@ fn boom_choices(attacker: &str, target: &str) -> Vec<Move> {
         .into_iter()
         .filter(|candidate| candidate.m_attack == Some(Boom))
         .collect()
-}
-
-fn mood_sizes(die: &str) -> Vec<u8> {
-    let mut rng = Rng::default();
-    let mut sizes = (0..200)
-        .map(|_| {
-            let mut game = native_fixture_game(&format!(
-                "game\nfight\nplayer 0 1 0\n{die}\nplayer 1 1 0\n1:1\n"
-            ));
-            game.m_player[0].m_die[0].m_notset = true;
-            RollScheduledDie(&mut game, 0, 0, &mut rng);
-            game.m_player[0].m_die[0].m_sides[0]
-        })
-        .collect::<Vec<_>>();
-    sizes.sort_unstable();
-    sizes.dedup();
-    sizes
 }
 
 #[test]
@@ -303,132 +286,4 @@ fn search_reports_a_boom_when_it_is_the_only_attack() {
         .using([0])
         .targeting([0])
         .run();
-}
-
-#[test]
-fn mad_resizes_to_even_sizes_in_its_swing_range() {
-    assert_eq!(
-        mood_sizes("Y&-13:5"),
-        vec![2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
-    );
-}
-
-#[test]
-fn mood_resizes_to_standard_die_sizes_in_its_swing_range() {
-    assert_eq!(mood_sizes("R?-11:5"), vec![2, 4, 6, 8, 10, 12]);
-}
-
-#[test]
-fn a_mad_twin_shares_one_size() {
-    // Engine probe.
-    let mut rng = Rng::default();
-    for _ in 0..20 {
-        let mut game =
-            native_fixture_game("game\nfight\nplayer 0 1 0\n(Y,Y)&-13:13\nplayer 1 1 0\n1:1\n");
-        game.m_player[0].m_die[0].m_notset = true;
-        RollScheduledDie(&mut game, 0, 0, &mut rng);
-        let sides = game.m_player[0].m_die[0].m_sides;
-        assert_eq!(sides[0], sides[1]);
-        assert_eq!(sides[0] % 2, 0);
-    }
-}
-
-#[test]
-fn chance_rerolls_resize_mood_dice() {
-    let mut game =
-        native_fixture_game("game\nchance\nplayer 0 2 0\ncX?-13:1\n1:1\nplayer 1 1 0\n20:20\n");
-    ApplyChanceMove(
-        &mut game,
-        0,
-        1,
-        &ChanceMove { reroll: vec![0] },
-        &mut Rng::default(),
-    );
-    let die = game.m_player[0]
-        .m_die
-        .iter()
-        .find(|die| die.m_original_index == 0)
-        .unwrap();
-    assert_ne!(die.m_sides[0], 13);
-    assert!([4, 6, 8, 10, 12, 20].contains(&die.m_sides[0]));
-}
-
-#[test]
-fn a_mad_die_may_start_at_an_odd_size() {
-    let mut parser = crate::Parser::default();
-    parser
-        .ParseString(
-            "game\npreround\nplayer 0 1 0\nX&\nplayer 1 1 0\n6\n",
-            &mut Vec::new(),
-        )
-        .unwrap();
-    let sizes = GenerateSwingMoves(&parser.m_game.m_player[0])
-        .iter()
-        .map(|candidate| candidate.values()[0].1)
-        .collect::<Vec<_>>();
-    assert!(sizes.contains(&13), "{sizes:?}");
-}
-
-#[test]
-fn ornery_rerolls_randomize_a_mad_die() {
-    scenario()
-        .attackers(["6:6", "oY&-13:3"])
-        .attacks(Power)
-        .seed(1)
-        .using([0])
-        .defender("1:1")
-        .expect_attacker_die(1, "oY-8&:2")
-        .run();
-}
-
-#[test]
-fn decay_removes_mad() {
-    // Engine probe.
-    scenario()
-        .attacker("%Y&-12:12")
-        .attacks(Power)
-        .defender("4:3")
-        .expect_attacker_dice(["Y-6:5", "Y-6:1"])
-        .run();
-}
-
-#[test]
-fn konstant_mad_dice_keep_their_size() {
-    // Engine probe.
-    scenario()
-        .attacker("ksY&-12:3")
-        .attacks(Shadow)
-        .defender("6:5")
-        .expect_attacker_dice(["skY-12&:3"])
-        .run();
-}
-
-#[test]
-fn trip_attackers_and_targets_resize_when_mad() {
-    // Engine probe.
-    scenario()
-        .attacker("tY&-13:3")
-        .attacks(Trip)
-        .defender("20:20")
-        .expect_attacker_dice(["tY-2&:1"])
-        .run();
-    scenario()
-        .attacker("t1:1")
-        .attacks(Trip)
-        .defender("Y&-13:5")
-        .expect_defender_dice(["Y-6&:3"])
-        .run();
-}
-
-#[test]
-fn mad_parses_before_or_after_the_swing_size() {
-    for die in ["X&-12:5", "X-12&:5"] {
-        let game = native_fixture_game(&format!(
-            "game\nfight\nplayer 0 1 0\n{die}\nplayer 1 1 0\n1:1\n"
-        ));
-        assert!(
-            game.m_player[0].m_die[0].HasProperty(property::MAD),
-            "{die}"
-        );
-    }
 }

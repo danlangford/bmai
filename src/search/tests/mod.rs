@@ -3,12 +3,12 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::Action::{Attack, Pass};
+use crate::Action::Attack;
 use crate::Attack::{Berserk, Power, Skill, Speed, Trip};
 use crate::Phase::Fight;
 use crate::RngAlgorithm::LegacyParkMillerV1;
-use crate::game::{Die, DieIndexSet, Player};
-use test_support::scenario;
+use crate::game::{Die, Player};
+use test_support::{initiative_scenario, roll, scenario};
 
 fn auxiliary_game() -> Game {
     let input = "game 3\naux\nplayer 0 2 0\n6\n+Y\nplayer 1 2 0\n8\n+p12\nquit\n";
@@ -249,10 +249,12 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
     }
 }
 
-mod boom_mad;
+mod boom;
 mod core;
 mod doppelganger;
 mod jolt;
+mod mad;
+mod mood;
 mod parity;
 mod radioactive;
 mod rage;
