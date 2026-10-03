@@ -60,9 +60,12 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   `pr82_trip_target_before_roll_effect_triggers_once`, and
   `pr82_chance_effects_run_once_while_konstant_retains_value`.
 - [x] Participating/nonparticipating Ornery, Konstant Mighty/Weak, Mood, and
-  pass behavior maps to the three `search::tests::parity::pr82_*ornery*` tests
-  and `konstant_ornery_mood_die_keeps_its_size_and_value`, which follows the
-  ButtonWeavers engine (Konstant blocks the Mood resize) instead of C++;
+  pass behavior maps to `pr82_nonparticipating_ornery_effects_and_rolls_match_cpp`,
+  `ornery_mood_dice_change_after_an_attack_but_not_a_pass`,
+  `pr82_participating_ornery_before_roll_effect_triggers_once`, and
+  `konstant_ornery_mood_die_keeps_its_size_and_value`,
+  which follows the ButtonWeavers engine (Konstant blocks the Mood resize)
+  instead of C++;
   `OrdinarySideChangeInvalidatesValue` maps to
   `pr82_ordinary_side_change_invalidates_value`.
 - [x] Konstant Time-and-Space, Morphing, Berserk, Skill, Trip, and Warrior
@@ -482,8 +485,8 @@ Boom and Mad follow ButtonWeavers `BMAttackBoom`, `BMSkillBoom`, and
 | Boom die leaves play unscored and returns next round; the target rerolls in place | `boom_removes_the_boom_die_unscored_and_rerolls_the_target`, `only_boom_dice_can_boom` |
 | Documented: Stealth dice may be targeted by Boom | `stealth_dice_may_be_targeted_by_boom_attacks` |
 | Stealth, Warrior, and dizzy dice cannot Boom; Warrior dice cannot be boomed; Konstant dice may Boom | `stealth_and_warrior_dice_cannot_boom`, `warrior_dice_cannot_be_boomed`, `dizzy_boom_dice_cannot_boom`, `konstant_boom_dice_may_boom` |
-| Probe: the target's reroll applies Konstant, Mighty, Weak, Mad, and Twin | `a_konstant_target_keeps_its_value`, `mighty_and_weak_targets_resize_on_their_reroll`, `a_mad_target_resizes_to_an_even_size`, `a_twin_target_rerolls_both_halves` |
-| Probe: nothing is captured, so Rage, Null, Value, Time and Space, and Radioactive never trigger | `a_rage_target_is_not_replaced_because_it_is_not_captured`, `null_and_value_boom_dice_change_nothing_because_nothing_is_captured`, `time_and_space_boom_dice_never_grant_an_extra_turn`, `radioactive_never_decays_on_a_boom` |
+| Probe: the target's reroll applies Konstant, Mighty, Weak, Mad, and Twin, and Value rescores it | `a_konstant_target_keeps_its_value`, `a_mighty_target_grows_on_its_reroll`, `a_weak_target_shrinks_on_its_reroll`, `a_value_target_rescores_after_its_reroll`, `a_mad_target_resizes_to_an_even_size`, `a_twin_target_rerolls_both_halves` |
+| Probe: nothing is captured, so Rage, Null and Value Boom dice, Time and Space, and Radioactive never trigger | `a_rage_target_is_not_replaced_because_it_is_not_captured`, `null_and_value_boom_dice_change_nothing_because_nothing_is_captured`, `time_and_space_boom_dice_never_grant_an_extra_turn`, `radioactive_never_decays_on_a_boom` |
 | Probe: only a Jolt Boom die grants an extra turn | `only_a_jolt_boom_die_grants_an_extra_turn` |
 | Ornery rerolls follow any attack; Fire and Turbo do not apply | `ornery_dice_reroll_after_a_boom`, `fire_cannot_assist_a_boom`, `turbo_boom_dice_offer_no_turbo_sizes` |
 | Search returns Boom moves | `search_reports_a_boom_when_it_is_the_only_attack` |
@@ -491,10 +494,10 @@ Boom and Mad follow ButtonWeavers `BMAttackBoom`, `BMSkillBoom`, and
 | Documented: Ornery rerolls randomize a Mad die's size | `ornery_rerolls_randomize_a_mad_die` |
 | Documented: Radioactive decay removes Mad | `decay_removes_mad` |
 | Probe: a Mad Twin shares one size; Konstant blocks the resize; Trip attackers and targets resize | `a_mad_twin_shares_one_size`, `konstant_mad_dice_keep_their_size`, `trip_attackers_and_targets_resize_when_mad` |
-| Probe: Mood picks only standard die sizes | `mood_resizes_to_standard_die_sizes_in_its_swing_range`, `konstant_ornery_mood_die_keeps_its_size_and_value` |
+| Probe: Mood picks only standard die sizes, including on Chance rerolls | `mood_resizes_to_standard_die_sizes_in_its_swing_range`, `chance_rerolls_resize_mood_dice`, `konstant_ornery_mood_die_keeps_its_size_and_value` |
 
-Mood previously used the C++ rule (any size in range, each Twin half
-separately, ignoring Konstant), which ButtonWeavers does not follow. Boom
+C++ resizes Mood to any size in range, per Twin half, ignoring Konstant;
+ButtonWeavers does not. Boom
 candidates are enumerated after Rush, so inputs without Boom dice keep their C++
 candidate order.
 

@@ -676,8 +676,9 @@ pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
     player.m_die.insert(available - 1, lost);
 }
 
-/// ButtonWeavers: Mood picks a standard die size and Mad an even size, both
-/// from the swing range; a Twin shares one size, and Konstant never resizes.
+// ButtonWeavers `standard_die_sizes`; unlike Mighty's list, no 16.
+const MOOD_DIE_SIZES: [u8; 9] = [1, 2, 4, 6, 8, 10, 12, 20, 30];
+
 pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
     let mad = die.HasProperty(property::MAD);
     if !mad && !die.HasProperty(property::MOOD) || die.HasProperty(property::KONSTANT) {
@@ -692,7 +693,7 @@ pub(super) fn ApplyMood(die: &mut Die, rng: &mut Rng) {
             if mad {
                 size % 2 == 0
             } else {
-                [1, 2, 4, 6, 8, 10, 12, 20, 30].contains(size)
+                MOOD_DIE_SIZES.contains(size)
             }
         })
         .collect::<Vec<_>>();

@@ -113,7 +113,7 @@ fn konstant_boom_dice_may_boom() {
 
 #[test]
 fn a_konstant_target_keeps_its_value() {
-    // Engine probe: b(4) booming k(6):5 leaves k(6):5.
+    // Engine probe.
     scenario()
         .attacker("b4:2")
         .attacks(Boom)
@@ -123,8 +123,8 @@ fn a_konstant_target_keeps_its_value() {
 }
 
 #[test]
-fn mighty_and_weak_targets_resize_on_their_reroll() {
-    // Engine probe: H(6) becomes H(8), and h(12) becomes h(10).
+fn a_mighty_target_grows_on_its_reroll() {
+    // Engine probe.
     scenario()
         .attacker("b4:2")
         .attacks(Boom)
@@ -132,12 +132,29 @@ fn mighty_and_weak_targets_resize_on_their_reroll() {
         .defender("H6:5")
         .expect_defender_dice(["H8:7"])
         .run();
+}
+
+#[test]
+fn a_weak_target_shrinks_on_its_reroll() {
+    // Engine probe.
     scenario()
         .attacker("b4:2")
         .attacks(Boom)
         .seed(REROLL_SEED)
         .defender("h12:5")
         .expect_defender_dice(["h10:1"])
+        .run();
+}
+
+#[test]
+fn a_value_target_rescores_after_its_reroll() {
+    scenario()
+        .attacker("b4:2")
+        .attacks(Boom)
+        .seed(REROLL_SEED)
+        .defender("v6:5")
+        .expect_defender_dice(["v6:3"])
+        .expect_scores(0.0, 1.5)
         .run();
 }
 
@@ -166,7 +183,7 @@ fn a_rage_target_is_not_replaced_because_it_is_not_captured() {
 
 #[test]
 fn only_a_jolt_boom_die_grants_an_extra_turn() {
-    // Engine probe: a Jolt target grants nothing; a Jolt Boom die does.
+    // Engine probe.
     scenario()
         .attacker("b4:2")
         .attacks(Boom)
@@ -209,7 +226,7 @@ fn null_and_value_boom_dice_change_nothing_because_nothing_is_captured() {
 
 #[test]
 fn radioactive_never_decays_on_a_boom() {
-    // Engine probe: neither %b(4) nor a %(6) target splits.
+    // Engine probe.
     scenario()
         .attacker("%b4:2")
         .attacks(Boom)
@@ -303,14 +320,37 @@ fn mood_resizes_to_standard_die_sizes_in_its_swing_range() {
 
 #[test]
 fn a_mad_twin_shares_one_size() {
-    // Engine probe: (Y,Y)& became (Y=12,Y=12).
+    // Engine probe.
+    let mut rng = Rng::default();
+    for _ in 0..20 {
+        let mut game =
+            native_fixture_game("game\nfight\nplayer 0 1 0\n(Y,Y)&-13:13\nplayer 1 1 0\n1:1\n");
+        game.m_player[0].m_die[0].m_notset = true;
+        RollScheduledDie(&mut game, 0, 0, &mut rng);
+        let sides = game.m_player[0].m_die[0].m_sides;
+        assert_eq!(sides[0], sides[1]);
+        assert_eq!(sides[0] % 2, 0);
+    }
+}
+
+#[test]
+fn chance_rerolls_resize_mood_dice() {
     let mut game =
-        native_fixture_game("game\nfight\nplayer 0 1 0\n(Y,Y)&-20:20\nplayer 1 1 0\n1:1\n");
-    game.m_player[0].m_die[0].m_notset = true;
-    RollScheduledDie(&mut game, 0, 0, &mut Rng::default());
-    let sides = game.m_player[0].m_die[0].m_sides;
-    assert_eq!(sides[0], sides[1]);
-    assert_eq!(sides[0] % 2, 0);
+        native_fixture_game("game\nchance\nplayer 0 2 0\ncX?-13:1\n1:1\nplayer 1 1 0\n20:20\n");
+    ApplyChanceMove(
+        &mut game,
+        0,
+        1,
+        &ChanceMove { reroll: vec![0] },
+        &mut Rng::default(),
+    );
+    let die = game.m_player[0]
+        .m_die
+        .iter()
+        .find(|die| die.m_original_index == 0)
+        .unwrap();
+    assert_ne!(die.m_sides[0], 13);
+    assert!([1, 2, 4, 6, 8, 10, 12].contains(&die.m_sides[0]));
 }
 
 #[test]
@@ -334,15 +374,16 @@ fn ornery_rerolls_randomize_a_mad_die() {
     scenario()
         .attackers(["6:6", "oY&-13:3"])
         .attacks(Power)
+        .seed(1)
         .using([0])
         .defender("1:1")
-        .expect_attacker_die(1, "oY-6&:3")
+        .expect_attacker_die(1, "oY-8&:2")
         .run();
 }
 
 #[test]
 fn decay_removes_mad() {
-    // Engine probe: %(Y)& at 12 decays into two plain (Y=6).
+    // Engine probe.
     scenario()
         .attacker("%Y&-12:12")
         .attacks(Power)
@@ -353,7 +394,7 @@ fn decay_removes_mad() {
 
 #[test]
 fn konstant_mad_dice_keep_their_size() {
-    // Engine probe: ks(Y)& keeps Y=12.
+    // Engine probe.
     scenario()
         .attacker("ksY&-12:3")
         .attacks(Shadow)
@@ -364,7 +405,7 @@ fn konstant_mad_dice_keep_their_size() {
 
 #[test]
 fn trip_attackers_and_targets_resize_when_mad() {
-    // Engine probe: both a Trip attacker and a surviving Trip target resize.
+    // Engine probe.
     scenario()
         .attacker("tY&-13:3")
         .attacks(Trip)

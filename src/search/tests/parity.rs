@@ -120,25 +120,21 @@ fn pr82_nonparticipating_ornery_effects_and_rolls_match_cpp() {
     assert_ne!(ornery.GetValueTotal(), 100);
 }
 
-#[test]
-fn konstant_ornery_mood_die_keeps_its_size_and_value() {
-    // ButtonWeavers engine probe: Konstant blocks Mood's resize (`doesReroll`).
-    let mood_die = || {
-        let mut die = swing_die(
-            'X',
-            property::ORNERY | property::MOOD | property::KONSTANT,
-            0,
-        );
-        die.m_sides[0] = 6;
-        die.m_value_total = Some(3);
-        die
-    };
-
-    let mut pass_game = Game::default();
-    pass_game.m_player[0].m_die = vec![mood_die()];
-    ApplyAttack(
-        &mut pass_game,
-        &Move {
+fn ornery_mood_die_after(action: crate::Action, properties: u64) -> (u8, u16) {
+    let mut die = swing_die('X', property::ORNERY | property::MOOD | properties, 1);
+    die.m_sides[0] = 6;
+    die.m_value_total = Some(3);
+    let mut attacker = swing_die('P', 0, 0);
+    attacker.m_sides[0] = 6;
+    attacker.m_value_total = Some(6);
+    let mut target = swing_die('P', 0, 0);
+    target.m_sides[0] = 1;
+    target.m_value_total = Some(1);
+    let mut game = Game::default();
+    game.m_player[0].m_die = vec![attacker, die];
+    game.m_player[1].m_die = vec![target];
+    let action = if action == Pass {
+        Move {
             m_action: Pass,
             m_attack: None,
             m_attackers: DieIndexSet::default(),
@@ -146,39 +142,32 @@ fn konstant_ornery_mood_die_keeps_its_size_and_value() {
             m_score: 0.0,
             m_turbo_option: -1,
             m_fire: crate::game::FireAdjustment::default(),
-        },
-        &mut Rng::default(),
-    );
-    assert_eq!(
-        (
-            pass_game.m_player[0].m_die[0].m_sides[0],
-            pass_game.m_player[0].m_die[0].GetValueTotal()
-        ),
-        (6, 3)
-    );
-
-    let mut attack_game = Game::default();
-    let mut attacker = swing_die('P', 0, 1);
-    attacker.m_sides[0] = 6;
-    attacker.m_value_total = Some(6);
-    let mut target = swing_die('P', 0, 0);
-    target.m_sides[0] = 1;
-    target.m_value_total = Some(1);
-    attack_game.m_player[0].m_die = vec![attacker, mood_die()];
-    attack_game.m_player[1].m_die = vec![target];
+        }
+    } else {
+        Move::attack(Power, [0], [0], 0.0)
+    };
     let mut rng = Rng::default();
     rng.SRand(3);
-    ApplyAttack(
-        &mut attack_game,
-        &Move::attack(Power, [0], [0], 0.0),
-        &mut rng,
-    );
-    let mood = attack_game.m_player[0]
+    ApplyAttack(&mut game, &action, &mut rng);
+    let die = game.m_player[0]
         .m_die
         .iter()
-        .find(|die| die.m_original_index == 0)
+        .find(|die| die.m_original_index == 1)
         .unwrap();
-    assert_eq!((mood.m_sides[0], mood.GetValueTotal()), (6, 3));
+    (die.m_sides[0], die.GetValueTotal())
+}
+
+#[test]
+fn ornery_mood_dice_change_after_an_attack_but_not_a_pass() {
+    assert_eq!(ornery_mood_die_after(Pass, 0), (6, 3));
+    assert_ne!(ornery_mood_die_after(Attack, 0), (6, 3));
+}
+
+#[test]
+fn konstant_ornery_mood_die_keeps_its_size_and_value() {
+    // Engine probe: Konstant blocks Mood's resize (`doesReroll`).
+    assert_eq!(ornery_mood_die_after(Pass, property::KONSTANT), (6, 3));
+    assert_eq!(ornery_mood_die_after(Attack, property::KONSTANT), (6, 3));
 }
 
 #[test]

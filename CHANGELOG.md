@@ -22,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Boom (`b`): the Boom die leaves play unscored and rerolls one target, which
   stays in play. Boom may target Stealth dice. A Jolt Boom die grants an
-  extra turn; Time and Space, Null, Value, and Radioactive never trigger.
+  extra turn; Time and Space and Radioactive never trigger, and a Null or
+  Value Boom die converts nothing.
 - Mad (`&`) swing dice: like Mood, but every reroll picks an even size in the
   swing range. Radioactive decay removes Mad.
 - Advertised the `boom` attack type and the `b` and `&` tokens in capabilities.
