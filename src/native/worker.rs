@@ -11,10 +11,8 @@ pub(crate) fn native_worker_active() -> bool {
     NATIVE_WORKER_ACTIVE.get()
 }
 
-/// Evaluates independent tasks on scoped threads and restores input order.
-///
-/// Static round-robin assignment keeps the implementation dependency-free.
-/// Result ordering depends only on task position, never worker completion.
+/// Results follow task position, never completion order, so output is
+/// deterministic.
 pub(crate) fn ordered_parallel_map<T, R, F>(tasks: Vec<T>, workers: usize, evaluate: F) -> Vec<R>
 where
     T: Send,

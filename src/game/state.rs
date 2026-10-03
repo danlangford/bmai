@@ -11,14 +11,11 @@ pub struct BMC_Game {
     pub m_surrender_allowed: bool,
     pub m_target_wins: u8,
     pub m_turbo_accuracy: f32,
-    /// Allows optional Fire use on otherwise-legal Power attacks throughout search.
     pub m_fire_overshooting: bool,
 }
 
-// Original BMAI fixes each input player at ten dice. A successful
-// Transformations can temporarily expand one player's original ten-die pool.
-// Twenty slots cover both Radioactive+Doppelganger transfers and one Rage
-// replacement for every original die while keeping move indices compact.
+// Ten input dice; twenty slots leave room for decay and Rage growth while
+// keeping move indices compact.
 pub(crate) const BMD_MAX_INPUT_DICE: usize = 10;
 pub(crate) const BMD_MAX_DICE: usize = BMD_MAX_INPUT_DICE * 2;
 impl Default for BMC_Game {

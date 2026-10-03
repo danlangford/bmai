@@ -55,13 +55,11 @@ impl Scenario {
         self
     }
 
-    /// Applies a `special` button rule to the attacking player.
     pub(crate) fn attacker_special(mut self, special: &'static str) -> Self {
         self.specials[0].push(special);
         self
     }
 
-    /// Applies a `special` button rule to the defending player.
     pub(crate) fn defender_special(mut self, special: &'static str) -> Self {
         self.specials[1].push(special);
         self
@@ -72,8 +70,7 @@ impl Scenario {
         self
     }
 
-    /// Sets the scores before the attack. Without this call, production parsing
-    /// derives each score from the active dice as it does for initiative.
+    /// Otherwise the parser derives scores from the dice.
     pub(crate) fn with_scores(mut self, attacker: f32, defender: f32) -> Self {
         self.scores = Some([attacker, defender]);
         self
@@ -95,13 +92,11 @@ impl Scenario {
         self
     }
 
-    /// Selects the final displayed values of Fire dice assisting the attack.
     pub(crate) fn firing(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
         self.fire_values = dice.into_iter().collect();
         self
     }
 
-    /// Selects the values to which participating attackers are fired up.
     pub(crate) fn boosting(mut self, dice: impl IntoIterator<Item = (usize, u8)>) -> Self {
         self.boosted_values = dice.into_iter().collect();
         self
@@ -140,7 +135,6 @@ impl Scenario {
         self
     }
 
-    /// Asserts one surviving attacker by its recipe declaration index.
     pub(crate) fn expect_attacker_die(
         mut self,
         original_index: usize,
@@ -164,9 +158,7 @@ impl Scenario {
         self
     }
 
-    /// Asserts the defender's captured pile after the attack. This is kept
-    /// separate from active dice so transformations such as Rage can describe
-    /// both results without reaching into `BMC_Game` internals.
+    /// Separate from active dice so Rage tests can check both piles.
     pub(crate) fn expect_captured_defender_dice(
         mut self,
         dice: impl IntoIterator<Item = impl Into<String>>,
@@ -357,8 +349,7 @@ fn parse_game_with_specials(
     defender_dice: &[String],
     specials: &[Vec<&'static str>; 2],
 ) -> BMC_Game {
-    // INITIATIVE makes the production parser derive scores from the dice. The
-    // requested phase is applied by Scenario::run after parsing.
+    // INITIATIVE makes the parser derive scores; `run` sets the real phase.
     let mut input = String::from("game\ninitiative\n");
     for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {
         input.push_str(&format!("player {player} {} 0\n", dice.len()));

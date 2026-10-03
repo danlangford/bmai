@@ -52,9 +52,7 @@ impl NativeReplaySequence<'_> {
 }
 
 const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
-// Reserved candidate coordinate for a fresh selected-move probability sample.
-// Search candidates always use their zero-based position, so this stream is
-// disjoint from every sample consumed while choosing the move.
+// Never a candidate position, so report draws cannot overlap search draws.
 const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
 use std::sync::OnceLock;
 

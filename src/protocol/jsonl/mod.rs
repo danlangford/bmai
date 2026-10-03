@@ -93,7 +93,6 @@ pub struct SessionExecuteResult {
 }
 
 impl BmairSession {
-    /// Executes a legacy command script transactionally against this session.
     /// A parser error leaves all prior state untouched.
     pub fn execute(&mut self, script: &str) -> Result<SessionExecuteResult, ParseError> {
         let mut candidate = self.parser.clone();

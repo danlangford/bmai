@@ -430,10 +430,7 @@ impl BMC_Parser {
                 return Err(ParseError(format!("expected player {expected}")));
             }
             let mut dice = Vec::with_capacity(count);
-            // BMC_Parser::ParseDieSides updates this status as each die is
-            // parsed.  A defined swing/option locks it; a later undefined one
-            // changes it back to NOT.  The order matters for exact parser
-            // state parity.
+            // A later undefined swing unlocks it again, as in C++.
             let mut swing_set = BME_SWING_SET::NOT;
             for original_index in 0..count {
                 let definition = lines

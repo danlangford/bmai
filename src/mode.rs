@@ -1,14 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-/// Selects the compatibility contract used by the game/search engine.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ExecutionMode {
-    /// Exact C++ behavior, including candidate order and RNG consumption.
     #[default]
     Legacy,
-    /// Rust-native evolution point. It intentionally shares the legacy
-    /// implementation until a separately tested native behavior is introduced.
+    /// Shares the legacy implementation until native behavior is tested apart.
     Native,
 }
 

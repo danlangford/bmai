@@ -169,14 +169,12 @@ fn successful_trip_decays_after_the_trip_roll() {
 #[test]
 fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
     // Responder log: t(4) fails to Trip %Ho(1,2) -> t(2), t(2), and Ho(2,4).
-    // BMAIR forbids non-Twin Trips on Twin dice (planned fix), so the target
-    // is single; the default seed makes this Trip fail.
     scenario()
         .attacker("t4:1")
         .attacks(TRIP)
-        .defender("%H20:3")
+        .defender("%Ho(1,2):3")
         .expect_attacker_dice(["t2:2", "t2:1"])
-        .expect_defender_dice(["H30:13"])
+        .expect_defender_dice(["Ho(2,4):4"])
         .run();
 }
 

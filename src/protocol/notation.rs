@@ -5,8 +5,6 @@ use serde::Serialize;
 
 use crate::game::{property, special};
 
-/// Whether a die property is fully implemented or accepted only for upstream
-/// notation compatibility.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
@@ -15,7 +13,6 @@ pub enum CapabilitySupport {
     ParsingOnly,
 }
 
-/// One property prefix in BMAIR's die notation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DiePropertyNotation {
@@ -27,7 +24,6 @@ pub struct DiePropertyNotation {
     pub(crate) property: u64,
 }
 
-/// One property suffix in BMAIR's die notation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct DiePostfixNotation {
@@ -36,7 +32,6 @@ pub struct DiePostfixNotation {
     pub name: &'static str,
 }
 
-/// Discoverable grammar elements used to describe dice on the wire.
 #[derive(Debug, Serialize)]
 #[non_exhaustive]
 pub struct DieNotationCapabilities {
@@ -64,8 +59,7 @@ macro_rules! die_property {
     };
 }
 
-/// The parser and capability response deliberately share this table. Adding or
-/// changing a prefix therefore changes accepted syntax and discovery together.
+/// Shared by the parser and capabilities so syntax and discovery cannot drift.
 pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
     die_property!(
         '^',
@@ -143,7 +137,6 @@ impl DieNotationCapabilities {
     }
 }
 
-/// One button special accepted by the `special` command.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct ButtonSpecialNotation {

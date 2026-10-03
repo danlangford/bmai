@@ -414,7 +414,7 @@ loop contradicts two documented interactions. BMAIR follows the engine:
 No current button has same-die Radioactive Morphing or Doppelganger dice.
 A decay that would exceed the 20-die pool is skipped instead of panicking.
 
-### Button specials and ButtonWeavers rule corrections
+### Button specials and rule corrections
 
 Source: ButtonWeavers `BMBtnSkillUniqueSwing`, `BMBtnSkillGordo`,
 `BMBtnSkillLargo`, `BMBtnSkillTheFlyingSquirrel`, `BMAttackSkill::

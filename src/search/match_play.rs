@@ -364,10 +364,8 @@ pub(super) fn PlayPreround(
     ai: &BMC_BMAI3,
     level: usize,
 ) -> usize {
-    // In a simulated game BMAI's static search level is not restored after a
-    // preround evaluation.  Consequently, the next player's preround choice
-    // starts one ply deeper.  Top-level games restore the level after each
-    // choice, so both players remain at level 1 there.
+    // C++ never restores the level after a simulated preround, so the next
+    // player's choice starts a ply deeper.
     let mut player_level = level;
     for player in 0..2 {
         if game.m_player[player].m_swing_set != BME_SWING_SET::NOT

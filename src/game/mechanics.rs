@@ -19,8 +19,7 @@ pub(crate) fn ApplyAttackForPlayers(
     rng: &mut BMC_RNG,
 ) -> bool {
     ApplyFireAdjustments(game, action, attacker_player);
-    // C++ GetAvailableDice() is a cached boundary and does not shrink merely
-    // because an attacker is marked NOTSET during this phase.
+    // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = AvailableDice(&game.m_player[attacker_player]);
     let is_trip = action.m_attack == Some(BME_ATTACK::TRIP);
     let attacking_jolt_dice = action
@@ -79,7 +78,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ApplyBeforeRollEffects(game, target_player, target);
     }
 
-    // C++ handles Ornery dice that were not already scheduled by the attack.
+    // Ornery dice reroll after every attack, even ones they sat out.
     if action.m_attack.is_some() {
         for attacker in 0..available_attackers {
             let die = &game.m_player[attacker_player].m_die[attacker];
@@ -93,14 +92,12 @@ pub(crate) fn ApplyAttackForPlayers(
         }
     }
 
-    // ButtonWeavers consumes ordinary attacking Jolt before the attack reroll.
-    // Trip resolves both rerolls first and consumes attacking Jolt below.
+    // Trip consumes these after its rolls instead, below.
     if !is_trip {
         ConsumeAttackingJolt(game, attacker_player, jolt_dice_to_consume);
         ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
-    // Match ApplyAttackNatureRoll: actual attackers first, then Ornery dice
-    // that did not participate, and finally a Trip target.
+    // This roll order fixes RNG consumption.
     for attacker in actual_attackers.iter() {
         ApplyAttackerNatureRoll(game, attacker_player, attacker, rng);
     }
@@ -121,8 +118,7 @@ pub(crate) fn ApplyAttackForPlayers(
         ConsumeAttackingRage(game, attacker_player, actual_attackers, attacking_rage);
     }
 
-    // Time and Space is a post-roll effect. It applies even when a Trip fails,
-    // but Konstant attackers cannot trigger it because they do not reroll.
+    // Konstant attackers never reroll, so they cannot trigger it.
     let time_and_space_extra_turn = actual_attackers.iter().any(|index| {
         let die = &game.m_player[attacker_player].m_die[index];
         die.HasProperty(property::TIME_AND_SPACE)
@@ -492,9 +488,7 @@ pub(super) fn CreateAndRollRageReplacement(
     replacement.m_notset = true;
     replacement.m_dizzy = false;
     replacement.m_original_index = synthetic_index;
-    // ButtonWeavers marks Rage replacements specially: Mighty and Weak do not
-    // change size on this initial roll, and Mood does not trigger because the
-    // newly cloned die has no value yet.
+    // ButtonWeavers' replacement roll skips Mighty, Weak, and Mood.
     RollDie(&mut replacement, rng);
     Some(replacement)
 }
@@ -560,9 +554,7 @@ pub(crate) fn ApplyAttackPlayerEffects(
         }
     }
 
-    // ButtonWeavers runs Doppelganger after Mighty, Weak, and Turbo, but
-    // before Warrior and the attack reroll. A successful single-die Power
-    // attack replaces the attacking recipe with an exact copy of its target.
+    // ButtonWeavers' hook order: after Mighty, Weak, and Turbo; before Warrior.
     if actually_attacking
         && action.m_attack == Some(BME_ATTACK::POWER)
         && action.m_attackers.len() == 1
@@ -613,9 +605,7 @@ pub(super) fn ApplyAttackerNatureRoll(
     let die = &mut game.m_player[player].m_die[index];
     let old_score = die.GetScore(true);
     ApplyMood(die, rng);
-    // C++ score bookkeeping surrounds side/property changes, but Roll itself
-    // does not notify the owner. In particular, a Value die keeps the score
-    // contributed by its pre-attack value after the nature reroll.
+    // C++ never rescores after the reroll, so a Value die keeps its old score.
     game.m_player[player].m_score += die.GetScore(true) - old_score;
     if die.m_notset {
         RollDie(die, rng);

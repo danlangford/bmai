@@ -110,8 +110,6 @@ fn pr82_participating_ornery_before_roll_effect_triggers_once() {
     assert_eq!(game.m_player[0].m_die[0].m_sides[0], 6);
 }
 
-/// Ports OrdinarySideChangeInvalidatesValue through the attack-side-change
-/// path that owns the corresponding lifecycle transition in Rust.
 #[test]
 fn pr82_ordinary_side_change_invalidates_value() {
     let mut game = BMC_Game::default();
@@ -216,8 +214,7 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
     assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 7);
 }
 
-/// Regression for BMC_Game::ApplyUseChance's literal `initiative != 0`
-/// check. This intentionally preserves the C++ player-index asymmetry.
+/// C++'s `initiative != 0` check makes Chance asymmetric by player index.
 #[test]
 fn cpp_chance_success_is_keyed_to_player_zero_initiative() {
     let mut game = BMC_Game::default();
@@ -276,7 +273,6 @@ fn cpp_value_attacker_score_retains_its_pre_reroll_value() {
         .run();
 }
 
-/// Port of SkillTests.MaximumSkill's roll contract.
 #[test]
 fn cpp_maximum_die_always_rolls_its_maximum() {
     let mut maximum = swing_die('P', property::MAXIMUM, 0);
@@ -291,8 +287,6 @@ fn cpp_maximum_die_always_rolls_its_maximum() {
     }
 }
 
-/// Port of RollRequiresNotSetState. Rust assertions are active in debug
-/// test builds, matching the upstream test's non-NDEBUG branch.
 #[test]
 #[should_panic(expected = "BMC_Die::Roll requires NOTSET state")]
 fn cpp_roll_requires_notset_state() {
@@ -303,7 +297,6 @@ fn cpp_roll_requires_notset_state() {
     RollDie(&mut die, &mut BMC_RNG::default());
 }
 
-/// Port of SwingSetRequiresNotSetState.
 #[test]
 #[should_panic(expected = "BMC_Die::OnSwingSet requires NOTSET state")]
 fn cpp_swing_set_requires_notset_state() {
@@ -320,7 +313,6 @@ fn cpp_swing_set_requires_notset_state() {
     ApplySwingMove(&mut player, &action);
 }
 
-/// Port of KonstantRetainsValueWhenTripped.
 #[test]
 fn cpp_konstant_target_retains_value_when_tripped() {
     scenario()
@@ -333,7 +325,6 @@ fn cpp_konstant_target_retains_value_when_tripped() {
         .run();
 }
 
-/// Port of KonstantWarriorRetainsValueWhenUsedInSkillAttack.
 #[test]
 fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
     scenario()
@@ -347,7 +338,6 @@ fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
         .run();
 }
 
-/// Port of MorphingSkill and MorphingTwinSkill in both directions.
 #[test]
 fn cpp_morphing_copies_single_and_twin_target_sizes() {
     let cases = [([9, 0], [7, 0], [7, 0]), ([7, 0], [10, 11], [10, 11])];

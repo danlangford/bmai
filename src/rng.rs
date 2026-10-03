@@ -2,11 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-/// Stable identifier for a replayable RNG implementation.
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum BME_RNG_ALGORITHM {
-    /// BMAI's Park-Miller minimal-standard LCG plus its custom seed expansion.
     LEGACY_PARK_MILLER_V1,
 }
 
@@ -27,12 +25,8 @@ impl BME_RNG_ALGORITHM {
     }
 }
 
-/// Versioned RNG dispatcher. The closed enum keeps dispatch statically
-/// optimizable in hot search loops while leaving a deliberate seam for native
-/// generators with different state and stream-splitting behavior.
-///
-/// The initial implementation is the original BMAI Park-Miller generator.
-/// Keeping its integer operations exact is required for seeded C++ parity.
+/// A closed enum keeps hot-loop dispatch static; exact integer operations keep
+/// seeded legacy replays reproducible.
 #[allow(non_camel_case_types, non_snake_case)]
 #[derive(Clone, Debug)]
 pub struct BMC_RNG {
@@ -159,9 +153,7 @@ impl BMC_RNG {
             % u128::from(next_radix)) as u64;
         let base_digit = position / stratum.radix % upper_u64;
         let lower_cell = position % stratum.radix;
-        // Shifting by the already-selected lower cell is a permutation of this
-        // draw's faces. A complete mixed-radix block therefore remains
-        // exhaustive, while short prefixes do not pin later draws to face 0.
+        // A permutation of the faces, so full blocks stay exhaustive.
         let value = (base_digit + lower_cell % upper_u64) % upper_u64;
         stratum.radix = next_radix;
         value as u32
@@ -297,8 +289,7 @@ mod tests {
         assert_eq!(stratified.GetRandMax(20), ordinary.GetRandMax(20));
     }
 
-    /// Port of LegacyMembers.TestRNG. The C++ test is statistical rather than
-    /// sequence-based, so retain its sample count and tolerances verbatim.
+    /// The C++ test is statistical, so its sample count and tolerances stay.
     #[test]
     fn cpp_legacy_rng_distribution() {
         const SAMPLES: usize = 1_000_000;

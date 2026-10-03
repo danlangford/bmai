@@ -90,8 +90,6 @@ impl BMC_DieIndexStack {
         self.len -= 1;
     }
 
-    /// Direct port of `BMC_DieIndexStack::Cycle` over positions in the
-    /// optimized available-dice sequence.
     fn cycle(&mut self, mut add_die: bool, dice: &BMC_AvailableDice<'_>) -> bool {
         if self.indices[self.len - 1] == dice.len() - 1 {
             self.pop(dice);
@@ -120,9 +118,7 @@ fn DieCount(die: &BMC_Die) -> i32 {
     }
 }
 
-/// Port of PR #82's signed-Konstant `BMC_Game::ValidAttack` calculation.
-/// For one sign assignment, non-Warrior Stinger values form a continuous
-/// interval. Konstant dice may contribute either sign unless they are Warrior.
+/// Konstant dice may add or subtract their value in a Skill attack.
 fn SkillStackCanHit(
     stack: &BMC_DieIndexStack,
     available: &BMC_AvailableDice<'_>,
@@ -187,9 +183,7 @@ fn SkillStackCanHitWithFire(
     false
 }
 
-/// ButtonWeavers `BMAttackTrip::post_trip_roll_max`: the largest value the
-/// die can show after the resizing its Trip reroll triggers. A Mood Twin
-/// reports one subdie's swing range there, so this does too.
+/// Mirrors ButtonWeavers `post_trip_roll_max`, including its Mood Twin quirk.
 fn TripRollMax(die: &BMC_Die, smallest_mood_size: bool) -> u16 {
     if die.HasProperty(property::MOOD)
         && let Some(swing) = die.m_swing_type[0]
@@ -213,8 +207,7 @@ fn TripRollMax(die: &BMC_Die, smallest_mood_size: bool) -> u16 {
         .sum()
 }
 
-/// ButtonWeavers `BMAttackTrip::validate_attack`: the attacker must be able
-/// to roll the target's minimum, and Konstant and Maximum targets raise that.
+/// Mirrors ButtonWeavers `BMAttackTrip::validate_attack`.
 fn TripCanCapture(attacker: &BMC_Die, target: &BMC_Die) -> bool {
     let target_minimum = DieCount(target) as u16;
     let attacker_maximum = if attacker.HasProperty(property::KONSTANT) {
@@ -231,7 +224,6 @@ fn TripCanCapture(attacker: &BMC_Die, target: &BMC_Die) -> bool {
     attacker_maximum >= target_minimum
 }
 
-/// The die at each size a Turbo choice can give it, current size first.
 fn TurboSizes(die: &BMC_Die, accuracy: f32) -> Vec<(i16, BMC_Die)> {
     if !die.HasProperty(property::TURBO) {
         return vec![(-1, *die)];
@@ -264,9 +256,7 @@ fn TurboSizes(die: &BMC_Die, accuracy: f32) -> Vec<(i16, BMC_Die)> {
     sizes
 }
 
-/// ButtonWeavers offers a Trip if any Turbo size reaches the target, then
-/// validates the size actually submitted. Only the sizes `ExpandTurboMoves`
-/// can submit count, so every generated Trip keeps a legal size.
+/// Only sizes `ExpandTurboMoves` can submit count, so every Trip keeps one.
 fn TripReachableAtSomeTurboSize(
     attacker: &BMC_Die,
     target: &BMC_Die,
@@ -820,8 +810,7 @@ impl BMC_Game {
     }
 
     pub fn GenerateValidAttacks(&self) -> Vec<BMC_Move> {
-        // Use the direct C++ enumeration for the complete candidate set, then
-        // retain this API's historical score ordering for QAI/protocol users.
+        // QAI and protocol users depend on this API's score order.
         self.GenerateValidAttacksForSearch(usize::MAX)
     }
 
@@ -971,8 +960,7 @@ fn ExpandTurboMoves(game: &BMC_Game, moves: &mut Vec<BMC_Move>) {
         }
         if turbo_die.HasProperty(property::OPTION) {
             moves[move_index].m_turbo_option = 0;
-            // Fire capacities were calculated for the current Turbo size.
-            // Reusing that plan after changing size can exceed the new maximum.
+            // The Fire plan assumed the current size and may not fit another.
             if !moves[move_index].m_fire.is_empty() {
                 continue;
             }

@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added the `special PLAYER [ID...]` command for ButtonWeavers button
+- Added the `special PLAYER [ID...]` command for button
   specials, which the wire format cannot express per die:
   - `unique_swing` (Guillermo, Oregon): different swing types take different
     sizes.

@@ -54,10 +54,7 @@ pub(super) fn ApplyChanceMove(
         }
     }
     game.m_player[player].OptimizeDice();
-    // Preserve BMC_Game::ApplyUseChance exactly. The C++ implementation tests
-    // `initiative != 0`, rather than comparing initiative with the acting
-    // player. Consequently a reroll is considered successful precisely when
-    // player 0 wins initiative, even when player 1 is the Chance user.
+    // C++ tests `initiative != 0`, so success means player 0 won, whoever rolled.
     if CheckInitiative(game) == Some(0) {
         (player, true)
     } else {
@@ -576,9 +573,7 @@ pub(super) fn EvaluateNextInitiativeAction(
     }
 }
 
-// Play a round inside a BMAI simulation. The simulation retains BMAI until an
-// evaluation reaches max ply; OnEndEvaluation then replaces both AIs with QAI
-// for the remainder of this round.
+// As in C++, BMAI plays until max ply and QAI finishes the round.
 pub(super) fn PlaySimulatedRound(
     game: &mut BMC_Game,
     rng: &mut BMC_RNG,

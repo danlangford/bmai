@@ -291,9 +291,7 @@ fn AcceptableAuxiliaryDie(player: &crate::game::BMC_Player) -> Option<usize> {
     })
 }
 
-/// Resolve ButtonWeavers' mutual Auxiliary choice for a simulation. If both
-/// players agree, each selected die becomes an ordinary die for the game. A
-/// decline by either player removes every Auxiliary die from both buttons.
+/// On ButtonWeavers a decline by either player removes every Auxiliary die.
 pub(crate) fn ApplyAuxiliaryDecision(game: &mut BMC_Game, accepted: bool) {
     let accepted = accepted
         && game.m_player.iter().all(|player| {
@@ -318,9 +316,7 @@ pub(crate) fn ApplyAuxiliaryDecision(game: &mut BMC_Game, accepted: bool) {
 pub(super) fn EvaluateAuxiliaryDecision(game: &BMC_Game, accepted: bool, rng: &mut BMC_RNG) -> f32 {
     let mut simulation = game.clone();
     ApplyAuxiliaryDecision(&mut simulation, accepted);
-    // Auxiliary is a pregame choice. Compare the resulting buttons over one
-    // complete round with the inexpensive deterministic QAI rollout policy;
-    // recursively invoking BMAI here would nest a new search at every move.
+    // QAI, because BMAI here would nest a new search at every move.
     let (winner, _) = PlayRoundWithPolicies(
         &mut simulation,
         rng,
@@ -524,7 +520,7 @@ pub(super) fn RandomlySelectSwingMoves(
             if extreme_settings(&moves[index]) == swing_dice {
                 index += 1;
             } else {
-                // BMC_MoveList::Remove fills the hole with the final move.
+                // C++'s move list removes this way, which fixes move order.
                 moves.swap_remove(index);
             }
         }
@@ -549,9 +545,7 @@ pub(super) fn EvaluateSwingMove(
 ) -> f32 {
     let other = 1 - player;
 
-    // At the terminal ply OnPreSimulation replaces both simulation AIs with
-    // QAI. QAI's preround policy is the first valid (minimum swing / first
-    // option) setting, after which it plays the fight out.
+    // C++ switches both sides to QAI at the terminal ply.
     if level >= ai.m_max_ply {
         if game.m_player[other].m_swing_set == BME_SWING_SET::NOT {
             if NeedsSetSwing(&game.m_player[other]) {
@@ -566,8 +560,7 @@ pub(super) fn EvaluateSwingMove(
         return PlayRoundQAI(game, rng, player, ai);
     }
 
-    // Before the terminal ply, PlayRound_EvaluateMove stops at the opponent's
-    // next BMAI decision and uses that decision's estimated probability.
+    // Before the terminal ply, C++ uses the opponent's next decision estimate.
     if game.m_player[other].m_swing_set == BME_SWING_SET::NOT {
         if !NeedsSetSwing(&game.m_player[other]) {
             game.m_player[other].m_swing_set = BME_SWING_SET::LOCKED;
@@ -692,9 +685,7 @@ pub(super) fn GenerateSwingMoves(player: &crate::game::BMC_Player) -> Vec<SwingM
             })
         });
     }
-    // BMC_Game::ValidSetSwing enforces UNIQUE after enumerating each complete
-    // swing/option setting. A Unique swing die may not use the same value as
-    // any lower-numbered swing type present on the same button.
+    // Unique only forbids matching a lower-lettered swing type, as in C++.
     moves.retain(|candidate| {
         player
             .m_die

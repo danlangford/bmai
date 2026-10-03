@@ -58,9 +58,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, Pa
         }
         pos += 1;
     }
-    // C++ ParseDieSides looks ahead to the shared `-N` suffix separately for
-    // every Swing side. This matters for Twin Swing dice such as `(T,T)-2`:
-    // both halves are d2, not only the first half.
+    // The shared `-N` applies to every swing half: `(T,T)-2` is two d2s.
     if let Some(value) = ParseDieDefinedSides(definition).filter(|value| *value > 0) {
         for side in 0..2 {
             if swings[side].is_some() {
@@ -92,8 +90,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, Pa
     })
 }
 
-/// Mirrors C++ `ParseDieDefinedSides`: find the shared `-N` suffix and parse
-/// its leading digits. Postfix properties may appear before or after it.
+/// Postfix properties may appear on either side of the `-N` suffix.
 pub(super) fn ParseDieDefinedSides(definition: &str) -> Option<u8> {
     let (_, suffix) = definition.split_once('-')?;
     let digit_count = suffix.bytes().take_while(u8::is_ascii_digit).count();

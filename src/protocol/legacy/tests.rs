@@ -7,7 +7,6 @@ use crate::BME_ATTACK::{POWER, SKILL};
 use crate::BME_PHASE::{AUXILIARY, CHANCE, FOCUS};
 use crate::search::test_support::{LEGACY, parser_scenario, search_scenario};
 
-/// Port of ParserTests.ParseString.
 #[test]
 fn cpp_parser_multiline_fight_string() {
     let input = "\n\
@@ -873,8 +872,7 @@ fn native_wire_fixtures_are_deterministic() {
     ];
 
     for (input, expected) in cases {
-        // Git may check text fixtures out with CRLF on Windows, while the
-        // protocol writer deliberately emits `\n` on every platform.
+        // Windows checkouts may use CRLF; the writer always emits `\n`.
         let expected = expected.replace("\r\n", "\n");
         for _ in 0..2 {
             let mut output = Vec::new();

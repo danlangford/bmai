@@ -33,9 +33,7 @@ fn doppelganger_does_not_copy_a_skill_attack_target() {
 
 #[test]
 fn doppelganger_copies_twin_swing_shape_and_doppelganger_skill() {
-    // This state cannot be expressed by one parser recipe because its two
-    // Twin swing types have independently selected sizes. Keep this as a
-    // lower-level test of the in-round transformation.
+    // No recipe gives two Twin swing types different sizes.
     let mut game = BMC_Game::default();
     let mut attacker = swing_die('P', property::DOPPELGANGER, 0);
     attacker.m_sides = [20, 0];

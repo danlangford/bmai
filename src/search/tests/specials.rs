@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! Button specials (ButtonWeavers `BMBtnSkill*`) and the Trip and Morphing
-//! corrections that ship with them.
+//! Button specials, checked against ButtonWeavers' `BMBtnSkill*`, and the Trip
+//! and Morphing corrections that ship with them.
 
 use super::*;
 
@@ -386,8 +386,7 @@ fn failed_trip_does_not_morph() {
         .run();
 }
 
-/// The three draws a Trip-then-morph attack makes: the attacker's Trip roll,
-/// the target's reroll, and the morphed die's reroll.
+/// In attack order: Trip roll, target reroll, morphed reroll.
 fn trip_morph_draws(seed: u32, attacker_sides: u32, target_sides: u32) -> [u32; 3] {
     let mut rng = BMC_RNG::default();
     rng.SRand(seed);

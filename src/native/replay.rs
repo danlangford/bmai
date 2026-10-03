@@ -1,10 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-/// Identifies the stream-partitioning algorithm used by [`NativeSimulationKey`].
-///
-/// Changing the derivation requires a new identifier so recorded searches can
-/// continue to be reproduced with their original semantics.
+/// Change this whenever the derivation changes, so recorded searches replay.
 pub const NATIVE_STREAM_PARTITION_ID: &str = "bmair-native-stream-v2";
 pub const NATIVE_STREAM_PARTITION_V1_ID: &str = "bmair-native-stream-v1";
 
@@ -16,7 +13,6 @@ const SIMULATION_SALT: u64 = 0x5349_4d55_4c41_5445; // "SIMULATE"
 const STATE_DOMAIN: u64 = 0x5354_4154_455f_5f5f; // "STATE___"
 const STREAM_DOMAIN: u64 = 0x5354_5245_414d_5f5f; // "STREAM__"
 
-/// Selects the versioned native stream-partitioning contract.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum NativeStreamVersion {
     V1,
@@ -30,7 +26,6 @@ impl NativeStreamVersion {
         matches!(self, Self::V2)
     }
 
-    /// Returns the identifier to persist with a replay or benchmark result.
     #[must_use]
     pub const fn partition_id(self) -> &'static str {
         match self {
@@ -40,7 +35,6 @@ impl NativeStreamVersion {
     }
 }
 
-/// Identifies one native-mode search decision within a seeded replay.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct NativeReplayKey {
     pub stream_version: NativeStreamVersion,
@@ -48,10 +42,7 @@ pub struct NativeReplayKey {
     pub decision_index: u64,
 }
 
-/// Identifies one simulation independently of where or when it is executed.
-///
-/// Canonical indices come from the coordinator. Worker identity is deliberately
-/// absent so changing the number of workers cannot change a simulation stream.
+/// No worker identity, so the worker count cannot change a stream.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct NativeSimulationKey {
     pub replay: NativeReplayKey,
@@ -60,18 +51,14 @@ pub struct NativeSimulationKey {
     pub simulation_index: u64,
 }
 
-/// The two words needed to initialize a future native random-number stream.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct NativeStreamSeed {
     pub state: u64,
     pub stream: u64,
 }
 
-/// Deterministic strata for a simulation's initial consecutive bounded draws.
-///
-/// A candidate's simulations walk adjacent mixed-radix cells, while the offset
-/// keeps different candidates from sharing the same ordering. `radix` records
-/// the product of the bounds already sampled in this simulation.
+/// Spreads each candidate's first draws across outcomes; the offset keeps
+/// candidates from sharing an ordering.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct NativeStratum {
     pub index: u64,
@@ -80,11 +67,7 @@ pub(crate) struct NativeStratum {
 }
 
 impl NativeStreamSeed {
-    /// Folds both native seed words into a valid Park-Miller state.
-    ///
-    /// Native mode currently reuses the proven legacy generator inside each
-    /// independently partitioned simulation. The range excludes zero and the
-    /// modulus, which are invalid Park-Miller states.
+    /// Zero and the modulus are invalid Park-Miller states.
     #[must_use]
     pub const fn legacy_park_miller_state(self) -> u32 {
         const MAX_STATE: u64 = 2_147_483_646;
@@ -93,10 +76,7 @@ impl NativeStreamSeed {
 }
 
 impl NativeSimulationKey {
-    /// Derives stable, domain-separated seed words from this simulation key.
-    ///
-    /// This intentionally owns its mixer instead of relying on Rust's default
-    /// hashing, whose output is not a stable replay format.
+    /// Rust's default hashing is not a stable replay format.
     #[must_use]
     pub fn derive_stream_seed(self) -> NativeStreamSeed {
         match self.replay.stream_version {

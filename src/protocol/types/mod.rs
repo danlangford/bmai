@@ -61,7 +61,6 @@ pub struct PlayerAiMetadata {
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
-    /// Button specials applied with `special`.
     pub specials: Vec<&'static str>,
 }
 
@@ -117,8 +116,6 @@ pub struct ProbabilityEstimate {
     pub source: &'static str,
 }
 
-/// Complete identity of the native decision stream used by the most recent
-/// search. Candidate and simulation coordinates are derived from this key.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct ReplayMetadata {

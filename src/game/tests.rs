@@ -58,7 +58,6 @@ fn has_skill(game: &BMC_Game, attackers: &[usize], target: usize) -> bool {
     })
 }
 
-/// Ports PR #82's signed-Konstant and Stinger/Warrior skill matrix.
 #[test]
 fn pr82_signed_konstant_skill_attack_matrix() {
     const K: u64 = property::KONSTANT;
@@ -386,7 +385,6 @@ fn pr82_signed_konstant_skill_attack_matrix() {
     assert!(has_skill(&game, &[0, 1], 1));
 }
 
-/// Port of PlayerTests.CopyConstructor.
 #[test]
 fn cpp_player_copy_constructor_is_independent() {
     let first = BMC_Player {
@@ -596,8 +594,6 @@ fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
     }));
 }
 
-/// Ports NoSkill, MultiDieSkillAttack, SingleDieSkillAttack,
-/// KonstantSingleDieSkillAttack, and StealthMultiDieSkillAttack.
 #[test]
 fn cpp_basic_power_and_skill_attack_generation() {
     let mut a = die(0);
@@ -641,7 +637,6 @@ fn cpp_basic_power_and_skill_attack_generation() {
     );
 }
 
-/// Ports InsultSkill and the Stealth attack/vulnerability tests.
 #[test]
 fn cpp_insult_and_stealth_restrictions() {
     let insult = die(property::INSULT);
@@ -703,8 +698,6 @@ fn pr82_variable_skill_stack_disables_legacy_value_pruning() {
     assert!(skill.iter().any(|action| action.m_attackers.len() == 3));
 }
 
-/// Ports SpeedSkill and the score assertions from Maximum, Null, Value,
-/// NullValue, Morphing, Poison, PoisonValue, and PoisonNull.
 #[test]
 fn cpp_speed_generation_and_property_score_combinations() {
     let mut speed = die(property::SPEED);

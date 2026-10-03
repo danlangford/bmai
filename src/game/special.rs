@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! ButtonWeavers button specials: rules that belong to a button, not a die.
+//! Button specials: rules that belong to a button, not a die.
 //! `protocol::notation::BUTTON_SPECIALS` names them and lists their buttons.
 
 pub const UNIQUE_SWING: u8 = 1;

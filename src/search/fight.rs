@@ -301,9 +301,7 @@ pub(super) fn EvaluateMove(
             candidate.m_targets
         );
     }
-    // BMC_Game::PlayFight_EvaluateMove returns immediately for surrender.  It
-    // must not be treated like a pass: doing so consumes an entire QAI rollout
-    // and, at ply 2+, changes both the result and all subsequent RNG state.
+    // Treating surrender as a pass would waste a rollout and shift later RNG.
     if candidate.m_action == BME_ACTION::SURRENDER {
         return 0.0;
     }
@@ -501,8 +499,7 @@ pub(super) fn SelectQAIActionWithFireLimit(
     }
     let mut best: Option<(f32, BMC_Move)> = None;
     let mut move_count = 0usize;
-    // Match C++'s `BMC_Game sim(true); sim = *_game` lifecycle while letting
-    // Vec::clone_from reuse the players' dice allocations safely.
+    // Cloned once so each restore reuses the dice allocations.
     let mut simulation = game.clone();
     for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
         move_count += 1;
@@ -573,8 +570,7 @@ pub(super) fn SelectQAIActionWithFireLimit(
     selected
 }
 
-/// Rust-native equivalent of C++ `sim = *_game`: restore every game field
-/// while retaining the scratch players' existing dice allocations.
+/// Field by field, so the scratch players keep their dice allocations.
 pub(super) fn RestoreSimulation(simulation: &mut BMC_Game, source: &BMC_Game) {
     for player in 0..simulation.m_player.len() {
         simulation.m_player[player].m_id = source.m_player[player].m_id;

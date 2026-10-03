@@ -25,11 +25,7 @@ pub struct BMC_Stats {
     pub m_total_samples: [usize; 10],
 }
 
-/// Stable coordinates for one candidate evaluation within a search node.
-///
-/// Culling may move candidates within its compact working vectors. These
-/// coordinates retain the original enumeration index and a simulation index
-/// that does not reset at batch boundaries.
+/// Culling reorders candidates, so these keep their original indices.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct EvaluationCoordinate {
     pub candidate_index: usize,
@@ -59,8 +55,6 @@ impl BMC_Stats {
 
 #[derive(Clone, Debug)]
 pub struct BMC_BMAI3 {
-    /// False selects the original BMC_BMAI fixed-simulation evaluator; true
-    /// selects BMC_BMAI3's batched evaluator and culling.
     pub m_cull_moves: bool,
     pub m_rollout_policy: BME_ROLLOUT_POLICY,
     pub m_max_ply: usize,
@@ -117,8 +111,7 @@ impl BMC_BMAI3 {
         sims.min(maximum)
     }
 
-    /// BMAI3's batched evaluation and culling loop. The callback returns the
-    /// probability that the player whose move is being evaluated wins.
+    /// The callback returns the mover's win probability.
     pub fn EvaluateMoves<F>(
         &mut self,
         moves: Vec<BMC_Move>,
@@ -136,9 +129,7 @@ impl BMC_BMAI3 {
         })
     }
 
-    /// Evaluates each culling batch as one canonically ordered unit. Results
-    /// must correspond positionally to requests. This is the native-mode
-    /// parallelization seam; score reduction and culling remain serial.
+    /// Native mode parallelizes here, so results must match requests by position.
     pub fn EvaluateMovesBatched<F>(
         &mut self,
         moves: Vec<BMC_Move>,
@@ -151,9 +142,7 @@ impl BMC_BMAI3 {
         self.EvaluateMovesBatchedInner(moves, level, false, evaluate_batch)
     }
 
-    /// Native-mode evaluation keeps sampling the sole surviving candidate.
-    /// Culling still avoids work on weaker moves, while the reported win
-    /// probability uses the complete budget advertised to the caller.
+    /// Keeps sampling the survivor so reported odds use the whole budget.
     pub(crate) fn EvaluateMovesBatchedToCompletion<F>(
         &mut self,
         moves: Vec<BMC_Move>,
