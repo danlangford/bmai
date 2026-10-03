@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+
+//! Every AI implements [`Engine`], so match play, the legacy protocol, and the
+//! strength harness pick engines by name instead of matching on each one.
+
+mod maximize;
+mod montecarlo;
+mod quick;
+mod random;
+
+pub(crate) use maximize::Maximize;
+pub(crate) use montecarlo::MonteCarlo;
+pub(crate) use quick::Quick;
+pub(crate) use random::Random;
+
+use crate::Rng;
+use crate::game::{Game, Move};
+use crate::search::{ChanceMove, FocusMove, NativeEvaluation, NativeReplaySequence, SwingMove};
+
+/// The names `ai PLAYER NAME` accepts, in the order capabilities list them.
+pub const ENGINE_NAMES: [&str; 4] = ["random", "maximize", "quick", "montecarlo"];
+
+pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
+    match name {
+        "random" => Some(Box::new(Random)),
+        "maximize" => Some(Box::new(Maximize)),
+        "quick" => Some(Box::new(Quick)),
+        "montecarlo" => Some(Box::new(MonteCarlo::default())),
+        _ => None,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Setting {
+    Ply(usize),
+    MaxSims(usize),
+    MinSims(usize),
+    MaxBranch(usize),
+    Cull(bool),
+}
+
+impl Setting {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Ply(_) => "ply",
+            Self::MaxSims(_) => "max_sims",
+            Self::MinSims(_) => "min_sims",
+            Self::MaxBranch(_) => "maxbranch",
+            Self::Cull(_) => "cull",
+        }
+    }
+}
+
+/// A decision an engine made, with the search figures the protocol reports
+/// when the engine searched.
+#[derive(Clone, Debug)]
+pub(crate) struct Choice<T> {
+    pub choice: T,
+    pub search: Option<SearchSummary>,
+}
+
+impl<T> Choice<T> {
+    pub(crate) const fn unsearched(choice: T) -> Self {
+        Self {
+            choice,
+            search: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SearchSummary {
+    pub score: f32,
+    pub win_probability: f32,
+    pub simulations: usize,
+}
+
+/// Engines decide for `player`, or for player 0 of an already oriented game.
+pub(crate) trait Engine: std::fmt::Debug + Send + Sync {
+    fn name(&self) -> &'static str;
+    fn clone_box(&self) -> Box<dyn Engine>;
+
+    /// Rejects settings the engine does not use, so experiments cannot
+    /// silently run with a setting that did nothing.
+    fn set(&mut self, setting: Setting) -> Result<(), String> {
+        Err(format!("{} has no {} setting", self.name(), setting.name()))
+    }
+
+    /// The Monte Carlo search settings, for engines that have them.
+    fn montecarlo(&self) -> Option<&crate::Bmai3> {
+        None
+    }
+
+    fn swing(&self, game: &Game, player: usize, context: &mut DecisionContext<'_, '_>)
+    -> SwingMove;
+    fn chance(
+        &self,
+        game: &Game,
+        player: usize,
+        initiative: usize,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> ChanceMove;
+    fn focus(
+        &self,
+        game: &Game,
+        player: usize,
+        initiative: usize,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> FocusMove;
+    fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move>;
+    fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize>;
+    fn auxiliary(
+        &self,
+        game: &Game,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> Choice<Option<usize>>;
+}
+
+impl Clone for Box<dyn Engine> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+
+/// The randomness a decision may draw on. Native replay keys are issued only
+/// when an engine asks for one, so engines that never search leave the
+/// native decision index where it was.
+pub(crate) struct DecisionContext<'a, 'b> {
+    pub(crate) rng: &'a mut Rng,
+    native: Option<&'a mut NativeReplaySequence<'b>>,
+    issued: Option<crate::native::NativeReplayKey>,
+}
+
+impl<'a, 'b> DecisionContext<'a, 'b> {
+    pub(crate) fn new(rng: &'a mut Rng, native: Option<&'a mut NativeReplaySequence<'b>>) -> Self {
+        Self {
+            rng,
+            native,
+            issued: None,
+        }
+    }
+
+    pub(crate) fn native(&mut self) -> Option<NativeEvaluation> {
+        let evaluation = self.native.as_deref_mut().map(NativeReplaySequence::next)?;
+        self.issued = Some(evaluation.replay);
+        Some(evaluation)
+    }
+
+    /// The replay key this decision used, if it searched natively.
+    pub(crate) const fn issued_replay(&self) -> Option<crate::native::NativeReplayKey> {
+        self.issued
+    }
+}

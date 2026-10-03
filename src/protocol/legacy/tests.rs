@@ -183,73 +183,74 @@ fn game_rejects_more_than_ten_input_dice_in_both_parsing_paths() {
 }
 
 #[test]
-fn cpp_parser_ai_and_per_player_search_settings() {
-    let input = "ai 0 2\nply 0 3\nmax_sims 0 40\nmin_sims 0 4\nmaxbranch 0 400\ndebugply 2\nseed 17\nquit\n";
+fn ai_names_an_engine_and_per_player_settings_apply_to_that_player() {
+    let input = "ai 0 montecarlo\nply 0 3\nmax_sims 0 40\nmin_sims 0 4\nmaxbranch 0 400\ncull 0 off\ndebugply 2\nseed 17\nquit\n";
     let mut parser = Parser::default();
     let mut output = Vec::new();
     parser.parse_string(input, &mut output).unwrap();
-    assert_eq!(parser.ai_type(0), 2);
-    assert_eq!(parser.player_ai(0).max_ply, 3);
-    assert_eq!(parser.player_ai(0).max_sims, 40);
-    assert_eq!(parser.player_ai(0).min_sims, 4);
-    assert_eq!(parser.player_ai(0).max_branch, 400);
+    let engine = parser.player_engine(0);
+    let search = engine.montecarlo().unwrap();
+    assert_eq!(engine.name(), "montecarlo");
+    assert_eq!(
+        (
+            search.max_ply,
+            search.max_sims,
+            search.min_sims,
+            search.max_branch,
+            search.cull_moves
+        ),
+        (3, 40, 4, 400, false)
+    );
+    assert_eq!(parser.player_engine(1).montecarlo().unwrap().max_ply, 1);
     assert_eq!(parser.debug_ply, 2);
     assert_eq!(
         String::from_utf8(output).unwrap(),
-        "Setting AI for player 0 to type 2\n\
+        "Setting AI for player 0 to montecarlo\n\
 Setting max ply for player 0 to 3\n\
 Setting max sims for player 0 to 40\n\
 Setting min sims for player 0 to 4\n\
 Setting max branch for player 0 to 400\n\
+Setting cull for player 0 off\n\
 Setting debug ply to 2\n\
 Seeding with 17\n"
     );
 }
 
-/// Expected lines come from running each case through the C++ reference `4813530`.
 #[test]
-fn per_player_settings_change_the_shared_cpp_ai_object() {
+fn each_player_owns_its_engine_settings() {
     const GAME: &str = "game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";
-    let cases: [(&str, String, &[&str]); 7] = [
+    let cases: [(&str, String, &[&str]); 6] = [
         (
-            "a player-1 setting after game also changes player 0 and the global stats",
+            "a player-1 setting leaves player 0 and the global settings alone",
             format!("{GAME}max_sims 1 3\ngetaction\n"),
-            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/10-3/5000/0.50"],
+            &["l1 p0 Valid Moves 5 Sims 500", "stats 1/10-500/5000/0.50"],
         ),
         (
-            "an ai type keeps its own defaults instead of the global settings",
-            format!("ply 2\nmin_sims 2\n{GAME}ai 0 2\ngetaction\n"),
+            "a per-player setting starts from the global settings",
+            format!("min_sims 2\nmax_sims 40\n{GAME}max_sims 0 3\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-40/5000/0.50"],
+        ),
+        (
+            "ai montecarlo starts from the engine defaults",
+            format!("ply 2\nmin_sims 2\n{GAME}ai 0 montecarlo\ngetaction\n"),
             &["l1 p0 Valid Moves 5 Sims 500", "stats 2/2-500/5000/0.50"],
         ),
         (
-            "game restores g_ai but the ai type object keeps its settings",
-            format!("min_sims 2\n{GAME}ai 0 2\nmax_sims 0 3\n{GAME}getaction\nai 0 2\ngetaction\n"),
-            &[
-                "l1 p0 Valid Moves 5 Sims 500",
-                "stats 1/2-500/5000/0.50",
-                "l1 p0 Valid Moves 5 Sims 3",
-                "stats 1/2-500/5000/0.50",
-            ],
+            "game returns both players to the global settings",
+            format!(
+                "min_sims 2\nmax_sims 7\n{GAME}ai 0 montecarlo\nmax_sims 0 3\n{GAME}getaction\n"
+            ),
+            &["l1 p0 Valid Moves 5 Sims 7", "stats 1/2-7/5000/0.50"],
         ),
         (
-            "players with the same ai type share one object",
-            format!("min_sims 2\n{GAME}ai 0 0\nai 1 0\nmax_sims 1 3\ngetaction\n"),
-            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-500/5000/0.50"],
+            "two montecarlo players do not share settings",
+            format!("{GAME}ai 0 montecarlo\nai 1 montecarlo\nmax_sims 1 3\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 500", "stats 1/10-500/5000/0.50"],
         ),
         (
-            "QAI ignores per-player search settings silently",
-            format!("min_sims 2\n{GAME}ai 0 1\nmax_sims 0 3\ngetaction\n"),
-            &["stats 1/2-500/5000/0.50"],
-        ),
-        (
-            "global settings change only g_ai",
-            format!("min_sims 2\n{GAME}ai 0 2\nmax_sims 7\ngetaction\n"),
-            &["l1 p0 Valid Moves 5 Sims 500", "stats 1/2-7/5000/0.50"],
-        ),
-        (
-            "an ai type selected before game keeps settings made before game",
-            format!("min_sims 2\nai 0 2\nmax_sims 0 3\n{GAME}ai 0 2\ngetaction\n"),
-            &["l1 p0 Valid Moves 5 Sims 3", "stats 1/2-500/5000/0.50"],
+            "global settings do not reach a player with its own engine",
+            format!("{GAME}ai 0 montecarlo\nmax_sims 7\ngetaction\n"),
+            &["l1 p0 Valid Moves 5 Sims 500", "stats 1/10-7/5000/0.50"],
         ),
     ];
     for (name, input, expected) in cases {
@@ -263,19 +264,51 @@ fn per_player_settings_change_the_shared_cpp_ai_object() {
             .filter(|line| line.contains("Valid Moves") || line.starts_with("stats "))
             .collect::<Vec<_>>();
         assert_eq!(observed, expected, "{name}\n{output}");
-        assert!(
-            !(name.starts_with("QAI") && output.contains("max sims for player")),
-            "{name}\n{output}"
+    }
+}
+
+#[test]
+fn engines_reject_settings_they_do_not_use() {
+    for (input, expected) in [
+        ("ply 0\n", "montecarlo ply must be at least 1"),
+        ("ply 1 0\n", "player 1: montecarlo ply must be at least 1"),
+        (
+            "ai 0 quick\nply 0 2\n",
+            "player 0: quick has no ply setting",
+        ),
+        (
+            "ai 0 random\nmax_sims 0 9\n",
+            "player 0: random has no max_sims setting",
+        ),
+        (
+            "ai 1 maximize\ncull 1 off\n",
+            "player 1: maximize has no cull setting",
+        ),
+        (
+            "cull maybe\n",
+            "invalid cull setting: maybe (expected on or off)",
+        ),
+    ] {
+        assert_eq!(
+            Parser::default()
+                .parse_string(input, &mut Vec::new())
+                .unwrap_err()
+                .to_string(),
+            expected,
+            "{input}"
         );
     }
 }
 
 #[test]
-fn cpp_parser_rejects_invalid_ai_selection() {
+fn ai_rejects_unknown_engines_and_players() {
     for (input, expected) in [
-        ("ai 2 0\n", "invalid setting for ai player number: 2"),
-        ("ai 0 3\n", "invalid setting for ai type: 3"),
-        ("ai 2 3\n", "invalid setting for ai type: 3"),
+        ("ai 2 quick\n", "invalid setting for ai player number: 2"),
+        (
+            "ai 0 1\n",
+            "unknown ai 1; choose one of: random, maximize, quick, montecarlo",
+        ),
+        ("ai 0\n", "ai takes a player and an engine name: ai 0"),
     ] {
         assert_eq!(
             Parser::default()
@@ -329,12 +362,11 @@ fn cpp_debug_command_validates_category_and_reports_setting() {
 }
 
 #[test]
-fn cpp_qai_selection_drives_getaction_and_ignores_bmai_settings() {
-    let input = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\nai 0 1\nmax_sims 0 5\nmin_sims 0 1\nmaxbranch 0 20\nseed 17\ngetaction\nquit\n";
+fn quick_engine_drives_getaction_without_search_output() {
+    let input = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\nai 0 quick\nseed 17\ngetaction\nquit\n";
     let mut output = Vec::new();
     Parser::default().parse_string(input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
-    assert!(!output.contains("Setting max sims for player"), "{output}");
     assert!(!output.contains("Valid Moves"), "{output}");
     assert!(output.ends_with("action\nskill\n0 1\n0\n"), "{output}");
 }
@@ -358,11 +390,16 @@ fn cpp_playfair_modes_report_initiative_split_stats() {
 
 #[test]
 fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
-    let input = "ai 0 1\ngame 3\ngameover\nplayer 0 0 0\nplayer 1 0 0\nquit\n";
+    let input = "ai 0 quick\ngame 3\ngameover\nplayer 0 0 0\nplayer 1 0 0\nquit\n";
     let mut parser = Parser::default();
     parser.parse_string(input, &mut Vec::new()).unwrap();
     assert_eq!(parser.game.phase, Phase::Gameover);
-    assert_eq!(parser.player_ai, [AiSlot::Global; 2]);
+    assert!(
+        parser
+            .player_engines
+            .iter()
+            .all(|engine| matches!(engine, PlayerEngine::Global))
+    );
 }
 
 #[test]
@@ -439,7 +476,7 @@ fn every_wire_phase_name_maps_to_the_expected_game_phase() {
 #[test]
 fn auxiliary_qai_emits_the_buttonweavers_action_contract() {
     parser_scenario(
-        "game 3\naux\nplayer 0 2 0\n6\n+20\nplayer 1 2 0\n6\n+4\nai 0 1\ngetaction\nquit\n",
+        "game 3\naux\nplayer 0 2 0\n6\n+20\nplayer 1 2 0\n6\n+4\nai 0 quick\ngetaction\nquit\n",
     )
     .expect_auxiliary(Some(1))
     .run();
@@ -448,7 +485,7 @@ fn auxiliary_qai_emits_the_buttonweavers_action_contract() {
 #[test]
 fn auxiliary_phase_adds_the_buttonweavers_courtesy_copy() {
     parser_scenario(
-        "game 3\naux\nplayer 0 1 0\n6\nplayer 1 2 0\n6\n+12\nai 0 1\ngetaction\nquit\n",
+        "game 3\naux\nplayer 0 1 0\n6\nplayer 1 2 0\n6\n+12\nai 0 quick\ngetaction\nquit\n",
     )
     .expect_auxiliary(Some(1))
     .run();
@@ -456,7 +493,7 @@ fn auxiliary_phase_adds_the_buttonweavers_courtesy_copy() {
 
 #[test]
 fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
-    parser_scenario("game 3\naux\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\nquit\n")
+    parser_scenario("game 3\naux\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 quick\ngetaction\nquit\n")
         .expect_auxiliary(None)
         .run();
 }
@@ -817,7 +854,7 @@ fn native_replay_index_advances_only_for_native_bmai_searches() {
 
     let mut qai = Parser::default();
     qai.parse_string(
-        &fixture.replace("getaction", "ai 0 1\ngetaction"),
+        &fixture.replace("getaction", "ai 0 quick\ngetaction"),
         &mut Vec::new(),
     )
     .unwrap();

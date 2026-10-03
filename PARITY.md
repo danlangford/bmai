@@ -147,15 +147,14 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
   initiative-split reporting.
 - [x] `ai <player> <type>`: type 0 legacy fixed-simulation BMAI, type 1 QAI,
   and type 2 batched/culling BMAI3 are wired for parser actions and games.
-- [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing/state.
-  `AiSlot` mirrors C++'s shared AI pointers: `g_ai` after `game`, and the
-  persistent `c_ai_type` objects selected by `ai`. Before 0.14.0 BMAIR copied
-  settings per player and diverged whenever per-player settings met `game` or
-  `ai`. `per_player_settings_change_the_shared_cpp_ai_object` asserts seven
-  C++-reference outputs, and `parity_shared_ai_settings_in.txt` adds the
-  global-stats case to the fixture differential. A per-player command before
-  any `game` or `ai` dereferences NULL in C++; BMAIR keeps its confirmation and
-  changes nothing.
+- [x] Per-player `ply`, `max_sims`, `min_sims`, and `maxbranch` parsing.
+  Intentional difference since 0.20.0: C++ players share AI objects by
+  pointer, so a per-player setting also reaches the other player and later
+  games. BMAIR gives each player its own engine: a per-player setting copies
+  the global settings for that player only, `ai PLAYER NAME` selects a named
+  engine with its own defaults, and `game` returns both players to the global
+  settings. `each_player_owns_its_engine_settings` and
+  `per_player_ai_settings_in.txt` cover it.
   Explicit exclusion: C++ `playfair` modes 0-3 leave both players pointing at
   the playfair mode AIs (random, maximizer, or a non-culling BMAI with its own
   rollout policy) until the next `game` or `ai`. BMAIR builds those policies
@@ -531,8 +530,8 @@ candidate order.
 - [x] Mood, Mighty, and Weak RNG/state ordering (combined seeded fixture).
 - [x] `min_sims` above `max_sims` follows C++ `ComputeNumberSims` minimum-first
   ordering instead of panicking (`parity_min_sims_exceeds_max_sims_in.txt`).
-- [x] Per-player settings change the shared C++ AI object
-  (`parity_shared_ai_settings_in.txt` plus the seven-case parser test).
+- [x] Per-player settings reach only that player, unlike C++'s shared AI
+  objects (`per_player_ai_settings_in.txt` plus the six-case parser test).
 
 ## Final verification
 

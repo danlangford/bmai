@@ -62,53 +62,75 @@ impl Parser {
                         .map_err(io_error)?;
                 }
                 pos = self.parse_game(&lines, pos, output)?;
-            } else if let Some((player, value)) = two_usize_arguments(line, "ai")? {
-                if value > 2 {
-                    return Err(ParseError(format!("invalid setting for ai type: {value}")));
-                }
+            } else if let Some(arguments) = line.strip_prefix("ai ") {
+                let (player, name) = arguments.split_once(' ').ok_or_else(|| {
+                    ParseError(format!("ai takes a player and an engine name: {line}"))
+                })?;
+                let player = parse_usize(player)?;
                 if player > 1 {
                     return Err(ParseError(format!(
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                self.player_ai[player] = AiSlot::Type(value);
-                writeln!(output, "Setting AI for player {player} to type {value}")
-                    .map_err(io_error)?;
+                let engine = crate::engines::engine(name.trim()).ok_or_else(|| {
+                    ParseError(format!(
+                        "unknown ai {}; choose one of: {}",
+                        name.trim(),
+                        crate::engines::ENGINE_NAMES.join(", ")
+                    ))
+                })?;
+                writeln!(
+                    output,
+                    "Setting AI for player {player} to {}",
+                    engine.name()
+                )
+                .map_err(io_error)?;
+                self.player_engines[player] = PlayerEngine::Own(engine);
             } else if let Some((player, value)) = two_usize_arguments(line, "ply")? {
-                if self.set_player_ai(player, |ai| ai.max_ply = value)? {
-                    writeln!(output, "Setting max ply for player {player} to {value}")
-                        .map_err(io_error)?;
-                }
+                self.set_player_setting(player, Setting::Ply(value))?;
+                writeln!(output, "Setting max ply for player {player} to {value}")
+                    .map_err(io_error)?;
             } else if let Some(value) = argument(line, "ply") {
-                self.ai.max_ply = value?;
+                self.set_global_setting(Setting::Ply(value?))?;
                 writeln!(output, "Setting max ply to {}", self.ai.max_ply).map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "max_sims")? {
-                if self.set_player_ai(player, |ai| ai.max_sims = value)? {
-                    writeln!(output, "Setting max sims for player {player} to {value}")
-                        .map_err(io_error)?;
-                }
+                self.set_player_setting(player, Setting::MaxSims(value))?;
+                writeln!(output, "Setting max sims for player {player} to {value}")
+                    .map_err(io_error)?;
             } else if let Some(value) = argument(line, "max_sims") {
-                self.ai.max_sims = value?;
+                self.set_global_setting(Setting::MaxSims(value?))?;
                 writeln!(output, "Setting max # simulations to {}", self.ai.max_sims)
                     .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "min_sims")? {
-                if self.set_player_ai(player, |ai| ai.min_sims = value)? {
-                    writeln!(output, "Setting min sims for player {player} to {value}")
-                        .map_err(io_error)?;
-                }
+                self.set_player_setting(player, Setting::MinSims(value))?;
+                writeln!(output, "Setting min sims for player {player} to {value}")
+                    .map_err(io_error)?;
             } else if let Some(value) = argument(line, "min_sims") {
-                self.ai.min_sims = value?;
+                self.set_global_setting(Setting::MinSims(value?))?;
                 writeln!(output, "Setting min # simulations to {}", self.ai.min_sims)
                     .map_err(io_error)?;
             } else if let Some((player, value)) = two_usize_arguments(line, "maxbranch")? {
-                if self.set_player_ai(player, |ai| ai.max_branch = value)? {
-                    writeln!(output, "Setting max branch for player {player} to {value}")
-                        .map_err(io_error)?;
-                }
+                self.set_player_setting(player, Setting::MaxBranch(value))?;
+                writeln!(output, "Setting max branch for player {player} to {value}")
+                    .map_err(io_error)?;
             } else if let Some(value) = argument(line, "maxbranch") {
-                self.ai.max_branch = value?;
+                self.set_global_setting(Setting::MaxBranch(value?))?;
                 writeln!(output, "Setting max branch to {}", self.ai.max_branch)
                     .map_err(io_error)?;
+            } else if let Some(arguments) = line.strip_prefix("cull ") {
+                match arguments.split_once(' ') {
+                    Some((player, value)) => {
+                        let player = parse_usize(player)?;
+                        let cull = parse_on_off("cull", value)?;
+                        self.set_player_setting(player, Setting::Cull(cull))?;
+                        writeln!(output, "Setting cull for player {player} {value}")
+                            .map_err(io_error)?;
+                    }
+                    None => {
+                        self.set_global_setting(Setting::Cull(parse_on_off("cull", arguments)?))?;
+                        writeln!(output, "Setting cull {arguments}").map_err(io_error)?;
+                    }
+                }
             } else if let Some(value) = argument(line, "report_sims") {
                 self.report_sims = value?;
                 writeln!(
@@ -202,11 +224,11 @@ impl Parser {
                 let policies = if mode > 3 {
                     self.policies()
                 } else {
-                    std::array::from_fn(|_| match mode {
-                        0 => AiPolicy::Random,
-                        1 => AiPolicy::Maximize,
-                        2 | 3 => {
-                            let ai = Bmai3 {
+                    std::array::from_fn(|_| -> Box<dyn Engine> {
+                        match mode {
+                            0 => Box::new(crate::engines::Random),
+                            1 => Box::new(crate::engines::Maximize),
+                            2 | 3 => Box::new(MonteCarlo::new(Bmai3 {
                                 cull_moves: false,
                                 max_ply: self.ai.max_ply,
                                 rollout_policy: if mode == 2 {
@@ -215,10 +237,9 @@ impl Parser {
                                     RolloutPolicy::Qai
                                 },
                                 ..Default::default()
-                            };
-                            AiPolicy::Bmai(Box::new(ai))
+                            })),
+                            _ => unreachable!(),
                         }
-                        _ => unreachable!(),
                     })
                 };
                 let wins = if self.execution_mode == ExecutionMode::Native {
@@ -331,39 +352,41 @@ impl Parser {
         Ok(())
     }
 
-    /// C++ holds NULL before any `game` or `ai`; `g_ai` is the closest stand-in.
-    pub(super) fn player_ai(&self, player: usize) -> &Bmai3 {
-        match self.player_ai[player] {
-            AiSlot::Unbound | AiSlot::Global => &self.ai,
-            AiSlot::Type(ai_type) => &self.type_ai[ai_type],
+    pub(super) fn player_engine(&self, player: usize) -> Box<dyn Engine> {
+        match &self.player_engines[player] {
+            PlayerEngine::Global => Box::new(MonteCarlo::new(self.ai.clone())),
+            PlayerEngine::Own(engine) => engine.clone(),
         }
     }
 
-    pub(super) fn ai_type(&self, player: usize) -> usize {
-        match self.player_ai[player] {
-            AiSlot::Unbound | AiSlot::Global => 2,
-            AiSlot::Type(ai_type) => ai_type,
-        }
-    }
-
-    /// Returns whether C++ prints a confirmation. Before any `game` or `ai`, C++
-    /// dereferences NULL; BMAIR keeps earlier releases' message-only behavior.
-    pub(super) fn set_player_ai(
+    /// A per-player setting gives that player its own copy of the global
+    /// settings, so it never changes the other player's search.
+    pub(super) fn set_player_setting(
         &mut self,
         player: usize,
-        update: impl FnOnce(&mut Bmai3),
-    ) -> Result<bool, ParseError> {
-        let slot = *self
-            .player_ai
-            .get(player)
-            .ok_or_else(|| ParseError(format!("invalid setting for ai player number: {player}")))?;
-        match slot {
-            AiSlot::Unbound => {}
-            AiSlot::Global => update(&mut self.ai),
-            AiSlot::Type(1) => return Ok(false),
-            AiSlot::Type(ai_type) => update(&mut self.type_ai[ai_type]),
+        setting: Setting,
+    ) -> Result<(), ParseError> {
+        if player > 1 {
+            return Err(ParseError(format!(
+                "invalid setting for ai player number: {player}"
+            )));
         }
-        Ok(true)
+        if matches!(self.player_engines[player], PlayerEngine::Global) {
+            self.player_engines[player] = PlayerEngine::Own(self.player_engine(player));
+        }
+        let PlayerEngine::Own(engine) = &mut self.player_engines[player] else {
+            unreachable!("the player was just given its own engine");
+        };
+        engine
+            .set(setting)
+            .map_err(|error| ParseError(format!("player {player}: {error}")))
+    }
+
+    pub(super) fn set_global_setting(&mut self, setting: Setting) -> Result<(), ParseError> {
+        let mut global = MonteCarlo::new(self.ai.clone());
+        global.set(setting).map_err(ParseError)?;
+        self.ai = global.search;
+        Ok(())
     }
 
     pub(super) fn require_preround(&self) -> Result<(), ParseError> {
@@ -374,17 +397,8 @@ impl Parser {
         }
     }
 
-    pub(super) fn policies(&self) -> [AiPolicy; 2] {
-        std::array::from_fn(|player| match self.ai_type(player) {
-            0 => {
-                let mut ai = self.player_ai(player).clone();
-                ai.cull_moves = false;
-                AiPolicy::Bmai(Box::new(ai))
-            }
-            1 => AiPolicy::Qai,
-            2 => AiPolicy::Bmai(Box::new(self.player_ai(player).clone())),
-            _ => unreachable!(),
-        })
+    pub(super) fn policies(&self) -> Engines {
+        [self.player_engine(0), self.player_engine(1)]
     }
 
     pub(super) fn parse_game<W: Write>(
@@ -477,8 +491,7 @@ impl Parser {
         if self.game.phase == Phase::Auxiliary {
             prepare_auxiliary_phase(&mut self.game)?;
         }
-        // The `ai` type objects keep their settings across games, as in C++.
-        self.player_ai = [AiSlot::Global; 2];
+        self.player_engines = [PlayerEngine::Global, PlayerEngine::Global];
         Ok(pos)
     }
 }

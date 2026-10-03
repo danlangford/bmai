@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn select_swing_action(
+pub(crate) fn select_swing_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -189,35 +189,8 @@ pub(super) fn select_swing_action(
     (best, probability)
 }
 
-pub(crate) fn select_bmai_set_swing_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> SwingMove {
-    select_swing_action(game, 0, rng, ai, 1, None).0
-}
-
-pub(crate) fn select_native_bmai_set_swing_action(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    ai: &Bmai3,
-) -> SwingMove {
-    let mut unused_legacy_rng = Rng::untraced_default();
-    select_swing_action(
-        game,
-        0,
-        &mut unused_legacy_rng,
-        ai,
-        1,
-        Some(NativeEvaluation {
-            algorithm: rng_algorithm,
-            replay,
-            workers,
-        }),
-    )
-    .0
-}
-
-pub(crate) fn select_qai_set_swing_action(game: &Game) -> SwingMove {
-    generate_swing_moves(&game.players[0])
+pub(crate) fn select_qai_set_swing_action_for(game: &Game, player: usize) -> SwingMove {
+    generate_swing_moves(&game.players[player])
         .into_iter()
         .next()
         .unwrap_or_else(SwingMove::empty)
@@ -309,8 +282,8 @@ pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut
     let mut simulation = game.clone();
     apply_auxiliary_decision(&mut simulation, accepted);
     // QAI, because BMAI here would nest a new search at every move.
-    let (winner, _) =
-        play_round_with_policies(&mut simulation, rng, &[AiPolicy::Qai, AiPolicy::Qai], None);
+    let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
+    let (winner, _) = play_round_with_policies(&mut simulation, rng, &[quick(), quick()], None);
     match winner {
         Some(0) => 1.0,
         None => 0.5,

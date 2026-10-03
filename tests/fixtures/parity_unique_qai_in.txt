@@ -5,7 +5,7 @@ P
 uQ
 player 1 1 0
 6
-ai 0 1
+ai 0 quick
 seed 17
 getaction
 quit

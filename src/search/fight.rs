@@ -4,10 +4,6 @@
 
 use super::*;
 
-pub(crate) fn select_bmai_action(game: &Game, rng: &mut Rng, settings: &Bmai3) -> Move {
-    select_bmai_action_with_stats(game, rng, settings).best_move
-}
-
 #[derive(Clone, Debug)]
 pub(crate) struct SearchResult {
     pub best_move: Move,
@@ -39,16 +35,6 @@ pub(crate) fn select_bmai_action_with_stats(
     settings: &Bmai3,
 ) -> SearchResult {
     select_bmai_action_at_level_with_stats(game, rng, settings, 1, false)
-}
-
-pub(crate) fn select_native_bmai_action(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> Move {
-    select_native_bmai_action_with_stats(game, rng_algorithm, replay, workers, settings).best_move
 }
 
 pub(crate) fn select_native_bmai_action_with_stats(
@@ -421,12 +407,12 @@ pub(super) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> 
     moves
 }
 
-pub(super) fn select_random_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+pub(crate) fn select_random_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let moves = moves_including_pass(game, fire_limit);
     moves[rng.rand_below(moves.len() as u32) as usize].clone()
 }
 
-pub(super) fn select_maximize_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
+pub(crate) fn select_maximize_action(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let moves = moves_including_pass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;

@@ -16,25 +16,25 @@ use crate::game::{MAX_DICE, apply_attack_player_effects};
 use crate::rng::Rng;
 
 #[derive(Clone, Copy)]
-struct NativeEvaluation {
-    algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+pub(crate) struct NativeEvaluation {
+    pub(crate) algorithm: crate::RngAlgorithm,
+    pub(crate) replay: crate::native::NativeReplayKey,
+    pub(crate) workers: usize,
 }
 
 fn completes_native_probability_sample(native: Option<NativeEvaluation>) -> bool {
     native.is_some_and(|context| context.replay.stream_version.completes_probability_sample())
 }
 
-struct NativeReplaySequence<'a> {
-    algorithm: crate::RngAlgorithm,
-    root_seed: u64,
-    workers: usize,
-    decision_index: &'a mut u64,
+pub(crate) struct NativeReplaySequence<'a> {
+    pub(crate) algorithm: crate::RngAlgorithm,
+    pub(crate) root_seed: u64,
+    pub(crate) workers: usize,
+    pub(crate) decision_index: &'a mut u64,
 }
 
 impl NativeReplaySequence<'_> {
-    fn next(&mut self) -> NativeEvaluation {
+    pub(crate) fn next(&mut self) -> NativeEvaluation {
         let replay = crate::native::NativeReplayKey {
             stream_version: crate::native::NativeStreamVersion::CURRENT,
             root_seed: self.root_seed,
@@ -53,14 +53,6 @@ const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
 // Never a candidate position, so report draws cannot overlap search draws.
 const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
 use std::sync::OnceLock;
-
-#[derive(Clone, Debug)]
-pub enum AiPolicy {
-    Bmai(Box<Bmai3>),
-    Qai,
-    Random,
-    Maximize,
-}
 
 struct TraceSettings {
     swing_list: bool,
@@ -197,23 +189,19 @@ use match_play::*;
 use preround::*;
 
 pub(crate) use fight::{
-    evaluate_selected_native_bmai_move, select_bmai_action_with_stats,
-    select_native_bmai_action_with_stats, select_qai_action,
+    evaluate_selected_native_bmai_move, select_bmai_action_with_stats, select_maximize_action,
+    select_native_bmai_action_with_stats, select_qai_action, select_random_action,
 };
-pub(crate) use initiative::{
-    select_bmai_chance_action, select_bmai_focus_action, select_native_bmai_chance_action,
-    select_native_bmai_focus_action,
-};
+pub(crate) use initiative::{select_chance_action, select_focus_action};
 pub use match_play::play_games;
 pub(crate) use match_play::{
-    play_fair_games, play_fair_games_native, play_games_with_policies,
+    Engines, play_fair_games, play_fair_games_native, play_games_with_policies,
     play_games_with_policies_native,
 };
 pub(crate) use preround::{
-    select_bmai_auxiliary_action, select_bmai_reserve_action, select_bmai_set_swing_action,
-    select_native_bmai_auxiliary_action, select_native_bmai_reserve_action,
-    select_native_bmai_set_swing_action, select_qai_auxiliary_action, select_qai_reserve_action,
-    select_qai_set_swing_action,
+    select_bmai_auxiliary_action, select_bmai_reserve_action, select_native_bmai_auxiliary_action,
+    select_native_bmai_reserve_action, select_qai_auxiliary_action, select_qai_reserve_action,
+    select_qai_set_swing_action_for, select_swing_action,
 };
 
 #[cfg(test)]

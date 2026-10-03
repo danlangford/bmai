@@ -11,8 +11,11 @@ use std::process::{Command, Stdio};
 fn invalid_commands_fail_with_the_cpp_error() {
     let cases = [
         ("unrecognized\n", "unrecognized command: unrecognized"),
-        ("ai 0 3\n", "invalid setting for ai type: 3"),
-        ("ai 2 0\n", "invalid setting for ai player number: 2"),
+        (
+            "ai 0 3\n",
+            "unknown ai 3; choose one of: random, maximize, quick, montecarlo",
+        ),
+        ("ai 2 quick\n", "invalid setting for ai player number: 2"),
         (
             "debug invalid 0\n",
             "Could not find debug category: invalid",

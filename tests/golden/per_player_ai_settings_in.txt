@@ -4,12 +4,12 @@ Seeding with 17
 p0 s0.0 Dice (0)6:6 (0)8:5 (0)4:2
 p1 s0.0 Dice (0)10:7 (0)4:4 (0)3:3
 Setting max sims for player 1 to 3
-l1 p0 Valid Moves 5 Sims 3
-l1 p0 best move (3.0 points, 100.0% win)
-stats 1/10-3/5000/0.50
+l1 p0 Valid Moves 5 Sims 500
+l1 p0 best move (300.0 points, 93.8% win)
+stats 1/10-500/5000/0.50
 action
 skill
 2 1
 2
 --- stderr
-RNG_HASH 353 1775953392128969903
+RNG_HASH 32921 10839438909725525757

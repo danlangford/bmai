@@ -3,7 +3,7 @@ exit 0
 target wins set to 1
 p0 s0.0 Dice (0)0 (4000000)0
 p1 s0.0 Dice (0)6
-Setting AI for player 0 to type 1
+Setting AI for player 0 to quick
 Seeding with 17
 stats 1/10-500/5000/0.50
 action
