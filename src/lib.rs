@@ -9,6 +9,7 @@ pub mod native;
 pub mod protocol;
 mod rng;
 mod search;
+pub mod strength;
 
 pub use engines::{ENGINE_NAMES, Setting};
 pub use game::{Action, Attack, Die, DieIndexSet, Game, Move, Phase, Player, SwingSet, property};

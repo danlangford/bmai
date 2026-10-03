@@ -59,15 +59,15 @@ pub(super) fn play_games_with_policies_internal(
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(super) struct MatchResult {
-    pub(super) winner: usize,
+pub(crate) struct MatchResult {
+    pub(crate) winner: usize,
     pub(super) wins: [u8; 2],
     pub(super) ties: usize,
     pub(super) initiative_winner: usize,
     pub(super) reserves_used: usize,
 }
 
-pub(super) fn play_match_with_policies(
+pub(crate) fn play_match_with_policies(
     template: &Game,
     rng: &mut Rng,
     policies: &Engines,

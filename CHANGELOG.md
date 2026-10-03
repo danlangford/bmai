@@ -14,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- A playing-strength harness: seeded matches between two versions or AI
-  policies over fixed button pairings, reporting win rate with a confidence
-  interval, so every AI change is measured.
 - Stronger QAI rollouts within QAI's time and memory budget, measured with the
   harness. Candidate rules: prefer attacks that leave the opponent's capture
   options smallest, and avoid rerolling a die the keep-threshold says must
@@ -35,6 +32,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Review the protocol and JSONL schema while they can still change, then
   freeze them for 1.0.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
+- Pass search a single randomness source, the sequential generator or a
+  native replay key, so no search takes a generator it ignores. Offer a
+  modern generator (PCG or xoshiro) beside Park-Miller for strength runs.
+- Move the Monte Carlo search from `search/` into `engines/montecarlo/`.
+- A `time_limit` setting: Monte Carlo search stops at the deadline and
+  returns its best move so far, so BMAIBagels no longer restarts a timed-out
+  search at a lower ply and discards the work.
+- Tune BMAIBagels' `ply`, `max_sims`, `min_sims`, and `maxbranch` with the
+  strength harness, choosing the strongest settings within a time budget.
+
+## [0.20.0] - 2026-10-03
+
+### Added
+
+- Named AI engines behind one `Engine` trait: `random`, `maximize`, `quick`
+  (the C++ Quick AI), and `montecarlo` (BMAI's simulation search, the
+  default). `ai PLAYER NAME` selects one, and capabilities `engines` lists
+  each with the settings it takes.
+- `cull [PLAYER] on|off` makes Monte Carlo culling a setting instead of a
+  separate AI type.
+- A strength harness: `strength::play_pairing` plays two engine
+  configurations over the same seeds from both seats and reports the paired
+  win rate with a 95% interval and milliseconds per decision.
+  `cargo run --release --example ladder` runs a round-robin over
+  `tests/strength/matchups.txt`.
+
+### Changed
+
+- The numeric AI types `0`, `1`, and `2` are gone; use `montecarlo` with
+  `cull off`, `quick`, and `montecarlo`.
+- Each player owns its engine. A per-player setting copies the global
+  settings for that player only, instead of changing an AI object C++ shares
+  between players and games; `game` returns both players to the global
+  settings.
+- An engine rejects settings it does not use, so `ply` on `quick` is an
+  error rather than silently ignored, and Monte Carlo `ply 0` is an error.
+- JSONL session metadata reports each player's `engine` and, for
+  `montecarlo`, its `montecarlo` settings, replacing `ai_type`, `policy`, and
+  `culls_moves`. The session also reports the global `cull`.
 
 ## [0.19.0] - 2026-10-03
 
@@ -538,7 +574,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...HEAD
+[0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0
 [0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0
 [0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0
 [0.17.0]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...bmair-v0.17.0

@@ -41,6 +41,27 @@ pub enum Setting {
 }
 
 impl Setting {
+    /// Parses `name=value`, as harness specs write settings.
+    pub fn parse(name: &str, value: &str) -> Result<Self, String> {
+        let number = || {
+            value
+                .parse::<usize>()
+                .map_err(|_| format!("{name} needs a whole number, not {value}"))
+        };
+        match name {
+            "ply" => number().map(Self::Ply),
+            "max_sims" => number().map(Self::MaxSims),
+            "min_sims" => number().map(Self::MinSims),
+            "maxbranch" => number().map(Self::MaxBranch),
+            "cull" => match value {
+                "on" => Ok(Self::Cull(true)),
+                "off" => Ok(Self::Cull(false)),
+                _ => Err(format!("cull needs on or off, not {value}")),
+            },
+            _ => Err(format!("unknown setting {name}")),
+        }
+    }
+
     pub const fn name(self) -> &'static str {
         match self {
             Self::Ply(_) => "ply",

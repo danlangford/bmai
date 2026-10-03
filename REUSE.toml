@@ -38,6 +38,8 @@ SPDX-FileCopyrightText = "Copyright 2001-2026 Denis Papp"
 [[annotations]]
 path = [
     "tests/fixtures/parity_*",
+    "tests/fixtures/per_player_ai_settings_in.txt",
+    "tests/strength/*",
     "tests/fixtures/bug105372_in.txt",
     "tests/golden/*",
     "tests/native-fixtures/*",

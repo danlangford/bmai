@@ -49,3 +49,27 @@ declares native mode noninferior for this fixed matchup and QAI opponent. The
 point estimate is not evidence that native is stronger; it was 1.25 percentage
 points lower. Broader matchup coverage is follow-up work rather than a claim
 supported by this result.
+
+## 0.20.0 engine ladder
+
+### Preregistered design
+
+Committed before any ladder results were inspected.
+
+- Contestants: `random`, `maximize`, `quick`, and `montecarlo` at ply 1 and
+  ply 2. Monte Carlo uses BMAIBagels' settings at the time (`max_sims=100
+  min_sims=5 maxbranch=400`, culling on), which have never been tuned.
+- Matchups: the six button pairs in `tests/strength/matchups.txt`, first to
+  one round, so every game is one independent round.
+- Seeds 1 through 50 for every matchup: 300 pairs per pairing, each played
+  from both seats (600 games), every contestant against every other.
+- Legacy execution, eight threads; milliseconds per decision are wall time on
+  the deciding thread.
+
+For each pairing report the first contestant's mean paired score (0, 0.5, or
+1 per pair) with a two-sided 95% normal interval. The ladder is confirmed
+for a pair of adjacent contestants only when the interval excludes 0.5 in
+the expected direction (`random` < `maximize` < `quick` < ply 1 < ply 2).
+An interval containing 0.5 is reported as inconclusive, never as a tie or a
+pass. Ply 3 is not laddered: one ply-3 decision at these settings (`bmai_in.txt`)
+takes about 5 s, against about 0.8 s at ply 2 and 5 ms at ply 1.
