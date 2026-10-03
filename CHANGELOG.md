@@ -70,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `playfair GAMES` plays the engines the players already have. The C++ modes
   and probability argument are gone; mode 2 is `montecarlo` with `cull off`,
   `playout maximize`, and `playout_random` 1 - P.
+- CI checks the slow golden fixtures on every pull request instead of only
+  when building a release.
 - Quick, Random, and Maximize move logic lives in their engine files, and
   Monte Carlo playouts call those engines directly.
 - Native-mode traces of swing, Chance, and Focus searches print the session

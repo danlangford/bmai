@@ -70,8 +70,8 @@ jobs:
           toolchain: 1.97.1
       - name: Run expensive self-contained fixture tests
         run: cargo test --profile release --locked --lib -- --ignored
+      # On every pull request, so a slow-fixture change fails before merge.
       - name: Check slow golden fixtures
-        if: ${{ inputs.release_build || github.event_name == 'workflow_dispatch' }}
         run: cargo test --profile release --locked --test fixture_golden -- --ignored
 
   build-and-test:

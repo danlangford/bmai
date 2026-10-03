@@ -212,7 +212,7 @@ candidate simulation while keeping legacy mode as the compatibility oracle.
 
 The default Rust test suite includes unit, parser, game-mechanics, and structural
 search tests, plus golden output for every fixture. The longest fixture
-searches are ignored by default and run in CI for releases:
+searches are ignored by default and run in CI on every pull request:
 
 ```shell
 cargo test --release --test fixture_golden -- --include-ignored
