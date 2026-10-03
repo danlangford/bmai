@@ -3,8 +3,8 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::BME_ATTACK::{POWER, SKILL};
-use crate::BME_PHASE::{AUXILIARY, CHANCE, FOCUS};
+use crate::Attack::{Power, Skill};
+use crate::Phase::{Auxiliary, Chance, Focus};
 use crate::search::test_support::{LEGACY, parser_scenario, search_scenario};
 
 #[test]
@@ -21,7 +21,7 @@ player 1 3 0\n\
 7/9-7:3\n\
 9/11-9:3\n\
 getaction\n";
-    BMC_Parser::default()
+    Parser::default()
         .ParseString(input, &mut Vec::new())
         .unwrap();
 }
@@ -29,11 +29,11 @@ getaction\n";
 #[test]
 fn streamed_legacy_commands_match_batched_parsing() {
     let input = "game\nfight\nplayer 0 1 1\n1:1\nplayer 1 2 30\n1:1\n(30,30):60\nseed 17\nsurrender off\ngetaction\nquit\n";
-    let mut batched = BMC_Parser::default();
+    let mut batched = Parser::default();
     let mut batched_output = Vec::new();
     batched.ParseString(input, &mut batched_output).unwrap();
 
-    let mut streamed = BMC_Parser::default();
+    let mut streamed = Parser::default();
     let mut streamed_output = Vec::new();
     streamed
         .ParseStream(&mut std::io::Cursor::new(input), &mut streamed_output)
@@ -64,9 +64,7 @@ X\n\
 getaction\n";
     let mut output = Vec::new();
 
-    BMC_Parser::default()
-        .ParseString(input, &mut output)
-        .unwrap();
+    Parser::default().ParseString(input, &mut output).unwrap();
 
     assert!(
         String::from_utf8(output)
@@ -86,9 +84,7 @@ player 1 1 0\n\
 getaction\n";
     let mut output = Vec::new();
 
-    BMC_Parser::default()
-        .ParseString(input, &mut output)
-        .unwrap();
+    Parser::default().ParseString(input, &mut output).unwrap();
 
     assert!(
         String::from_utf8(output)
@@ -106,13 +102,13 @@ fn whole_line_comments_are_ignored_between_top_level_commands() {
     );
 
     let parse_batched = |input: &str| {
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         let mut output = Vec::new();
         parser.ParseString(input, &mut output).unwrap();
         (output, parser.session_metadata())
     };
     let parse_streamed = |input: &str| {
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         let mut output = Vec::new();
         parser
             .ParseStream(&mut std::io::Cursor::new(input), &mut output)
@@ -128,10 +124,10 @@ fn whole_line_comments_are_ignored_between_top_level_commands() {
 #[test]
 fn comments_inside_game_blocks_remain_invalid() {
     let input = "game\n# phase comment\nfight\n";
-    let batched = BMC_Parser::default()
+    let batched = Parser::default()
         .ParseString(input, &mut Vec::new())
         .unwrap_err();
-    let streamed = BMC_Parser::default()
+    let streamed = Parser::default()
         .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
         .unwrap_err();
 
@@ -141,7 +137,7 @@ fn comments_inside_game_blocks_remain_invalid() {
 
 #[test]
 fn inline_comments_remain_invalid() {
-    let error = BMC_Parser::default()
+    let error = Parser::default()
         .ParseString("seed 17 # comment\n", &mut Vec::new())
         .unwrap_err();
 
@@ -162,7 +158,7 @@ fn streamed_game_rejects_malformed_structure_without_waiting_for_more_input() {
             "error parsing die not-a-die at -",
         ),
     ] {
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         let error = parser
             .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
             .unwrap_err();
@@ -175,10 +171,10 @@ fn game_rejects_more_than_ten_input_dice_in_both_parsing_paths() {
     let input = "game\nfight\nplayer 0 11 0\n";
     let expected = "player dice count 11 exceeds maximum 10";
 
-    let batched = BMC_Parser::default()
+    let batched = Parser::default()
         .ParseString(input, &mut Vec::new())
         .unwrap_err();
-    let streamed = BMC_Parser::default()
+    let streamed = Parser::default()
         .ParseStream(&mut std::io::Cursor::new(input), &mut Vec::new())
         .unwrap_err();
 
@@ -189,7 +185,7 @@ fn game_rejects_more_than_ten_input_dice_in_both_parsing_paths() {
 #[test]
 fn cpp_parser_ai_and_per_player_search_settings() {
     let input = "ai 0 2\nply 0 3\nmax_sims 0 40\nmin_sims 0 4\nmaxbranch 0 400\ndebugply 2\nseed 17\nquit\n";
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     let mut output = Vec::new();
     parser.ParseString(input, &mut output).unwrap();
     assert_eq!(parser.AIType(0), 2);
@@ -258,7 +254,7 @@ fn per_player_settings_change_the_shared_cpp_ai_object() {
     ];
     for (name, input, expected) in cases {
         let mut output = Vec::new();
-        BMC_Parser::default()
+        Parser::default()
             .ParseString(&format!("seed 17\n{input}"), &mut output)
             .unwrap();
         let output = String::from_utf8(output).unwrap();
@@ -282,7 +278,7 @@ fn cpp_parser_rejects_invalid_ai_selection() {
         ("ai 2 3\n", "invalid setting for ai type: 3"),
     ] {
         assert_eq!(
-            BMC_Parser::default()
+            Parser::default()
                 .ParseString(input, &mut Vec::new())
                 .unwrap_err()
                 .to_string(),
@@ -295,9 +291,7 @@ fn cpp_parser_rejects_invalid_ai_selection() {
 fn cpp_playfair_out_of_range_mode_retains_current_ai() {
     let input = "game 1\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nplayfair 0 4 0.5\nquit\n";
     let mut output = Vec::new();
-    BMC_Parser::default()
-        .ParseString(input, &mut output)
-        .unwrap();
+    Parser::default().ParseString(input, &mut output).unwrap();
     assert!(
         String::from_utf8(output)
             .unwrap()
@@ -308,24 +302,24 @@ fn cpp_playfair_out_of_range_mode_retains_current_ai() {
 #[test]
 fn cpp_debug_command_validates_category_and_reports_setting() {
     let mut output = Vec::new();
-    BMC_Parser::default()
+    Parser::default()
         .ParseString("debug SIMULATION 0\n", &mut output)
         .unwrap();
     assert_eq!(output, b"Debug SIMULATION set to 0\n");
 
     let mut output = Vec::new();
-    BMC_Parser::default()
+    Parser::default()
         .ParseString("debug SIMULATION -1\n", &mut output)
         .unwrap();
     assert_eq!(output, b"Debug SIMULATION set to 1\n");
 
     let mut output = Vec::new();
-    BMC_Parser::default()
+    Parser::default()
         .ParseString("debug ALWAYS 0\n", &mut output)
         .unwrap();
     assert!(output.is_empty());
 
-    let error = BMC_Parser::default()
+    let error = Parser::default()
         .ParseString("debug simulation 0\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
@@ -338,9 +332,7 @@ fn cpp_debug_command_validates_category_and_reports_setting() {
 fn cpp_qai_selection_drives_getaction_and_ignores_bmai_settings() {
     let input = "game 1\nfight\nplayer 0 2 0\n6:5\n6:1\nplayer 1 1 0\n20:6\nai 0 1\nmax_sims 0 5\nmin_sims 0 1\nmaxbranch 0 20\nseed 17\ngetaction\nquit\n";
     let mut output = Vec::new();
-    BMC_Parser::default()
-        .ParseString(input, &mut output)
-        .unwrap();
+    Parser::default().ParseString(input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
     assert!(!output.contains("Setting max sims for player"), "{output}");
     assert!(!output.contains("Valid Moves"), "{output}");
@@ -354,9 +346,7 @@ fn cpp_playfair_modes_report_initiative_split_stats() {
             "game 1\npreround\nplayer 0 1 0\n2\nplayer 1 1 0\n2\nseed 17\nplayfair 2 {mode} 0.5\nquit\n"
         );
         let mut output = Vec::new();
-        BMC_Parser::default()
-            .ParseString(&input, &mut output)
-            .unwrap();
+        Parser::default().ParseString(&input, &mut output).unwrap();
         let output = String::from_utf8(output).unwrap();
         assert!(
             output.contains(&format!("PlayFairGames: 2 games, mode {mode}, p 0.500000")),
@@ -369,17 +359,17 @@ fn cpp_playfair_modes_report_initiative_split_stats() {
 #[test]
 fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
     let input = "ai 0 1\ngame 3\ngameover\nplayer 0 0 0\nplayer 1 0 0\nquit\n";
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     parser.ParseString(input, &mut Vec::new()).unwrap();
-    assert_eq!(parser.m_game.m_phase, BME_PHASE::GAMEOVER);
-    assert_eq!(parser.m_player_ai, [BMC_AI_SLOT::GLOBAL; 2]);
+    assert_eq!(parser.m_game.m_phase, Phase::Gameover);
+    assert_eq!(parser.m_player_ai, [AiSlot::Global; 2]);
 }
 
 #[test]
 fn cpp_game_simulation_commands_require_preround() {
     let prefix = "game 1\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n6:6\n";
     for command in ["playgame 1", "compare 1", "playfair 1 0 0.5"] {
-        let error = BMC_Parser::default()
+        let error = Parser::default()
             .ParseString(&format!("{prefix}{command}\n"), &mut Vec::new())
             .unwrap_err();
         assert_eq!(error.to_string(), "Cannot PlayGame unless it is preround");
@@ -427,17 +417,17 @@ fn every_advertised_property_prefix_is_accepted_by_the_die_parser() {
 #[test]
 fn every_wire_phase_name_maps_to_the_expected_game_phase() {
     for (name, expected) in [
-        ("aux", BME_PHASE::AUXILIARY),
-        ("preround", BME_PHASE::PREROUND),
-        ("reserve", BME_PHASE::RESERVE),
-        ("initiative", BME_PHASE::INITIATIVE),
-        ("chance", BME_PHASE::CHANCE),
-        ("focus", BME_PHASE::FOCUS),
-        ("fight", BME_PHASE::FIGHT),
-        ("gameover", BME_PHASE::GAMEOVER),
+        ("aux", Phase::Auxiliary),
+        ("preround", Phase::Preround),
+        ("reserve", Phase::Reserve),
+        ("initiative", Phase::Initiative),
+        ("chance", Phase::Chance),
+        ("focus", Phase::Focus),
+        ("fight", Phase::Fight),
+        ("gameover", Phase::Gameover),
     ] {
         let input = format!("game 5\n{name}\nplayer 0 0 0\nplayer 1 0 0\nquit\n");
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         parser
             .ParseString(&input, &mut Vec::new())
             .unwrap_or_else(|error| panic!("{name} did not parse: {error}"));
@@ -473,7 +463,7 @@ fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
 
 #[test]
 fn auxiliary_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
-    let error = BMC_Parser::default()
+    let error = Parser::default()
         .ParseString(
             "game 3\naux\nplayer 0 2 0\n+6\n+8\nplayer 1 1 0\n+6\nquit\n",
             &mut Vec::new(),
@@ -488,7 +478,7 @@ fn auxiliary_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
 #[test]
 fn native_auxiliary_search_is_worker_count_independent() {
     search_scenario()
-        .phase(AUXILIARY)
+        .phase(Auxiliary)
         .player(0, 0.0, ["6", "+M100"])
         .player(1, 0.0, ["6", "+pM100"])
         .ply(1)
@@ -538,22 +528,22 @@ fn defined_swing_size_applies_to_every_swing_half_of_a_twin() {
 #[test]
 fn zero_does_not_lock_a_swing_definition() {
     let input = "game 3\npreround\nplayer 0 1 0\nT-0\nplayer 1 1 0\n6\nquit\n";
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     parser.ParseString(input, &mut Vec::new()).unwrap();
-    assert_eq!(parser.m_game.m_player[0].m_swing_set, BME_SWING_SET::NOT);
+    assert_eq!(parser.m_game.m_player[0].m_swing_set, SwingSet::Not);
 }
 
 #[test]
 fn positive_defined_swing_and_option_values_lock_player_state() {
     for recipe in ["T-2", "(T,T)-2", "6/20-20"] {
         let input = format!("game 3\npreround\nplayer 0 1 0\n{recipe}\nplayer 1 1 0\n6\nquit\n");
-        let mut parser = BMC_Parser::default();
+        let mut parser = Parser::default();
         parser
             .ParseString(&input, &mut Vec::new())
             .unwrap_or_else(|error| panic!("{recipe} did not parse: {error}"));
         assert_eq!(
             parser.m_game.m_player[0].m_swing_set,
-            BME_SWING_SET::LOCKED,
+            SwingSet::Locked,
             "{recipe}"
         );
     }
@@ -561,7 +551,7 @@ fn positive_defined_swing_and_option_values_lock_player_state() {
 
 #[test]
 fn initiative_chance_and_focus_use_bmai_search() {
-    for (phase, die) in [(CHANCE, "c10:10"), (FOCUS, "f10:10")] {
+    for (phase, die) in [(Chance, "c10:10"), (Focus, "f10:10")] {
         search_scenario()
             .phase(phase)
             .player(0, 0.0, [die])
@@ -577,7 +567,7 @@ fn initiative_chance_and_focus_use_bmai_search() {
 
 #[test]
 fn typed_initiative_actions_use_original_die_indices() {
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     parser
         .ParseString(
             "game 3\nfocus\nplayer 0 2 0\nf10:10\nc8:8\nplayer 1 1 0\n6:6\n",
@@ -608,7 +598,7 @@ fn typed_initiative_actions_use_original_die_indices() {
 #[test]
 fn insult_fixture_emits_reference_protocol_action() {
     parser_scenario(include_str!("../../../tests/fixtures/Insult_in.txt"))
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([1])
         .run();
@@ -619,13 +609,13 @@ fn value_fixtures_emit_reference_protocol_actions() {
     let cases = [
         (
             include_str!("../../../tests/fixtures/Value1_in.txt"),
-            SKILL,
+            Skill,
             vec![0, 1],
             vec![1],
         ),
         (
             include_str!("../../../tests/fixtures/Value2_in.txt"),
-            POWER,
+            Power,
             vec![1],
             vec![0],
         ),
@@ -642,24 +632,24 @@ fn value_fixtures_emit_reference_protocol_actions() {
 #[test]
 fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
     parser_scenario(include_str!("../../../tests/fixtures/bug55_a_in.txt"))
-        .expect_attack(SKILL)
+        .expect_attack(Skill)
         .using([2, 0])
         .targeting([0])
         .run();
     parser_scenario(include_str!("../../../tests/fixtures/bug55_b_in.txt"))
-        .expect_attack(SKILL)
+        .expect_attack(Skill)
         .using([3, 0, 1])
         .targeting([2])
         .run();
     parser_scenario(include_str!("../../../tests/fixtures/bug105372_in.txt"))
-        .expect_attack(SKILL)
+        .expect_attack(Skill)
         .using([2, 1, 0])
         .targeting([0])
         .run();
     parser_scenario(include_str!(
         "../../../tests/fixtures/SurrenderOff-Attack-in.txt"
     ))
-    .expect_attack(POWER)
+    .expect_attack(Power)
     .using([0])
     .targeting([0])
     .run();
@@ -693,7 +683,7 @@ fn surrender_policy_fixtures_emit_reference_protocol_actions() {
 #[ignore = "full BMAI3 searches; run in the release parity suite"]
 fn deeper_reference_fixtures_emit_reference_protocol_actions() {
     parser_scenario(include_str!("../../../tests/fixtures/bmai_in.txt"))
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([1])
         .targeting([0])
         .run();
@@ -706,7 +696,7 @@ fn deeper_reference_fixtures_emit_reference_protocol_actions() {
 #[test]
 fn obsolete_sims_command_is_rejected_like_reference_binary() {
     let input = include_str!("../../../tests/fixtures/test_in.txt");
-    let error = BMC_Parser::default()
+    let error = Parser::default()
         .ParseString(input, &mut Vec::new())
         .unwrap_err();
     assert_eq!(error.to_string(), "unrecognized command: sims 150");
@@ -714,12 +704,9 @@ fn obsolete_sims_command_is_rejected_like_reference_binary() {
 
 #[test]
 fn rust_execution_and_rng_modes_are_independent_and_versioned() {
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     assert_eq!(parser.execution_mode(), ExecutionMode::Legacy);
-    assert_eq!(
-        parser.rng_algorithm(),
-        BME_RNG_ALGORITHM::LEGACY_PARK_MILLER_V1
-    );
+    assert_eq!(parser.rng_algorithm(), RngAlgorithm::LegacyParkMillerV1);
 
     let mut output = Vec::new();
     parser
@@ -742,7 +729,7 @@ fn rust_execution_and_rng_modes_are_independent_and_versioned() {
 
 #[test]
 fn rust_execution_and_rng_modes_reject_unknown_values() {
-    let engine = BMC_Parser::default()
+    let engine = Parser::default()
         .ParseString("mode experimental\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
@@ -750,7 +737,7 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
         "invalid execution mode: experimental (expected legacy or native)"
     );
 
-    let rng = BMC_Parser::default()
+    let rng = Parser::default()
         .ParseString("rng xoshiro\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(
@@ -761,7 +748,7 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
 
 #[test]
 fn fire_overshooting_is_explicit_default_off_session_state() {
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     assert!(!parser.m_game.m_fire_overshooting);
 
     let mut output = Vec::new();
@@ -788,12 +775,12 @@ fn fire_overshooting_is_explicit_default_off_session_state() {
 
 #[test]
 fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
-    let zero = BMC_Parser::default()
+    let zero = Parser::default()
         .ParseString("workers 0\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(zero.to_string(), "native worker count must be at least 1");
 
-    let malformed = BMC_Parser::default()
+    let malformed = Parser::default()
         .ParseString("workers many\n", &mut Vec::new())
         .unwrap_err();
     assert_eq!(malformed.to_string(), "invalid integer: many");
@@ -803,9 +790,7 @@ fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
     let run = |workers: usize| {
         let input = fixture.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
-        BMC_Parser::default()
-            .ParseString(&input, &mut output)
-            .unwrap();
+        Parser::default().ParseString(&input, &mut output).unwrap();
         String::from_utf8(output).unwrap().replace(
             &format!("Setting native workers to {workers}"),
             "Setting native workers to N",
@@ -817,7 +802,7 @@ fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
 #[test]
 fn native_worker_auto_uses_available_logical_parallelism() {
     let expected = available_workers();
-    let mut parser = BMC_Parser::default();
+    let mut parser = Parser::default();
     let mut output = Vec::new();
 
     parser.ParseString("workers auto\n", &mut output).unwrap();
@@ -833,7 +818,7 @@ fn native_worker_auto_uses_available_logical_parallelism() {
 fn native_replay_index_advances_only_for_native_bmai_searches() {
     let fixture = include_str!("../../../tests/native-fixtures/fight.txt");
 
-    let mut qai = BMC_Parser::default();
+    let mut qai = Parser::default();
     qai.ParseString(
         &fixture.replace("getaction", "ai 0 1\ngetaction"),
         &mut Vec::new(),
@@ -841,7 +826,7 @@ fn native_replay_index_advances_only_for_native_bmai_searches() {
     .unwrap();
     assert_eq!(qai.m_native_decision_index, 0);
 
-    let mut bmai = BMC_Parser::default();
+    let mut bmai = Parser::default();
     bmai.ParseString(fixture, &mut Vec::new()).unwrap();
     assert_eq!(bmai.m_native_decision_index, 1);
 }
@@ -876,9 +861,7 @@ fn native_wire_fixtures_are_deterministic() {
         let expected = expected.replace("\r\n", "\n");
         for _ in 0..2 {
             let mut output = Vec::new();
-            BMC_Parser::default()
-                .ParseString(input, &mut output)
-                .unwrap();
+            Parser::default().ParseString(input, &mut output).unwrap();
             assert_eq!(String::from_utf8(output).unwrap(), expected);
         }
     }
@@ -889,9 +872,7 @@ fn native_phases_are_worker_count_independent() {
     let run = |input: &str, workers: usize| {
         let input = input.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
-        BMC_Parser::default()
-            .ParseString(&input, &mut output)
-            .unwrap();
+        Parser::default().ParseString(&input, &mut output).unwrap();
         String::from_utf8(output).unwrap().replace(
             &format!("Setting native workers to {workers}"),
             "Setting native workers to N",
@@ -916,9 +897,7 @@ fn native_phases_are_worker_count_independent() {
 fn simulation_fixture_emits_reference_match_result() {
     let input = include_str!("../../../tests/fixtures/bmsim_in.txt");
     let mut output = Vec::new();
-    BMC_Parser::default()
-        .ParseString(input, &mut output)
-        .unwrap();
+    Parser::default().ParseString(input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
     assert!(output.ends_with("matches over 12 - 8\n"), "{output}");
 }

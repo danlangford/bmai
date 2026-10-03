@@ -27,13 +27,13 @@ The `die_notation` object lets clients translate external recipes without
 hard-coding BMAIR's skill abbreviations. `property_prefixes` reports each
 one-character token with a stable snake-case `id`, display `name`, and
 `support` of `implemented` or `parsing_only`. `postfix_properties` reports
-Turbo (`!`) and Mood (`?`). The remaining fields describe swing types `P-Z`,
+Turbo (`!`), Mood (`?`), and Mad (`&`). The remaining fields describe swing types `P-Z`,
 option and Twin punctuation, defined-side selection, rolled values, and the
 dizzy marker. These are BMAIR wire tokens, not a claim that BMAIR parses the
 Buttonweavers recipe grammar.
 
 For example, discovery identifies `d` as Stealth, `p` as Poison, `z` as Speed,
-`F` as Fire, `G` as Rage, and `#` as Rush. Consumers should use this metadata instead of
+`F` as Fire, `G` as Rage, `#` as Rush, and `b` as Boom. Consumers should use this metadata instead of
 maintaining a parallel token-to-skill table.
 
 ## JSON Lines v1
@@ -99,7 +99,7 @@ Actions use a `type` discriminator:
 - `{"type":"surrender"}`
 - `{"type":"auxiliary","die":1}`; `die` is null when Auxiliary is declined
 - `{"type":"attack","attack_type":"power","attackers":[0],"targets":[1]}`;
-  `attack_type` is one of the advertised `attack_types`, including `rush`
+  `attack_type` is one of the advertised `attack_types`, including `rush` and `boom`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
 - `{"type":"chance","dice":[0,2]}`

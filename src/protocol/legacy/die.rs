@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, ParseError> {
+pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<Die, ParseError> {
     let (definition, value_part) = input
         .split_once(':')
         .map_or((input, None), |(a, b)| (a, Some(b)));
@@ -47,6 +47,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, Pa
         match chars[pos] {
             '!' => properties |= property::TURBO,
             '?' => properties |= property::MOOD,
+            '&' => properties |= property::MAD,
             '-' => {
                 pos += 1;
                 while pos < chars.len() && chars[pos].is_ascii_digit() {
@@ -77,7 +78,7 @@ pub(super) fn ParseDie(input: &str, original_index: usize) -> Result<BMC_Die, Pa
                 .map_err(|_| ParseError(format!("invalid die value: {input}")))
         })
         .transpose()?;
-    Ok(BMC_Die {
+    Ok(Die {
         m_properties: properties,
         m_sides: sides,
         m_swing_type: swings,

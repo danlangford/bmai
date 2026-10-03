@@ -49,8 +49,7 @@ main → protocol → search → game
   results back into stable wire types.
 - `main` chooses an adapter and owns process I/O. Business behavior does not
   depend on the executable.
-- `lib.rs` preserves the historical BMAI names used by existing callers while
-  keeping implementation modules free to follow idiomatic Rust organization.
+- `lib.rs` is the stable public façade over the implementation modules.
 
 ## Change placement
 
@@ -68,7 +67,7 @@ instead of adding a circular dependency.
 
 ## Compatibility constraint
 
-The C++-derived identifiers remain intentionally visible in the public façade
-and parity-sensitive implementation. Structural cleanup must not alter action
+Types follow Rust naming; many function and field names still mirror their C++
+counterparts so `PARITY.md` mappings stay readable. Structural cleanup must not alter action
 ordering, RNG consumption, simulation counts, state restoration, or protocol
 output. `PARITY.md` defines the evidence required for such changes.

@@ -39,3 +39,5 @@ pub const VALUE: u64 = 0x2_0000_0000;
 pub const JOLT: u64 = 0x4_0000_0000;
 pub const FIRE: u64 = 0x8_0000_0000;
 pub const RUSH: u64 = 0x10_0000_0000;
+pub const MAD: u64 = 0x20_0000_0000;
+pub const BOOM: u64 = 0x40_0000_0000;

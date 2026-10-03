@@ -6,15 +6,15 @@ use super::*;
 
 #[test]
 fn cpp_die_index_set_is_bounded_and_iterates_like_bit_array() {
-    let indices: BMC_DieIndexSet = [0, 3, 9].into();
+    let indices: DieIndexSet = [0, 3, 9].into();
     assert_eq!(indices.len(), 3);
     assert_eq!(indices.first(), Some(0));
     assert!(indices.contains(9));
     assert_eq!(indices.iter().collect::<Vec<_>>(), vec![0, 3, 9]);
 }
 
-fn die(properties: u64) -> BMC_Die {
-    BMC_Die {
+fn die(properties: u64) -> Die {
+    Die {
         m_properties: property::VALID | properties,
         m_sides: [20, 0],
         m_swing_type: [None, None],
@@ -27,21 +27,21 @@ fn die(properties: u64) -> BMC_Die {
     }
 }
 
-fn game_with(attacker: Vec<BMC_Die>, target: Vec<BMC_Die>) -> BMC_Game {
-    let mut game = BMC_Game::default();
+fn game_with(attacker: Vec<Die>, target: Vec<Die>) -> Game {
+    let mut game = Game::default();
     game.m_player[0].m_die = attacker;
     game.m_player[1].m_die = target;
     game
 }
 
-fn attacks(game: &BMC_Game, kind: BME_ATTACK) -> Vec<BMC_Move> {
+fn attacks(game: &Game, kind: Attack) -> Vec<Move> {
     game.GenerateValidAttacks()
         .into_iter()
         .filter(|action| action.m_attack == Some(kind))
         .collect()
 }
 
-fn valued_die(value: i32, properties: u64, original_index: usize) -> BMC_Die {
+fn valued_die(value: i32, properties: u64, original_index: usize) -> Die {
     let mut result = die(properties);
     result.m_sides[0] = value.max(1) as u8;
     result.m_value_total = Some(value as u8);
@@ -49,10 +49,10 @@ fn valued_die(value: i32, properties: u64, original_index: usize) -> BMC_Die {
     result
 }
 
-fn has_skill(game: &BMC_Game, attackers: &[usize], target: usize) -> bool {
-    let expected: BMC_DieIndexSet = attackers.iter().copied().collect();
+fn has_skill(game: &Game, attackers: &[usize], target: usize) -> bool {
+    let expected: DieIndexSet = attackers.iter().copied().collect();
     game.GenerateValidAttacks().iter().any(|action| {
-        action.m_attack == Some(BME_ATTACK::SKILL)
+        action.m_attack == Some(Attack::Skill)
             && action.m_attackers == expected
             && action.m_targets.first() == Some(target)
     })
@@ -387,7 +387,7 @@ fn pr82_signed_konstant_skill_attack_matrix() {
 
 #[test]
 fn cpp_player_copy_constructor_is_independent() {
-    let first = BMC_Player {
+    let first = Player {
         m_id: 1,
         ..Default::default()
     };
@@ -417,7 +417,7 @@ fn score_matches_cpp_property_branches() {
 
 #[test]
 fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut turbo = die(property::TURBO);
     turbo.m_sides[0] = 10;
     turbo.m_swing_type[0] = Some('X');
@@ -430,7 +430,7 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
     let moves = game.GenerateValidAttacks();
     let mut choices = moves
         .iter()
-        .filter(|action| action.m_attack == Some(BME_ATTACK::POWER))
+        .filter(|action| action.m_attack == Some(Attack::Power))
         .map(|action| action.m_turbo_option)
         .collect::<Vec<_>>();
     choices.sort_unstable();
@@ -439,7 +439,7 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
 
 #[test]
 fn cpp_order_appends_turbo_alternatives_after_every_base_attack() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut turbo = die(property::TURBO);
     turbo.m_sides[0] = 10;
     turbo.m_swing_type[0] = Some('X');
@@ -481,9 +481,9 @@ fn already_legal_power_attack_does_not_offer_unrequested_fire_overshoot() {
         .GenerateValidAttacks()
         .into_iter()
         .filter(|action| {
-            action.m_attack == Some(BME_ATTACK::POWER)
-                && action.m_attackers == BMC_DieIndexSet::from([0])
-                && action.m_targets == BMC_DieIndexSet::from([0])
+            action.m_attack == Some(Attack::Power)
+                && action.m_attackers == DieIndexSet::from([0])
+                && action.m_targets == DieIndexSet::from([0])
         })
         .collect::<Vec<_>>();
 
@@ -515,7 +515,7 @@ fn optional_overshoots_cannot_exhaust_the_required_fire_budget() {
         .collect::<Vec<_>>();
 
     assert_eq!(assisted.len(), 1);
-    assert_eq!(assisted[0].m_targets, BMC_DieIndexSet::from([0]));
+    assert_eq!(assisted[0].m_targets, DieIndexSet::from([0]));
 }
 
 #[test]
@@ -534,7 +534,7 @@ fn fire_plan_is_not_reused_for_a_different_turbo_option_size() {
     let assisted = game
         .GenerateValidAttacksInCppOrder()
         .into_iter()
-        .filter(|action| action.m_attack == Some(BME_ATTACK::POWER) && !action.m_fire.is_empty())
+        .filter(|action| action.m_attack == Some(Attack::Power) && !action.m_fire.is_empty())
         .collect::<Vec<_>>();
 
     assert!(!assisted.is_empty());
@@ -571,14 +571,14 @@ fn fire_candidate_construction_obeys_the_search_budget() {
 fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
     let target = die(0);
 
-    let mut konstant_game = BMC_Game::default();
+    let mut konstant_game = Game::default();
     let mut konstant = die(property::KONSTANT);
     konstant.m_value_total = Some(8);
     konstant_game.m_player[0].m_die = vec![konstant];
     konstant_game.m_player[1].m_die = vec![target];
     assert!(konstant_game.GenerateValidAttacks().is_empty());
 
-    let mut stealth_game = BMC_Game::default();
+    let mut stealth_game = Game::default();
     let mut stealth = die(property::STEALTH);
     stealth.m_value_total = Some(7);
     stealth_game.m_player[0].m_die = vec![stealth];
@@ -589,9 +589,11 @@ fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
     ordinary.m_original_index = 1;
     ordinary.m_value_total = Some(1);
     stealth_game.m_player[0].m_die = vec![stealth, ordinary];
-    assert!(stealth_game.GenerateValidAttacks().iter().any(|action| {
-        action.m_attack == Some(BME_ATTACK::SKILL) && action.m_attackers.len() == 2
-    }));
+    assert!(
+        stealth_game.GenerateValidAttacks().iter().any(|action| {
+            action.m_attack == Some(Attack::Skill) && action.m_attackers.len() == 2
+        })
+    );
 }
 
 #[test]
@@ -602,7 +604,7 @@ fn cpp_basic_power_and_skill_attack_generation() {
     t.m_sides[0] = 7;
     t.m_value_total = Some(6);
     let game = game_with(vec![a], vec![t]);
-    assert_eq!(attacks(&game, BME_ATTACK::POWER).len(), 1);
+    assert_eq!(attacks(&game, Attack::Power).len(), 1);
 
     let mut five = die(0);
     five.m_sides[0] = 6;
@@ -613,7 +615,7 @@ fn cpp_basic_power_and_skill_attack_generation() {
     let mut twenty = die(0);
     twenty.m_value_total = Some(6);
     let game = game_with(vec![five, one], vec![twenty]);
-    let skill = attacks(&game, BME_ATTACK::SKILL);
+    let skill = attacks(&game, Attack::Skill);
     assert_eq!(skill.len(), 1);
     assert_eq!(skill[0].m_attackers, vec![0, 1]);
 
@@ -623,8 +625,8 @@ fn cpp_basic_power_and_skill_attack_generation() {
     let mut twenty = die(0);
     twenty.m_value_total = Some(6);
     let game = game_with(vec![six], vec![twenty]);
-    assert_eq!(attacks(&game, BME_ATTACK::POWER).len(), 1);
-    assert_eq!(attacks(&game, BME_ATTACK::SKILL).len(), 1);
+    assert_eq!(attacks(&game, Attack::Power).len(), 1);
+    assert_eq!(attacks(&game, Attack::Skill).len(), 1);
 
     let mut konstant = die(property::KONSTANT);
     konstant.m_value_total = Some(6);
@@ -640,18 +642,18 @@ fn cpp_basic_power_and_skill_attack_generation() {
 #[test]
 fn cpp_insult_and_stealth_restrictions() {
     let insult = die(property::INSULT);
-    assert!(insult.CanBeAttacked(BME_ATTACK::POWER, 1));
-    assert!(!insult.CanBeAttacked(BME_ATTACK::SKILL, 2));
+    assert!(insult.CanBeAttacked(Attack::Power, 1));
+    assert!(!insult.CanBeAttacked(Attack::Skill, 2));
     let stealth_insult = die(property::STEALTH | property::INSULT);
-    assert!(stealth_insult.CanBeAttacked(BME_ATTACK::SKILL, 2));
+    assert!(stealth_insult.CanBeAttacked(Attack::Skill, 2));
 
     for active in [property::TRIP, property::SHADOW, property::BERSERK] {
         let stealth = die(property::STEALTH | active);
-        assert!(stealth.CanDoAttack(BME_ATTACK::SKILL, 2));
-        assert!(!stealth.CanDoAttack(BME_ATTACK::POWER, 1));
-        assert!(!stealth.CanDoAttack(BME_ATTACK::TRIP, 1));
-        assert!(!stealth.CanDoAttack(BME_ATTACK::SHADOW, 1));
-        assert!(!stealth.CanDoAttack(BME_ATTACK::BERSERK, 1));
+        assert!(stealth.CanDoAttack(Attack::Skill, 2));
+        assert!(!stealth.CanDoAttack(Attack::Power, 1));
+        assert!(!stealth.CanDoAttack(Attack::Trip, 1));
+        assert!(!stealth.CanDoAttack(Attack::Shadow, 1));
+        assert!(!stealth.CanDoAttack(Attack::Berserk, 1));
     }
 
     let mut ordinary = die(0);
@@ -670,7 +672,7 @@ fn cpp_insult_and_stealth_restrictions() {
     assert_eq!(
         attacks(
             &game_with(vec![ordinary, second], vec![stealth_target]),
-            BME_ATTACK::SKILL
+            Attack::Skill
         )
         .len(),
         1
@@ -692,7 +694,7 @@ fn pr82_variable_skill_stack_disables_legacy_value_pruning() {
 
     let skill = attacks(
         &game_with(vec![stinger, three, two], vec![target]),
-        BME_ATTACK::SKILL,
+        Attack::Skill,
     );
     assert!(skill.iter().any(|action| action.m_attackers.len() == 2));
     assert!(skill.iter().any(|action| action.m_attackers.len() == 3));
@@ -711,7 +713,7 @@ fn cpp_speed_generation_and_property_score_combinations() {
     six.m_value_total = Some(5);
     six.m_original_index = 1;
     let game = game_with(vec![speed], vec![four, six]);
-    let speed_attacks = attacks(&game, BME_ATTACK::SPEED);
+    let speed_attacks = attacks(&game, Attack::Speed);
     assert_eq!(speed_attacks.len(), 1);
     assert_eq!(speed_attacks[0].m_targets, vec![0, 1]);
 

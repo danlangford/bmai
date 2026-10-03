@@ -29,16 +29,16 @@ pub(super) fn read_required_stream_line<R: BufRead>(
     read_stream_line(input)?.ok_or_else(|| ParseError(missing.into()))
 }
 
-pub(super) fn parse_phase(phase: &str) -> Result<BME_PHASE, ParseError> {
+pub(super) fn parse_phase(phase: &str) -> Result<Phase, ParseError> {
     match phase {
-        "aux" => Ok(BME_PHASE::AUXILIARY),
-        "preround" => Ok(BME_PHASE::PREROUND),
-        "reserve" => Ok(BME_PHASE::RESERVE),
-        "initiative" => Ok(BME_PHASE::INITIATIVE),
-        "chance" => Ok(BME_PHASE::CHANCE),
-        "focus" => Ok(BME_PHASE::FOCUS),
-        "fight" => Ok(BME_PHASE::FIGHT),
-        "gameover" => Ok(BME_PHASE::GAMEOVER),
+        "aux" => Ok(Phase::Auxiliary),
+        "preround" => Ok(Phase::Preround),
+        "reserve" => Ok(Phase::Reserve),
+        "initiative" => Ok(Phase::Initiative),
+        "chance" => Ok(Phase::Chance),
+        "focus" => Ok(Phase::Focus),
+        "fight" => Ok(Phase::Fight),
+        "gameover" => Ok(Phase::Gameover),
         _ => Err(ParseError("phase not found".into())),
     }
 }
@@ -87,10 +87,10 @@ pub(super) fn parse_usize(input: &str) -> Result<usize, ParseError> {
         .map_err(|_| ParseError(format!("invalid integer: {input}")))
 }
 pub(super) fn validate_player_dice_count(count: usize) -> Result<(), ParseError> {
-    if count > crate::game::BMD_MAX_INPUT_DICE {
+    if count > crate::game::MAX_INPUT_DICE {
         return Err(ParseError(format!(
             "player dice count {count} exceeds maximum {}",
-            crate::game::BMD_MAX_INPUT_DICE
+            crate::game::MAX_INPUT_DICE
         )));
     }
     Ok(())

@@ -5,7 +5,7 @@
 use super::*;
 
 pub(super) fn DebugPlayer<W: Write>(
-    player: &crate::game::BMC_Player,
+    player: &crate::game::Player,
     all: bool,
     output: &mut W,
 ) -> Result<(), ParseError> {
@@ -30,14 +30,14 @@ pub(super) fn DebugPlayer<W: Write>(
 }
 
 pub(super) fn SendAttack<W: Write>(
-    game: &BMC_Game,
-    action: &BMC_Move,
+    game: &Game,
+    action: &Move,
     output: &mut W,
 ) -> Result<(), ParseError> {
     match action.m_action {
-        BME_ACTION::PASS => writeln!(output, "pass").map_err(io_error),
-        BME_ACTION::SURRENDER => writeln!(output, "surrender").map_err(io_error),
-        BME_ACTION::ATTACK => {
+        Action::Pass => writeln!(output, "pass").map_err(io_error),
+        Action::Surrender => writeln!(output, "surrender").map_err(io_error),
+        Action::Attack => {
             writeln!(
                 output,
                 "{}",
@@ -90,18 +90,18 @@ pub(super) fn SendAttack<W: Write>(
 }
 
 pub(super) fn protocol_attack(
-    game: &BMC_Game,
-    action: &BMC_Move,
+    game: &Game,
+    action: &Move,
 ) -> Result<crate::protocol::ProtocolAction, ParseError> {
     match action.m_action {
-        BME_ACTION::PASS => Ok(crate::protocol::ProtocolAction::Pass),
-        BME_ACTION::SURRENDER => Ok(crate::protocol::ProtocolAction::Surrender),
-        BME_ACTION::ATTACK => {
+        Action::Pass => Ok(crate::protocol::ProtocolAction::Pass),
+        Action::Surrender => Ok(crate::protocol::ProtocolAction::Surrender),
+        Action::Attack => {
             let attack_type = action
                 .m_attack
                 .ok_or_else(|| ParseError("attack has no attack type".into()))?
                 .protocol();
-            let original_indices = |player: usize, indices: &BMC_DieIndexSet| {
+            let original_indices = |player: usize, indices: &DieIndexSet| {
                 indices
                     .iter()
                     .map(|index| game.m_player[player].m_die[index].m_original_index)
@@ -156,10 +156,7 @@ pub(super) fn protocol_attack(
     }
 }
 
-pub(super) fn protocol_swing(
-    game: &BMC_Game,
-    action: &SwingMove,
-) -> crate::protocol::ProtocolAction {
+pub(super) fn protocol_swing(game: &Game, action: &SwingMove) -> crate::protocol::ProtocolAction {
     let swings = action
         .values()
         .iter()
@@ -187,7 +184,7 @@ pub(super) fn protocol_swing(
 }
 
 pub(super) fn protocol_chance(
-    game: &BMC_Game,
+    game: &Game,
     action: &crate::search::ChanceMove,
 ) -> crate::protocol::ProtocolAction {
     if action.reroll.is_empty() {
@@ -204,7 +201,7 @@ pub(super) fn protocol_chance(
 }
 
 pub(super) fn protocol_focus(
-    game: &BMC_Game,
+    game: &Game,
     action: &crate::search::FocusMove,
 ) -> crate::protocol::ProtocolAction {
     if action.values.is_empty() {
@@ -223,22 +220,22 @@ pub(super) fn protocol_focus(
     }
 }
 
-pub(super) fn phase_protocol(phase: BME_PHASE) -> &'static str {
+pub(super) fn phase_protocol(phase: Phase) -> &'static str {
     match phase {
-        BME_PHASE::AUXILIARY => "aux",
-        BME_PHASE::PREROUND => "preround",
-        BME_PHASE::RESERVE => "reserve",
-        BME_PHASE::INITIATIVE => "initiative",
-        BME_PHASE::CHANCE => "chance",
-        BME_PHASE::FOCUS => "focus",
-        BME_PHASE::FIGHT => "fight",
-        BME_PHASE::GAMEOVER => "gameover",
+        Phase::Auxiliary => "aux",
+        Phase::Preround => "preround",
+        Phase::Reserve => "reserve",
+        Phase::Initiative => "initiative",
+        Phase::Chance => "chance",
+        Phase::Focus => "focus",
+        Phase::Fight => "fight",
+        Phase::Gameover => "gameover",
     }
 }
 
 pub(super) fn write_indices<W: Write>(
-    player: &crate::game::BMC_Player,
-    indices: &BMC_DieIndexSet,
+    player: &crate::game::Player,
+    indices: &DieIndexSet,
     output: &mut W,
 ) -> Result<(), ParseError> {
     for (n, index) in indices.iter().enumerate() {
@@ -251,7 +248,7 @@ pub(super) fn write_indices<W: Write>(
 }
 
 pub(super) fn SendSetSwing<W: Write>(
-    game: &BMC_Game,
+    game: &Game,
     action: &SwingMove,
     output: &mut W,
 ) -> Result<(), ParseError> {

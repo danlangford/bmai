@@ -4,11 +4,11 @@
 
 use super::*;
 
-impl BMC_Parser {
+impl Parser {
     pub(super) fn GetAction<W: Write>(&mut self, output: &mut W) -> Result<(), ParseError> {
         let player_ai = self.PlayerAI(0).clone();
         match self.m_game.m_phase {
-            BME_PHASE::AUXILIARY => {
+            Phase::Auxiliary => {
                 let (die, search) = if self.AIType(0) == 1 {
                     (SelectQAIAuxiliaryAction(&self.m_game), None)
                 } else if self.m_execution_mode == ExecutionMode::Native {
@@ -45,7 +45,7 @@ impl BMC_Parser {
                 writeln!(output, "aux {}", original.map_or(-1, |index| index as i32))
                     .map_err(io_error)
             }
-            BME_PHASE::FIGHT => {
+            Phase::Fight => {
                 if self.m_report_sims > 0 && self.m_execution_mode != ExecutionMode::Native {
                     return Err(ParseError(
                         "report_sims requires native execution mode".into(),
@@ -144,7 +144,7 @@ impl BMC_Parser {
                 writeln!(output, "action").map_err(io_error)?;
                 SendAttack(&self.m_game, &action, output)
             }
-            BME_PHASE::RESERVE => {
+            Phase::Reserve => {
                 let reserve = if self.AIType(0) == 1 {
                     SelectQAIReserveAction(&self.m_game)
                 } else if self.m_execution_mode == ExecutionMode::Native {
@@ -175,7 +175,7 @@ impl BMC_Parser {
                     writeln!(output, "reserve -1").map_err(io_error)
                 }
             }
-            BME_PHASE::PREROUND => {
+            Phase::Preround => {
                 let action = if self.AIType(0) == 1 {
                     SelectQAISetSwingAction(&self.m_game)
                 } else if self.m_execution_mode == ExecutionMode::Native {
@@ -195,7 +195,7 @@ impl BMC_Parser {
                 writeln!(output, "action").map_err(io_error)?;
                 SendSetSwing(&self.m_game, &action, output)
             }
-            BME_PHASE::CHANCE => {
+            Phase::Chance => {
                 if self.AIType(0) == 1 {
                     self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;
@@ -231,7 +231,7 @@ impl BMC_Parser {
                     Ok(())
                 }
             }
-            BME_PHASE::FOCUS => {
+            Phase::Focus => {
                 if self.AIType(0) == 1 {
                     self.m_last_action = Some(crate::protocol::ProtocolAction::Pass);
                     self.SendStats(output)?;

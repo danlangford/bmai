@@ -14,8 +14,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Implement the ButtonWeavers Boom (`b`) attack and Mad (`&`) swing dice.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
+
+## [0.17.0] - 2026-10-03
+
+### Added
+
+- Boom (`b`): the Boom die leaves play unscored and rerolls one target, which
+  stays in play. Boom may target Stealth dice. A Jolt Boom die grants an
+  extra turn; Time and Space and Radioactive never trigger, and a Null or
+  Value Boom die converts nothing.
+- Mad (`&`) swing dice: like Mood, but every reroll picks an even size in the
+  swing range. Radioactive decay removes Mad.
+- Advertised the `boom` attack type and the `b` and `&` tokens in capabilities.
+
+### Changed
+
+- Rust types now use Rust naming (`Game`, `Move`, `Phase`, `Attack`, and
+  so on) instead of the C++ `BMC_`, `BME_`, and `BMD_` prefixes.
+
+### Fixed
+
+- Checked against the running ButtonWeavers engine:
+  - Mood dice resize only to standard die sizes in their swing range.
+  - A Mood Twin die picks one size for both halves.
+  - Konstant Mood dice keep their size and value.
+  - Mood dice also resize when tripped and on Chance rerolls.
+  - Konstant Mighty and Weak dice keep their size on every reroll,
+    including Ornery, Trip-target, and Chance rerolls. Doppelganger copies
+    still resize.
+  - Warrior dice ignore Ornery rerolls.
 
 ## [0.16.0] - 2026-10-02
 
@@ -442,7 +470,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...HEAD
+[0.17.0]: https://github.com/danlangford/bmai/compare/bmair-v0.16.0...bmair-v0.17.0
 [0.16.0]: https://github.com/danlangford/bmai/compare/bmair-v0.15.0...bmair-v0.16.0
 [0.15.0]: https://github.com/danlangford/bmai/compare/bmair-v0.14.0...bmair-v0.15.0
 [0.14.0]: https://github.com/danlangford/bmai/compare/bmair-v0.13.0...bmair-v0.14.0

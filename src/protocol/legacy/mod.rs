@@ -5,12 +5,9 @@
 use std::fmt;
 use std::io::{BufRead, Write};
 
-use crate::game::{
-    BMC_Die, BMC_DieIndexSet, BMC_Game, BMC_Move, BMD_MAX_DICE, BME_ACTION, BME_PHASE,
-    BME_SWING_SET, property,
-};
+use crate::game::{Action, Die, DieIndexSet, Game, MAX_DICE, Move, Phase, SwingSet, property};
 use crate::search::{
-    BMC_AI_POLICY, EvaluateSelectedNativeBMAIMove, PlayFairGames, PlayFairGamesNative,
+    AiPolicy, EvaluateSelectedNativeBMAIMove, PlayFairGames, PlayFairGamesNative,
     PlayGamesWithPolicies, PlayGamesWithPoliciesNative, SelectBMAIActionWithStats,
     SelectBMAIAuxiliaryAction, SelectBMAIChanceAction, SelectBMAIFocusAction,
     SelectBMAIReserveAction, SelectBMAISetSwingAction, SelectNativeBMAIActionWithStats,
@@ -18,7 +15,7 @@ use crate::search::{
     SelectNativeBMAIReserveAction, SelectNativeBMAISetSwingAction, SelectQAIAction,
     SelectQAIAuxiliaryAction, SelectQAIReserveAction, SelectQAISetSwingAction, SwingMove,
 };
-use crate::{BMC_BMAI3, BMC_RNG, BME_RNG_ALGORITHM, BME_ROLLOUT_POLICY, ExecutionMode};
+use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm, RolloutPolicy};
 
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
@@ -33,25 +30,24 @@ impl std::error::Error for ParseError {}
 /// C++ players share AI objects by pointer, so a per-player setting reaches
 /// every player using the same object.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(clippy::upper_case_acronyms)]
-enum BMC_AI_SLOT {
-    UNBOUND,
-    GLOBAL,
-    TYPE(usize),
+enum AiSlot {
+    Unbound,
+    Global,
+    Type(usize),
 }
 
 #[derive(Clone, Debug)]
-pub struct BMC_Parser {
-    pub m_game: BMC_Game,
+pub struct Parser {
+    pub m_game: Game,
     m_report_sims: usize,
     m_execution_mode: ExecutionMode,
     m_native_root_seed: u64,
     m_native_decision_index: u64,
     m_native_workers: usize,
-    m_rng: BMC_RNG,
-    m_ai: BMC_BMAI3,
-    m_type_ai: [BMC_BMAI3; 3],
-    m_player_ai: [BMC_AI_SLOT; 2],
+    m_rng: Rng,
+    m_ai: Bmai3,
+    m_type_ai: [Bmai3; 3],
+    m_player_ai: [AiSlot; 2],
     m_debug_ply: usize,
     m_logging: [bool; 8],
     m_last_action: Option<crate::protocol::ProtocolAction>,
@@ -59,22 +55,22 @@ pub struct BMC_Parser {
     m_last_evaluation: Option<crate::protocol::ProbabilityEstimate>,
 }
 
-impl Default for BMC_Parser {
+impl Default for Parser {
     fn default() -> Self {
         Self {
-            m_game: BMC_Game::default(),
+            m_game: Game::default(),
             m_report_sims: 0,
             m_execution_mode: ExecutionMode::default(),
             m_native_root_seed: 78_904_497,
             m_native_decision_index: 0,
             m_native_workers: 1,
-            m_rng: BMC_RNG::default(),
-            m_ai: BMC_BMAI3::default(),
-            m_type_ai: std::array::from_fn(|ai_type| BMC_BMAI3 {
+            m_rng: Rng::default(),
+            m_ai: Bmai3::default(),
+            m_type_ai: std::array::from_fn(|ai_type| Bmai3 {
                 m_cull_moves: ai_type == 2,
                 ..Default::default()
             }),
-            m_player_ai: [BMC_AI_SLOT::UNBOUND; 2],
+            m_player_ai: [AiSlot::Unbound; 2],
             m_debug_ply: 0,
             m_logging: [true; 8],
             m_last_action: None,
@@ -84,12 +80,12 @@ impl Default for BMC_Parser {
     }
 }
 
-impl BMC_Parser {
+impl Parser {
     pub const fn execution_mode(&self) -> ExecutionMode {
         self.m_execution_mode
     }
 
-    pub const fn rng_algorithm(&self) -> BME_RNG_ALGORITHM {
+    pub const fn rng_algorithm(&self) -> RngAlgorithm {
         self.m_rng.Algorithm()
     }
 

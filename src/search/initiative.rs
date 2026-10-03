@@ -4,14 +4,14 @@
 
 use super::*;
 
-pub(super) fn HasAvailableProperty(player: &crate::game::BMC_Player, property: u64) -> bool {
+pub(super) fn HasAvailableProperty(player: &crate::game::Player, property: u64) -> bool {
     player
         .m_die
         .iter()
         .any(|die| die.IsAvailable() && die.HasProperty(property))
 }
 
-pub(super) fn GenerateChanceMoves(game: &BMC_Game, player: usize) -> Vec<ChanceMove> {
+pub(super) fn GenerateChanceMoves(game: &Game, player: usize) -> Vec<ChanceMove> {
     let dice = game.m_player[player]
         .m_die
         .iter()
@@ -35,11 +35,11 @@ pub(super) fn GenerateChanceMoves(game: &BMC_Game, player: usize) -> Vec<ChanceM
 }
 
 pub(super) fn ApplyChanceMove(
-    game: &mut BMC_Game,
+    game: &mut Game,
     player: usize,
     previous_initiative: usize,
     action: &ChanceMove,
-    rng: &mut BMC_RNG,
+    rng: &mut Rng,
 ) -> (usize, bool) {
     if action.reroll.is_empty() {
         return (previous_initiative, false);
@@ -63,10 +63,10 @@ pub(super) fn ApplyChanceMove(
 }
 
 pub(super) fn SelectChanceAction(
-    game: &BMC_Game,
+    game: &Game,
     player: usize,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    rng: &mut Rng,
+    ai: &Bmai3,
     level: usize,
     initiative: usize,
     native: Option<NativeEvaluation>,
@@ -197,12 +197,12 @@ pub(super) fn SelectChanceAction(
 }
 
 pub(super) fn EvaluateChanceSimulation(
-    simulation: &mut BMC_Game,
+    simulation: &mut Game,
     player: usize,
     initiative: usize,
     action: &ChanceMove,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    rng: &mut Rng,
+    ai: &Bmai3,
     level: usize,
 ) -> f32 {
     let (next_initiative, chance_continues) =
@@ -226,22 +226,18 @@ pub(super) fn EvaluateChanceSimulation(
     }
 }
 
-pub(crate) fn SelectBMAIChanceAction(
-    game: &BMC_Game,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
-) -> ChanceMove {
+pub(crate) fn SelectBMAIChanceAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> ChanceMove {
     SelectChanceAction(game, 0, rng, ai, 1, 1, None).0
 }
 
 pub(crate) fn SelectNativeBMAIChanceAction(
-    game: &BMC_Game,
-    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    game: &Game,
+    rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
-    ai: &BMC_BMAI3,
+    ai: &Bmai3,
 ) -> ChanceMove {
-    let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
+    let mut unused_legacy_rng = Rng::UntracedDefault();
     SelectChanceAction(
         game,
         0,
@@ -258,7 +254,7 @@ pub(crate) fn SelectNativeBMAIChanceAction(
     .0
 }
 
-pub(super) fn GenerateFocusMoves(game: &BMC_Game, player: usize) -> Vec<FocusMove> {
+pub(super) fn GenerateFocusMoves(game: &Game, player: usize) -> Vec<FocusMove> {
     let focus = game.m_player[player]
         .m_die
         .iter()
@@ -301,7 +297,7 @@ pub(super) fn GenerateFocusMoves(game: &BMC_Game, player: usize) -> Vec<FocusMov
     moves
 }
 
-pub(super) fn ApplyFocusMove(game: &mut BMC_Game, player: usize, action: &FocusMove) {
+pub(super) fn ApplyFocusMove(game: &mut Game, player: usize, action: &FocusMove) {
     for (index, value) in &action.values {
         let die = &mut game.m_player[player].m_die[*index];
         die.m_value_total = Some(*value);
@@ -311,10 +307,10 @@ pub(super) fn ApplyFocusMove(game: &mut BMC_Game, player: usize, action: &FocusM
 }
 
 pub(super) fn SelectFocusAction(
-    game: &BMC_Game,
+    game: &Game,
     player: usize,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    rng: &mut Rng,
+    ai: &Bmai3,
     level: usize,
     initiative: usize,
     native: Option<NativeEvaluation>,
@@ -462,12 +458,12 @@ pub(super) fn SelectFocusAction(
 }
 
 pub(super) fn EvaluateFocusSimulation(
-    simulation: &mut BMC_Game,
+    simulation: &mut Game,
     player: usize,
     initiative: usize,
     action: &FocusMove,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    rng: &mut Rng,
+    ai: &Bmai3,
     level: usize,
 ) -> f32 {
     let phase = if action.values.is_empty() {
@@ -495,22 +491,18 @@ pub(super) fn EvaluateFocusSimulation(
     }
 }
 
-pub(crate) fn SelectBMAIFocusAction(
-    game: &BMC_Game,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
-) -> FocusMove {
+pub(crate) fn SelectBMAIFocusAction(game: &Game, rng: &mut Rng, ai: &Bmai3) -> FocusMove {
     SelectFocusAction(game, 0, rng, ai, 1, 1, None).0
 }
 
 pub(crate) fn SelectNativeBMAIFocusAction(
-    game: &BMC_Game,
-    rng_algorithm: crate::BME_RNG_ALGORITHM,
+    game: &Game,
+    rng_algorithm: crate::RngAlgorithm,
     replay: crate::native::NativeReplayKey,
     workers: usize,
-    ai: &BMC_BMAI3,
+    ai: &Bmai3,
 ) -> FocusMove {
-    let mut unused_legacy_rng = BMC_RNG::UntracedDefault();
+    let mut unused_legacy_rng = Rng::UntracedDefault();
     SelectFocusAction(
         game,
         0,
@@ -528,9 +520,9 @@ pub(crate) fn SelectNativeBMAIFocusAction(
 }
 
 pub(super) fn EvaluateNextInitiativeAction(
-    game: &mut BMC_Game,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    game: &mut Game,
+    rng: &mut Rng,
+    ai: &Bmai3,
     level: usize,
     initiative: usize,
     pov: usize,
@@ -575,9 +567,9 @@ pub(super) fn EvaluateNextInitiativeAction(
 
 // As in C++, BMAI plays until max ply and QAI finishes the round.
 pub(super) fn PlaySimulatedRound(
-    game: &mut BMC_Game,
-    rng: &mut BMC_RNG,
-    ai: &BMC_BMAI3,
+    game: &mut Game,
+    rng: &mut Rng,
+    ai: &Bmai3,
     mut level: usize,
     pov: usize,
 ) -> f32 {
@@ -639,11 +631,11 @@ pub(super) fn PlaySimulatedRound(
             }
             action
         };
-        if action.m_action == BME_ACTION::SURRENDER {
+        if action.m_action == Action::Surrender {
             game.m_player[phase].m_score = -1000.0;
             break;
         }
-        if action.m_action != BME_ACTION::ATTACK {
+        if action.m_action != Action::Attack {
             if passed {
                 break;
             }
@@ -656,7 +648,7 @@ pub(super) fn PlaySimulatedRound(
                 continue;
             }
         }
-        if action.m_action != BME_ACTION::ATTACK {
+        if action.m_action != Action::Attack {
             RecoverDizzyDice(&mut game.m_player[phase]);
         }
         phase = 1 - phase;
@@ -671,24 +663,19 @@ pub(super) fn PlaySimulatedRound(
     }
 }
 
-pub(super) fn PlayRoundQAI(
-    game: &mut BMC_Game,
-    rng: &mut BMC_RNG,
-    pov: usize,
-    ai: &BMC_BMAI3,
-) -> f32 {
+pub(super) fn PlayRoundQAI(game: &mut Game, rng: &mut Rng, pov: usize, ai: &Bmai3) -> f32 {
     RollRoundDice(game, rng);
     let phase = InitiativeWinner(game);
     PlayFightQAIFromPhase(game, rng, phase, pov, false, ai)
 }
 
 pub(super) fn PlayFightQAIFromPhase(
-    game: &mut BMC_Game,
-    rng: &mut BMC_RNG,
+    game: &mut Game,
+    rng: &mut Rng,
     mut phase: usize,
     pov: usize,
     mut passed: bool,
-    ai: &BMC_BMAI3,
+    ai: &Bmai3,
 ) -> f32 {
     let mut oriented = game.clone();
     for _ in 0..256 {
@@ -700,7 +687,7 @@ pub(super) fn PlayFightQAIFromPhase(
             oriented.m_player.swap(0, 1);
         }
         let action = SelectRolloutAction(&oriented, rng, ai);
-        if action.m_action != BME_ACTION::ATTACK {
+        if action.m_action != Action::Attack {
             if passed {
                 break;
             }
@@ -713,7 +700,7 @@ pub(super) fn PlayFightQAIFromPhase(
                 continue;
             }
         }
-        if action.m_action != BME_ACTION::ATTACK {
+        if action.m_action != Action::Attack {
             RecoverDizzyDice(&mut game.m_player[phase]);
         }
         phase = 1 - phase;

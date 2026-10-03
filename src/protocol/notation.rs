@@ -105,6 +105,7 @@ pub(crate) const DIE_PROPERTY_PREFIXES: &[DiePropertyNotation] = &[
     die_property!('%', "radioactive", "Radioactive", Implemented, RADIOACTIVE),
     die_property!('G', "rage", "Rage", Implemented, RAGE),
     die_property!('#', "rush", "Rush", Implemented, RUSH),
+    die_property!('b', "boom", "Boom", Implemented, BOOM),
 ];
 
 const DIE_POSTFIX_PROPERTIES: &[DiePostfixNotation] = &[
@@ -117,6 +118,11 @@ const DIE_POSTFIX_PROPERTIES: &[DiePostfixNotation] = &[
         token: '?',
         id: "mood",
         name: "Mood",
+    },
+    DiePostfixNotation {
+        token: '&',
+        id: "mad",
+        name: "Mad",
     },
 ];
 

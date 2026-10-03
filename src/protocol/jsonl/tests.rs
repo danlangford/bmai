@@ -111,7 +111,7 @@ fn typed_actions_share_the_exact_legacy_execution_path() {
     ];
 
     for (id, script, action_type) in cases {
-        let mut legacy_parser = BMC_Parser::default();
+        let mut legacy_parser = Parser::default();
         let mut legacy_output = Vec::new();
         legacy_parser
             .ParseString(script, &mut legacy_output)

@@ -3,57 +3,58 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BME_PHASE {
-    AUXILIARY,
-    PREROUND,
-    RESERVE,
-    INITIATIVE,
-    CHANCE,
-    FOCUS,
-    FIGHT,
-    GAMEOVER,
+pub enum Phase {
+    Auxiliary,
+    Preround,
+    Reserve,
+    Initiative,
+    Chance,
+    Focus,
+    Fight,
+    Gameover,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BME_ACTION {
-    USE_AUXILIARY,
-    SET_SWING_AND_OPTION,
-    USE_RESERVE,
-    ATTACK,
-    PASS,
-    SURRENDER,
+pub enum Action {
+    UseAuxiliary,
+    SetSwingAndOption,
+    UseReserve,
+    Attack,
+    Pass,
+    Surrender,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-#[allow(clippy::upper_case_acronyms)]
-pub enum BME_SWING_SET {
+pub enum SwingSet {
     #[default]
-    NOT,
-    READY,
-    LOCKED,
+    Not,
+    Ready,
+    Locked,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum BME_ATTACK {
-    POWER,
-    SKILL,
-    BERSERK,
-    SPEED,
-    TRIP,
-    SHADOW,
-    RUSH,
+pub enum Attack {
+    Power,
+    Skill,
+    Berserk,
+    Speed,
+    Trip,
+    Shadow,
+    Rush,
+    Boom,
 }
 
-impl BME_ATTACK {
+impl Attack {
     pub fn protocol(self) -> &'static str {
         match self {
-            Self::POWER => "power",
-            Self::SKILL => "skill",
-            Self::BERSERK => "berserk",
-            Self::SPEED => "speed",
-            Self::TRIP => "trip",
-            Self::SHADOW => "shadow",
-            Self::RUSH => "rush",
+            Self::Power => "power",
+            Self::Skill => "skill",
+            Self::Berserk => "berserk",
+            Self::Speed => "speed",
+            Self::Trip => "trip",
+            Self::Shadow => "shadow",
+            Self::Rush => "rush",
+            Self::Boom => "boom",
         }
     }
 }

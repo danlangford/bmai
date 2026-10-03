@@ -6,8 +6,8 @@
 
 use super::*;
 
-fn parsed(input: &str) -> crate::BMC_Parser {
-    let mut parser = crate::BMC_Parser::default();
+fn parsed(input: &str) -> crate::Parser {
+    let mut parser = crate::Parser::default();
     parser.ParseString(input, &mut Vec::new()).unwrap();
     parser
 }
@@ -17,7 +17,7 @@ const GAME: &str = "game\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n6:6\n";
 #[test]
 fn special_command_sets_and_reports_each_players_specials() {
     let mut output = Vec::new();
-    let mut parser = crate::BMC_Parser::default();
+    let mut parser = crate::Parser::default();
     parser
         .ParseString(
             &format!("{GAME}special 1 no_skill_attacks skill_immune\n"),
@@ -44,13 +44,13 @@ fn each_game_block_clears_specials() {
 
 #[test]
 fn unknown_specials_and_players_are_rejected() {
-    let error = crate::BMC_Parser::default()
+    let error = crate::Parser::default()
         .ParseString(&format!("{GAME}special 0 flying\n"), &mut Vec::new())
         .unwrap_err()
         .to_string();
     assert!(error.contains("unknown button special: flying"), "{error}");
     assert!(
-        crate::BMC_Parser::default()
+        crate::Parser::default()
             .ParseString(&format!("{GAME}special 2 no_initiative\n"), &mut Vec::new())
             .is_err()
     );
@@ -61,7 +61,7 @@ fn largo_cannot_skill_attack() {
     scenario()
         .attackers(["6:3", "6:4"])
         .attacker_special("no_skill_attacks")
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0, 1])
         .defender("8:7")
         .expect_allowed(false)
@@ -73,7 +73,7 @@ fn largo_may_still_power_attack() {
     scenario()
         .attacker("6:4")
         .attacker_special("no_skill_attacks")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("8:4")
         .expect_allowed(true)
         .run();
@@ -83,7 +83,7 @@ fn largo_may_still_power_attack() {
 fn japanese_beetle_cannot_be_skill_attacked() {
     scenario()
         .attackers(["6:3", "6:4"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0, 1])
         .defender("8:7")
         .defender_special("skill_immune")
@@ -95,7 +95,7 @@ fn japanese_beetle_cannot_be_skill_attacked() {
 fn japanese_beetle_may_still_be_power_attacked() {
     scenario()
         .attacker("6:4")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("8:4")
         .defender_special("skill_immune")
         .expect_allowed(true)
@@ -107,7 +107,7 @@ fn largo_search_reports_a_power_attack_over_the_wire() {
     test_support::parser_scenario(
         "game 3\nfight\nplayer 0 2 0\n6:3\n6:4\nplayer 1 2 0\n8:7\n8:4\nspecial 0 no_skill_attacks\nply 1\nmax_sims 5\nmin_sims 5\nsurrender off\ngetaction\n",
     )
-    .expect_attack(POWER)
+    .expect_attack(Power)
     .using([1])
     .targeting([1])
     .run();
@@ -183,7 +183,7 @@ fn unique_sizes_compares_option_dice_at_their_chosen_side() {
     assert!(chose(8, true) && chose(10, false));
 }
 
-fn gordo_auxiliary(player_0: &str, player_1: &str, gordo: usize) -> BMC_Game {
+fn gordo_auxiliary(player_0: &str, player_1: &str, gordo: usize) -> Game {
     parsed(&format!(
         "game 3\naux\nplayer 0 2 0\nV\n{player_0}\nplayer 1 2 0\n8\n{player_1}\nspecial {gordo} unique_sizes\nquit\n"
     ))
@@ -225,14 +225,14 @@ fn either_players_gordo_decline_removes_both_auxiliary_dice() {
 fn single_trip_dice_may_trip_twin_dice_they_can_reach() {
     scenario()
         .attacker("t4:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("(3,3):4")
         .expect_allowed(true)
         .run();
 
     scenario()
         .attacker("t1:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("(3,3):4")
         .expect_allowed(false)
         .run();
@@ -243,7 +243,7 @@ fn trip_must_reach_a_konstant_targets_value() {
     for (target, allowed) in [("k6:5", false), ("k6:4", true)] {
         scenario()
             .attacker("t4:1")
-            .attacks(TRIP)
+            .attacks(Trip)
             .defender(target)
             .expect_allowed(allowed)
             .run();
@@ -255,7 +255,7 @@ fn trip_must_reach_a_maximum_targets_size() {
     for (target, allowed) in [("M6:2", false), ("M4:2", true)] {
         scenario()
             .attacker("t4:1")
-            .attacks(TRIP)
+            .attacks(Trip)
             .defender(target)
             .expect_allowed(allowed)
             .run();
@@ -267,7 +267,7 @@ fn konstant_trip_dice_reach_only_their_value() {
     for (attacker, allowed) in [("tk4:1", false), ("tk4:2", true)] {
         scenario()
             .attacker(attacker)
-            .attacks(TRIP)
+            .attacks(Trip)
             .defender("(3,3):4")
             .expect_allowed(allowed)
             .run();
@@ -279,7 +279,7 @@ fn weak_trip_dice_reach_less_far() {
     for (attacker, allowed) in [("th4:1", true), ("th2:1", false)] {
         scenario()
             .attacker(attacker)
-            .attacks(TRIP)
+            .attacks(Trip)
             .defender("(3,3):4")
             .expect_allowed(allowed)
             .run();
@@ -290,7 +290,7 @@ fn weak_trip_dice_reach_less_far() {
 fn mood_trip_dice_reach_their_largest_swing_size() {
     scenario()
         .attacker("tX?-4:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("k15:15")
         .expect_allowed(true)
         .run();
@@ -301,7 +301,7 @@ fn mood_twin_trip_dice_reach_one_subdies_swing_size() {
     // ButtonWeavers reads a Twin's swing range from a single subdie.
     scenario()
         .attacker("t(X,X)?-15:2")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("k25:25")
         .expect_allowed(false)
         .run();
@@ -311,7 +311,7 @@ fn mood_twin_trip_dice_reach_one_subdies_swing_size() {
 fn a_mood_maximum_target_counts_at_its_smallest_swing_size() {
     scenario()
         .attacker("t4:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("MX?-20:20")
         .expect_allowed(true)
         .run();
@@ -321,7 +321,7 @@ fn a_mood_maximum_target_counts_at_its_smallest_swing_size() {
 fn mighty_trip_dice_reach_further() {
     scenario()
         .attacker("Ht1:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("(3,3):4")
         .expect_allowed(true)
         .run();
@@ -330,7 +330,7 @@ fn mighty_trip_dice_reach_further() {
 fn trip_turbo_choices(attacker: &str, target: &str) -> Vec<i16> {
     attacks_by(&[attacker], &[target])
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(TRIP))
+        .filter(|candidate| candidate.m_attack == Some(Trip))
         .map(|candidate| candidate.m_turbo_option)
         .collect()
 }
@@ -359,7 +359,7 @@ fn option_turbo_trip_offers_only_the_side_that_reaches_the_target() {
 fn single_target_berserk_attack_morphs() {
     scenario()
         .attacker("mB12:6")
-        .attacks(BERSERK)
+        .attacks(Berserk)
         .defender("20:6")
         .expect_attacker_dice(["m20:1"])
         .run();
@@ -369,7 +369,7 @@ fn single_target_berserk_attack_morphs() {
 fn single_target_speed_attack_morphs() {
     scenario()
         .attacker("mz12:6")
-        .attacks(SPEED)
+        .attacks(Speed)
         .defender("20:6")
         .expect_attacker_dice(["zm20:1"])
         .run();
@@ -379,7 +379,7 @@ fn single_target_speed_attack_morphs() {
 fn failed_trip_does_not_morph() {
     scenario()
         .attacker("tm4:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("20:20")
         .expect_defender_dice(["20:13"])
         .expect_attacker_dice(["tm4:1"])
@@ -388,7 +388,7 @@ fn failed_trip_does_not_morph() {
 
 /// In attack order: Trip roll, target reroll, morphed reroll.
 fn trip_morph_draws(seed: u32, attacker_sides: u32, target_sides: u32) -> [u32; 3] {
-    let mut rng = BMC_RNG::default();
+    let mut rng = Rng::default();
     rng.SRand(seed);
     let trip = rng.GetRandMax(attacker_sides) + 1;
     let target = rng.GetRandMax(target_sides) + 1;
@@ -410,7 +410,7 @@ fn successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls() {
     let [_, _, morphed] = trip_morph_draws(seed, 20, 2);
     scenario()
         .attacker("tm20:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("2:1")
         .seed(seed)
         .expect_no_defender_dice()
@@ -428,7 +428,7 @@ fn time_and_space_counts_the_reroll_after_a_trip_morph() {
         .expect("an even Trip roll with an odd morphed reroll");
     scenario()
         .attacker("^tm20:1")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("3:1")
         .seed(seed)
         .expect_no_defender_dice()
@@ -440,7 +440,7 @@ fn time_and_space_counts_the_reroll_after_a_trip_morph() {
 fn radioactive_trip_target_decays_the_attacker_after_it_morphs() {
     scenario()
         .attacker("tm20:20")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("%4:1")
         .expect_no_defender_dice()
         .expect_attacker_dice(["tm2:2", "tm2:1"])
@@ -454,7 +454,7 @@ fn infinite_turbo_accuracy_offers_every_size_instead_of_hanging() {
     let sizes = game
         .GenerateValidAttacksInCppOrder()
         .into_iter()
-        .filter(|candidate| candidate.m_attack == Some(TRIP))
+        .filter(|candidate| candidate.m_attack == Some(Trip))
         .count();
     assert_eq!(sizes, 17);
 }

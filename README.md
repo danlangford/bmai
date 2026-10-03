@@ -144,10 +144,10 @@ player using the same AI, and the global `stats` line reports the global AI.
 ### Skills
 
 BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
-the C++ engine predates or only parses: Auxiliary, Doppelganger, Fire, Jolt,
-Radioactive, Rage, and Rush. No advertised die skill is parsing-only; known
+the C++ engine predates or only parses: Auxiliary, Boom, Doppelganger, Fire,
+Jolt, Mad, Radioactive, Rage, and Rush. No advertised die skill is parsing-only; known
 gaps are listed under Planned in the CHANGELOG. Clients should discover the
-exact die tokens, skills, and attack types (including `rush`) through
+exact die tokens, skills, and attack types (including `rush` and `boom`) through
 capabilities rather than hard-coding them.
 
 Some buttons carry a button special, a rule for the whole button. The wire

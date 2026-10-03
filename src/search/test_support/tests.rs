@@ -2,13 +2,13 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::*;
-use crate::BME_ATTACK::{BERSERK, POWER, SHADOW, SKILL, SPEED, TRIP};
-use crate::BME_PHASE::FIGHT;
+use crate::Attack::{Berserk, Power, Shadow, Skill, Speed, Trip};
+use crate::Phase::Fight;
 
 #[test]
 fn forced_win_is_reported_as_certain_in_legacy_and_native_search() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 30.0, ["4:4", "p(6,6):11"])
         .player(1, 40.0, ["(2,2):3", "(T,T)-2:2"])
@@ -18,7 +18,7 @@ fn forced_win_is_reported_as_certain_in_legacy_and_native_search() {
         .surrender(false)
         .modes([LEGACY, legacy_with_workers(4), NATIVE, native(4)])
         .expect_player_win_percent(0, 100.0..=100.0)
-        .expect_attack(crate::BME_ATTACK::POWER)
+        .expect_attack(crate::Attack::Power)
         .using([1])
         .targeting([1])
         .run();
@@ -27,7 +27,7 @@ fn forced_win_is_reported_as_certain_in_legacy_and_native_search() {
 #[test]
 fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 2.0, ["p20:14"])
         .player(1, 47.0, ["q6:5", "q20:4"])
@@ -37,7 +37,7 @@ fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
         .surrender(false)
         .modes([LEGACY, NATIVE, native(4)])
         .expect_player_win_percent(0, 10.0..=10.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([1])
         .run();
@@ -46,7 +46,7 @@ fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
 #[test]
 fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 29.0, ["10:9"])
         .player(1, 27.0, ["6:6", "X-6:6"])
@@ -56,13 +56,13 @@ fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
         .surrender(false)
         .modes([LEGACY])
         .expect_player_win_percent(0, 47.0..=47.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([0])
         .run();
 
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 29.0, ["10:9"])
         .player(1, 27.0, ["6:6", "X-6:6"])
@@ -72,7 +72,7 @@ fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
         .surrender(false)
         .modes([NATIVE, native(4)])
         .expect_player_win_percent(0, 40.0..=40.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([1])
         .run();
@@ -81,7 +81,7 @@ fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
 #[test]
 fn twin_d6_endgame_uses_the_full_two_die_distribution() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 48.0, ["8:8", "(6,6):9"])
         .player(1, 66.0, ["q6:6", "q6:6"])
@@ -91,13 +91,13 @@ fn twin_d6_endgame_uses_the_full_two_die_distribution() {
         .surrender(false)
         .modes([NATIVE, native(4)])
         .expect_player_win_percent(0, 29.2..=29.2)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([1])
         .targeting([1])
         .run();
 
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .target_wins(3)
         .player(0, 48.0, ["8:8", "(6,6):9"])
         .player(1, 66.0, ["q6:6", "q6:6"])
@@ -107,7 +107,7 @@ fn twin_d6_endgame_uses_the_full_two_die_distribution() {
         .surrender(false)
         .modes([NATIVE, native(4)])
         .expect_player_win_percent(0, 28.0..=31.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([1])
         .targeting([0])
         .run();
@@ -120,17 +120,17 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
             &["p20:14".to_owned()],
             &["q6:5".to_owned(), "q20:4".to_owned()],
         );
-        game.m_phase = FIGHT;
+        game.m_phase = Fight;
         game.m_player[0].m_score = 2.0;
         game.m_player[1].m_score = 47.0;
         let attacker = resolve_original_indices("attacker", &game.m_player[0].m_die, &[0]);
         let target = resolve_original_indices("target", &game.m_player[1].m_die, &[1]);
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(seed_for_first_roll(poison_roll, 20));
 
         ApplyAttack(
             &mut game,
-            &BMC_Move::attack(POWER, attacker, target, 0.0),
+            &Move::attack(Power, attacker, target, 0.0),
             &mut rng,
         );
         assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), poison_roll);
@@ -144,7 +144,7 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
             .GenerateValidAttacksInCppOrder()
             .into_iter()
             .find(|candidate| {
-                candidate.m_attack == Some(SHADOW)
+                candidate.m_attack == Some(Shadow)
                     && candidate
                         .m_attackers
                         .iter()
@@ -174,7 +174,7 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
 fn seed_for_first_roll(value: u16, sides: u32) -> u32 {
     (1..=u32::MAX)
         .find(|seed| {
-            let mut rng = BMC_RNG::default();
+            let mut rng = Rng::default();
             rng.SRand(*seed);
             rng.GetRandMax(sides) + 1 == u32::from(value)
         })
@@ -184,9 +184,9 @@ fn seed_for_first_roll(value: u16, sides: u32) -> u32 {
 #[test]
 fn scenario_uses_production_legality_and_null_scoring() {
     scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .attackers(["n30:27"])
-        .attacks(POWER)
+        .attacks(Power)
         .defenders(["20:19"])
         .using([0])
         .targeting([0])
@@ -202,7 +202,7 @@ fn scenario_uses_production_legality_and_null_scoring() {
 fn scenario_can_assert_extra_turns_and_next_round_state() {
     scenario()
         .attacker("JM6:6")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .expect_extra_turn(true)
         .expect_attacker_dice(["M6:6"])
@@ -214,7 +214,7 @@ fn scenario_can_assert_extra_turns_and_next_round_state() {
 fn illegal_scenario_requires_an_explicit_expectation() {
     scenario()
         .attacker("6:1")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("20:20")
         .expect_allowed(false)
         .run();
@@ -225,7 +225,7 @@ fn scenario_failures_show_expected_and_actual_die_recipes() {
     let failure = std::panic::catch_unwind(|| {
         scenario()
             .attacker("M6:6")
-            .attacks(POWER)
+            .attacks(Power)
             .defender("1:1")
             .expect_attacker_dice(["M8:8"])
             .run();
@@ -255,7 +255,7 @@ fn scenario_indices_follow_recipe_order_after_production_optimization() {
 fn scenario_selects_a_specific_turbo_branch() {
     scenario()
         .attacker("M6/10!-10:10")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .turbo(1)
         .expect_attacker_dice(["M6/10!:6"])
@@ -266,7 +266,7 @@ fn scenario_selects_a_specific_turbo_branch() {
 fn fire_dice_cannot_power_attack() {
     scenario()
         .attacker("F6:6")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("1:1")
         .expect_allowed(false)
         .run();
@@ -276,7 +276,7 @@ fn fire_dice_cannot_power_attack() {
 fn fire_assists_a_power_attack_and_stays_turned_down() {
     scenario()
         .attackers(["6:2", "F6:4"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .targeting([0])
@@ -289,7 +289,7 @@ fn fire_assists_a_power_attack_and_stays_turned_down() {
 #[test]
 fn fire_search_reports_the_required_turndown_in_legacy_and_json_actions() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .player(0, 6.0, ["6:2", "F6:4"])
         .player(1, 3.0, ["6:5"])
         .ply(1)
@@ -297,7 +297,7 @@ fn fire_search_reports_the_required_turndown_in_legacy_and_json_actions() {
         .max_branch(100)
         .surrender(false)
         .modes([LEGACY, NATIVE, native(4)])
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([0])
         .firing([(1, 1)])
@@ -307,7 +307,7 @@ fn fire_search_reports_the_required_turndown_in_legacy_and_json_actions() {
 #[test]
 fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .player(0, 15.0, ["~10:1", "F20:20"])
         .player(1, 10.5, ["1:1", "s20:15"])
         .ply(2)
@@ -317,13 +317,13 @@ fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
         .fire_overshooting(false)
         .modes([NATIVE, native(4)])
         .expect_player_win_percent(0, 25.0..=40.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([0])
         .run();
 
     search_scenario()
-        .phase(FIGHT)
+        .phase(Fight)
         .player(0, 15.0, ["~10:1", "F20:20"])
         .player(1, 10.5, ["1:1", "s20:15"])
         .ply(2)
@@ -333,7 +333,7 @@ fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
         .fire_overshooting(true)
         .modes([NATIVE, native(4)])
         .expect_player_win_percent(0, 100.0..=100.0)
-        .expect_attack(POWER)
+        .expect_attack(Power)
         .using([0])
         .targeting([0])
         .firing([(1, 14)])
@@ -344,7 +344,7 @@ fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
 fn fire_assists_a_skill_attack() {
     scenario()
         .attackers(["4:1", "4:1", "F6:4"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0, 1])
         .defender("8:5")
         .boosting([(0, 4)])
@@ -357,7 +357,7 @@ fn fire_assists_a_skill_attack() {
 fn fire_cannot_raise_an_attacker_past_its_maximum() {
     scenario()
         .attackers(["4:4", "F6:6"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .expect_allowed(false)
@@ -368,7 +368,7 @@ fn fire_cannot_raise_an_attacker_past_its_maximum() {
 fn fire_at_its_minimum_cannot_assist() {
     scenario()
         .attackers(["6:2", "F6:1"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:3")
         .expect_allowed(false)
@@ -379,7 +379,7 @@ fn fire_at_its_minimum_cannot_assist() {
 fn fire_overshooting_requires_an_explicit_player_preference() {
     scenario()
         .attackers(["6:2", "F6:5"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("1:1")
         .boosting([(0, 3)])
@@ -392,7 +392,7 @@ fn fire_overshooting_requires_an_explicit_player_preference() {
 fn fire_overshooting_is_available_when_the_player_enables_it() {
     scenario()
         .attackers(["6:2", "F6:5"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("1:1")
         .boosting([(0, 3)])
@@ -405,10 +405,10 @@ fn fire_overshooting_is_available_when_the_player_enables_it() {
 #[test]
 fn fire_does_not_assist_nonstandard_attack_types() {
     for (attack, attacker) in [
-        (BERSERK, "B6:2"),
-        (SPEED, "z6:2"),
-        (SHADOW, "s6:2"),
-        (TRIP, "t6:2"),
+        (Berserk, "B6:2"),
+        (Speed, "z6:2"),
+        (Shadow, "s6:2"),
+        (Trip, "t6:2"),
     ] {
         scenario()
             .attackers([attacker, "F6:2"])
@@ -427,14 +427,14 @@ fn fire_does_not_assist_nonstandard_attack_types() {
 fn a_fire_die_can_participate_in_a_skill_attack_but_cannot_assist_itself() {
     scenario()
         .attacker("F6:4")
-        .attacks(SKILL)
+        .attacks(Skill)
         .defender("6:4")
         .expect_allowed(true)
         .run();
 
     scenario()
         .attacker("F6:4")
-        .attacks(SKILL)
+        .attacks(Skill)
         .defender("6:5")
         .expect_allowed(false)
         .run();
@@ -444,7 +444,7 @@ fn a_fire_die_can_participate_in_a_skill_attack_but_cannot_assist_itself() {
 fn multiple_fire_dice_can_split_assistance() {
     scenario()
         .attackers(["6:2", "F6:3", "F8:5"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:6")
         .boosting([(0, 6)])
@@ -458,7 +458,7 @@ fn multiple_fire_dice_can_split_assistance() {
 fn mighty_fire_does_not_grow_when_it_only_assists() {
     scenario()
         .attackers(["6:2", "HF6:4"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .boosting([(0, 5)])
@@ -471,7 +471,7 @@ fn mighty_fire_does_not_grow_when_it_only_assists() {
 fn weak_fire_does_not_shrink_when_it_only_assists() {
     scenario()
         .attackers(["6:2", "hF6:4"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .boosting([(0, 5)])
@@ -484,7 +484,7 @@ fn weak_fire_does_not_shrink_when_it_only_assists() {
 fn rage_fire_keeps_rage_when_it_only_assists() {
     scenario()
         .attackers(["6:2", "GF6:4"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .boosting([(0, 5)])
@@ -498,7 +498,7 @@ fn assisting_jolt_and_time_and_space_dice_do_not_grant_an_extra_turn() {
     for helper in ["JF6:4", "^F6:4"] {
         scenario()
             .attackers(["6:2", helper])
-            .attacks(POWER)
+            .attacks(Power)
             .using([0])
             .defender("6:5")
             .boosting([(0, 5)])
@@ -512,7 +512,7 @@ fn assisting_jolt_and_time_and_space_dice_do_not_grant_an_extra_turn() {
 fn assisting_ornery_fire_die_still_rerolls_after_the_attack() {
     scenario()
         .attackers(["6:2", "oF6:4"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:5")
         .boosting([(0, 5)])
@@ -526,7 +526,7 @@ fn assisting_ornery_fire_die_still_rerolls_after_the_attack() {
 fn fired_up_konstant_keeps_its_new_value_after_a_skill_attack() {
     scenario()
         .attackers(["k10:3", "4:1", "F6:4"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0, 1])
         .defender("10:7")
         .boosting([(0, 6)])
@@ -540,7 +540,7 @@ fn fired_up_konstant_keeps_its_new_value_after_a_skill_attack() {
 fn fire_extends_a_stinger_skill_attack_from_its_current_value() {
     scenario()
         .attackers(["g6:2", "F6:3"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0])
         .defender("6:4")
         .boosting([(0, 4)])
@@ -553,7 +553,7 @@ fn fire_extends_a_stinger_skill_attack_from_its_current_value() {
 fn odd_queer_cannot_be_fired_even_to_unlock_a_power_attack() {
     scenario()
         .attackers(["q6:3", "F6:2"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("4:4")
         .expect_allowed(false)
@@ -564,7 +564,7 @@ fn odd_queer_cannot_be_fired_even_to_unlock_a_power_attack() {
 fn twin_fire_cannot_turn_down_below_one_per_component() {
     scenario()
         .attackers(["6:2", "F(6,6):3"])
-        .attacks(POWER)
+        .attacks(Power)
         .using([0])
         .defender("6:3")
         .boosting([(0, 3)])

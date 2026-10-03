@@ -6,7 +6,7 @@ use super::*;
 
 #[test]
 fn unique_rejects_equal_values_on_lower_swing_types() {
-    let player = BMC_Player {
+    let player = Player {
         m_die: vec![swing_die('P', 0, 0), swing_die('Q', property::UNIQUE, 1)],
         ..Default::default()
     };
@@ -32,7 +32,7 @@ fn unique_rejects_equal_values_on_lower_swing_types() {
 
 #[test]
 fn turbo_swing_changes_all_matching_dice_before_the_reroll() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut turbo = swing_die('X', property::TURBO | property::KONSTANT, 0);
     turbo.m_sides[0] = 10;
     turbo.m_value_total = Some(10);
@@ -44,17 +44,17 @@ fn turbo_swing_changes_all_matching_dice_before_the_reroll() {
     target.m_sides[0] = 6;
     target.m_value_total = Some(6);
     game.m_player[1].m_die = vec![target];
-    let action = BMC_Move {
-        m_action: ATTACK,
-        m_attack: Some(POWER),
+    let action = Move {
+        m_action: Attack,
+        m_attack: Some(Power),
         m_attackers: vec![0].into(),
         m_targets: vec![0].into(),
         m_score: 0.0,
         m_turbo_option: 20,
-        m_fire: crate::game::BMC_FireAdjustment::default(),
+        m_fire: crate::game::FireAdjustment::default(),
     };
 
-    let mut rng = BMC_RNG::default();
+    let mut rng = Rng::default();
     ApplyAttack(&mut game, &action, &mut rng);
     assert!(
         game.m_player[0]
@@ -69,7 +69,7 @@ fn pr82_trip_target_before_roll_effect_triggers_once() {
     for (effect, starting_sides, expected_sides) in
         [(property::MIGHTY, 6, 8), (property::WEAK, 20, 16)]
     {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut attacker = swing_die('P', property::TRIP | property::KONSTANT, 0);
         attacker.m_sides[0] = 4;
         attacker.m_value_total = Some(1);
@@ -78,16 +78,16 @@ fn pr82_trip_target_before_roll_effect_triggers_once() {
         target.m_sides[0] = starting_sides;
         target.m_value_total = Some(starting_sides);
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move::attack(TRIP, [0], [0], 0.0);
+        let action = Move::attack(Trip, [0], [0], 0.0);
 
-        ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+        ApplyAttack(&mut game, &action, &mut Rng::default());
         assert_eq!(game.m_player[1].m_die[0].m_sides[0], expected_sides);
     }
 }
 
 #[test]
 fn pr82_participating_ornery_before_roll_effect_triggers_once() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', property::ORNERY | property::MIGHTY, 0);
     attacker.m_sides[0] = 4;
     attacker.m_value_total = Some(4);
@@ -96,23 +96,23 @@ fn pr82_participating_ornery_before_roll_effect_triggers_once() {
     target.m_sides[0] = 1;
     target.m_value_total = Some(1);
     game.m_player[1].m_die = vec![target];
-    let action = BMC_Move {
-        m_action: ATTACK,
-        m_attack: Some(POWER),
+    let action = Move {
+        m_action: Attack,
+        m_attack: Some(Power),
         m_attackers: vec![0].into(),
         m_targets: vec![0].into(),
         m_score: 0.0,
         m_turbo_option: -1,
-        m_fire: crate::game::BMC_FireAdjustment::default(),
+        m_fire: crate::game::FireAdjustment::default(),
     };
 
-    ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+    ApplyAttack(&mut game, &action, &mut Rng::default());
     assert_eq!(game.m_player[0].m_die[0].m_sides[0], 6);
 }
 
 #[test]
 fn pr82_ordinary_side_change_invalidates_value() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', property::MIGHTY, 0);
     attacker.m_sides[0] = 6;
     attacker.m_value_total = Some(3);
@@ -121,7 +121,7 @@ fn pr82_ordinary_side_change_invalidates_value() {
     target.m_value_total = Some(1);
     game.m_player[0].m_die = vec![attacker];
     game.m_player[1].m_die = vec![target];
-    let action = BMC_Move::attack(POWER, [0], [0], 0.0);
+    let action = Move::attack(Power, [0], [0], 0.0);
 
     ApplyAttackPlayerEffects(&mut game, &action, 0, 1, 0, true);
     assert!(game.m_player[0].m_die[0].m_notset);
@@ -130,7 +130,7 @@ fn pr82_ordinary_side_change_invalidates_value() {
 
 #[test]
 fn copied_cpp_konstant_skill_attacker_keeps_its_value() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut konstant = swing_die('P', property::KONSTANT, 0);
     konstant.m_sides[0] = 20;
     konstant.m_value_total = Some(13);
@@ -142,17 +142,17 @@ fn copied_cpp_konstant_skill_attacker_keeps_its_value() {
     target.m_sides[0] = 20;
     target.m_value_total = Some(20);
     game.m_player[1].m_die = vec![target];
-    let action = BMC_Move {
-        m_action: ATTACK,
-        m_attack: Some(SKILL),
+    let action = Move {
+        m_action: Attack,
+        m_attack: Some(Skill),
         m_attackers: vec![0, 1].into(),
         m_targets: vec![0].into(),
         m_score: 0.0,
         m_turbo_option: -1,
-        m_fire: crate::game::BMC_FireAdjustment::default(),
+        m_fire: crate::game::FireAdjustment::default(),
     };
 
-    ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+    ApplyAttack(&mut game, &action, &mut Rng::default());
     assert_eq!(
         game.m_player[0]
             .m_die
@@ -166,7 +166,7 @@ fn copied_cpp_konstant_skill_attacker_keeps_its_value() {
 
 #[test]
 fn copied_cpp_multi_target_speed_attack_does_not_morph() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut attacker = swing_die('P', property::MORPHING | property::SPEED, 0);
     attacker.m_sides[0] = 10;
     attacker.m_value_total = Some(8);
@@ -178,23 +178,23 @@ fn copied_cpp_multi_target_speed_attack_does_not_morph() {
     second.m_sides[0] = 6;
     second.m_value_total = Some(5);
     game.m_player[1].m_die = vec![first, second];
-    let action = BMC_Move {
-        m_action: ATTACK,
-        m_attack: Some(SPEED),
+    let action = Move {
+        m_action: Attack,
+        m_attack: Some(Speed),
         m_attackers: vec![0].into(),
         m_targets: vec![0, 1].into(),
         m_score: 0.0,
         m_turbo_option: -1,
-        m_fire: crate::game::BMC_FireAdjustment::default(),
+        m_fire: crate::game::FireAdjustment::default(),
     };
 
-    ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+    ApplyAttack(&mut game, &action, &mut Rng::default());
     assert_eq!(game.m_player[0].m_die[0].m_sides[0], 10);
 }
 
 #[test]
 fn copied_cpp_konstant_chance_die_keeps_its_value() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut chance = swing_die('P', property::CHANCE | property::KONSTANT, 0);
     chance.m_sides[0] = 100;
     chance.m_value_total = Some(7);
@@ -209,7 +209,7 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
         0,
         1,
         &ChanceMove { reroll: vec![0] },
-        &mut BMC_RNG::default(),
+        &mut Rng::default(),
     );
     assert_eq!(game.m_player[0].m_die[0].GetValueTotal(), 7);
 }
@@ -217,7 +217,7 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
 /// C++'s `initiative != 0` check makes Chance asymmetric by player index.
 #[test]
 fn cpp_chance_success_is_keyed_to_player_zero_initiative() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut zero = swing_die('P', 0, 0);
     zero.m_sides[0] = 20;
     zero.m_value_total = Some(5);
@@ -232,7 +232,7 @@ fn cpp_chance_success_is_keyed_to_player_zero_initiative() {
         1,
         0,
         &ChanceMove { reroll: vec![0] },
-        &mut BMC_RNG::default(),
+        &mut Rng::default(),
     );
     assert_eq!(CheckInitiative(&game), Some(0));
     assert_eq!(result, (1, true));
@@ -240,7 +240,7 @@ fn cpp_chance_success_is_keyed_to_player_zero_initiative() {
 
 #[test]
 fn cpp_focus_marks_dice_dizzy_until_turn_recovery() {
-    let mut game = BMC_Game::default();
+    let mut game = Game::default();
     let mut focus = swing_die('P', property::FOCUS, 0);
     focus.m_sides[0] = 20;
     focus.m_value_total = Some(12);
@@ -263,7 +263,7 @@ fn cpp_focus_marks_dice_dizzy_until_turn_recovery() {
 fn cpp_value_attacker_score_retains_its_pre_reroll_value() {
     scenario()
         .attacker("v20:15")
-        .attacks(POWER)
+        .attacks(Power)
         .defender("6:5")
         .with_scores(7.5, 3.0)
         .seed(1)
@@ -280,7 +280,7 @@ fn cpp_maximum_die_always_rolls_its_maximum() {
     for seed in 1..=10 {
         maximum.m_value_total = None;
         maximum.m_notset = true;
-        let mut rng = BMC_RNG::default();
+        let mut rng = Rng::default();
         rng.SRand(seed);
         RollDie(&mut maximum, &mut rng);
         assert_eq!(maximum.GetValueTotal(), 6);
@@ -288,23 +288,23 @@ fn cpp_maximum_die_always_rolls_its_maximum() {
 }
 
 #[test]
-#[should_panic(expected = "BMC_Die::Roll requires NOTSET state")]
+#[should_panic(expected = "Die::Roll requires NOTSET state")]
 fn cpp_roll_requires_notset_state() {
     let mut die = swing_die('P', 0, 0);
     die.m_sides[0] = 6;
     die.m_value_total = Some(1);
     die.m_notset = false;
-    RollDie(&mut die, &mut BMC_RNG::default());
+    RollDie(&mut die, &mut Rng::default());
 }
 
 #[test]
-#[should_panic(expected = "BMC_Die::OnSwingSet requires NOTSET state")]
+#[should_panic(expected = "Die::OnSwingSet requires NOTSET state")]
 fn cpp_swing_set_requires_notset_state() {
     let mut die = swing_die('X', 0, 0);
     die.m_sides[0] = 6;
     die.m_value_total = Some(1);
     die.m_notset = false;
-    let mut player = crate::game::BMC_Player {
+    let mut player = crate::game::Player {
         m_die: vec![die],
         ..Default::default()
     };
@@ -317,7 +317,7 @@ fn cpp_swing_set_requires_notset_state() {
 fn cpp_konstant_target_retains_value_when_tripped() {
     scenario()
         .attacker("kt8:8")
-        .attacks(TRIP)
+        .attacks(Trip)
         .defender("k100:7")
         .seed(1)
         .expect_no_defender_dice()
@@ -329,7 +329,7 @@ fn cpp_konstant_target_retains_value_when_tripped() {
 fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
     scenario()
         .attackers(["`k41:17", "11:11"])
-        .attacks(SKILL)
+        .attacks(Skill)
         .using([0, 1])
         .defender("20:28")
         .seed(1)
@@ -342,7 +342,7 @@ fn cpp_konstant_warrior_keeps_value_and_loses_warrior_after_skill() {
 fn cpp_morphing_copies_single_and_twin_target_sizes() {
     let cases = [([9, 0], [7, 0], [7, 0]), ([7, 0], [10, 11], [10, 11])];
     for (attacker_sides, target_sides, expected) in cases {
-        let mut game = BMC_Game::default();
+        let mut game = Game::default();
         let mut attacker = swing_die('P', property::MORPHING, 0);
         attacker.m_sides = attacker_sides;
         attacker.m_value_total = Some(8);
@@ -357,16 +357,16 @@ fn cpp_morphing_copies_single_and_twin_target_sizes() {
         }
         game.m_player[0].m_die = vec![attacker];
         game.m_player[1].m_die = vec![target];
-        let action = BMC_Move {
-            m_action: ATTACK,
-            m_attack: Some(POWER),
+        let action = Move {
+            m_action: Attack,
+            m_attack: Some(Power),
             m_attackers: vec![0].into(),
             m_targets: vec![0].into(),
             m_score: 0.0,
             m_turbo_option: -1,
-            m_fire: crate::game::BMC_FireAdjustment::default(),
+            m_fire: crate::game::FireAdjustment::default(),
         };
-        ApplyAttack(&mut game, &action, &mut BMC_RNG::default());
+        ApplyAttack(&mut game, &action, &mut Rng::default());
         assert_eq!(game.m_player[0].m_die[0].m_sides, expected);
         assert_eq!(
             game.m_player[0].m_die[0].HasProperty(property::TWIN),
