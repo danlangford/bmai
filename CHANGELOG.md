@@ -20,6 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Search is about 1.6–2× faster with identical results. All golden RNG
+  fingerprints are unchanged.
+  - Rollouts reuse one scratch game per thread instead of cloning the
+    dice for every step.
+  - Die index sets iterate only their members.
+  - Dice ordering caches each die's sort key and skips dice already in
+    order.
+  - Captured dice rotate into place instead of being removed and
+    reinserted.
+
 - Dependabot pull requests skip the version and changelog check, and a merge
   without a version bump no longer fails the release workflow; it waits for
   the next release.

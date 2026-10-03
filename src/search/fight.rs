@@ -430,9 +430,10 @@ pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize
     let moves = MovesIncludingPass(game, fire_limit);
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
-    let mut simulation = game.clone();
+    let mut simulation = ScratchGame(game);
     for candidate in moves {
         if candidate.m_action != Action::Attack {
+            ReturnScratchGame(simulation);
             return candidate;
         }
         RestoreSimulation(&mut simulation, game);
@@ -443,6 +444,7 @@ pub(super) fn SelectMaximizeAction(game: &Game, rng: &mut Rng, fire_limit: usize
             best = candidate;
         }
     }
+    ReturnScratchGame(simulation);
     best
 }
 
@@ -478,8 +480,7 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
     }
     let mut best: Option<(f32, Move)> = None;
     let mut move_count = 0usize;
-    // Cloned once so each restore reuses the dice allocations.
-    let mut simulation = game.clone();
+    let mut simulation = ScratchGame(game);
     for candidate in game.GenerateValidAttacksInCppOrderForSearch(fire_limit) {
         move_count += 1;
         if trace_rng {
@@ -525,6 +526,7 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
             best = Some((score, candidate));
         }
     }
+    ReturnScratchGame(simulation);
     let selected = best.map_or_else(PassMove, |(_, action)| action);
     if trace {
         let values = |player: usize| {
@@ -549,32 +551,66 @@ pub(super) fn SelectQAIActionWithFireLimit(game: &Game, rng: &mut Rng, fire_limi
     selected
 }
 
-/// Field by field, so the scratch players keep their dice allocations.
-pub(super) fn RestoreSimulation(simulation: &mut Game, source: &Game) {
-    for player in 0..simulation.m_player.len() {
-        simulation.m_player[player].m_id = source.m_player[player].m_id;
-        simulation.m_player[player].m_score = source.m_player[player].m_score;
-        let simulation_dice = &mut simulation.m_player[player].m_die;
-        let source_dice = &source.m_player[player].m_die;
-        if simulation_dice.len() == source_dice.len() {
-            simulation_dice.copy_from_slice(source_dice);
-        } else {
-            simulation_dice.clone_from(source_dice);
+thread_local! {
+    static SCRATCH_GAME: std::cell::Cell<Option<Box<Game>>> = const { std::cell::Cell::new(None) };
+}
+
+// Rollouts evaluate every candidate on a copy; reusing one per thread avoids
+// allocating dice for each rollout step.
+fn ScratchGame(source: &Game) -> Box<Game> {
+    match SCRATCH_GAME.take() {
+        Some(mut scratch) => {
+            RestoreSimulation(&mut scratch, source);
+            scratch
         }
-        simulation.m_player[player].m_swing_set = source.m_player[player].m_swing_set;
-        simulation.m_player[player].m_round_original_sides =
-            source.m_player[player].m_round_original_sides;
-        simulation.m_player[player].m_round_transformed =
-            source.m_player[player].m_round_transformed;
-        simulation.m_player[player].m_radioactive_products =
-            source.m_player[player].m_radioactive_products;
-        simulation.m_player[player].m_rage_replacements =
-            source.m_player[player].m_rage_replacements;
-        simulation.m_player[player].m_specials = source.m_player[player].m_specials;
+        None => Box::new(source.clone()),
     }
-    simulation.m_phase = source.m_phase;
-    simulation.m_surrender_allowed = source.m_surrender_allowed;
-    simulation.m_target_wins = source.m_target_wins;
-    simulation.m_turbo_accuracy = source.m_turbo_accuracy;
-    simulation.m_fire_overshooting = source.m_fire_overshooting;
+}
+
+fn ReturnScratchGame(scratch: Box<Game>) {
+    SCRATCH_GAME.set(Some(scratch));
+}
+
+/// Field by field, so the scratch players keep their dice allocations. The
+/// destructuring makes a new field a compile error here.
+pub(super) fn RestoreSimulation(simulation: &mut Game, source: &Game) {
+    let Game {
+        m_player,
+        m_phase,
+        m_surrender_allowed,
+        m_target_wins,
+        m_turbo_accuracy,
+        m_fire_overshooting,
+    } = source;
+    for (simulation, source) in simulation.m_player.iter_mut().zip(m_player) {
+        let crate::game::Player {
+            m_id,
+            m_score,
+            m_die,
+            m_swing_set,
+            m_round_original_sides,
+            m_round_transformed,
+            m_radioactive_products,
+            m_rage_replacements,
+            m_specials,
+        } = source;
+        simulation.m_id = *m_id;
+        simulation.m_score = *m_score;
+        if simulation.m_die.len() == m_die.len() {
+            simulation.m_die.copy_from_slice(m_die);
+        } else {
+            simulation.m_die.clone_from(m_die);
+        }
+        simulation.m_swing_set = *m_swing_set;
+        simulation.m_round_original_sides = *m_round_original_sides;
+        simulation.m_round_transformed = *m_round_transformed;
+        simulation.m_radioactive_products = *m_radioactive_products;
+        simulation.m_rage_replacements = *m_rage_replacements;
+        simulation.m_specials = *m_specials;
+    }
+    simulation.m_phase = *m_phase;
+    simulation.m_surrender_allowed = *m_surrender_allowed;
+    simulation.m_target_wins = *m_target_wins;
+    simulation.m_turbo_accuracy = *m_turbo_accuracy;
+    simulation.m_fire_overshooting = *m_fire_overshooting;
 }

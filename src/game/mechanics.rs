@@ -683,9 +683,8 @@ pub(crate) fn RollScheduledDie(game: &mut Game, player: usize, index: usize, rng
 
 pub(super) fn OnDieLost(player: &mut crate::game::Player, index: usize) {
     let available = AvailableDice(player);
-    let mut lost = player.m_die.remove(index);
-    lost.m_captured = true;
-    player.m_die.insert(available - 1, lost);
+    player.m_die[index].m_captured = true;
+    player.m_die[index..available].rotate_left(1);
 }
 
 // ButtonWeavers `standard_die_sizes`; unlike Mighty's list, no 16.

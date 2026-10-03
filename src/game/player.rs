@@ -19,17 +19,27 @@ pub struct Player {
 
 impl Player {
     pub fn OptimizeDice(&mut self) {
+        // Swapping when a later die outranks an earlier one is the C++ order,
+        // so the same exchange sort runs on one cached key per die.
+        let count = self.m_die.len();
+        let mut keys = [0u16; MAX_DICE];
+        for (key, die) in keys.iter_mut().zip(&self.m_die) {
+            *key = if die.IsAvailable() {
+                256 + die.GetValueTotal()
+            } else {
+                0
+            };
+        }
+        let keys = &mut keys[..count];
+        if keys.windows(2).all(|pair| pair[0] >= pair[1]) {
+            return;
+        }
         // Not a stable sort: C++'s swap order breaks ties, and search order
         // depends on it.
-        for i in 0..self.m_die.len() {
-            for j in (i + 1)..self.m_die.len() {
-                let swap = if !self.m_die[i].IsAvailable() && self.m_die[j].IsAvailable() {
-                    true
-                } else {
-                    self.m_die[j].IsAvailable()
-                        && self.m_die[i].GetValueTotal() < self.m_die[j].GetValueTotal()
-                };
-                if swap {
+        for i in 0..count {
+            for j in (i + 1)..count {
+                if keys[j] > keys[i] {
+                    keys.swap(i, j);
                     self.m_die.swap(i, j);
                 }
             }
