@@ -70,8 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and probability argument are gone. Modes 0, 1, and 3 are `random`,
   `maximize`, and `montecarlo` with `cull off`; mode 2's mixed
   Maximize-or-Random playout has no equivalent.
-- `Setting`, `PlayerAiMetadata`, and `MonteCarloMetadata` no longer implement
-  `Eq`, as some settings are floats.
 - CI checks the slow golden fixtures on every pull request instead of only
   when building a release.
 - Quick, Random, and Maximize move logic lives in their engine files, and

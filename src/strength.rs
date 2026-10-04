@@ -176,7 +176,7 @@ fn game_seed(seed: u32) -> u32 {
     mixed = (mixed ^ (mixed >> 16)).wrapping_mul(0x85eb_ca6b);
     mixed = (mixed ^ (mixed >> 13)).wrapping_mul(0xc2b2_ae35);
     mixed ^= mixed >> 16;
-    // 0 asks the generator for the clock, and 2^31 - 1 and up never change state.
+    // 0 asks the generator for the clock, and multiples of 2^31 - 1 never change state.
     1 + mixed % 0x7fff_fffe
 }
 

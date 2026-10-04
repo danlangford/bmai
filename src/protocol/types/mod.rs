@@ -59,7 +59,7 @@ pub struct EngineCapability {
     pub settings: &'static [&'static str],
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct PlayerAiMetadata {
     pub engine: &'static str,
@@ -68,7 +68,7 @@ pub struct PlayerAiMetadata {
     pub specials: Vec<&'static str>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct MonteCarloMetadata {
     pub max_ply: usize,

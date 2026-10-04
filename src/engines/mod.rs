@@ -41,7 +41,7 @@ pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Setting {
     Ply(usize),
     MaxSims(usize),
