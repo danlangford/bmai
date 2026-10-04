@@ -72,16 +72,15 @@ impl Parser {
                         "invalid setting for ai player number: {player}"
                     )));
                 }
-                let mut engine = crate::engines::engine(name.trim()).ok_or_else(|| {
-                    ParseError(format!(
-                        "unknown ai {}; choose one of: {}",
-                        name.trim(),
-                        crate::engines::ENGINE_NAMES.join(", ")
-                    ))
-                })?;
-                if engine.montecarlo().is_some() {
-                    engine = Box::new(MonteCarlo::new(self.ai.clone()));
-                }
+                let engine: Box<dyn Engine> = match name.trim() {
+                    "montecarlo" => Box::new(MonteCarlo::new(self.ai.clone())),
+                    name => crate::engines::engine(name).ok_or_else(|| {
+                        ParseError(format!(
+                            "unknown ai {name}; choose one of: {}",
+                            crate::engines::ENGINE_NAMES.join(", ")
+                        ))
+                    })?,
+                };
                 writeln!(
                     output,
                     "Setting AI for player {player} to {}",
@@ -122,8 +121,6 @@ impl Parser {
                     .map_err(io_error)?;
             } else if let Some(arguments) = line.strip_prefix("playout ") {
                 self.apply_setting_command(arguments, "playout", output)?;
-            } else if let Some(arguments) = line.strip_prefix("playout_random ") {
-                self.apply_setting_command(arguments, "playout_random", output)?;
             } else if let Some(arguments) = line.strip_prefix("cull ") {
                 self.apply_setting_command(arguments, "cull", output)?;
             } else if let Some(value) = argument(line, "report_sims") {
@@ -214,7 +211,11 @@ impl Parser {
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if let Some(games) = line.strip_prefix("playfair ") {
                 self.require_preround()?;
-                let games = parse_usize(games.trim())?;
+                let games = parse_usize(games.trim()).map_err(|_| {
+                    ParseError(format!(
+                        "playfair takes only a game count; select engines with ai: {line}"
+                    ))
+                })?;
                 let policies = self.policies();
                 let wins = if self.execution_mode == ExecutionMode::Native {
                     play_fair_games_native(

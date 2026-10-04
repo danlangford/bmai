@@ -145,9 +145,11 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] `playfair`, with initiative-split reporting. Intentional difference
   since 0.20.0: C++ modes 0-3 picked random, maximizer, or a non-culling BMAI
   with one of two rollout policies for both players. BMAIR's `playfair GAMES`
-  plays the engines the players already have, so every C++ mode is an `ai`
-  and setting choice: mode 2 is `montecarlo` with `cull off`,
-  `playout maximize`, and `playout_random` 1 - P.
+  plays the engines the players already have, so modes 0, 1, and 3 are `ai`
+  and setting choices (`random`, `maximize`, and `montecarlo` with
+  `cull off`). Mode 2's mixed Maximize-or-Random playout was dropped; no
+  client used it, and a randomized playout can return if the harness shows
+  it helps.
 - [x] Intentional difference since 0.20.0: C++ `ai <player> <type>` types 0
   (fixed-simulation BMAI), 1 (QAI), and 2 (culling BMAI3) are the named
   engines `montecarlo` with `cull off`, `quick`, and `montecarlo`.

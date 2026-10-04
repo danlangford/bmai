@@ -53,9 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `cull [PLAYER] on|off` makes Monte Carlo culling a setting instead of a
   separate AI type.
 - `playout [PLAYER] quick|maximize|random` chooses the engine that plays
-  Monte Carlo's simulated games, and `playout_random [PLAYER] P` makes each
-  simulated move random with probability P. They replace the C++ rollout
-  policies; the defaults keep every search unchanged.
+  Monte Carlo's simulated games, replacing the C++ rollout policies; the
+  default, `quick`, keeps every search unchanged.
 - A strength harness: `strength::play_pairing` plays two engine
   configurations over the same seeds from both seats and reports the paired
   win rate with a 95% interval and milliseconds per decision.
@@ -68,8 +67,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The numeric AI types `0`, `1`, and `2` are gone; use `montecarlo` with
   `cull off`, `quick`, and `montecarlo`.
 - `playfair GAMES` plays the engines the players already have. The C++ modes
-  and probability argument are gone; mode 2 is `montecarlo` with `cull off`,
-  `playout maximize`, and `playout_random` 1 - P.
+  and probability argument are gone. Modes 0, 1, and 3 are `random`,
+  `maximize`, and `montecarlo` with `cull off`; mode 2's mixed
+  Maximize-or-Random playout has no equivalent.
+- `Setting`, `PlayerAiMetadata`, and `MonteCarloMetadata` no longer implement
+  `Eq`, as some settings are floats.
 - CI checks the slow golden fixtures on every pull request instead of only
   when building a release.
 - Quick, Random, and Maximize move logic lives in their engine files, and

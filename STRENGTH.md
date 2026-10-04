@@ -105,7 +105,7 @@ contestants are, as a ladder should be.
 The ply 2 step is the weakest: its interval ends at 0.495. It is not robust
 to a correction for testing four steps; a Bonferroni-adjusted interval
 (98.75%) for that row reaches about 0.506 and would be inconclusive. Ply 2
-won that pairing by about 4.5 points while taking roughly 140 times as long
+won that pairing by about 4.5 percentage points while taking roughly 140 times as long
 per decision (about 1.2 s against 8 ms), so whether ply 2 is worth its cost
 is a question for a time-budgeted comparison, not this ladder.
 

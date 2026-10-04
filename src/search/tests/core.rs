@@ -223,3 +223,50 @@ fn cpp_morphing_copies_single_and_twin_target_sizes() {
             .run();
     }
 }
+
+#[test]
+fn each_playout_plays_its_own_engines_move() {
+    let game = native_fixture_game(
+        "game\nfight\nplayer 0 3 0\n6:6\n8:2\n10:9\nplayer 1 3 0\n6:6\n5:5\n4:4\n",
+    );
+    let fire_limit = Bmai3::default().fire_candidate_limit();
+    let own_move = |playout, rng: &mut Rng| match playout {
+        crate::Playout::Quick => crate::engines::quick::attack(&game, rng, fire_limit),
+        crate::Playout::Maximize => crate::engines::maximize::attack(&game, rng, fire_limit),
+        crate::Playout::Random => crate::engines::random::attack(&game, rng, fire_limit),
+    };
+    let mut picks = std::collections::BTreeSet::new();
+    for playout in [
+        crate::Playout::Quick,
+        crate::Playout::Maximize,
+        crate::Playout::Random,
+    ] {
+        let ai = Bmai3 {
+            playout,
+            ..Default::default()
+        };
+        for seed in 1..=20 {
+            let (mut search_rng, mut engine_rng) = (Rng::default(), Rng::default());
+            search_rng.reseed(seed);
+            engine_rng.reseed(seed);
+            let played = select_rollout_action(&game, &mut search_rng, &ai);
+            let expected = own_move(playout, &mut engine_rng);
+            assert_eq!(
+                format!("{played:?}"),
+                format!("{expected:?}"),
+                "{playout:?} {seed}"
+            );
+            picks.insert((playout.name(), format!("{played:?}")));
+        }
+    }
+    // The engines must disagree somewhere, or routing to the wrong one passes.
+    let distinct = |name| picks.iter().filter(|(playout, _)| *playout == name).count();
+    assert!(distinct("random") > distinct("maximize"), "{picks:?}");
+    assert!(
+        picks
+            .iter()
+            .any(|(playout, pick)| *playout == "quick"
+                && !picks.contains(&("maximize", pick.clone()))),
+        "{picks:?}"
+    );
+}

@@ -272,7 +272,7 @@ fn global_cull_and_playout_settings_reach_players_following_them() {
     let mut parser = Parser::default();
     parser
         .parse_string(
-            "cull off\nplayout maximize\nplayout_random 0.25\ngame\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\nai 1 montecarlo\n",
+            "cull off\nplayout maximize\ngame\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\nai 1 montecarlo\n",
             &mut Vec::new(),
         )
         .unwrap();
@@ -281,7 +281,6 @@ fn global_cull_and_playout_settings_reach_players_following_them() {
         let search = engine.montecarlo().unwrap();
         assert!(!search.cull_moves, "player {player}");
         assert_eq!(search.playout, crate::Playout::Maximize, "player {player}");
-        assert_eq!(search.playout_random, 0.25, "player {player}");
     }
 }
 
@@ -303,10 +302,6 @@ fn engines_reject_settings_they_do_not_use() {
             "player 1: maximize has no cull setting",
         ),
         ("cull maybe\n", "cull needs on or off, not maybe"),
-        (
-            "playout_random 1.5\n",
-            "montecarlo playout_random must be between 0 and 1, not 1.5",
-        ),
         (
             "playout best\n",
             "playout needs quick, maximize, or random, not best",

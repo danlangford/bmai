@@ -409,13 +409,7 @@ pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> 
 
 pub(super) fn select_rollout_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Move {
     let fire_limit = ai.fire_candidate_limit();
-    // No draw when playouts never randomize, so the default stream is unchanged.
-    let playout = if ai.playout_random > 0.0 && rng.rand_f32() >= 1.0 - ai.playout_random {
-        Playout::Random
-    } else {
-        ai.playout
-    };
-    match playout {
+    match ai.playout {
         Playout::Quick => crate::engines::quick::attack(game, rng, fire_limit),
         Playout::Maximize => crate::engines::maximize::attack(game, rng, fire_limit),
         Playout::Random => crate::engines::random::attack(game, rng, fire_limit),

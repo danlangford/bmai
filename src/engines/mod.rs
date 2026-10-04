@@ -29,7 +29,6 @@ pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
     "maxbranch",
     "cull",
     "playout",
-    "playout_random",
 ];
 
 pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
@@ -50,7 +49,6 @@ pub enum Setting {
     MaxBranch(usize),
     Cull(bool),
     Playout(crate::Playout),
-    PlayoutRandom(f32),
 }
 
 impl Setting {
@@ -79,10 +77,6 @@ impl Setting {
                     "playout needs quick, maximize, or random, not {value}"
                 )),
             },
-            "playout_random" => value
-                .parse::<f32>()
-                .map(Self::PlayoutRandom)
-                .map_err(|_| format!("playout_random needs a number, not {value}")),
             _ => Err(format!("unknown setting {name}")),
         }
     }
@@ -95,7 +89,6 @@ impl Setting {
             Self::MaxBranch(_) => "maxbranch",
             Self::Cull(_) => "cull",
             Self::Playout(_) => "playout",
-            Self::PlayoutRandom(_) => "playout_random",
         }
     }
 }
@@ -209,7 +202,6 @@ mod tests {
         let value = match name {
             "cull" => "off",
             "playout" => "random",
-            "playout_random" => "0.5",
             _ => "2",
         };
         Setting::parse(name, value).unwrap()

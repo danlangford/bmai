@@ -42,12 +42,6 @@ impl Engine for MonteCarlo {
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
             Setting::Playout(playout) => self.search.playout = playout,
-            Setting::PlayoutRandom(chance) if !(0.0..=1.0).contains(&chance) => {
-                return Err(format!(
-                    "montecarlo playout_random must be between 0 and 1, not {chance}"
-                ));
-            }
-            Setting::PlayoutRandom(chance) => self.search.playout_random = chance,
         }
         Ok(())
     }

@@ -77,7 +77,6 @@ pub struct MonteCarloMetadata {
     pub max_branch: usize,
     pub cull: bool,
     pub playout: &'static str,
-    pub playout_random: ProtocolFloat,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -247,7 +246,6 @@ impl Capabilities {
                 "maxbranch",
                 "cull",
                 "playout",
-                "playout_random",
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",

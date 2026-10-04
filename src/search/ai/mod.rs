@@ -68,8 +68,6 @@ impl Stats {
 pub struct Bmai3 {
     pub cull_moves: bool,
     pub playout: Playout,
-    /// The chance that a simulated move is a random legal move instead.
-    pub playout_random: f32,
     pub max_ply: usize,
     pub max_branch: usize,
     pub min_sims: usize,
@@ -89,7 +87,6 @@ impl Default for Bmai3 {
         Self {
             cull_moves: true,
             playout: Playout::Quick,
-            playout_random: 0.0,
             max_ply: 1,
             max_branch: DEFAULT_MAX_BRANCH,
             min_sims: MIN_SIMS,

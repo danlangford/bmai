@@ -167,7 +167,6 @@ The stable command forms are:
 | `cull [PLAYER] on\|off` | Let Monte Carlo search drop clearly losing candidates early (default on). |
 
 | `playout [PLAYER] quick\|maximize\|random` | Choose the engine that plays Monte Carlo's simulated games (default `quick`). |
-| `playout_random [PLAYER] P` | Make each simulated move a random legal move with probability P, from 0 (the default) to 1. |
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |

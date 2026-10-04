@@ -113,9 +113,6 @@ impl Parser {
                             max_branch: search.max_branch,
                             cull: search.cull_moves,
                             playout: search.playout.name(),
-                            playout_random: crate::protocol::ProtocolFloat::from_f32(
-                                search.playout_random,
-                            ),
                         }
                     }),
                     specials: crate::protocol::notation::BUTTON_SPECIALS
