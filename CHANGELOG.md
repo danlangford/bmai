@@ -36,11 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   native replay key, so no search takes a generator it ignores. Offer a
   modern generator (PCG or xoshiro) beside Park-Miller for strength runs.
 - Move the Monte Carlo search from `search/` into `engines/montecarlo/`.
-- A `time_limit` setting: Monte Carlo search stops at the deadline and
-  returns its best move so far, so BMAIBagels no longer restarts a timed-out
-  search at a lower ply and discards the work.
 - Tune BMAIBagels' `ply`, `max_sims`, `min_sims`, and `maxbranch` with the
   strength harness, choosing the strongest settings within a time budget.
+
+## [0.21.0] - 2026-10-04
+
+### Added
+
+- `time_limit [PLAYER] SECONDS`, a Monte Carlo setting: each decision stops
+  sampling at the deadline and plays its best move so far, with the
+  simulation settings still capping the work. Only the root of the search is
+  timed, and it checks the clock between rounds of simulations, so a round
+  can run slightly past the limit. `0` turns it off, the default, and every
+  search without a limit is unchanged. A timed search depends on machine
+  speed, so its moves are not reproducible. JSONL reports `time_limit_ms`.
 
 ## [0.20.0] - 2026-10-03
 
@@ -588,7 +597,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...HEAD
+[0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0
 [0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0
 [0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0

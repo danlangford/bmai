@@ -77,6 +77,8 @@ pub struct MonteCarloMetadata {
     pub max_branch: usize,
     pub cull: bool,
     pub playout: &'static str,
+    /// Milliseconds per decision, or null for none.
+    pub time_limit_ms: Option<u64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -246,6 +248,7 @@ impl Capabilities {
                 "maxbranch",
                 "cull",
                 "playout",
+                "time_limit",
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",

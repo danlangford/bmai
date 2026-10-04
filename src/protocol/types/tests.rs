@@ -24,7 +24,8 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "min_sims",
             "maxbranch",
             "cull",
-            "playout"
+            "playout",
+            "time_limit"
         ])
     );
     assert_eq!(value["protocols"][0], "legacy-v1");
@@ -51,6 +52,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "maxbranch",
             "cull",
             "playout",
+            "time_limit",
             "report_sims",
             "turbo_accuracy",
             "fire_overshooting",

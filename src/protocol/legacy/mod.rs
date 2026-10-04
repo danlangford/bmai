@@ -113,6 +113,9 @@ impl Parser {
                             max_branch: search.max_branch,
                             cull: search.cull_moves,
                             playout: search.playout.name(),
+                            time_limit_ms: search
+                                .time_limit
+                                .map(|limit| u64::try_from(limit.as_millis()).unwrap_or(u64::MAX)),
                         }
                     }),
                     specials: crate::protocol::notation::BUTTON_SPECIALS

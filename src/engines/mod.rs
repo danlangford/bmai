@@ -29,6 +29,7 @@ pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
     "maxbranch",
     "cull",
     "playout",
+    "time_limit",
 ];
 
 pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
@@ -49,6 +50,8 @@ pub enum Setting {
     MaxBranch(usize),
     Cull(bool),
     Playout(crate::Playout),
+    /// None turns the limit off.
+    TimeLimit(Option<std::time::Duration>),
 }
 
 impl Setting {
@@ -68,6 +71,15 @@ impl Setting {
                 "on" => Ok(Self::Cull(true)),
                 "off" => Ok(Self::Cull(false)),
                 _ => Err(format!("cull needs on or off, not {value}")),
+            },
+            "time_limit" => match value.parse::<f64>() {
+                Ok(0.0) => Ok(Self::TimeLimit(None)),
+                Ok(seconds) if seconds > 0.0 && seconds.is_finite() => Ok(Self::TimeLimit(Some(
+                    std::time::Duration::from_secs_f64(seconds),
+                ))),
+                _ => Err(format!(
+                    "time_limit needs seconds, or 0 for none, not {value}"
+                )),
             },
             "playout" => match value {
                 "quick" => Ok(Self::Playout(crate::Playout::Quick)),
@@ -89,6 +101,7 @@ impl Setting {
             Self::MaxBranch(_) => "maxbranch",
             Self::Cull(_) => "cull",
             Self::Playout(_) => "playout",
+            Self::TimeLimit(_) => "time_limit",
         }
     }
 }

@@ -42,6 +42,7 @@ impl Engine for MonteCarlo {
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
             Setting::Playout(playout) => self.search.playout = playout,
+            Setting::TimeLimit(limit) => self.search.time_limit = limit,
         }
         Ok(())
     }

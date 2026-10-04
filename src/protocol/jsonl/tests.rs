@@ -413,3 +413,62 @@ fn phase_specific_declines_have_unambiguous_typed_results() {
         .unwrap();
     assert_eq!(preround.action, Some(crate::protocol::ProtocolAction::Pass));
 }
+
+#[test]
+fn a_time_limit_stops_the_search_before_its_simulation_budget() {
+    let script = "seed 17\nmax_sims 1000000\nmin_sims 1000000\nmaxbranch 100000000\n\
+game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";
+    let unlimited_budget = 1_000_000;
+    for (cull, limit) in [("on", "0.01"), ("off", "0.01")] {
+        let result = BmairSession::default()
+            .execute(&format!(
+                "{script}cull {cull}\ntime_limit {limit}\ngetaction\n"
+            ))
+            .unwrap();
+        let evaluation = result.evaluation.unwrap();
+        assert!(
+            evaluation.simulations < unlimited_budget,
+            "cull {cull}: {} simulations",
+            evaluation.simulations
+        );
+        assert!(matches!(
+            result.action,
+            Some(crate::protocol::ProtocolAction::Attack { .. })
+        ));
+    }
+}
+
+#[test]
+fn time_limit_is_reported_per_player_and_zero_turns_it_off() {
+    let mut session = BmairSession::default();
+    let value = response(
+        &mut session,
+        json!({
+            "protocol": "jsonl-v1",
+            "id": 1,
+            "method": "session.execute",
+            "params": { "script": "time_limit 60\ngame\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\ntime_limit 1 0\n" }
+        }),
+    );
+    let players = &value["result"]["session"]["players"];
+    assert_eq!(players[0]["montecarlo"]["time_limit_ms"], 60_000);
+    assert_eq!(players[1]["montecarlo"]["time_limit_ms"], Value::Null);
+    for (script, error) in [
+        (
+            "time_limit -1\n",
+            "time_limit needs seconds, or 0 for none, not -1",
+        ),
+        (
+            "ai 0 quick\ntime_limit 0 5\n",
+            "player 0: quick has no time_limit setting",
+        ),
+    ] {
+        assert_eq!(
+            BmairSession::default()
+                .execute(script)
+                .unwrap_err()
+                .to_string(),
+            error
+        );
+    }
+}
