@@ -71,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `maximize`, and `montecarlo` with `cull off`; mode 2's mixed
   Maximize-or-Random playout has no equivalent.
 - CI checks the slow golden fixtures on every pull request instead of only
-  when building a release.
+  when building a release. The lint and slow-test jobs cache their Rust builds.
 - Quick, Random, and Maximize move logic lives in their engine files, and
   Monte Carlo playouts call those engines directly.
 - Native-mode traces of swing, Chance, and Focus searches print the session
