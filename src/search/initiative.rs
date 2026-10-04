@@ -207,7 +207,7 @@ pub(super) fn evaluate_chance_simulation(
 ) -> f32 {
     let (next_initiative, chance_continues) =
         apply_chance_move(simulation, player, initiative, action, rng);
-    if level >= ai.max_ply {
+    if ai.stops_looking_ahead(level) {
         play_fight_qai_from_phase(simulation, rng, next_initiative, player, false, ai)
     } else {
         evaluate_next_initiative_action(
@@ -444,7 +444,7 @@ pub(super) fn evaluate_focus_simulation(
         apply_focus_move(simulation, player, action);
         player
     };
-    if level >= ai.max_ply {
+    if ai.stops_looking_ahead(level) {
         play_fight_qai_from_phase(simulation, rng, phase, player, false, ai)
     } else {
         evaluate_next_initiative_action(
@@ -520,7 +520,7 @@ pub(super) fn play_simulated_round(
     roll_round_dice(game, rng);
     let mut phase = initiative_winner(game);
     let mut passed = false;
-    let mut use_qai = level > ai.max_ply;
+    let mut use_qai = level > ai.max_ply || ai.out_of_time();
     let mut oriented = game.clone();
     loop {
         let player = 1 - phase;
@@ -528,7 +528,7 @@ pub(super) fn play_simulated_round(
             break;
         }
         let action = select_chance_action(game, player, rng, ai, level, phase, None).0;
-        if level >= ai.max_ply {
+        if ai.stops_looking_ahead(level) {
             use_qai = true;
         } else {
             level += 1;
@@ -545,7 +545,7 @@ pub(super) fn play_simulated_round(
             break;
         }
         let action = select_focus_action(game, player, rng, ai, level, phase, None).0;
-        if level >= ai.max_ply {
+        if ai.stops_looking_ahead(level) {
             use_qai = true;
         } else {
             level += 1;
@@ -568,7 +568,7 @@ pub(super) fn play_simulated_round(
             select_rollout_action(&oriented, rng, ai)
         } else {
             let action = select_bmai_action_at_level(&oriented, rng, ai, level, passed).0;
-            if level >= ai.max_ply {
+            if ai.stops_looking_ahead(level) {
                 use_qai = true;
             } else {
                 level += 1;

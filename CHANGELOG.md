@@ -43,13 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `time_limit [PLAYER] SECONDS`, a Monte Carlo setting: each decision stops
-  sampling at the deadline and plays its best move so far, with the
-  simulation settings still capping the work. Only the root of the search is
-  timed, and it checks the clock between rounds of simulations, so a round
-  can run slightly past the limit. `0` turns it off, the default, and every
-  search without a limit is unchanged. A timed search depends on machine
-  speed, so its moves are not reproducible. JSONL reports `time_limit_ms`.
+- `time_limit [PLAYER] SECONDS`, a Monte Carlo setting that bounds each
+  decision, in every phase. Once the deadline passes, the search stops
+  looking ahead: every remaining simulation is a single playout instead of a
+  deeper search, and the fight search stops after its current round and
+  plays its best move so far. A ply-3 fight decision that ran for minutes
+  finishes in under a second with a 0.2-second limit. The simulation settings
+  still cap the work, and a search cut short never surrenders.
+- `0` turns the limit off, the default, and every search without a limit is
+  unchanged. A timed search depends on machine speed, so its moves are not
+  reproducible, and an unculled legacy-mode search takes its samples in a
+  different order once a limit is set. JSONL reports `time_limit_ms`.
 
 ## [0.20.0] - 2026-10-03
 

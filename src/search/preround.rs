@@ -489,7 +489,7 @@ pub(super) fn evaluate_swing_move(
     let other = 1 - player;
 
     // C++ switches both sides to QAI at the terminal ply.
-    if level >= ai.max_ply {
+    if ai.stops_looking_ahead(level) {
         if game.players[other].swing_set == SwingSet::Not {
             if needs_set_swing(&game.players[other]) {
                 let selected = generate_swing_moves(&game.players[other])

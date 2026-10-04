@@ -73,9 +73,9 @@ pub struct Bmai3 {
     pub min_sims: usize,
     pub max_sims: usize,
     pub sims_per_check: usize,
-    /// Each decision stops sampling once this passes and plays its best move
-    /// so far; the simulation settings still cap the work.
     pub time_limit: Option<std::time::Duration>,
+    /// Set once per decision from `time_limit`, so nested searches share it.
+    pub(crate) deadline: Option<std::time::Instant>,
     pub min_best_score_threshold: f32,
     pub max_best_score_threshold: f32,
     pub last_best_score: f32,
@@ -96,6 +96,7 @@ impl Default for Bmai3 {
             max_sims: DEFAULT_SIMS,
             sims_per_check: 10,
             time_limit: None,
+            deadline: None,
             min_best_score_threshold: 0.25,
             max_best_score_threshold: 0.90,
             last_best_score: 0.0,
@@ -110,6 +111,27 @@ impl Default for Bmai3 {
 impl Bmai3 {
     pub(crate) fn fire_candidate_limit(&self) -> usize {
         (self.max_branch / self.min_sims.max(1)).max(1)
+    }
+
+    /// A copy whose deadline starts now; one per decision.
+    pub(crate) fn timed(&self) -> Self {
+        Self {
+            deadline: self
+                .time_limit
+                .and_then(|limit| std::time::Instant::now().checked_add(limit)),
+            ..self.clone()
+        }
+    }
+
+    pub(crate) fn out_of_time(&self) -> bool {
+        self.deadline
+            .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+    }
+
+    /// Past the deadline every simulation is a playout, so the search
+    /// finishes soon after it instead of finishing its deeper plies.
+    pub(crate) fn stops_looking_ahead(&self, level: usize) -> bool {
+        level >= self.max_ply || self.out_of_time()
     }
 
     pub fn compute_number_sims(&self, moves: usize, level: usize) -> usize {
@@ -178,13 +200,7 @@ impl Bmai3 {
         assert!(!moves.is_empty());
         let sims = self.compute_number_sims(moves.len(), level);
         self.stats.on_ply_action(level, moves.len(), sims);
-        // Only the root is timed: a cut-short deeper search would hand its
-        // parent a worse estimate than a finished one.
-        let deadline = self
-            .time_limit
-            .filter(|_| level == 1)
-            .map(|limit| std::time::Instant::now() + limit);
-        if !self.cull_moves && deadline.is_none() {
+        if !self.cull_moves && self.deadline.is_none() {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
             let requests = moves
@@ -227,7 +243,13 @@ impl Bmai3 {
             let check_sims = self
                 .sims_per_check
                 .min(state.sims.saturating_sub(state.sims_run));
-            let batch_index = state.sims_run / self.sims_per_check;
+            // Unculled native search numbers its samples as one batch, so a
+            // timed one keeps the same streams until the deadline.
+            let batch_index = if self.cull_moves {
+                state.sims_run / self.sims_per_check
+            } else {
+                0
+            };
             let simulation_start = state.sims_run;
             let candidate_indices = &state.candidate_index;
             let requests = state
@@ -266,9 +288,7 @@ impl Bmai3 {
                 }
             }
             state.sims_run += check_sims;
-            if state.sims_run >= state.sims
-                || deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
-            {
+            if state.sims_run >= state.sims || self.out_of_time() {
                 break;
             }
             let multiple_candidates_remain = !self.cull_moves || self.cull(&mut state);

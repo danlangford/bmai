@@ -160,3 +160,62 @@ fn native_probability_evaluation_completes_the_surviving_candidate() {
     assert_eq!(evaluations[0], 100);
     assert!(evaluations[1] < evaluations[0]);
 }
+
+fn expired() -> Bmai3 {
+    Bmai3 {
+        time_limit: Some(std::time::Duration::ZERO),
+        ..Default::default()
+    }
+    .timed()
+}
+
+#[test]
+fn an_expired_deadline_gives_every_candidate_exactly_one_round_at_any_depth() {
+    for (cull_moves, level) in [(true, 1), (false, 1), (true, 2), (false, 3)] {
+        let mut ai = Bmai3 {
+            cull_moves,
+            ..expired()
+        };
+        let mut calls = [0usize; 3];
+        let moves = vec![test_move(1.0), test_move(2.0), test_move(3.0)];
+        ai.evaluate_moves(moves, level, |_, coordinate| {
+            calls[coordinate.candidate_index] += 1;
+            if coordinate.candidate_index == 2 {
+                1.0
+            } else {
+                0.0
+            }
+        });
+        let round = ai.sims_per_check;
+        assert_eq!(calls, [round; 3], "cull {cull_moves} level {level}");
+        assert_eq!(ai.last_sims_run, round);
+        assert_eq!(ai.last_best_score, round as f32);
+        assert_eq!(ai.last_probability_win, 1.0);
+    }
+}
+
+#[test]
+fn without_a_deadline_the_whole_budget_runs() {
+    let mut ai = Bmai3::default().timed();
+    let mut calls = 0usize;
+    ai.evaluate_moves(vec![test_move(1.0), test_move(2.0)], 1, |_, _| {
+        calls += 1;
+        0.5
+    });
+    assert_eq!(calls, 2 * ai.compute_number_sims(2, 1));
+}
+
+#[test]
+fn past_the_deadline_the_search_stops_looking_ahead() {
+    let ai = Bmai3 {
+        max_ply: 3,
+        ..expired()
+    };
+    assert!(ai.stops_looking_ahead(1));
+    let untimed = Bmai3 {
+        max_ply: 3,
+        ..Default::default()
+    };
+    assert!(!untimed.stops_looking_ahead(1));
+    assert!(untimed.stops_looking_ahead(3));
+}

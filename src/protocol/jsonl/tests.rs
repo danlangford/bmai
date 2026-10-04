@@ -415,26 +415,19 @@ fn phase_specific_declines_have_unambiguous_typed_results() {
 }
 
 #[test]
-fn a_time_limit_stops_the_search_before_its_simulation_budget() {
-    let script = "seed 17\nmax_sims 1000000\nmin_sims 1000000\nmaxbranch 100000000\n\
-game\nfight\nplayer 0 3 0\n6:6\n4:2\n8:5\nplayer 1 3 0\n4:4\n3:3\n10:7\n";
-    let unlimited_budget = 1_000_000;
-    for (cull, limit) in [("on", "0.01"), ("off", "0.01")] {
-        let result = BmairSession::default()
-            .execute(&format!(
-                "{script}cull {cull}\ntime_limit {limit}\ngetaction\n"
-            ))
-            .unwrap();
-        let evaluation = result.evaluation.unwrap();
+fn a_time_limit_bounds_a_deep_search_in_the_fight_and_preround() {
+    // Untimed, the ply-3 fight search took minutes; the bound is generous so
+    // a busy machine cannot make this flaky.
+    let fight = "seed 17\nply 3\ntime_limit 0.2\ngame\nfight\nplayer 0 5 0\n4:3\n6:5\n8:2\n12:9\n20:11\nplayer 1 5 0\n4:1\n6:6\n10:4\n12:7\n20:15\ngetaction\n";
+    let preround = "seed 17\nply 3\ntime_limit 0.2\ngame\npreround\nplayer 0 5 0\n4\n6\n8\n12\nX\nplayer 1 5 0\n4\n6\n10\n12\nY\ngetaction\n";
+    for script in [fight, preround] {
+        let started = std::time::Instant::now();
+        let result = BmairSession::default().execute(script).unwrap();
+        assert!(result.action.is_some());
         assert!(
-            evaluation.simulations < unlimited_budget,
-            "cull {cull}: {} simulations",
-            evaluation.simulations
+            started.elapsed() < std::time::Duration::from_secs(20),
+            "{script}"
         );
-        assert!(matches!(
-            result.action,
-            Some(crate::protocol::ProtocolAction::Attack { .. })
-        ));
     }
 }
 
@@ -458,6 +451,7 @@ fn time_limit_is_reported_per_player_and_zero_turns_it_off() {
             "time_limit -1\n",
             "time_limit needs seconds, or 0 for none, not -1",
         ),
+        ("time_limit 1e20\n", "time_limit 1e20 is too large"),
         (
             "ai 0 quick\ntime_limit 0 5\n",
             "player 0: quick has no time_limit setting",
@@ -471,4 +465,21 @@ fn time_limit_is_reported_per_player_and_zero_turns_it_off() {
             error
         );
     }
+}
+
+#[test]
+fn a_search_the_deadline_cut_short_does_not_surrender() {
+    let hopeless = include_str!("../../../tests/fixtures/SurrenderOn-Attack-in.txt");
+    let surrendered = BmairSession::default().execute(hopeless).unwrap();
+    assert_eq!(
+        surrendered.action,
+        Some(crate::protocol::ProtocolAction::Surrender)
+    );
+    let timed = BmairSession::default()
+        .execute(&format!("time_limit 0.000001\n{hopeless}"))
+        .unwrap();
+    assert_ne!(
+        timed.action,
+        Some(crate::protocol::ProtocolAction::Surrender)
+    );
 }

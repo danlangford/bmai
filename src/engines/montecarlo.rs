@@ -57,8 +57,9 @@ impl Engine for MonteCarlo {
         player: usize,
         context: &mut DecisionContext<'_, '_>,
     ) -> SwingMove {
+        let search = self.search.timed();
         let native = context.native();
-        select_swing_action(game, player, context.rng, &self.search, 1, native).0
+        select_swing_action(game, player, context.rng, &search, 1, native).0
     }
 
     fn chance(
@@ -68,17 +69,9 @@ impl Engine for MonteCarlo {
         initiative: usize,
         context: &mut DecisionContext<'_, '_>,
     ) -> ChanceMove {
+        let search = self.search.timed();
         let native = context.native();
-        select_chance_action(
-            game,
-            player,
-            context.rng,
-            &self.search,
-            1,
-            initiative,
-            native,
-        )
-        .0
+        select_chance_action(game, player, context.rng, &search, 1, initiative, native).0
     }
 
     fn focus(
@@ -88,29 +81,22 @@ impl Engine for MonteCarlo {
         initiative: usize,
         context: &mut DecisionContext<'_, '_>,
     ) -> FocusMove {
+        let search = self.search.timed();
         let native = context.native();
-        select_focus_action(
-            game,
-            player,
-            context.rng,
-            &self.search,
-            1,
-            initiative,
-            native,
-        )
-        .0
+        select_focus_action(game, player, context.rng, &search, 1, initiative, native).0
     }
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
+        let search = self.search.timed();
         let result = match context.native() {
             Some(native) => select_native_bmai_action_with_stats(
                 game,
                 native.algorithm,
                 native.replay,
                 native.workers,
-                &self.search,
+                &search,
             ),
-            None => select_bmai_action_with_stats(game, context.rng, &self.search),
+            None => select_bmai_action_with_stats(game, context.rng, &search),
         };
         Choice {
             search: Some(SearchSummary {
@@ -123,15 +109,16 @@ impl Engine for MonteCarlo {
     }
 
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
+        let search = self.search.timed();
         match context.native() {
             Some(native) => select_native_bmai_reserve_action(
                 game,
                 native.algorithm,
                 native.replay,
                 native.workers,
-                &self.search,
+                &search,
             ),
-            None => select_bmai_reserve_action(game, context.rng, &self.search),
+            None => select_bmai_reserve_action(game, context.rng, &search),
         }
     }
 
@@ -140,15 +127,16 @@ impl Engine for MonteCarlo {
         game: &Game,
         context: &mut DecisionContext<'_, '_>,
     ) -> Choice<Option<usize>> {
+        let search = self.search.timed();
         let result = match context.native() {
             Some(native) => select_native_bmai_auxiliary_action(
                 game,
                 native.algorithm,
                 native.replay,
                 native.workers,
-                &self.search,
+                &search,
             ),
-            None => select_bmai_auxiliary_action(game, context.rng, &self.search),
+            None => select_bmai_auxiliary_action(game, context.rng, &search),
         };
         Choice {
             choice: result.die,

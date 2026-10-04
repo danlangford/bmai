@@ -111,7 +111,8 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
         evaluator.evaluate_moves_batched(moves, 1, &mut evaluate_batch)
     };
     let probability = evaluator.last_probability_win;
-    let selected = if probability == 0.0 && game.surrender_allowed {
+    // A deadline-shortened search may rest on a single round, too few to give up on.
+    let selected = if probability == 0.0 && game.surrender_allowed && !evaluator.out_of_time() {
         Move {
             action: Action::Surrender,
             attack: None,
@@ -242,7 +243,8 @@ pub(super) fn select_bmai_action_at_level_with_stats(
         )
     });
     let probability = evaluator.last_probability_win;
-    let selected = if probability == 0.0 && game.surrender_allowed {
+    // A deadline-shortened search may rest on a single round, too few to give up on.
+    let selected = if probability == 0.0 && game.surrender_allowed && !evaluator.out_of_time() {
         Move {
             action: Action::Surrender,
             attack: None,
@@ -308,7 +310,7 @@ pub(super) fn evaluate_move(
     if !extra_turn {
         simulation.players.swap(0, 1);
     }
-    let result = if level >= settings.max_ply {
+    let result = if settings.stops_looking_ahead(level) {
         let probability =
             play_fight_qai(simulation, rng, candidate.action == Action::Pass, settings);
         if extra_turn {

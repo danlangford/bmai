@@ -50,7 +50,6 @@ pub enum Setting {
     MaxBranch(usize),
     Cull(bool),
     Playout(crate::Playout),
-    /// None turns the limit off.
     TimeLimit(Option<std::time::Duration>),
 }
 
@@ -74,9 +73,9 @@ impl Setting {
             },
             "time_limit" => match value.parse::<f64>() {
                 Ok(0.0) => Ok(Self::TimeLimit(None)),
-                Ok(seconds) if seconds > 0.0 && seconds.is_finite() => Ok(Self::TimeLimit(Some(
-                    std::time::Duration::from_secs_f64(seconds),
-                ))),
+                Ok(seconds) if seconds > 0.0 => std::time::Duration::try_from_secs_f64(seconds)
+                    .map(|limit| Self::TimeLimit(Some(limit)))
+                    .map_err(|_| format!("time_limit {value} is too large")),
                 _ => Err(format!(
                     "time_limit needs seconds, or 0 for none, not {value}"
                 )),
