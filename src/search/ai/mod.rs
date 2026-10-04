@@ -81,6 +81,8 @@ pub struct Bmai3 {
     pub last_best_score: f32,
     pub last_sims_run: usize,
     pub last_probability_win: f32,
+    /// Whether the deadline, not the budget or culling, ended the last search.
+    pub last_stopped_by_deadline: bool,
     pub ply_decay: f32,
     pub stats: Stats,
 }
@@ -102,6 +104,7 @@ impl Default for Bmai3 {
             last_best_score: 0.0,
             last_sims_run: 0,
             last_probability_win: 0.0,
+            last_stopped_by_deadline: false,
             ply_decay: 0.5,
             stats: Stats::default(),
         }
@@ -200,6 +203,7 @@ impl Bmai3 {
         assert!(!moves.is_empty());
         let sims = self.compute_number_sims(moves.len(), level);
         self.stats.on_ply_action(level, moves.len(), sims);
+        self.last_stopped_by_deadline = false;
         if !self.cull_moves && self.deadline.is_none() {
             let mut best = moves[0].clone();
             let mut best_score = -1.0_f32;
@@ -288,7 +292,11 @@ impl Bmai3 {
                 }
             }
             state.sims_run += check_sims;
-            if state.sims_run >= state.sims || self.out_of_time() {
+            if state.sims_run >= state.sims {
+                break;
+            }
+            if self.out_of_time() {
+                self.last_stopped_by_deadline = true;
                 break;
             }
             let multiple_candidates_remain = !self.cull_moves || self.cull(&mut state);

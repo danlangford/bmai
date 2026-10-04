@@ -420,7 +420,14 @@ fn a_time_limit_bounds_a_deep_search_in_the_fight_and_preround() {
     // a busy machine cannot make this flaky.
     let fight = "seed 17\nply 3\ntime_limit 0.2\ngame\nfight\nplayer 0 5 0\n4:3\n6:5\n8:2\n12:9\n20:11\nplayer 1 5 0\n4:1\n6:6\n10:4\n12:7\n20:15\ngetaction\n";
     let preround = "seed 17\nply 3\ntime_limit 0.2\ngame\npreround\nplayer 0 5 0\n4\n6\n8\n12\nX\nplayer 1 5 0\n4\n6\n10\n12\nY\ngetaction\n";
-    for script in [fight, preround] {
+    // Many swing dice make every candidate and every playout expensive.
+    let swings = "seed 17\ntime_limit 0.2\ngame\npreround\nplayer 0 5 0\nV\nW\nX\nY\nZ\nplayer 1 5 0\nV\nW\nX\nY\nZ\ngetaction\n";
+    // This reserve decision searches for minutes without a limit.
+    let reserve = format!(
+        "time_limit 0.5\n{}",
+        include_str!("../../../tests/fixtures/bug16_in.txt")
+    );
+    for script in [fight, preround, swings, &reserve] {
         let started = std::time::Instant::now();
         let result = BmairSession::default().execute(script).unwrap();
         assert!(result.action.is_some());

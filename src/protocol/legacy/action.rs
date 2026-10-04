@@ -75,13 +75,14 @@ impl Parser {
                 if let (Some(settings), Some(replay), true) =
                     (engine.montecarlo(), replay, self.report_sims > 0)
                 {
+                    // Its own time_limit budget, so a timed move stays bounded.
                     let estimate = evaluate_selected_native_bmai_move(
                         &self.game,
                         &action,
                         self.rng.algorithm(),
                         replay,
                         self.native_workers,
-                        settings,
+                        &settings.timed(),
                         self.report_sims,
                     );
                     let win_probability = estimate.win_probability();

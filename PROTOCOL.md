@@ -165,7 +165,7 @@ The stable command forms are:
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `cull [PLAYER] on\|off` | Let Monte Carlo search drop clearly losing candidates early (default on). |
-| `time_limit [PLAYER] SECONDS` | Bound each Monte Carlo decision: past the deadline the search stops looking ahead and plays its best move so far; `0` (the default) means no limit. |
+| `time_limit [PLAYER] SECONDS` | Bound each Monte Carlo decision: past the deadline the search stops looking ahead and plays its best move so far, possibly a round late; `0` (the default) means no limit. A `report_sims` estimate gets its own budget after the move. |
 | `playout [PLAYER] quick\|maximize\|random` | Choose the engine that plays Monte Carlo's simulated games (default `quick`). |
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |

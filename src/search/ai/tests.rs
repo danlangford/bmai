@@ -191,6 +191,7 @@ fn an_expired_deadline_gives_every_candidate_exactly_one_round_at_any_depth() {
         assert_eq!(ai.last_sims_run, round);
         assert_eq!(ai.last_best_score, round as f32);
         assert_eq!(ai.last_probability_win, 1.0);
+        assert!(ai.last_stopped_by_deadline);
     }
 }
 
@@ -203,6 +204,7 @@ fn without_a_deadline_the_whole_budget_runs() {
         0.5
     });
     assert_eq!(calls, 2 * ai.compute_number_sims(2, 1));
+    assert!(!ai.last_stopped_by_deadline);
 }
 
 #[test]

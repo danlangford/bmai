@@ -112,19 +112,20 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
     };
     let probability = evaluator.last_probability_win;
     // A deadline-shortened search may rest on a single round, too few to give up on.
-    let selected = if probability == 0.0 && game.surrender_allowed && !evaluator.out_of_time() {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
-    } else {
-        selected
-    };
+    let selected =
+        if probability == 0.0 && game.surrender_allowed && !evaluator.last_stopped_by_deadline {
+            Move {
+                action: Action::Surrender,
+                attack: None,
+                attackers: Vec::new().into(),
+                targets: Vec::new().into(),
+                score: 0.0,
+                turbo_option: -1,
+                fire: crate::game::FireAdjustment::default(),
+            }
+        } else {
+            selected
+        };
     SearchResult {
         best_move: selected,
         best_score: evaluator.last_best_score,
@@ -244,19 +245,20 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     });
     let probability = evaluator.last_probability_win;
     // A deadline-shortened search may rest on a single round, too few to give up on.
-    let selected = if probability == 0.0 && game.surrender_allowed && !evaluator.out_of_time() {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
-    } else {
-        selected
-    };
+    let selected =
+        if probability == 0.0 && game.surrender_allowed && !evaluator.last_stopped_by_deadline {
+            Move {
+                action: Action::Surrender,
+                attack: None,
+                attackers: Vec::new().into(),
+                targets: Vec::new().into(),
+                score: 0.0,
+                turbo_option: -1,
+                fire: crate::game::FireAdjustment::default(),
+            }
+        } else {
+            selected
+        };
     if trace {
         eprintln!(
             "BMAI_END l{level} seed={} probability={probability:.6} action={:?} attack={:?} {:?}->{:?}",

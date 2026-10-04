@@ -71,6 +71,9 @@ pub(crate) fn select_chance_action(
     initiative: usize,
     native: Option<NativeEvaluation>,
 ) -> (ChanceMove, f32) {
+    if ai.out_of_time() {
+        return (ChanceMove { reroll: Vec::new() }, 0.0);
+    }
     let mut moves = generate_chance_moves(game, player);
     let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
@@ -80,7 +83,8 @@ pub(crate) fn select_chance_action(
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
     while sims_run < sims {
-        let batch = if ai.cull_moves {
+        // A deadline needs rounds to stop at, even without culling.
+        let batch = if ai.cull_moves || ai.deadline.is_some() {
             ai.sims_per_check.min(sims - sims_run)
         } else {
             sims - sims_run
@@ -151,8 +155,11 @@ pub(crate) fn select_chance_action(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || !ai.cull_moves {
+        if sims_run >= sims || ai.out_of_time() || !ai.cull_moves && ai.deadline.is_none() {
             break;
+        }
+        if !ai.cull_moves {
+            continue;
         }
         if moves.len() == 1 {
             if completes_native_probability_sample(native) {
@@ -288,6 +295,9 @@ pub(crate) fn select_focus_action(
     native: Option<NativeEvaluation>,
 ) -> (FocusMove, f32) {
     let trace = trace_settings().focus;
+    if ai.out_of_time() {
+        return (FocusMove { values: Vec::new() }, 0.0);
+    }
     let mut moves = generate_focus_moves(game, player);
     let sims = ai.compute_number_sims(moves.len(), level);
     if trace {
@@ -304,7 +314,8 @@ pub(crate) fn select_focus_action(
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
     while sims_run < sims {
-        let batch = if ai.cull_moves {
+        // A deadline needs rounds to stop at, even without culling.
+        let batch = if ai.cull_moves || ai.deadline.is_some() {
             ai.sims_per_check.min(sims - sims_run)
         } else {
             sims - sims_run
@@ -384,8 +395,11 @@ pub(crate) fn select_focus_action(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || !ai.cull_moves {
+        if sims_run >= sims || ai.out_of_time() || !ai.cull_moves && ai.deadline.is_none() {
             break;
+        }
+        if !ai.cull_moves {
+            continue;
         }
         if moves.len() == 1 {
             if completes_native_probability_sample(native) {
