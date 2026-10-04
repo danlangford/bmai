@@ -10,7 +10,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Searches too long for every `cargo test`; CI runs them for releases.
+/// Searches too long for every `cargo test`; CI runs them on every pull request.
 const SLOW_FIXTURES: &[&str] = &[
     "bmai_in.txt",
     "bmsim_in.txt",
@@ -24,7 +24,7 @@ fn fast_fixtures_match_their_golden_output() {
 }
 
 #[test]
-#[ignore = "long searches; run for releases with --ignored"]
+#[ignore = "long searches; CI runs them with --ignored"]
 fn slow_fixtures_match_their_golden_output() {
     check_fixtures(|name| SLOW_FIXTURES.contains(&name));
 }

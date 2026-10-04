@@ -11,8 +11,6 @@ use std::process::{Command, Stdio};
 fn invalid_commands_fail_with_the_cpp_error() {
     let cases = [
         ("unrecognized\n", "unrecognized command: unrecognized"),
-        ("ai 0 3\n", "invalid setting for ai type: 3"),
-        ("ai 2 0\n", "invalid setting for ai player number: 2"),
         (
             "debug invalid 0\n",
             "Could not find debug category: invalid",
@@ -32,6 +30,28 @@ fn invalid_commands_fail_with_the_cpp_error() {
         ),
     ];
     for (input, message) in cases {
+        let output = execute(input);
+        assert!(!output.status.success(), "{input:?} should fail");
+        let combined = [output.stdout, output.stderr].concat();
+        let text = String::from_utf8_lossy(&combined);
+        let observed = text
+            .lines()
+            .filter(|line| !is_banner(line))
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert_eq!(observed, message, "error differs for {input:?}");
+    }
+}
+
+#[test]
+fn invalid_engine_selection_fails_with_the_engine_names() {
+    for (input, message) in [
+        (
+            "ai 0 3\n",
+            "unknown ai 3; choose one of: random, maximize, quick, montecarlo",
+        ),
+        ("ai 2 quick\n", "invalid setting for ai player number: 2"),
+    ] {
         let output = execute(input);
         assert!(!output.status.success(), "{input:?} should fail");
         let combined = [output.stdout, output.stderr].concat();

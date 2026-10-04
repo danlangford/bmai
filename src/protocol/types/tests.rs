@@ -10,6 +10,23 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
 
     let value = serde_json::to_value(Capabilities::current()).unwrap();
     assert_eq!(value["implementation"], "bmair");
+    let engines = value["engines"].as_array().unwrap();
+    let names = engines
+        .iter()
+        .map(|engine| engine["name"].as_str().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(names, crate::engines::ENGINE_NAMES);
+    assert_eq!(
+        engines[3]["settings"],
+        serde_json::json!([
+            "ply",
+            "max_sims",
+            "min_sims",
+            "maxbranch",
+            "cull",
+            "playout"
+        ])
+    );
     assert_eq!(value["protocols"][0], "legacy-v1");
     assert_eq!(value["protocols"][1], "jsonl-v1");
     assert_eq!(value["native"]["automatic_workers"], true);
@@ -32,6 +49,8 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
             "max_sims",
             "min_sims",
             "maxbranch",
+            "cull",
+            "playout",
             "report_sims",
             "turbo_accuracy",
             "fire_overshooting",

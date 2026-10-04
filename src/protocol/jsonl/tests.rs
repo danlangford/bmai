@@ -190,7 +190,14 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
     assert_eq!(changed["result"]["session"]["execution_mode"], "native");
     assert_eq!(changed["result"]["session"]["workers"], 4);
     assert_eq!(changed["result"]["session"]["max_ply"], 2);
-    assert_eq!(changed["result"]["session"]["players"][0]["max_ply"], 2);
+    assert_eq!(
+        changed["result"]["session"]["players"][0]["engine"],
+        "montecarlo"
+    );
+    assert_eq!(
+        changed["result"]["session"]["players"][0]["montecarlo"]["max_ply"],
+        2
+    );
     assert_eq!(
         changed["result"]["session"]["players"][0]["specials"],
         json!([])
@@ -234,7 +241,7 @@ fn session_metadata_reports_only_each_players_own_specials() {
 }
 
 #[test]
-fn session_metadata_reports_the_shared_ai_objects_players_use() {
+fn session_metadata_reports_each_players_engine_and_settings() {
     let mut session = BmairSession::default();
     let game = "game\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n4:4\n";
     let value = response(
@@ -243,16 +250,18 @@ fn session_metadata_reports_the_shared_ai_objects_players_use() {
             "protocol": "jsonl-v1",
             "id": 1,
             "method": "session.execute",
-            "params": { "script": format!("{game}max_sims 1 3\nai 1 0\nmax_sims 1 7\n") }
+            "params": { "script": format!("max_sims 3\n{game}max_sims 1 7\ncull 1 off\nai 0 quick\n") }
         }),
     );
     let session_state = &value["result"]["session"];
-    // Player 1 changed the shared g_ai before switching to its own `ai 1 0`.
     assert_eq!(session_state["max_simulations"], 3);
-    assert_eq!(session_state["players"][0]["max_simulations"], 3);
-    assert_eq!(session_state["players"][1]["ai_type"], 0);
-    assert_eq!(session_state["players"][1]["max_simulations"], 7);
-    assert_eq!(session_state["players"][1]["culls_moves"], false);
+    assert_eq!(session_state["cull"], true);
+    assert_eq!(session_state["players"][0]["engine"], "quick");
+    assert_eq!(session_state["players"][0]["montecarlo"], Value::Null);
+    let player_1 = &session_state["players"][1];
+    assert_eq!(player_1["engine"], "montecarlo");
+    assert_eq!(player_1["montecarlo"]["max_simulations"], 7);
+    assert_eq!(player_1["montecarlo"]["cull"], false);
 }
 
 #[test]
@@ -392,7 +401,7 @@ fn game_120810_selected_move_report_captures_the_fifty_fifty_endgame() {
 #[test]
 fn phase_specific_declines_have_unambiguous_typed_results() {
     let reserve = BmairSession::default()
-        .execute("game\nreserve\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\n")
+        .execute("game\nreserve\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 quick\ngetaction\n")
         .unwrap();
     assert_eq!(
         reserve.action,
@@ -400,7 +409,7 @@ fn phase_specific_declines_have_unambiguous_typed_results() {
     );
 
     let preround = BmairSession::default()
-        .execute("game\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 1\ngetaction\n")
+        .execute("game\npreround\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 quick\ngetaction\n")
         .unwrap();
     assert_eq!(preround.action, Some(crate::protocol::ProtocolAction::Pass));
 }

@@ -62,7 +62,7 @@ pub(super) fn apply_chance_move(
     }
 }
 
-pub(super) fn select_chance_action(
+pub(crate) fn select_chance_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -226,34 +226,6 @@ pub(super) fn evaluate_chance_simulation(
     }
 }
 
-pub(crate) fn select_bmai_chance_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> ChanceMove {
-    select_chance_action(game, 0, rng, ai, 1, 1, None).0
-}
-
-pub(crate) fn select_native_bmai_chance_action(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    ai: &Bmai3,
-) -> ChanceMove {
-    let mut unused_legacy_rng = Rng::untraced_default();
-    select_chance_action(
-        game,
-        0,
-        &mut unused_legacy_rng,
-        ai,
-        1,
-        1,
-        Some(NativeEvaluation {
-            algorithm: rng_algorithm,
-            replay,
-            workers,
-        }),
-    )
-    .0
-}
-
 pub(super) fn generate_focus_moves(game: &Game, player: usize) -> Vec<FocusMove> {
     let focus = game.players[player]
         .dice
@@ -306,7 +278,7 @@ pub(super) fn apply_focus_move(game: &mut Game, player: usize, action: &FocusMov
     game.players[player].optimize_dice();
 }
 
-pub(super) fn select_focus_action(
+pub(crate) fn select_focus_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -489,34 +461,6 @@ pub(super) fn evaluate_focus_simulation(
             },
         )
     }
-}
-
-pub(crate) fn select_bmai_focus_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> FocusMove {
-    select_focus_action(game, 0, rng, ai, 1, 1, None).0
-}
-
-pub(crate) fn select_native_bmai_focus_action(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    ai: &Bmai3,
-) -> FocusMove {
-    let mut unused_legacy_rng = Rng::untraced_default();
-    select_focus_action(
-        game,
-        0,
-        &mut unused_legacy_rng,
-        ai,
-        1,
-        1,
-        Some(NativeEvaluation {
-            algorithm: rng_algorithm,
-            replay,
-            workers,
-        }),
-    )
-    .0
 }
 
 pub(super) fn evaluate_next_initiative_action(

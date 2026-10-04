@@ -51,6 +51,8 @@ jobs:
         with:
           toolchain: 1.97.1
           components: clippy,rustfmt
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
       - name: Check formatting
         run: cargo fmt --check
       - name: Lint
@@ -68,10 +70,13 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.97.1
+      # Release builds stay uncached so published binaries build from scratch.
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
       - name: Run expensive self-contained fixture tests
         run: cargo test --profile release --locked --lib -- --ignored
+      # On every pull request, so a slow-fixture change fails before merge.
       - name: Check slow golden fixtures
-        if: ${{ inputs.release_build || github.event_name == 'workflow_dispatch' }}
         run: cargo test --profile release --locked --test fixture_golden -- --ignored
 
   build-and-test:

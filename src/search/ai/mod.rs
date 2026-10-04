@@ -9,10 +9,23 @@ const DEFAULT_SIMS: usize = 500;
 const MIN_SIMS: usize = 10;
 const DEFAULT_MAX_BRANCH: usize = 5000;
 
-#[derive(Clone, Copy, Debug)]
-pub enum RolloutPolicy {
-    Qai,
-    MaximizeOrRandom(f32),
+/// The engine that plays Monte Carlo's simulated games. Playouts call it
+/// directly instead of through the engine trait, as they make millions of moves.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Playout {
+    Quick,
+    Maximize,
+    Random,
+}
+
+impl Playout {
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Quick => "quick",
+            Self::Maximize => "maximize",
+            Self::Random => "random",
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -54,7 +67,7 @@ impl Stats {
 #[derive(Clone, Debug)]
 pub struct Bmai3 {
     pub cull_moves: bool,
-    pub rollout_policy: RolloutPolicy,
+    pub playout: Playout,
     pub max_ply: usize,
     pub max_branch: usize,
     pub min_sims: usize,
@@ -73,7 +86,7 @@ impl Default for Bmai3 {
     fn default() -> Self {
         Self {
             cull_moves: true,
-            rollout_policy: RolloutPolicy::Qai,
+            playout: Playout::Quick,
             max_ply: 1,
             max_branch: DEFAULT_MAX_BRANCH,
             min_sims: MIN_SIMS,

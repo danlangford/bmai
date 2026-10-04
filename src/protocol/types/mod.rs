@@ -51,17 +51,32 @@ pub struct NativeCapabilities {
     pub automatic_workers: bool,
 }
 
+/// An engine `ai PLAYER NAME` accepts and the settings it takes.
+#[derive(Debug, Serialize)]
+#[non_exhaustive]
+pub struct EngineCapability {
+    pub name: &'static str,
+    pub settings: &'static [&'static str],
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct PlayerAiMetadata {
-    pub ai_type: usize,
-    pub policy: &'static str,
-    pub culls_moves: bool,
+    pub engine: &'static str,
+    /// Null for engines that do not search.
+    pub montecarlo: Option<MonteCarloMetadata>,
+    pub specials: Vec<&'static str>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+#[non_exhaustive]
+pub struct MonteCarloMetadata {
     pub max_ply: usize,
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
-    pub specials: Vec<&'static str>,
+    pub cull: bool,
+    pub playout: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
@@ -103,6 +118,7 @@ pub struct SessionMetadata {
     pub min_simulations: usize,
     pub max_simulations: usize,
     pub max_branch: usize,
+    pub cull: bool,
     pub report_simulations: usize,
     pub players: [PlayerAiMetadata; 2],
 }
@@ -203,7 +219,7 @@ pub struct Capabilities {
     pub phases: &'static [&'static str],
     pub actions: &'static [&'static str],
     pub attack_types: &'static [&'static str],
-    pub ai_policies: &'static [&'static str],
+    pub engines: &'static [EngineCapability],
     pub skills: &'static [&'static str],
     pub parsing_only_skills: &'static [&'static str],
     pub button_specials: &'static [crate::protocol::notation::ButtonSpecialNotation],
@@ -228,6 +244,8 @@ impl Capabilities {
                 "max_sims",
                 "min_sims",
                 "maxbranch",
+                "cull",
+                "playout",
                 "report_sims",
                 "turbo_accuracy",
                 "fire_overshooting",
@@ -265,7 +283,24 @@ impl Capabilities {
             attack_types: &[
                 "power", "skill", "berserk", "speed", "trip", "shadow", "rush", "boom",
             ],
-            ai_policies: &["bmai", "qai", "bmai3"],
+            engines: &[
+                EngineCapability {
+                    name: "random",
+                    settings: &[],
+                },
+                EngineCapability {
+                    name: "maximize",
+                    settings: &[],
+                },
+                EngineCapability {
+                    name: "quick",
+                    settings: &[],
+                },
+                EngineCapability {
+                    name: "montecarlo",
+                    settings: crate::engines::MONTECARLO_SETTINGS,
+                },
+            ],
             skills: &[
                 "Auxiliary",
                 "Berserk",

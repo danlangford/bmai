@@ -52,6 +52,7 @@ impl Default for Rng {
 }
 
 impl Rng {
+    #[cfg(test)]
     pub(crate) fn untraced_default() -> Self {
         Self {
             algorithm: RngAlgorithm::LegacyParkMillerV1,

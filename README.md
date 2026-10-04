@@ -134,12 +134,13 @@ between top-level commands. Inline comments and comments inside `game` blocks
 are not supported, so a Rush die line such as `#6:6` inside a `game` block is
 always a die.
 
-`ply`, `max_sims`, `min_sims`, and `maxbranch` take an optional player, as in
-C++. Without one they change the global AI. With one they change the AI that
-player currently uses, which is shared: every `game` points both players at the
-global AI, and `ai PLAYER TYPE` points one player at that type's AI, whose
-settings persist across games. A per-player setting therefore affects every
-player using the same AI, and the global `stats` line reports the global AI.
+Each player is driven by a named engine: `random`, `maximize`, `quick` (the
+C++ Quick AI), or `montecarlo` (BMAI's simulation search, the default).
+`ai PLAYER NAME` selects one. `ply`, `max_sims`, `min_sims`, `maxbranch`,
+`cull`, and `playout` take an optional player. Without one they set the global
+Monte Carlo settings every player starts each `game` with; with one they change only that
+player's engine. An engine rejects settings it does not use, and Monte Carlo
+`ply` must be at least 1.
 
 ### Skills
 
@@ -211,7 +212,7 @@ candidate simulation while keeping legacy mode as the compatibility oracle.
 
 The default Rust test suite includes unit, parser, game-mechanics, and structural
 search tests, plus golden output for every fixture. The longest fixture
-searches are ignored by default and run in CI for releases:
+searches are ignored by default and run in CI on every pull request:
 
 ```shell
 cargo test --release --test fixture_golden -- --include-ignored

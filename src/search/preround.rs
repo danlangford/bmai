@@ -4,7 +4,7 @@
 
 use super::*;
 
-pub(super) fn select_swing_action(
+pub(crate) fn select_swing_action(
     game: &Game,
     player: usize,
     rng: &mut Rng,
@@ -189,40 +189,6 @@ pub(super) fn select_swing_action(
     (best, probability)
 }
 
-pub(crate) fn select_bmai_set_swing_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> SwingMove {
-    select_swing_action(game, 0, rng, ai, 1, None).0
-}
-
-pub(crate) fn select_native_bmai_set_swing_action(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    ai: &Bmai3,
-) -> SwingMove {
-    let mut unused_legacy_rng = Rng::untraced_default();
-    select_swing_action(
-        game,
-        0,
-        &mut unused_legacy_rng,
-        ai,
-        1,
-        Some(NativeEvaluation {
-            algorithm: rng_algorithm,
-            replay,
-            workers,
-        }),
-    )
-    .0
-}
-
-pub(crate) fn select_qai_set_swing_action(game: &Game) -> SwingMove {
-    generate_swing_moves(&game.players[0])
-        .into_iter()
-        .next()
-        .unwrap_or_else(SwingMove::empty)
-}
-
 pub(crate) fn select_bmai_reserve_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Option<usize> {
     let reserve_indices = game.players[0]
         .dice
@@ -274,7 +240,7 @@ pub(super) fn auxiliary_die(player: &crate::game::Player) -> Option<usize> {
 
 /// Gordo refuses a single swing die of its own V-Z types, which would force
 /// two dice to share a size; ButtonWeavers lets a Twin swing die through.
-fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<usize> {
+pub(crate) fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<usize> {
     auxiliary_die(player).filter(|index| {
         let die = &player.dice[*index];
         player.specials & special::UNIQUE_SIZES == 0
@@ -309,8 +275,8 @@ pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut
     let mut simulation = game.clone();
     apply_auxiliary_decision(&mut simulation, accepted);
     // QAI, because BMAI here would nest a new search at every move.
-    let (winner, _) =
-        play_round_with_policies(&mut simulation, rng, &[AiPolicy::Qai, AiPolicy::Qai], None);
+    let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
+    let (winner, _) = play_round_with_policies(&mut simulation, rng, &[quick(), quick()], None);
     match winner {
         Some(0) => 1.0,
         None => 0.5,
@@ -402,10 +368,6 @@ pub(crate) fn select_native_bmai_auxiliary_action(
     best
 }
 
-pub(crate) fn select_qai_auxiliary_action(game: &Game) -> Option<usize> {
-    acceptable_auxiliary_die(&game.players[0])
-}
-
 pub(crate) fn select_native_bmai_reserve_action(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,
@@ -458,10 +420,6 @@ pub(crate) fn select_native_bmai_reserve_action(
         }
     }
     best
-}
-
-pub(crate) fn select_qai_reserve_action(game: &Game) -> Option<usize> {
-    game.players[0].dice.iter().position(|die| die.in_reserve)
 }
 
 pub(super) fn apply_use_reserve(die: &mut Die) {
@@ -605,7 +563,7 @@ pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     action
 }
 
-pub(super) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
+pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
     let mut actions = Vec::<(Option<char>, usize, Vec<u8>)>::new();
     let mut swings = player
         .dice

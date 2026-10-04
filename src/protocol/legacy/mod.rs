@@ -5,18 +5,13 @@
 use std::fmt;
 use std::io::{BufRead, Write};
 
+use crate::engines::{DecisionContext, Engine, MonteCarlo, Setting};
 use crate::game::{Action, Die, DieIndexSet, Game, MAX_DICE, Move, Phase, SwingSet, property};
 use crate::search::{
-    AiPolicy, SwingMove, evaluate_selected_native_bmai_move, play_fair_games,
+    Engines, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move, play_fair_games,
     play_fair_games_native, play_games_with_policies, play_games_with_policies_native,
-    select_bmai_action_with_stats, select_bmai_auxiliary_action, select_bmai_chance_action,
-    select_bmai_focus_action, select_bmai_reserve_action, select_bmai_set_swing_action,
-    select_native_bmai_action_with_stats, select_native_bmai_auxiliary_action,
-    select_native_bmai_chance_action, select_native_bmai_focus_action,
-    select_native_bmai_reserve_action, select_native_bmai_set_swing_action, select_qai_action,
-    select_qai_auxiliary_action, select_qai_reserve_action, select_qai_set_swing_action,
 };
-use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm, RolloutPolicy};
+use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm};
 
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
@@ -28,13 +23,12 @@ impl fmt::Display for ParseError {
 }
 impl std::error::Error for ParseError {}
 
-/// C++ players share AI objects by pointer, so a per-player setting reaches
-/// every player using the same object.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum AiSlot {
-    Unbound,
+/// Players follow the global Monte Carlo settings until `ai` or a per-player
+/// setting gives them an engine of their own.
+#[derive(Clone, Debug)]
+enum PlayerEngine {
     Global,
-    Type(usize),
+    Own(Box<dyn Engine>),
 }
 
 #[derive(Clone, Debug)]
@@ -47,8 +41,7 @@ pub struct Parser {
     native_workers: usize,
     rng: Rng,
     ai: Bmai3,
-    type_ai: [Bmai3; 3],
-    player_ai: [AiSlot; 2],
+    player_engines: [PlayerEngine; 2],
     debug_ply: usize,
     logging: [bool; 8],
     last_action: Option<crate::protocol::ProtocolAction>,
@@ -67,11 +60,7 @@ impl Default for Parser {
             native_workers: 1,
             rng: Rng::default(),
             ai: Bmai3::default(),
-            type_ai: std::array::from_fn(|ai_type| Bmai3 {
-                cull_moves: ai_type == 2,
-                ..Default::default()
-            }),
-            player_ai: [AiSlot::Unbound; 2],
+            player_engines: [PlayerEngine::Global, PlayerEngine::Global],
             debug_ply: 0,
             logging: [true; 8],
             last_action: None,
@@ -110,22 +99,22 @@ impl Parser {
             min_simulations: self.ai.min_sims,
             max_simulations: self.ai.max_sims,
             max_branch: self.ai.max_branch,
+            cull: self.ai.cull_moves,
             report_simulations: self.report_sims,
             players: std::array::from_fn(|player| {
-                let ai = self.player_ai(player);
+                let engine = self.player_engine(player);
                 crate::protocol::PlayerAiMetadata {
-                    ai_type: self.ai_type(player),
-                    policy: match self.ai_type(player) {
-                        0 => "bmai",
-                        1 => "qai",
-                        2 => "bmai3",
-                        _ => unreachable!(),
-                    },
-                    culls_moves: ai.cull_moves,
-                    max_ply: ai.max_ply,
-                    min_simulations: ai.min_sims,
-                    max_simulations: ai.max_sims,
-                    max_branch: ai.max_branch,
+                    engine: engine.name(),
+                    montecarlo: engine.montecarlo().map(|search| {
+                        crate::protocol::MonteCarloMetadata {
+                            max_ply: search.max_ply,
+                            min_simulations: search.min_sims,
+                            max_simulations: search.max_sims,
+                            max_branch: search.max_branch,
+                            cull: search.cull_moves,
+                            playout: search.playout.name(),
+                        }
+                    }),
                     specials: crate::protocol::notation::BUTTON_SPECIALS
                         .iter()
                         .filter(|special| self.game.players[player].specials & special.special != 0)

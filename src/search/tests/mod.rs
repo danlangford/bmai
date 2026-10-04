@@ -169,9 +169,9 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
         max_branch: 10,
         ..Default::default()
     };
-    let policies = [
-        AiPolicy::Bmai(Box::new(ai.clone())),
-        AiPolicy::Bmai(Box::new(ai)),
+    let policies: Engines = [
+        Box::new(crate::engines::MonteCarlo::new(ai.clone())),
+        Box::new(crate::engines::MonteCarlo::new(ai)),
     ];
     let run = |workers| {
         let mut rng = Rng::default();

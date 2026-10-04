@@ -1,0 +1,9 @@
+# label | first button's dice | second button's dice, in BMAIR notation.
+# Classic Button Men opponents of different sizes, with swing dice left for
+# each engine to choose.
+Avis vs Hammer | 4 4 10 12 X | 6 12 20 20 X
+Bauer vs Stark | 8 10 12 20 X | 4 6 8 X X
+Karl vs Iago | 4 6 6 20 X | 20 20 20 X
+Niles vs Avis | 6 10 10 12 X | 4 4 10 12 X
+Hammer vs Bauer | 6 12 20 20 X | 8 10 12 20 X
+Stark vs Karl | 4 6 8 X X | 4 6 6 20 X
