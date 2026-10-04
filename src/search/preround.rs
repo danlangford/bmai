@@ -148,7 +148,8 @@ pub(crate) fn select_swing_action(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || ai.out_of_time() || !ai.cull_moves && ai.deadline.is_none() {
+        let single_batch = !ai.cull_moves && ai.deadline.is_none();
+        if sims_run >= sims || ai.out_of_time() || single_batch {
             break;
         }
         if !ai.cull_moves {
@@ -235,11 +236,14 @@ fn sample_in_rounds_native(
     while sims_run < sims {
         let batch = ai.sims_per_check.max(1).min(sims - sims_run);
         let tasks = (0..candidates)
-            .flat_map(|candidate| (sims_run..sims_run + batch).map(move |s| (candidate, s)))
+            .flat_map(|candidate| {
+                (sims_run..sims_run + batch).map(move |simulation| (candidate, simulation))
+            })
             .collect();
-        let results = crate::native::ordered_parallel_map(tasks, workers, |(candidate, s)| {
-            sample(candidate, s)
-        });
+        let results =
+            crate::native::ordered_parallel_map(tasks, workers, |(candidate, simulation)| {
+                sample(candidate, simulation)
+            });
         for (score, chunk) in scores.iter_mut().zip(results.chunks_exact(batch)) {
             *score += chunk.iter().sum::<f32>();
         }
@@ -434,16 +438,26 @@ pub(crate) fn select_native_bmai_auxiliary_action(
     let simulations = ai.compute_number_sims(2, 1);
     let candidates = [Some(auxiliary), None];
     if ai.deadline.is_some() {
-        let (scores, simulations) =
-            sample_in_rounds_native(2, simulations, ai, workers, |candidate_index, s| {
-                let mut simulation_rng =
-                    native_simulation_rng(rng_algorithm, replay, candidate_index, 0, s);
+        let (scores, simulations) = sample_in_rounds_native(
+            2,
+            simulations,
+            ai,
+            workers,
+            |candidate_index, simulation_index| {
+                let mut simulation_rng = native_simulation_rng(
+                    rng_algorithm,
+                    replay,
+                    candidate_index,
+                    0,
+                    simulation_index,
+                );
                 evaluate_auxiliary_decision(
                     game,
                     candidates[candidate_index].is_some(),
                     &mut simulation_rng,
                 )
-            });
+            },
+        );
         let (die, score) = best_candidate(&candidates, &scores);
         return AuxiliarySearchResult {
             die,
@@ -507,17 +521,27 @@ pub(crate) fn select_native_bmai_reserve_action(
         .chain([None])
         .collect::<Vec<_>>();
     if ai.deadline.is_some() {
-        let (scores, _) =
-            sample_in_rounds_native(candidates.len(), sims, ai, workers, |candidate_index, s| {
+        let (scores, _) = sample_in_rounds_native(
+            candidates.len(),
+            sims,
+            ai,
+            workers,
+            |candidate_index, simulation_index| {
                 let mut simulation = game.clone();
                 if let Some(index) = candidates[candidate_index] {
                     apply_use_reserve(&mut simulation.players[0].dice[index]);
                 }
-                let mut simulation_rng =
-                    native_simulation_rng(rng_algorithm, replay, candidate_index, 0, s);
+                let mut simulation_rng = native_simulation_rng(
+                    rng_algorithm,
+                    replay,
+                    candidate_index,
+                    0,
+                    simulation_index,
+                );
                 let fight_level = play_preround(&mut simulation, &mut simulation_rng, ai, 2);
                 play_simulated_round(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
-            });
+            },
+        );
         return best_candidate(&candidates, &scores).0;
     }
     let tasks = candidates

@@ -155,7 +155,8 @@ pub(crate) fn select_chance_action(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || ai.out_of_time() || !ai.cull_moves && ai.deadline.is_none() {
+        let single_batch = !ai.cull_moves && ai.deadline.is_none();
+        if sims_run >= sims || ai.out_of_time() || single_batch {
             break;
         }
         if !ai.cull_moves {
@@ -395,7 +396,8 @@ pub(crate) fn select_focus_action(
             }
         }
         sims_run += batch;
-        if sims_run >= sims || ai.out_of_time() || !ai.cull_moves && ai.deadline.is_none() {
+        let single_batch = !ai.cull_moves && ai.deadline.is_none();
+        if sims_run >= sims || ai.out_of_time() || single_batch {
             break;
         }
         if !ai.cull_moves {
