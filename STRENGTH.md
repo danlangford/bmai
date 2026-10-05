@@ -123,3 +123,73 @@ Caveats, disclosed after the run:
   shared, heavily loaded machine (load averages near 100 during parts of the
   run). They describe relative cost, not latency.
 
+
+## 0.21.0 settings sweep
+
+### Design
+
+Each row plays BMAIBagels' settings (`montecarlo ply=2 max_sims=100
+min_sims=5 maxbranch=400`) against one change, on the six matchups in
+`tests/strength/matchups.txt`, first to one round, each pair from both
+seats, eight threads, legacy execution.
+
+- `tests/strength/sweep.sh`, seeds 1 through 50 (300 pairs per row): ply 3,
+  ply 1 with ten times the simulations, and one ply 2 setting at a time. Not
+  preregistered; it was exploratory. One more row, ply 3 with a time limit
+  equal to ply 2's measured time per decision, ran on a `time_limit`
+  prototype that was not released.
+- `tests/strength/ply1-width.sh`, seeds 1 through 100 (600 pairs per row): ply
+  1 with simulations scaled to a quarter of, the same as, and four times ply
+  2's time per decision. Ratios between `max_sims`, `min_sims`, and
+  `maxbranch` match the sweep's ply 1 row, because `maxbranch / min_sims`
+  also caps Fire candidates. The decision rule was stated before results:
+  ply 1 replaces ply 2 only if the same-time row's interval lies wholly
+  below 0.5.
+
+### Result
+
+Run on 2026-10-04 from `182b829`, the code at tag `prototype/time-limit`. The
+first contestant is always ply 2 above, so a score below 0.5 favours the change.
+
+| Change | Pairs | Ply 2 score (95% CI) | Ply 2 ms/decision | Change ms/decision |
+|---|---:|---|---:|---:|
+| ply 3 | 300 | 0.477 (0.437–0.516) | 993 | 65253 |
+| ply 3, `time_limit=0.993` | 300 | **0.633 (0.596–0.671)** | 931 | 779 |
+| ply 1, `1000/50/4000` | 300 | 0.502 (0.462–0.541) | 944 | 62 |
+| `maxbranch=800` | 300 | 0.463 (0.423–0.504) | 975 | 3045 |
+| `maxbranch=200` | 300 | **0.542 (0.503–0.581)** | 986 | 285 |
+| `max_sims=200` | 300 | 0.482 (0.451–0.513) | 1008 | 1026 |
+| `min_sims=20` | 300 | 0.488 (0.448–0.528) | 1004 | 1017 |
+| `cull=off` | 300 | 0.468 (0.427–0.509) | 1004 | 1412 |
+| `playout=maximize` | 300 | 0.527 (0.486–0.567) | 990 | 948 |
+| ply 1, `4000/200/16000` | 600 | 0.512 (0.486–0.539) | 972 | 258 |
+| ply 1, `16000/800/64000` | 600 | 0.499 (0.472–0.527) | 1023 | 1084 |
+| ply 1, `64000/3200/256000` | 600 | 0.515 (0.487–0.543) | 985 | 4135 |
+
+Ply 1 settings are `max_sims/min_sims/maxbranch`.
+
+- Ply 3 cut off at ply 2's time loses clearly, and ply 3 given 65 times the
+  time does not measurably win. A time limit could only cap rare slow
+  decisions, not buy depth, so the prototype was set aside.
+- Ply 1 ties ply 2 from 62 ms to 4.1 s per decision, a 65-fold range of
+  simulations. The same-time row sits at 0.499, so under the stated rule ply
+  1 does not replace ply 2. It does match ply 2 at a quarter of the time or
+  less, where the 0.20.0 ladder's ply 1 at ply 2's settings lost narrowly.
+- Halving `maxbranch` loses narrowly; no other single setting change is
+  distinguishable from the current settings.
+- Neither depth nor simulation count moves strength much past these
+  settings, so the playouts that score every simulation are the likelier
+  limit.
+
+Caveats:
+
+- Twelve comparisons with no correction for multiplicity; only the timed ply
+  3 row would survive one. The `maxbranch=200` row would not.
+- Every row measures strength against BMAIBagels' own settings, not against
+  people, and only on these six matchups.
+- Intervals of about ±0.027 (600 pairs) or ±0.04 (300 pairs) cannot resolve
+  smaller differences.
+- Legacy execution is single-threaded per game; the bot runs native mode
+  across all cores, which these rows do not test.
+- Milliseconds per decision are wall time under eight-way concurrency on a
+  shared machine.

@@ -9,3 +9,4 @@
 *.profraw
 flamegraph.svg
 /parity-artifacts/
+/strength-runs/

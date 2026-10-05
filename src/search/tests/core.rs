@@ -270,3 +270,30 @@ fn each_playout_plays_its_own_engines_move() {
         "{picks:?}"
     );
 }
+
+#[test]
+fn the_first_swing_move_matches_the_first_generated_one() {
+    for (dice, special) in [
+        ("4\nX\nY\nZ\nV", ""),
+        ("6/12\nX\n(Y,Y)", ""),
+        ("uX\nuY\nZ", ""),
+        ("4\nX\nX\nY", "special 0 unique_swing\n"),
+        ("4\n6\nX\nY\nZ", "special 0 unique_sizes\n"),
+        ("8\n10", ""),
+        ("4/6\nX", "special 0 unique_sizes\n"),
+        ("6\n7\n8\n9\n10\n11\n12\nV", "special 0 unique_sizes\n"),
+    ] {
+        let count = dice.lines().count();
+        let game = native_fixture_game(&format!(
+            "game\npreround\nplayer 0 {count} 0\n{dice}\nplayer 1 1 0\n6\n{special}"
+        ));
+        let player = &game.players[0];
+        assert_eq!(
+            first_swing_move(player).map(|m| (m.values().to_vec(), m.options().to_vec())),
+            generate_swing_moves(player)
+                .first()
+                .map(|m| (m.values().to_vec(), m.options().to_vec())),
+            "{dice} {special}"
+        );
+    }
+}

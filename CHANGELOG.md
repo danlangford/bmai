@@ -17,7 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Stronger QAI rollouts within QAI's time and memory budget, measured with the
   harness. Candidate rules: prefer attacks that leave the opponent's capture
   options smallest, and avoid rerolling a die the keep-threshold says must
-  survive.
+  survive. The 0.21.0 sweep found neither depth nor simulation count improves
+  on BMAIBagels' settings, so rollout quality is the likeliest limit.
 - A `minimax` AI policy (expectiminimax), built in measured steps:
   - Exact reroll odds instead of sampling, starting with a Turbo pre-screen
     that drops dominated sizes before simulating the rest.
@@ -35,12 +36,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pass search a single randomness source, the sequential generator or a
   native replay key, so no search takes a generator it ignores. Offer a
   modern generator (PCG or xoshiro) beside Park-Miller for strength runs.
-- Move the Monte Carlo search from `search/` into `engines/montecarlo/`.
-- A `time_limit` setting: Monte Carlo search stops at the deadline and
-  returns its best move so far, so BMAIBagels no longer restarts a timed-out
-  search at a lower ply and discards the work.
-- Tune BMAIBagels' `ply`, `max_sims`, `min_sims`, and `maxbranch` with the
-  strength harness, choosing the strongest settings within a time budget.
+- Move the Monte Carlo search from `search/` into `engines/montecarlo/`, and
+  split the helpers other engines share out of it.
+- Finish tuning BMAIBagels' settings. The 0.21.0 sweep changed one setting
+  at a time over 300 pairs, so it could only find large effects. Still open:
+  `maxbranch` 800 and above (it leaned better), combinations of settings,
+  native execution, and larger samples that can resolve a few points.
+
+### Tabled
+
+Tried or considered, and set aside because the strength harness showed no
+clear benefit. Each could return if that changes.
+
+- A per-decision `time_limit` for Monte Carlo. A prototype bounded every
+  phase, but ply 3 limited to ply 2's time lost clearly, and BMAIBagels
+  already retries a lower ply after an hour. The code is at tag
+  `prototype/time-limit`.
+- BMAIBagels at ply 1 with more simulations. `4000/200/16000` tied ply 2 at a
+  quarter of the time, but the bot is not short of time.
+- Monte Carlo defaults that depend on `ply`. BMAIBagels sets every value, so
+  nothing uses the defaults.
+- Exposing the fixed depth decay and cull thresholds as settings, given how
+  little the exposed settings moved strength.
+
+## [0.21.0] - 2026-10-05
+
+### Changed
+
+- Quick and every playout pick their swing settings without listing every
+  combination, which made playouts with many swing dice slow. The setting
+  chosen is unchanged.
+
+### Added
+
+- `tests/strength/sweep.sh` and `tests/strength/ply1-width.sh` play
+  BMAIBagels' settings against ply 3, wider ply 1, and one-setting changes.
+  STRENGTH.md records the results: no change beat the current settings.
 
 ## [0.20.0] - 2026-10-03
 
@@ -588,7 +619,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...HEAD
+[0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0
 [0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0
 [0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0
