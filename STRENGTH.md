@@ -137,7 +137,7 @@ seats, eight threads, legacy execution.
   ply 1 with ten times the simulations, and one ply 2 setting at a time. Not
   preregistered; it was exploratory. One more row, ply 3 with a time limit
   equal to ply 2's measured time per decision, ran on a `time_limit`
-  prototype that was not released (tag `prototype/time-limit`).
+  prototype that was not released.
 - `tests/strength/ply1-width.sh`, seeds 1 through 100 (600 pairs per row): ply
   1 with simulations scaled to a quarter of, the same as, and four times ply
   2's time per decision. Ratios between `max_sims`, `min_sims`, and
@@ -148,8 +148,8 @@ seats, eight threads, legacy execution.
 
 ### Result
 
-Run on 2026-10-04 from `182b829` (tag `prototype/time-limit`). The first
-contestant is always ply 2 above, so a score below 0.5 favours the change.
+Run on 2026-10-04 from `182b829`, the code at tag `prototype/time-limit`. The
+first contestant is always ply 2 above, so a score below 0.5 favours the change.
 
 | Change | Pairs | Ply 2 score (95% CI) | Ply 2 ms/decision | Change ms/decision |
 |---|---:|---|---:|---:|

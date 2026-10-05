@@ -561,10 +561,14 @@ pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     action
 }
 
-type SwingAction = (Option<char>, usize, Vec<u8>);
+struct SwingAction {
+    swing: Option<char>,
+    die: usize,
+    values: Vec<u8>,
+}
 
 fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
-    let mut actions = Vec::<(Option<char>, usize, Vec<u8>)>::new();
+    let mut actions = Vec::new();
     let mut swings = player
         .dice
         .iter()
@@ -575,11 +579,19 @@ fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
     swings.dedup();
     for swing in swings {
         let (min, max) = swing_range(swing);
-        actions.push((Some(swing), 0, (min..=max).collect()));
+        actions.push(SwingAction {
+            swing: Some(swing),
+            die: 0,
+            values: (min..=max).collect(),
+        });
     }
     for (index, die) in player.dice.iter().enumerate() {
         if !die.in_reserve && die.has_property(property::OPTION) {
-            actions.push((None, index, vec![0, 1]));
+            actions.push(SwingAction {
+                swing: None,
+                die: index,
+                values: vec![0, 1],
+            });
         }
     }
     actions
@@ -588,68 +600,65 @@ fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
 fn swing_move_allowed(player: &crate::game::Player, candidate: &SwingMove) -> bool {
     let unique_sizes = player.specials & special::UNIQUE_SIZES != 0;
     if unique_sizes || player.specials & special::UNIQUE_SWING != 0 {
-        let distinct = {
-            // Option dice count at the side this candidate chooses.
-            let fixed_sizes = player
-                .dice
-                .iter()
-                .enumerate()
-                .filter(|(_, die)| !die.in_reserve && die.swing_type.iter().all(Option::is_none))
-                .map(|(index, die)| {
-                    let second = candidate
-                        .options()
-                        .iter()
-                        .any(|(option, second)| *option == index && *second);
-                    if die.has_property(property::OPTION) {
-                        u16::from(die.sides[usize::from(second)])
-                    } else {
-                        die.sides_max()
-                    }
-                })
-                .collect::<Vec<_>>();
-            let values = candidate.values();
-            values.iter().enumerate().all(|(index, (_, value))| {
-                !values[..index].iter().any(|(_, other)| other == value)
-                    && !(unique_sizes && fixed_sizes.contains(&u16::from(*value)))
+        // Option dice count at the side this candidate chooses.
+        let fixed_sizes = player
+            .dice
+            .iter()
+            .enumerate()
+            .filter(|(_, die)| !die.in_reserve && die.swing_type.iter().all(Option::is_none))
+            .map(|(index, die)| {
+                let second = candidate
+                    .options()
+                    .iter()
+                    .any(|(option, second)| *option == index && *second);
+                if die.has_property(property::OPTION) {
+                    u16::from(die.sides[usize::from(second)])
+                } else {
+                    die.sides_max()
+                }
             })
-        };
+            .collect::<Vec<_>>();
+        let values = candidate.values();
+        let distinct = values.iter().enumerate().all(|(index, (_, value))| {
+            !values[..index].iter().any(|(_, other)| other == value)
+                && !(unique_sizes && fixed_sizes.contains(&u16::from(*value)))
+        });
         if !distinct {
             return false;
         }
     }
     // Unique only forbids matching a lower-lettered swing type, as in C++.
-    {
-        player
-            .dice
-            .iter()
-            .filter(|die| !die.in_reserve && die.has_property(property::UNIQUE))
-            .all(|die| {
-                let Some(unique_swing) = die.swing_type[0] else {
-                    return true;
-                };
-                let unique_value = candidate
-                    .values()
-                    .iter()
-                    .find_map(|(swing, value)| (*swing == unique_swing).then_some(*value));
-                let Some(unique_value) = unique_value else {
-                    return true;
-                };
-                !candidate.values().iter().any(|(swing, value)| {
-                    *swing < unique_swing
-                        && *value == unique_value
-                        && player.dice.iter().any(|other| {
-                            !other.in_reserve && other.swing_type.contains(&Some(*swing))
-                        })
-                })
+    player
+        .dice
+        .iter()
+        .filter(|die| !die.in_reserve && die.has_property(property::UNIQUE))
+        .all(|die| {
+            let Some(unique_swing) = die.swing_type[0] else {
+                return true;
+            };
+            let unique_value = candidate
+                .values()
+                .iter()
+                .find_map(|(swing, value)| (*swing == unique_swing).then_some(*value));
+            let Some(unique_value) = unique_value else {
+                return true;
+            };
+            !candidate.values().iter().any(|(swing, value)| {
+                *swing < unique_swing
+                    && *value == unique_value
+                    && player
+                        .dice
+                        .iter()
+                        .any(|other| !other.in_reserve && other.swing_type.contains(&Some(*swing)))
             })
-    }
+        })
 }
 
-fn push_swing_choice(candidate: &mut SwingMove, (swing, index, _): &SwingAction, value: u8) {
-    if let Some(s) = swing {
-        candidate.push_value((*s, value));
+fn push_swing_choice(candidate: &mut SwingMove, action: &SwingAction, value: u8) {
+    if let Some(swing) = action.swing {
+        candidate.push_value((swing, value));
     } else {
-        candidate.push_option((*index, value != 0));
+        candidate.push_option((action.die, value != 0));
     }
 }
 
@@ -658,7 +667,7 @@ pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMov
     for action in swing_actions(player) {
         let mut next = Vec::new();
         for base in &moves {
-            for value in &action.2 {
+            for value in &action.values {
                 let mut m = *base;
                 push_swing_choice(&mut m, &action, *value);
                 next.push(m);
@@ -678,7 +687,7 @@ pub(crate) fn first_swing_move(player: &crate::game::Player) -> Option<SwingMove
     loop {
         let mut candidate = SwingMove::empty();
         for (action, value) in actions.iter().zip(&choice) {
-            push_swing_choice(&mut candidate, action, action.2[*value]);
+            push_swing_choice(&mut candidate, action, action.values[*value]);
         }
         if swing_move_allowed(player, &candidate) {
             return Some(candidate);
@@ -691,7 +700,7 @@ pub(crate) fn first_swing_move(player: &crate::game::Player) -> Option<SwingMove
             }
             position -= 1;
             choice[position] += 1;
-            if choice[position] < actions[position].2.len() {
+            if choice[position] < actions[position].values.len() {
                 break;
             }
             choice[position] = 0;

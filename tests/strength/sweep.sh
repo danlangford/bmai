@@ -7,38 +7,11 @@
 # Usage: tests/strength/sweep.sh [OUT_DIR]   (from the repo root)
 set -euo pipefail
 
-out=${1:-strength-runs/$(date +%Y-%m-%d-%H%M)}
-seeds=${SEEDS:-1..50}
-threads=${THREADS:-8}
-mkdir -p "$out"
-
-cargo build --release --example ladder
-# A private copy, so switching branches mid-run can't change the binary.
-cp target/release/examples/ladder "$out/ladder"
-git rev-parse --short HEAD > "$out/commit.txt"
+BMAIR_STRENGTH_SEEDS=${BMAIR_STRENGTH_SEEDS:-1..50}
+source tests/strength/lib.sh "${1:-strength-runs/$(date +%Y-%m-%d-%H%M)-sweep}"
 
 base="montecarlo max_sims=100 min_sims=5 maxbranch=400"
 ply2="$base ply=2"
-
-run() {
-  local name=$1 first=$2 second=$3
-  if [[ -s "$out/$name.md" ]]; then
-    echo "skip $name (done)"
-    return
-  fi
-  echo "$(date +%H:%M) start $name: $first vs $second" | tee -a "$out/progress.log"
-  "$out/ladder" --engine "$first" --engine "$second" \
-    --seeds "$seeds" --threads "$threads" \
-    > "$out/$name.tmp" 2>> "$out/progress.log"
-  mv "$out/$name.tmp" "$out/$name.md"
-  echo "$(date +%H:%M) done  $name" | tee -a "$out/progress.log"
-  tail -n 1 "$out/$name.md" >> "$out/summary.md"
-}
-
-[[ -s "$out/summary.md" ]] || cat > "$out/summary.md" <<'EOF'
-| First | Second | Pairs | First wins | First score (95% CI) | First ms/decision | Second ms/decision |
-|---|---|---:|---:|---|---:|---:|
-EOF
 
 # 1. Does looking deeper help?
 run 01-ply2-vs-ply3 "$ply2" "$base ply=3"

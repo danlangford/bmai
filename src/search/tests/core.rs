@@ -280,6 +280,8 @@ fn the_first_swing_move_matches_the_first_generated_one() {
         ("4\nX\nX\nY", "special 0 unique_swing\n"),
         ("4\n6\nX\nY\nZ", "special 0 unique_sizes\n"),
         ("8\n10", ""),
+        ("4/6\nX", "special 0 unique_sizes\n"),
+        ("6\n7\n8\n9\n10\n11\n12\nV", "special 0 unique_sizes\n"),
     ] {
         let count = dice.lines().count();
         let game = native_fixture_game(&format!(

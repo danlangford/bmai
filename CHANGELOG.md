@@ -69,10 +69,9 @@ clear benefit. Each could return if that changes.
 
 ### Added
 
-- `tests/strength/sweep.sh`, `tests/strength/ply1-width.sh`, and
-  `tests/strength/maxbranch.sh` play BMAIBagels' settings against ply 3,
-  wider ply 1, and one-setting changes. STRENGTH.md records the results: no
-  change beat the current settings.
+- `tests/strength/sweep.sh` and `tests/strength/ply1-width.sh` play
+  BMAIBagels' settings against ply 3, wider ply 1, and one-setting changes.
+  STRENGTH.md records the results: no change beat the current settings.
 
 ## [0.20.0] - 2026-10-03
 
@@ -620,7 +619,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...HEAD
+[0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0
 [0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0
 [0.18.0]: https://github.com/danlangford/bmai/compare/bmair-v0.17.0...bmair-v0.18.0
