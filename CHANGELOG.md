@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   native replay key, so no search takes a generator it ignores. Offer a
   modern generator (PCG or xoshiro) beside Park-Miller for strength runs.
 - Move the Monte Carlo search from `search/` into `engines/montecarlo/`.
+- Finish tuning BMAIBagels' settings. The 0.21.0 sweep changed one setting
+  at a time over 300 pairs, so it could only find large effects. Still open:
+  `maxbranch` 800 and above (it leaned better), combinations of settings,
+  native execution, and larger samples that can resolve a few points.
 
 ## [0.21.0] - 2026-10-04
 
