@@ -403,8 +403,9 @@ fn value_and_poison_scoring_apply_to_each_rushed_die() {
         .defenders(["6:4", "p8:2"])
         .targeting([0, 1])
         .expect_captured_defender_dice(["pv8:2", "v6:4"])
-        // 3 own + 4 Value - 1 Poison Value; size scoring would give 5.
-        .expect_scores(6.0, 0.0)
+        .expect_attacker_dice(["#v6:5"])
+        // 2.5 own after the reroll + 4 Value - 1 Poison Value.
+        .expect_scores(5.5, 0.0)
         .run();
 }
 

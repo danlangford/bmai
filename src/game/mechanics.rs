@@ -155,10 +155,12 @@ pub(crate) fn apply_attack_for_players(
             morph_into_target(game, attacker_player, target_player, attacker, target);
             if !decays {
                 let die = &mut game.players[attacker_player].dice[attacker];
+                let old_score = die.score(true);
                 die.not_set = true;
                 roll_die(die, rng);
                 morph_extra_turn =
                     die.has_property(property::TIME_AND_SPACE) && die.value_total() % 2 == 1;
+                game.players[attacker_player].score += die.score(true) - old_score;
             }
         }
         if decays {
@@ -170,7 +172,10 @@ pub(crate) fn apply_attack_for_players(
                     // ButtonWeavers runs each product's Morphing hook again.
                     morph_into_target(game, attacker_player, target_player, product, target);
                 }
-                roll_die(&mut game.players[attacker_player].dice[product], rng);
+                let die = &mut game.players[attacker_player].dice[product];
+                let old_score = die.score(true);
+                roll_die(die, rng);
+                game.players[attacker_player].score += die.score(true) - old_score;
             }
             if trip_failed {
                 let die = &mut game.players[target_player].dice[target];
@@ -247,7 +252,6 @@ fn apply_boom_attack(
     extra_turn
 }
 
-/// Unlike an attacker's reroll, a Boom target's new value counts for Value.
 fn reroll_and_rescore(game: &mut Game, player: usize, index: usize, rng: &mut Rng) {
     let old_score = game.players[player].dice[index].score(true);
     let die = &mut game.players[player].dice[index];
@@ -683,11 +687,10 @@ pub(super) fn apply_attacker_nature_roll(
     let die = &mut game.players[player].dice[index];
     let old_score = die.score(true);
     apply_mood(die, rng);
-    // C++ never rescores after the reroll, so a Value die keeps its old score.
-    game.players[player].score += die.score(true) - old_score;
     if die.not_set {
         roll_die(die, rng);
     }
+    game.players[player].score += die.score(true) - old_score;
 }
 
 /// ButtonWeavers resizes Mood and Mad dice on every reroll, including Trip

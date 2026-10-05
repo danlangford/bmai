@@ -59,6 +59,17 @@ clear benefit. Each could return if that changes.
 - Exposing the fixed depth decay and cull thresholds as settings, given how
   little the exposed settings moved strength.
 
+## [0.22.0] - 2026-10-05
+
+### Fixed
+
+- A Value die scores its current value after it rerolls, and after Focus
+  turns it down. BMAIR had kept C++'s pre-reroll score, so simulations never
+  credited an opponent's high Value reroll: in game 121248 BMAIBagels
+  claimed 100.0% from a position the opponent wins about 17.5% of the time.
+  Rerolls after a Trip Morph and of Radioactive products are rescored too.
+  The `Value1` and `Value2` golden outputs changed.
+
 ## [0.21.0] - 2026-10-05
 
 ### Changed
@@ -619,7 +630,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...HEAD
+[0.22.0]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...bmair-v0.22.0
 [0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0
 [0.19.0]: https://github.com/danlangford/bmai/compare/bmair-v0.18.0...bmair-v0.19.0

@@ -140,20 +140,6 @@ fn cpp_focus_marks_dice_dizzy_until_turn_recovery() {
 }
 
 #[test]
-fn cpp_value_attacker_score_retains_its_pre_reroll_value() {
-    scenario()
-        .attacker("v20:15")
-        .attacks(Power)
-        .defender("6:5")
-        .with_scores(7.5, 3.0)
-        .seed(1)
-        .expect_scores(12.5, 0.0)
-        .expect_attacker_dice(["v20:20"])
-        .expect_no_defender_dice()
-        .run();
-}
-
-#[test]
 fn cpp_maximum_die_always_rolls_its_maximum() {
     roll("M6").times(10).expect_values([6]).run();
 }
