@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Stronger QAI rollouts within QAI's time and memory budget, measured with the
-  harness. Candidate rules: prefer attacks that leave the opponent's capture
+  harness. The 0.21.0 sweep found neither depth nor simulation count improves
+  on BMAIBagels' settings, so rollout quality is the likeliest limit. Candidate rules: prefer attacks that leave the opponent's capture
   options smallest, and avoid rerolling a die the keep-threshold says must
   survive.
 - A `minimax` AI policy (expectiminimax), built in measured steps:
@@ -36,8 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   native replay key, so no search takes a generator it ignores. Offer a
   modern generator (PCG or xoshiro) beside Park-Miller for strength runs.
 - Move the Monte Carlo search from `search/` into `engines/montecarlo/`.
-- Tune BMAIBagels' `ply`, `max_sims`, `min_sims`, and `maxbranch` with the
-  strength harness, choosing the strongest settings within a time budget.
 
 ## [0.21.0] - 2026-10-04
 
@@ -61,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `time_limit_ms`.
 - Quick and every playout pick their swing settings without listing every
   combination, which made playouts with many swing dice slow.
+- `tests/strength/sweep.sh` and `tests/strength/ply1-width.sh` run
+  BMAIBagels' settings against ply 3, wider ply 1, and one-setting changes.
+  STRENGTH.md records the results: none beat the current settings, and ply 3
+  limited to ply 2's time loses clearly.
 
 ## [0.20.0] - 2026-10-03
 
