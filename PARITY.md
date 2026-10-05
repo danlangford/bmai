@@ -449,11 +449,14 @@ because the wire state carries no button identity.
 | Gordo also avoids fixed die sizes, comparing option dice at their chosen side, and declines a single V-Z Auxiliary swing die for both players | `unique_sizes_also_avoids_fixed_die_sizes`, `unique_sizes_compares_option_dice_at_their_chosen_side`, `gordo_declines_a_v_to_z_auxiliary_swing_die`, `gordo_accepts_other_auxiliary_dice`, `either_players_gordo_decline_removes_both_auxiliary_dice` |
 | A Trip needs only to reach the target's minimum, with Konstant, Maximum, Mighty, Weak, Mood, and Turbo adjustments | `single_trip_dice_may_trip_twin_dice_they_can_reach`, `trip_must_reach_a_konstant_targets_value`, `trip_must_reach_a_maximum_targets_size`, `konstant_trip_dice_reach_only_their_value`, `mighty_trip_dice_reach_further`, `weak_trip_dice_reach_less_far`, `mood_trip_dice_reach_their_largest_swing_size`, `mood_twin_trip_dice_reach_one_subdies_swing_size`, `a_mood_maximum_target_counts_at_its_smallest_swing_size`, `turbo_trip_sizes_too_small_for_the_target_are_not_offered`, `turbo_trip_is_offered_when_only_a_larger_size_reaches_the_target`, `option_turbo_trip_offers_only_the_side_that_reaches_the_target` |
 | Morphing applies to any single-target attack, and only after a successful one | `single_target_berserk_attack_morphs`, `single_target_speed_attack_morphs`, `failed_trip_does_not_morph`, `successful_trip_rolls_at_its_own_size_then_morphs_and_rerolls`, `time_and_space_counts_the_reroll_after_a_trip_morph`, `radioactive_trip_target_decays_the_attacker_after_it_morphs` |
+| A Value die scores its current value after every reroll and Focus change | `an_attacking_value_die_scores_its_new_value`, `a_focused_value_die_scores_its_lowered_value`, `every_attack_keeps_the_score_equal_to_the_dice` (Trip Morph and Radioactive rerolls too), `a_chance_reroll_keeps_the_score_equal_to_the_dice`, `a_rerolled_value_die_leaves_the_opponent_a_chance` |
 
 The Trip and Morphing rows intentionally depart from C++, which forbade a
 non-Twin Trip against a Twin die and limited Morphing to its 1_1 and N_1
 attack types. `parity_trip_morphing_in.txt`'s golden output changed
-accordingly in 0.16.0.
+accordingly in 0.16.0. The Value row departs from C++, which kept an
+attacker's pre-reroll score; `Value1_in.txt` and `Value2_in.txt` changed in
+0.22.0.
 
 ### Rush rule and interaction coverage
 

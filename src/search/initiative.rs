@@ -272,8 +272,10 @@ pub(super) fn generate_focus_moves(game: &Game, player: usize) -> Vec<FocusMove>
 pub(super) fn apply_focus_move(game: &mut Game, player: usize, action: &FocusMove) {
     for (index, value) in &action.values {
         let die = &mut game.players[player].dice[*index];
+        let old_score = die.score(true);
         die.value = Some(*value);
         die.dizzy = true;
+        game.players[player].score += die.score(true) - old_score;
     }
     game.players[player].optimize_dice();
 }
