@@ -492,9 +492,7 @@ pub(super) fn evaluate_swing_move(
     if level >= ai.max_ply {
         if game.players[other].swing_set == SwingSet::Not {
             if needs_set_swing(&game.players[other]) {
-                let selected = generate_swing_moves(&game.players[other])
-                    .into_iter()
-                    .next()
+                let selected = first_swing_move(&game.players[other])
                     .expect("a player needing a swing has a valid setting");
                 apply_swing_move(&mut game.players[other], &selected);
             }
@@ -563,7 +561,9 @@ pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     action
 }
 
-pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
+type SwingAction = (Option<char>, usize, Vec<u8>);
+
+fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
     let mut actions = Vec::<(Option<char>, usize, Vec<u8>)>::new();
     let mut swings = player
         .dice
@@ -582,25 +582,13 @@ pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMov
             actions.push((None, index, vec![0, 1]));
         }
     }
-    let mut moves = vec![SwingMove::empty()];
-    for (swing, index, values) in actions {
-        let mut next = Vec::new();
-        for base in &moves {
-            for value in &values {
-                let mut m = *base;
-                if let Some(s) = swing {
-                    m.push_value((s, *value));
-                } else {
-                    m.push_option((index, *value != 0));
-                }
-                next.push(m);
-            }
-        }
-        moves = next;
-    }
+    actions
+}
+
+fn swing_move_allowed(player: &crate::game::Player, candidate: &SwingMove) -> bool {
     let unique_sizes = player.specials & special::UNIQUE_SIZES != 0;
     if unique_sizes || player.specials & special::UNIQUE_SWING != 0 {
-        moves.retain(|candidate| {
+        let distinct = {
             // Option dice count at the side this candidate chooses.
             let fixed_sizes = player
                 .dice
@@ -624,10 +612,13 @@ pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMov
                 !values[..index].iter().any(|(_, other)| other == value)
                     && !(unique_sizes && fixed_sizes.contains(&u16::from(*value)))
             })
-        });
+        };
+        if !distinct {
+            return false;
+        }
     }
     // Unique only forbids matching a lower-lettered swing type, as in C++.
-    moves.retain(|candidate| {
+    {
         player
             .dice
             .iter()
@@ -651,8 +642,61 @@ pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMov
                         })
                 })
             })
-    });
+    }
+}
+
+fn push_swing_choice(candidate: &mut SwingMove, (swing, index, _): &SwingAction, value: u8) {
+    if let Some(s) = swing {
+        candidate.push_value((*s, value));
+    } else {
+        candidate.push_option((*index, value != 0));
+    }
+}
+
+pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
+    let mut moves = vec![SwingMove::empty()];
+    for action in swing_actions(player) {
+        let mut next = Vec::new();
+        for base in &moves {
+            for value in &action.2 {
+                let mut m = *base;
+                push_swing_choice(&mut m, &action, *value);
+                next.push(m);
+            }
+        }
+        moves = next;
+    }
+    moves.retain(|candidate| swing_move_allowed(player, candidate));
     moves
+}
+
+/// `generate_swing_moves(player).first()` without building every setting,
+/// which playouts would otherwise do once per simulated round.
+pub(crate) fn first_swing_move(player: &crate::game::Player) -> Option<SwingMove> {
+    let actions = swing_actions(player);
+    let mut choice = vec![0usize; actions.len()];
+    loop {
+        let mut candidate = SwingMove::empty();
+        for (action, value) in actions.iter().zip(&choice) {
+            push_swing_choice(&mut candidate, action, action.2[*value]);
+        }
+        if swing_move_allowed(player, &candidate) {
+            return Some(candidate);
+        }
+        // The last action varies fastest, matching generate_swing_moves.
+        let mut position = actions.len();
+        loop {
+            if position == 0 {
+                return None;
+            }
+            position -= 1;
+            choice[position] += 1;
+            if choice[position] < actions[position].2.len() {
+                break;
+            }
+            choice[position] = 0;
+        }
+    }
 }
 
 pub(super) fn apply_swing_move(player: &mut crate::game::Player, action: &SwingMove) {

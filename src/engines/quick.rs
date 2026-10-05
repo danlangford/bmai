@@ -6,7 +6,7 @@ use super::{Choice, DecisionContext, Engine};
 use crate::Rng;
 use crate::game::{Die, Game, Move, apply_attack, property};
 use crate::search::{
-    ChanceMove, FocusMove, ScratchGame, SwingMove, acceptable_auxiliary_die, generate_swing_moves,
+    ChanceMove, FocusMove, ScratchGame, SwingMove, acceptable_auxiliary_die, first_swing_move,
     pass_move, restore_simulation, trace_settings,
 };
 
@@ -24,10 +24,7 @@ impl Engine for Quick {
     }
 
     fn swing(&self, game: &Game, player: usize, _: &mut DecisionContext<'_, '_>) -> SwingMove {
-        generate_swing_moves(&game.players[player])
-            .into_iter()
-            .next()
-            .unwrap_or_else(SwingMove::empty)
+        first_swing_move(&game.players[player]).unwrap_or_else(SwingMove::empty)
     }
 
     fn chance(&self, _: &Game, _: usize, _: usize, _: &mut DecisionContext<'_, '_>) -> ChanceMove {
