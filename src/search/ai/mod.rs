@@ -14,6 +14,7 @@ const DEFAULT_MAX_BRANCH: usize = 16000;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Playout {
     Quick,
+    Careful,
     Maximize,
     Random,
 }
@@ -22,6 +23,7 @@ impl Playout {
     pub const fn name(self) -> &'static str {
         match self {
             Self::Quick => "quick",
+            Self::Careful => "careful",
             Self::Maximize => "maximize",
             Self::Random => "random",
         }

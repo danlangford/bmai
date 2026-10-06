@@ -300,6 +300,10 @@ impl Capabilities {
                     name: "montecarlo",
                     settings: crate::engines::MONTECARLO_SETTINGS,
                 },
+                EngineCapability {
+                    name: "careful",
+                    settings: &[],
+                },
             ],
             skills: &[
                 "Auxiliary",

@@ -4,11 +4,13 @@
 //! Every AI implements [`Engine`], so match play, the legacy protocol, and the
 //! strength harness pick engines by name instead of matching on each one.
 
+mod careful;
 pub(crate) mod maximize;
 mod montecarlo;
 pub(crate) mod quick;
 pub(crate) mod random;
 
+pub(crate) use careful::Careful;
 pub(crate) use maximize::Maximize;
 pub(crate) use montecarlo::MonteCarlo;
 pub(crate) use quick::Quick;
@@ -23,7 +25,7 @@ use crate::search::{ChanceMove, FocusMove, NativeEvaluation, NativeReplaySequenc
 pub(crate) const SIMPLE_FIRE_CANDIDATES: usize = 500;
 
 /// The names `ai PLAYER NAME` accepts, in the order capabilities list them.
-pub const ENGINE_NAMES: [&str; 4] = ["random", "maximize", "quick", "montecarlo"];
+pub const ENGINE_NAMES: [&str; 5] = ["random", "maximize", "quick", "montecarlo", "careful"];
 
 /// Capabilities list these; a test checks `MonteCarlo::set` accepts exactly them.
 pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
@@ -40,6 +42,7 @@ pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
         "random" => Some(Box::new(Random)),
         "maximize" => Some(Box::new(Maximize)),
         "quick" => Some(Box::new(Quick)),
+        "careful" => Some(Box::new(Careful)),
         "montecarlo" => Some(Box::new(MonteCarlo::default())),
         _ => None,
     }
@@ -77,8 +80,9 @@ impl Setting {
                 "quick" => Ok(Self::Playout(crate::Playout::Quick)),
                 "maximize" => Ok(Self::Playout(crate::Playout::Maximize)),
                 "random" => Ok(Self::Playout(crate::Playout::Random)),
+                "careful" => Ok(Self::Playout(crate::Playout::Careful)),
                 _ => Err(format!(
-                    "playout needs quick, maximize, or random, not {value}"
+                    "playout needs quick, careful, maximize, or random, not {value}"
                 )),
             },
             _ => Err(format!("unknown setting {name}")),

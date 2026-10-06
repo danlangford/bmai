@@ -48,7 +48,7 @@ fn invalid_engine_selection_fails_with_the_engine_names() {
     for (input, message) in [
         (
             "ai 0 3\n",
-            "unknown ai 3; choose one of: random, maximize, quick, montecarlo",
+            "unknown ai 3; choose one of: random, maximize, quick, montecarlo, careful",
         ),
         ("ai 2 quick\n", "invalid setting for ai player number: 2"),
     ] {

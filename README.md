@@ -135,7 +135,8 @@ are not supported, so a Rush die line such as `#6:6` inside a `game` block is
 always a die.
 
 Each player is driven by a named engine: `random`, `maximize`, `quick` (the
-C++ Quick AI), or `montecarlo` (BMAI's simulation search, the default).
+C++ Quick AI), `montecarlo` (BMAI's simulation search, the default), or
+`careful` (Quick that also weighs the opponent's best reply).
 `ai PLAYER NAME` selects one. `ply`, `max_sims`, `min_sims`, `maxbranch`,
 `cull`, and `playout` take an optional player. Without one they set the global
 Monte Carlo settings every player starts each `game` with; with one they change only that

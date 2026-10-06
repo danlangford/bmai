@@ -309,7 +309,7 @@ fn engines_reject_settings_they_do_not_use() {
         ("cull maybe\n", "cull needs on or off, not maybe"),
         (
             "playout best\n",
-            "playout needs quick, maximize, or random, not best",
+            "playout needs quick, careful, maximize, or random, not best",
         ),
         (
             "ai 0 quick\nplayout 0 random\n",
@@ -333,7 +333,7 @@ fn ai_rejects_unknown_engines_and_players() {
         ("ai 2 quick\n", "invalid setting for ai player number: 2"),
         (
             "ai 0 1\n",
-            "unknown ai 1; choose one of: random, maximize, quick, montecarlo",
+            "unknown ai 1; choose one of: random, maximize, quick, montecarlo, careful",
         ),
         ("ai 0\n", "ai takes a player and an engine name: ai 0"),
     ] {
