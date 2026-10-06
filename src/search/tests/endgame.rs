@@ -82,3 +82,107 @@ fn scripted_draws_refuse_other_randomness() {
     let result = std::panic::catch_unwind(|| crate::Rng::scripted(Vec::new()).rand());
     assert!(result.is_err());
 }
+
+/// An independent solver for checking the real one: no cache, no merging of
+/// outcomes, its own walk through the draws. Too slow for anything else.
+fn naive_value(game: &Game, passed: bool, depth: usize) -> f64 {
+    assert!(depth < 40, "corpus positions must not cycle");
+    if crate::search::fight_over(game) {
+        return f64::from(crate::search::win_probability(game));
+    }
+    crate::search::moves_including_pass(game, 500)
+        .iter()
+        .map(|action| naive_move_value(game, action, passed, depth))
+        .fold(0.0, f64::max)
+}
+
+fn naive_move_value(game: &Game, action: &Move, passed: bool, depth: usize) -> f64 {
+    if action.action != crate::Action::Attack {
+        if passed {
+            return f64::from(crate::search::win_probability(game));
+        }
+        let mut next = game.clone();
+        next.players.swap(0, 1);
+        return 1.0 - naive_value(&next, true, depth + 1);
+    }
+    let mut total = 0.0;
+    let mut stack = vec![Vec::<u32>::new()];
+    while let Some(faces) = stack.pop() {
+        let mut rng = crate::Rng::scripted(faces.clone());
+        let mut next = game.clone();
+        let extra_turn = apply_attack(&mut next, action, &mut rng);
+        let ranges = rng.scripted_ranges().unwrap().to_vec();
+        if faces.len() < ranges.len() {
+            // This path drew more than it scripted: branch on that draw.
+            for face in 0..ranges[faces.len()] {
+                let mut longer = faces.clone();
+                longer.push(face);
+                stack.push(longer);
+            }
+            continue;
+        }
+        let probability: f64 = ranges.iter().map(|&range| 1.0 / f64::from(range)).product();
+        let after = if extra_turn {
+            naive_value(&next, false, depth + 1)
+        } else {
+            next.players.swap(0, 1);
+            1.0 - naive_value(&next, false, depth + 1)
+        };
+        total += probability * after;
+    }
+    total
+}
+
+/// Seeded small positions with common skills; no Trip, whose failures can
+/// repeat a position, which the naive solver cannot handle.
+fn corpus(count: usize) -> Vec<Game> {
+    let mut rng = crate::Rng::untraced_default();
+    rng.reseed(20_261_006);
+    // Time and Space and Morphing grant extra turns; Shadow and Konstant
+    // leave sides with no attack, so passes occur.
+    let kinds = [
+        "", "", "v", "p", "z", "s", "s", "f", "k", "k", "H", "w", "^", "^", "m",
+    ];
+    let sizes = [2u32, 4, 6, 8];
+    let die = |rng: &mut crate::Rng| {
+        let kind = kinds[rng.rand_below(kinds.len() as u32) as usize];
+        let size = sizes[rng.rand_below(sizes.len() as u32) as usize];
+        format!("{kind}{size}:{}", 1 + rng.rand_below(size))
+    };
+    (0..count)
+        .map(|_| {
+            let mine = 1 + rng.rand_below(2) as usize;
+            let theirs = 1 + rng.rand_below(2) as usize;
+            let player0 = (0..mine).map(|_| die(&mut rng)).collect::<Vec<_>>();
+            let player1 = (0..theirs).map(|_| die(&mut rng)).collect::<Vec<_>>();
+            let score = |rng: &mut crate::Rng| rng.rand_below(20);
+            let (score0, score1) = (score(&mut rng), score(&mut rng));
+            native_fixture_game(&format!(
+                "game\nfight\nplayer 0 {mine} {score0}\n{}\nplayer 1 {theirs} {score1}\n{}\n",
+                player0.join("\n"),
+                player1.join("\n")
+            ))
+        })
+        .collect()
+}
+
+#[test]
+fn the_solver_matches_a_naive_solver_on_three_hundred_positions() {
+    let mut solved = 0;
+    for (index, game) in corpus(300).iter().enumerate() {
+        let Some((_, value)) = Solver::new(500, 1_000_000).best_move(game) else {
+            continue;
+        };
+        let naive = naive_value(game, false, 0);
+        assert!(
+            (value - naive).abs() < 1e-12,
+            "position {index}: solver {value}, naive {naive}\n{:?}",
+            game.players
+        );
+        solved += 1;
+    }
+    assert_eq!(
+        solved, 300,
+        "every corpus position is small enough to solve"
+    );
+}
