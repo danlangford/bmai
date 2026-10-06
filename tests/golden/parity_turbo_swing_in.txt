@@ -2,6 +2,7 @@ exit 0
 --- stdout
 Setting execution mode to legacy
 Setting Fire overshooting off
+Setting endgame to 0
 Setting max ply to 1
 Setting max # simulations to 500
 Setting min # simulations to 10

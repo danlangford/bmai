@@ -123,6 +123,8 @@ impl Parser {
                 self.apply_setting_command(arguments, "playout", output)?;
             } else if let Some(arguments) = line.strip_prefix("cull ") {
                 self.apply_setting_command(arguments, "cull", output)?;
+            } else if let Some(arguments) = line.strip_prefix("endgame ") {
+                self.apply_setting_command(arguments, "endgame", output)?;
             } else if let Some(value) = argument(line, "report_sims") {
                 self.report_sims = value?;
                 writeln!(

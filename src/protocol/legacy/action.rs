@@ -54,6 +54,11 @@ impl Parser {
                 let (choice, replay) =
                     self.decide(|engine, game, context| engine.attack(game, context));
                 let action = choice.choice;
+                // An exact endgame answer needs no resampled estimate.
+                let exact = choice
+                    .search
+                    .as_ref()
+                    .is_some_and(|search| search.simulations == 0);
                 self.last_action = Some(protocol_attack(&self.game, &action)?);
                 if let Some(search) = choice.search {
                     self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
@@ -73,7 +78,7 @@ impl Parser {
                     .map_err(io_error)?;
                 }
                 if let (Some(settings), Some(replay), true) =
-                    (engine.montecarlo(), replay, self.report_sims > 0)
+                    (engine.montecarlo(), replay, self.report_sims > 0 && !exact)
                 {
                     let estimate = evaluate_selected_native_bmai_move(
                         &self.game,

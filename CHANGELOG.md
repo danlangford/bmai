@@ -67,6 +67,28 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.24.0] - 2026-10-06
+
+### Added
+
+- `endgame N`, a Monte Carlo setting that solves the end of a round exactly
+  once N or fewer dice remain (default 4). It replays each attack with every
+  face of every random draw, so every skill's odds are exact, and plays both
+  sides at their best. A position over its budget, with too many rerolls
+  (Ornery), or that can repeat (a Trip that keeps failing) is searched as
+  before. An exact answer skips the `report_sims` resampling, so clients see
+  the exact odds. Game 121248's position, once reported as a certain win,
+  solves to a 30.4% chance for the opponent. `BMAIR_TRACE_ENDGAME` logs how
+  far Monte Carlo's choice falls short of the solver's.
+
+### Changed
+
+- **Breaking:** `surrender` defaults to `off`. With it on, Monte Carlo
+  surrendered rounds it could still win: the solver found 15 such
+  surrenders in 951 endgame decisions, with chances up to 10%. Clients
+  expecting C++ BMAI's results now also send `surrender on` and `endgame 0`;
+  the golden test does.
+
 ## [0.23.0] - 2026-10-06
 
 ### Changed
@@ -662,7 +684,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...HEAD
+[0.24.0]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...bmair-v0.24.0
 [0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
 [0.22.0]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...bmair-v0.22.0
 [0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0

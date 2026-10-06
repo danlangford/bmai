@@ -178,6 +178,8 @@ impl SwingMove {
     }
 }
 
+mod endgame;
+pub(crate) use endgame::{Solver, dice_in_play};
 mod fight;
 mod initiative;
 mod match_play;

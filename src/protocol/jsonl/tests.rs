@@ -328,7 +328,9 @@ fn surrender_and_turbo_are_captured_from_the_legacy_action() {
         ),
     ];
     for (script, action_type, turbo_kind) in cases {
-        let result = BmairSession::default().execute(script).unwrap();
+        // C++ fixtures, which assume C++ BMAI's defaults.
+        let script = format!("mode legacy\nsurrender on\nendgame 0\n{script}");
+        let result = BmairSession::default().execute(&script).unwrap();
         let action = serde_json::to_value(result.action).unwrap();
         assert_eq!(action["type"], action_type);
         match turbo_kind {
@@ -361,7 +363,7 @@ fn native_typed_actions_and_replay_keys_are_worker_count_independent() {
 
 #[test]
 fn selected_move_report_is_structured_and_does_not_change_the_action() {
-    let position = "mode native\nworkers 2\ngame 3\nfight\nplayer 0 1 20\npX!-20:5\nplayer 1 3 56.5\n20:19\nfsv13:5\ngvz30:6\nply 3\nmax_sims 100\nmin_sims 5\nmaxbranch 400\nsurrender off\nseed 1\n";
+    let position = "mode native\nworkers 2\nendgame 0\ngame 3\nfight\nplayer 0 1 20\npX!-20:5\nplayer 1 3 56.5\n20:19\nfsv13:5\ngvz30:6\nply 3\nmax_sims 100\nmin_sims 5\nmaxbranch 400\nsurrender off\nseed 1\n";
     let baseline = BmairSession::default()
         .execute(&format!("{position}getaction\n"))
         .unwrap();

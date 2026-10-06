@@ -35,6 +35,15 @@ pub struct Rng {
     trace_count: u64,
     trace_fingerprint: u64,
     native_stratum: Option<crate::native::NativeStratum>,
+    script: Option<Box<DrawScript>>,
+}
+
+/// Replays chosen faces for each draw and records each draw's range, so a
+/// caller can walk every outcome of an attack with its exact probability.
+#[derive(Clone, Debug, Default)]
+struct DrawScript {
+    faces: Vec<u32>,
+    ranges: Vec<u32>,
 }
 
 impl Default for Rng {
@@ -47,6 +56,7 @@ impl Default for Rng {
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: None,
+            script: None,
         }
     }
 }
@@ -62,6 +72,7 @@ impl Rng {
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: None,
+            script: None,
         }
     }
 
@@ -78,7 +89,26 @@ impl Rng {
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: stratum,
+            script: None,
         }
+    }
+
+    /// Draws the given faces in order, then the lowest face of each later draw.
+    pub(crate) fn scripted(faces: Vec<u32>) -> Self {
+        Self {
+            script: Some(Box::new(DrawScript {
+                faces,
+                ranges: Vec::new(),
+            })),
+            ..Self::default()
+        }
+    }
+
+    /// Each draw's number of faces, in order, for a scripted generator.
+    pub(crate) fn scripted_ranges(&self) -> Option<&[u32]> {
+        self.script
+            .as_deref()
+            .map(|script| script.ranges.as_slice())
     }
 
     pub const fn algorithm(&self) -> RngAlgorithm {
@@ -108,6 +138,11 @@ impl Rng {
     }
 
     pub fn rand(&mut self) -> u32 {
+        // A script enumerates rand_below's faces; any other draw breaks exactness.
+        assert!(
+            self.script.is_none(),
+            "a scripted Rng only answers rand_below"
+        );
         self.native_stratum = None;
         match self.algorithm {
             RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),
@@ -135,6 +170,12 @@ impl Rng {
 
     pub fn rand_below(&mut self, upper: u32) -> u32 {
         assert!(upper > 0, "rand_below requires a nonzero upper bound");
+        if let Some(script) = self.script.as_mut() {
+            let face = script.faces.get(script.ranges.len()).copied().unwrap_or(0);
+            assert!(face < upper, "scripted face {face} is outside 0..{upper}");
+            script.ranges.push(upper);
+            return face;
+        }
         let random = match self.algorithm {
             RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),
         };

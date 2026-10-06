@@ -42,6 +42,7 @@ impl Engine for MonteCarlo {
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
             Setting::Playout(playout) => self.search.playout = playout,
+            Setting::Endgame(dice) => self.search.endgame_dice = dice,
         }
         Ok(())
     }
@@ -101,6 +102,29 @@ impl Engine for MonteCarlo {
     }
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
+        if let Some((choice, probability)) = solve_endgame(game, &self.search) {
+            if std::env::var_os("BMAIR_TRACE_ENDGAME").is_some() {
+                let sampled = match context.native() {
+                    Some(native) => select_native_bmai_action_with_stats(
+                        game,
+                        native.algorithm,
+                        native.replay,
+                        native.workers,
+                        &self.search,
+                    ),
+                    None => select_bmai_action_with_stats(game, context.rng, &self.search),
+                };
+                trace_endgame(game, &self.search, &sampled.best_move, probability);
+            }
+            return Choice {
+                search: Some(SearchSummary {
+                    score: probability as f32,
+                    win_probability: probability as f32,
+                    simulations: 0,
+                }),
+                choice,
+            };
+        }
         let result = match context.native() {
             Some(native) => select_native_bmai_action_with_stats(
                 game,
@@ -158,4 +182,46 @@ impl Engine for MonteCarlo {
             }),
         }
     }
+}
+
+/// Big enough for every position measured so far; larger ones go to Monte
+/// Carlo rather than slow the move down.
+const ENDGAME_NODE_LIMIT: usize = 200_000;
+
+fn solve_endgame(game: &Game, search: &Bmai3) -> Option<(Move, f64)> {
+    if search.endgame_dice == 0 || crate::search::dice_in_play(game) > search.endgame_dice {
+        return None;
+    }
+    crate::search::Solver::new(search.fire_candidate_limit(), ENDGAME_NODE_LIMIT).best_move(game)
+}
+
+/// Logs how far Monte Carlo's choice falls short of the exact best move.
+fn trace_endgame(game: &Game, search: &Bmai3, sampled: &Move, best: f64) {
+    let mut solver = crate::search::Solver::new(search.fire_candidate_limit(), ENDGAME_NODE_LIMIT);
+    let Some(values) = solver.move_values(game) else {
+        return;
+    };
+    let same = |action: &Move| {
+        action.action == sampled.action
+            && action.attack == sampled.attack
+            && action.attackers == sampled.attackers
+            && action.targets == sampled.targets
+            && action.turbo_option == sampled.turbo_option
+            && action.fire == sampled.fire
+    };
+    // Surrendering loses the round, so it is worth nothing.
+    let sampled_value = if sampled.action == crate::Action::Surrender {
+        Some(0.0)
+    } else {
+        values
+            .iter()
+            .find(|(action, _)| same(action))
+            .map(|(_, value)| *value)
+    };
+    eprintln!(
+        "ENDGAME dice={} moves={} best={best:.6} montecarlo={}",
+        crate::search::dice_in_play(game),
+        values.len(),
+        sampled_value.map_or("unknown".into(), |value| format!("{value:.6}"))
+    );
 }
