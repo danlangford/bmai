@@ -84,13 +84,20 @@ impl Solver {
     /// when the position needs more than the node budget.
     pub(crate) fn best_move(&mut self, game: &Game) -> Option<(Move, f64)> {
         let mut best: Option<(Move, f64)> = None;
-        for action in moves_including_pass(game, self.fire_limit) {
-            let value = self.move_value(game, &action, false)?;
+        for (action, value) in self.move_values(game)? {
             if best.as_ref().is_none_or(|(_, best)| value > *best) {
                 best = Some((action, value));
             }
         }
         best
+    }
+
+    /// Every move the mover has, with its exact chance of winning the round.
+    pub(crate) fn move_values(&mut self, game: &Game) -> Option<Vec<(Move, f64)>> {
+        moves_including_pass(game, self.fire_limit)
+            .into_iter()
+            .map(|action| Some((action.clone(), self.move_value(game, &action, false)?)))
+            .collect()
     }
 
     fn position_value(&mut self, game: &Game, passed: bool) -> Option<f64> {
