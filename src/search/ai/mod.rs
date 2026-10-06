@@ -42,6 +42,10 @@ pub struct QuickTweaks {
     pub value_once: bool,
     /// Tenths of a point per pip of Fire turned down.
     pub fire_cost: u8,
+    /// Simulated opponents pick random legal swing sizes, not all minimums.
+    pub swing_random: bool,
+    /// Simulated players use Chance and Focus to take initiative.
+    pub initiative: bool,
 }
 
 impl Default for QuickTweaks {
@@ -52,6 +56,8 @@ impl Default for QuickTweaks {
             danger: 0,
             value_once: false,
             fire_cost: 0,
+            swing_random: false,
+            initiative: false,
         }
     }
 }
@@ -68,6 +74,10 @@ impl QuickTweaks {
             };
             if part == "valueonce" {
                 tweaks.value_once = true;
+            } else if part == "swingrandom" {
+                tweaks.swing_random = true;
+            } else if part == "initiative" {
+                tweaks.initiative = true;
             } else if part.starts_with("noise") {
                 tweaks.noise = number("noise")?;
             } else if part.starts_with("exposure") {

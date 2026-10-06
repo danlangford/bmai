@@ -558,6 +558,9 @@ pub(super) fn play_simulated_round(
         apply_focus_move(game, player, &action);
         phase = player;
     }
+    if use_qai && ai.quick_tweaks.initiative {
+        phase = qai_initiative(game, phase, rng);
+    }
     for _ in 0..256 {
         if fight_over(game) {
             break;
@@ -611,7 +614,10 @@ pub(super) fn play_simulated_round(
 
 pub(super) fn play_round_qai(game: &mut Game, rng: &mut Rng, pov: usize, ai: &Bmai3) -> f32 {
     roll_round_dice(game, rng);
-    let phase = initiative_winner(game);
+    let mut phase = initiative_winner(game);
+    if ai.quick_tweaks.initiative {
+        phase = qai_initiative(game, phase, rng);
+    }
     play_fight_qai_from_phase(game, rng, phase, pov, false, ai)
 }
 
@@ -659,4 +665,74 @@ pub(super) fn play_fight_qai_from_phase(
         std::cmp::Ordering::Equal => 0.5,
         std::cmp::Ordering::Less => 0.0,
     }
+}
+
+/// Quick's Chance and Focus: whoever is behind rerolls its highest Chance die,
+/// or turns down the one Focus die that wins initiative most cheaply.
+fn qai_initiative(game: &mut Game, mut phase: usize, rng: &mut Rng) -> usize {
+    for _ in 0..4 {
+        let player = 1 - phase;
+        let available = |property: u64| {
+            game.players[player]
+                .dice
+                .iter()
+                .enumerate()
+                .filter(move |(_, die)| die.is_available() && die.has_property(property))
+        };
+        if let Some((index, _)) =
+            available(property::CHANCE).max_by_key(|(_, die)| die.value_total())
+        {
+            let (next, continues) = apply_chance_move(
+                game,
+                player,
+                phase,
+                &ChanceMove {
+                    reroll: vec![index],
+                },
+                rng,
+            );
+            phase = next;
+            if !continues {
+                break;
+            }
+            continue;
+        }
+        let focus = available(property::FOCUS)
+            .filter(|(_, die)| !die.has_property(property::RAGE))
+            .map(|(index, die)| (index, die.value_total() as u8))
+            .collect::<Vec<_>>();
+        let mut best: Option<(u8, usize, u8)> = None;
+        let mut trial = game.clone();
+        for (index, current) in focus {
+            for value in (1..current).rev() {
+                restore_simulation(&mut trial, game);
+                apply_focus_move(
+                    &mut trial,
+                    player,
+                    &FocusMove {
+                        values: vec![(index, value)],
+                    },
+                );
+                if check_initiative(&trial) == Some(player) {
+                    let cost = current - value;
+                    if best.is_none_or(|(least, _, _)| cost < least) {
+                        best = Some((cost, index, value));
+                    }
+                    break;
+                }
+            }
+        }
+        let Some((_, index, value)) = best else {
+            break;
+        };
+        apply_focus_move(
+            game,
+            player,
+            &FocusMove {
+                values: vec![(index, value)],
+            },
+        );
+        phase = player;
+    }
+    phase
 }
