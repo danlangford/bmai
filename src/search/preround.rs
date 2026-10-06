@@ -492,12 +492,8 @@ pub(super) fn evaluate_swing_move(
     if level >= ai.max_ply {
         if game.players[other].swing_set == SwingSet::Not {
             if needs_set_swing(&game.players[other]) {
-                let selected = if ai.quick_tweaks.swing_random {
-                    random_swing_move(&game.players[other], rng)
-                } else {
-                    first_swing_move(&game.players[other])
-                }
-                .expect("a player needing a swing has a valid setting");
+                let selected = first_swing_move(&game.players[other])
+                    .expect("a player needing a swing has a valid setting");
                 apply_swing_move(&mut game.players[other], &selected);
             }
             game.players[other].swing_set = SwingSet::Locked;
@@ -710,22 +706,6 @@ pub(crate) fn first_swing_move(player: &crate::game::Player) -> Option<SwingMove
             choice[position] = 0;
         }
     }
-}
-
-/// A random legal setting, since real opponents rarely pick every minimum.
-fn random_swing_move(player: &crate::game::Player, rng: &mut Rng) -> Option<SwingMove> {
-    let actions = swing_actions(player);
-    for _ in 0..20 {
-        let mut candidate = SwingMove::empty();
-        for action in &actions {
-            let pick = rng.rand_below(action.values.len() as u32) as usize;
-            push_swing_choice(&mut candidate, action, action.values[pick]);
-        }
-        if swing_move_allowed(player, &candidate) {
-            return Some(candidate);
-        }
-    }
-    first_swing_move(player)
 }
 
 pub(super) fn apply_swing_move(player: &mut crate::game::Player, action: &SwingMove) {
