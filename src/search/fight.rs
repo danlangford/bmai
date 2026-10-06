@@ -410,7 +410,7 @@ pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> 
 pub(super) fn select_rollout_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Move {
     let fire_limit = ai.fire_candidate_limit();
     match ai.playout {
-        Playout::Quick => crate::engines::quick::attack(game, rng, fire_limit, &ai.quick_tweaks),
+        Playout::Quick => crate::engines::quick::attack(game, rng, fire_limit),
         Playout::Maximize => crate::engines::maximize::attack(game, rng, fire_limit),
         Playout::Random => crate::engines::random::attack(game, rng, fire_limit),
     }

@@ -42,7 +42,6 @@ impl Engine for MonteCarlo {
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
             Setting::Playout(playout) => self.search.playout = playout,
-            Setting::QuickTweaks(tweaks) => self.search.quick_tweaks = tweaks,
         }
         Ok(())
     }

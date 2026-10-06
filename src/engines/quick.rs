@@ -3,12 +3,12 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use super::{Choice, DecisionContext, Engine};
+use crate::Rng;
 use crate::game::{Die, Game, Move, apply_attack, property};
 use crate::search::{
     ChanceMove, FocusMove, ScratchGame, SwingMove, acceptable_auxiliary_die, first_swing_move,
     pass_move, restore_simulation, trace_settings,
 };
-use crate::{QuickTweaks, Rng};
 
 /// The C++ "Quick AI": fast enough to play out every Monte Carlo simulation.
 #[derive(Clone, Copy, Debug, Default)]
@@ -37,12 +37,7 @@ impl Engine for Quick {
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
         let fire_limit = super::SIMPLE_FIRE_CANDIDATES;
-        Choice::unsearched(attack(
-            game,
-            context.rng,
-            fire_limit,
-            &QuickTweaks::default(),
-        ))
+        Choice::unsearched(attack(game, context.rng, fire_limit))
     }
 
     fn reserve(&self, game: &Game, _: &mut DecisionContext<'_, '_>) -> Option<usize> {
@@ -56,7 +51,7 @@ impl Engine for Quick {
 
 /// Scores each attack by one greedy look ahead. Monte Carlo playouts call
 /// this directly, since they make far more moves than any search decides.
-pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize, tweaks: &QuickTweaks) -> Move {
+pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let traces = trace_settings();
     let trace = traces.qai;
     let trace_rng = traces.rng;
@@ -87,13 +82,12 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize, tweaks: &Qui
             );
         }
         restore_simulation(&mut simulation, game);
-        let extra_turn = apply_attack(&mut simulation, &candidate, rng);
+        apply_attack(&mut simulation, &candidate, rng);
         let mut score = simulation.players[0].score - simulation.players[1].score;
         for attacker in candidate.attackers.iter() {
             let die = &game.players[0].dice[attacker];
             let delta = (die.sides_max() as f32 + 1.0) * 0.5 - die.value_total() as f32;
-            let counted = tweaks.value_once && die.has_property(property::VALUE);
-            if !die.has_property(property::SHADOW) && !counted {
+            if !die.has_property(property::SHADOW) {
                 score += if die.has_property(property::POISON) {
                     -delta
                 } else {
@@ -101,10 +95,7 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize, tweaks: &Qui
                 };
             }
         }
-        if tweaks.noise > 0 {
-            score += rng.rand_below(u32::from(tweaks.noise) + 1) as f32;
-        }
-        score += tweak_adjustment(game, &simulation, &candidate, extra_turn, tweaks);
+        score += rng.rand_below(5) as f32;
         if trace_rng {
             eprintln!("QAI_RNG after={} score={score:.2}", rng.debug_seed());
         }
@@ -143,54 +134,4 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize, tweaks: &Qui
         );
     }
     selected
-}
-
-fn tweak_adjustment(
-    game: &Game,
-    after: &Game,
-    candidate: &Move,
-    extra_turn: bool,
-    tweaks: &QuickTweaks,
-) -> f32 {
-    let tenths = |weight: u8| f32::from(weight) * 0.1;
-    let mut adjustment = 0.0;
-    if tweaks.exposure > 0 && !extra_turn {
-        // A Power capture needs only a value at least as high.
-        let threats = after.players[1]
-            .dice
-            .iter()
-            .filter(|die| die.is_available());
-        let highest = threats.map(Die::value_total).max().unwrap_or(0);
-        let exposed = after.players[0]
-            .dice
-            .iter()
-            .filter(|die| die.is_available() && die.value_total() <= highest)
-            .map(|die| die.score(true) + die.score(false))
-            .fold(0.0, f32::max);
-        adjustment -= tenths(tweaks.exposure) * exposed;
-    }
-    if tweaks.danger > 0 {
-        let mine = game.players[0].dice.iter().filter(|die| die.is_available());
-        for target in candidate.targets.iter() {
-            let target = &game.players[1].dice[target];
-            let reach = mine
-                .clone()
-                .filter(|die| die.value_total() <= target.value_total())
-                .count();
-            let helper = target.has_property(property::FIRE | property::STINGER);
-            adjustment += tenths(tweaks.danger) * (reach + usize::from(helper)) as f32;
-        }
-    }
-    if tweaks.fire_cost > 0 {
-        let turned_down: u16 = candidate
-            .fire
-            .amounts
-            .iter()
-            .enumerate()
-            .filter(|(index, _)| !candidate.attackers.contains(*index))
-            .map(|(_, amount)| u16::from(*amount))
-            .sum();
-        adjustment -= tenths(tweaks.fire_cost) * f32::from(turned_down);
-    }
-    adjustment
 }

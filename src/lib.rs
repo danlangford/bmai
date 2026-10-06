@@ -26,7 +26,7 @@ pub use protocol::{
     ProtocolAction, ProtocolFloat, ProtocolVersion, ReplayMetadata, SessionMetadata,
 };
 pub use rng::{Rng, RngAlgorithm};
-pub use search::ai::{Bmai3, EvaluationCoordinate, Playout, QuickTweaks, Stats};
+pub use search::ai::{Bmai3, EvaluationCoordinate, Playout, Stats};
 pub use search::play_games;
 #[cfg(test)]
 mod build_metadata;
