@@ -61,6 +61,11 @@ clear benefit. Each could return if that changes.
 - A Quick variant that charges each attack for the opponent's best reply
   capture. It beat Quick in 53% of 2,400 games but played about 10 times
   slower on many-option buttons, too slow for a playout.
+- Cheaper Quick changes as Monte Carlo's playout: a rules-aware reroll value,
+  a smaller random bonus, charging exposed dice or Fire turned down,
+  rewarding dangerous captures, counting a Value reroll once, random opponent
+  swing sizes, and Chance and Focus for initiative in simulated rounds. None
+  beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
 ## [0.23.0] - 2026-10-06
 
