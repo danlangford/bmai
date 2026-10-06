@@ -764,15 +764,19 @@ fn surrender_policy_fixtures_emit_reference_protocol_actions() {
 #[test]
 #[ignore = "full BMAI3 searches; run in the release parity suite"]
 fn deeper_reference_fixtures_emit_reference_protocol_actions() {
-    parser_scenario(include_str!("../../../tests/fixtures/bmai_in.txt"))
-        .expect_attack(Power)
-        .using([1])
-        .targeting([0])
-        .run();
+    parser_scenario(cpp_fixture(include_str!(
+        "../../../tests/fixtures/bmai_in.txt"
+    )))
+    .expect_attack(Power)
+    .using([1])
+    .targeting([0])
+    .run();
 
-    parser_scenario(include_str!("../../../tests/fixtures/bug11_in.txt"))
-        .expect_swings([('T', 2), ('W', 4)])
-        .run();
+    parser_scenario(cpp_fixture(include_str!(
+        "../../../tests/fixtures/bug11_in.txt"
+    )))
+    .expect_swings([('T', 2), ('W', 4)])
+    .run();
 }
 
 #[test]
@@ -977,9 +981,9 @@ fn native_phases_are_worker_count_independent() {
 #[test]
 #[ignore = "full default BMAI3 simulation; run in the release parity suite"]
 fn simulation_fixture_emits_reference_match_result() {
-    let input = include_str!("../../../tests/fixtures/bmsim_in.txt");
+    let input = cpp_fixture(include_str!("../../../tests/fixtures/bmsim_in.txt"));
     let mut output = Vec::new();
-    Parser::default().parse_string(input, &mut output).unwrap();
+    Parser::default().parse_string(&input, &mut output).unwrap();
     let output = String::from_utf8(output).unwrap();
     assert!(output.ends_with("matches over 12 - 8\n"), "{output}");
 }
@@ -987,9 +991,11 @@ fn simulation_fixture_emits_reference_match_result() {
 #[test]
 #[ignore = "full reserve BMAI3 search; run in the release parity suite"]
 fn reserve_fixture_emits_reference_protocol_action() {
-    parser_scenario(include_str!("../../../tests/fixtures/bug16_in.txt"))
-        .expect_reserve(Some(6))
-        .run();
+    parser_scenario(cpp_fixture(include_str!(
+        "../../../tests/fixtures/bug16_in.txt"
+    )))
+    .expect_reserve(Some(6))
+    .run();
 }
 
 #[test]
@@ -1006,4 +1012,11 @@ fn a_request_without_settings_gets_the_measured_defaults() {
     assert_eq!(parser.execution_mode(), ExecutionMode::Native);
     assert!(parser.game.fire_overshooting);
     assert!(output.contains("stats 1/200-4000/16000/0.50"), "{output}");
+}
+
+/// C++ BMAI's defaults, which its fixtures assume and BMAIR no longer has.
+fn cpp_fixture(input: &str) -> String {
+    format!(
+        "mode legacy\nfire_overshooting off\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
+    )
 }
