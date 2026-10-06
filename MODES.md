@@ -17,7 +17,7 @@ Execution mode and RNG algorithm are independent configuration axes.
   execution mode and remains mandatory for exact C++ replay.
 - `workers N` selects the bounded native search worker count. `workers auto`
   resolves to the logical CPU parallelism available to the process. The setting
-  defaults to that parallelism capped at 8, the most measured, numeric values must be at least `1`, and neither form affects
+  defaults to `auto`, numeric values must be at least `1`, and neither form affects
   legacy search. Each evaluation batch clamps the effective count to its number
   of tasks, so an excessively large setting does not create idle threads. The
   resolved count remains part of performance-reproduction metadata even though

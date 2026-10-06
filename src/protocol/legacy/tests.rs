@@ -309,7 +309,7 @@ fn engines_reject_settings_they_do_not_use() {
         ("cull maybe\n", "cull needs on or off, not maybe"),
         (
             "playout best\n",
-            "playout needs quick, careful, maximize, or random, not best",
+            "playout needs quick, maximize, or random, not best",
         ),
         (
             "ai 0 quick\nplayout 0 random\n",
@@ -333,7 +333,7 @@ fn ai_rejects_unknown_engines_and_players() {
         ("ai 2 quick\n", "invalid setting for ai player number: 2"),
         (
             "ai 0 1\n",
-            "unknown ai 1; choose one of: random, maximize, quick, montecarlo, careful",
+            "unknown ai 1; choose one of: random, maximize, quick, montecarlo",
         ),
         ("ai 0\n", "ai takes a player and an engine name: ai 0"),
     ] {
@@ -829,9 +829,9 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
 }
 
 #[test]
-fn fire_overshooting_is_explicit_default_off_session_state() {
+fn fire_overshooting_is_explicit_default_on_session_state() {
     let mut parser = Parser::default();
-    assert!(!parser.game.fire_overshooting);
+    assert!(parser.game.fire_overshooting);
 
     let mut output = Vec::new();
     parser
@@ -1004,6 +1004,6 @@ fn a_request_without_settings_gets_the_measured_defaults() {
         .unwrap();
     let output = String::from_utf8(output).unwrap();
     assert_eq!(parser.execution_mode(), ExecutionMode::Native);
-    assert!(!parser.game.fire_overshooting);
+    assert!(parser.game.fire_overshooting);
     assert!(output.contains("stats 1/200-4000/16000/0.50"), "{output}");
 }

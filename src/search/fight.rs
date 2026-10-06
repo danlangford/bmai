@@ -411,7 +411,6 @@ pub(super) fn select_rollout_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> M
     let fire_limit = ai.fire_candidate_limit();
     match ai.playout {
         Playout::Quick => crate::engines::quick::attack(game, rng, fire_limit),
-        Playout::Careful => crate::engines::quick::careful_attack(game, rng, fire_limit),
         Playout::Maximize => crate::engines::maximize::attack(game, rng, fire_limit),
         Playout::Random => crate::engines::random::attack(game, rng, fire_limit),
     }

@@ -135,8 +135,7 @@ are not supported, so a Rush die line such as `#6:6` inside a `game` block is
 always a die.
 
 Each player is driven by a named engine: `random`, `maximize`, `quick` (the
-C++ Quick AI), `montecarlo` (BMAI's simulation search, the default), or
-`careful` (Quick that also weighs the opponent's best reply).
+C++ Quick AI), or `montecarlo` (BMAI's simulation search, the default).
 `ai PLAYER NAME` selects one. `ply`, `max_sims`, `min_sims`, `maxbranch`,
 `cull`, and `playout` take an optional player. Without one they set the global
 Monte Carlo settings every player starts each `game` with; with one they change only that
@@ -183,7 +182,7 @@ request while keeping the pipe open to read the action.
 streams plus bounded parallel candidate evaluation. `mode legacy` selects the
 exact C++ compatibility contract, and `mode parity` is an alias.
 
-Native search defaults to the CPU parallelism available, at most 8 workers. Set an explicit positive count or use
+Native search defaults to `workers auto`. Set an explicit positive count or use
 `workers auto` to resolve the logical CPU parallelism available to the process.
 The resolved count is reported and included in replay metadata; worker settings
 do not affect legacy search.

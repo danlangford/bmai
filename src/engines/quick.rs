@@ -52,16 +52,6 @@ impl Engine for Quick {
 /// Scores each attack by one greedy look ahead. Monte Carlo playouts call
 /// this directly, since they make far more moves than any search decides.
 pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    scored_attack(game, rng, fire_limit, false)
-}
-
-/// Quick's choice, also charged for the best capture each attack leaves the
-/// opponent, which Quick never looks at.
-pub(crate) fn careful_attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    scored_attack(game, rng, fire_limit, true)
-}
-
-fn scored_attack(game: &Game, rng: &mut Rng, fire_limit: usize, careful: bool) -> Move {
     let traces = trace_settings();
     let trace = traces.qai;
     let trace_rng = traces.rng;
@@ -92,11 +82,8 @@ fn scored_attack(game: &Game, rng: &mut Rng, fire_limit: usize, careful: bool) -
             );
         }
         restore_simulation(&mut simulation, game);
-        let extra_turn = apply_attack(&mut simulation, &candidate, rng);
+        apply_attack(&mut simulation, &candidate, rng);
         let mut score = simulation.players[0].score - simulation.players[1].score;
-        if careful && !extra_turn {
-            score -= best_reply_swing(&mut simulation, fire_limit);
-        }
         for attacker in candidate.attackers.iter() {
             let die = &game.players[0].dice[attacker];
             let delta = (die.sides_max() as f32 + 1.0) * 0.5 - die.value_total() as f32;
@@ -147,26 +134,4 @@ fn scored_attack(game: &Game, rng: &mut Rng, fire_limit: usize, careful: bool) -
         );
     }
     selected
-}
-
-/// How far the opponent's best single capture would swing the score: what
-/// it gains plus what this side loses.
-fn best_reply_swing(simulation: &mut ScratchGame, fire_limit: usize) -> f32 {
-    simulation.players.swap(0, 1);
-    let swing = simulation
-        .generate_valid_attacks_in_cpp_order_for_search(fire_limit)
-        .iter()
-        .map(|reply| {
-            reply
-                .targets
-                .iter()
-                .map(|target| {
-                    let die = &simulation.players[1].dice[target];
-                    die.score(false) + die.score(true)
-                })
-                .sum::<f32>()
-        })
-        .fold(0.0, f32::max);
-    simulation.players.swap(0, 1);
-    swing
 }
