@@ -138,6 +138,11 @@ impl Rng {
     }
 
     pub fn rand(&mut self) -> u32 {
+        // A script enumerates rand_below's faces; any other draw breaks exactness.
+        assert!(
+            self.script.is_none(),
+            "a scripted Rng only answers rand_below"
+        );
         self.native_stratum = None;
         match self.algorithm {
             RngAlgorithm::LegacyParkMillerV1 => self.legacy_park_miller_rand(),

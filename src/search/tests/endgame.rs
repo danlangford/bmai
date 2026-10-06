@@ -26,7 +26,8 @@ fn only_attack(game: &Game, attack: crate::Attack) -> Move {
 #[test]
 fn a_power_attack_rerolls_each_face_with_equal_odds() {
     let game = fight("6:5", "4:2");
-    let outcomes = attack_outcomes(&game, &only_attack(&game, crate::Attack::Power));
+    let outcomes =
+        attack_outcomes(&game, &only_attack(&game, crate::Attack::Power), 1_000).unwrap();
     assert_eq!(outcomes.len(), 6);
     for outcome in &outcomes {
         assert!((outcome.probability - 1.0 / 6.0).abs() < 1e-12);
@@ -37,7 +38,7 @@ fn a_power_attack_rerolls_each_face_with_equal_odds() {
 fn a_trip_succeeds_with_article_nines_odds() {
     // A Trip d6 against a d10 succeeds (6 + 1) / (2 * 10) of the time.
     let game = fight("t6:3", "10:7");
-    let outcomes = attack_outcomes(&game, &only_attack(&game, crate::Attack::Trip));
+    let outcomes = attack_outcomes(&game, &only_attack(&game, crate::Attack::Trip), 1_000).unwrap();
     let total: f64 = outcomes.iter().map(|outcome| outcome.probability).sum();
     let captured: f64 = outcomes
         .iter()
@@ -60,4 +61,24 @@ fn game_121248_leaves_the_opponent_a_real_chance() {
         .best_move(&game)
         .expect("small enough to solve");
     assert!((value - 0.304_062_5).abs() < 1e-9, "{value}");
+}
+
+#[test]
+fn a_trip_that_can_fail_forever_is_left_to_monte_carlo() {
+    // Article 10: the Shadow die can never take the 1, so its owner passes,
+    // and each failed Trip rerolls the Shadow die into a repeated position.
+    let game = fight("t1:1", "s6:4");
+    assert!(Solver::new(500, 100_000).best_move(&game).is_none());
+}
+
+#[test]
+fn too_many_ornery_rerolls_are_left_to_monte_carlo() {
+    let game = fight("o20:20\no20:5\no20:5\no20:5", "20:3");
+    assert!(Solver::new(500, 100_000).best_move(&game).is_none());
+}
+
+#[test]
+fn scripted_draws_refuse_other_randomness() {
+    let result = std::panic::catch_unwind(|| crate::Rng::scripted(Vec::new()).rand());
+    assert!(result.is_err());
 }

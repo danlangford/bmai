@@ -5,7 +5,7 @@
 //! probability, both players at their best. No sampling, so a position the
 //! solver cannot finish within its budget is left to Monte Carlo.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{fight_over, moves_including_pass, win_probability};
 use crate::Rng;
@@ -19,12 +19,14 @@ pub(crate) struct Outcome {
 }
 
 /// Every result of `action`, found by replaying it with each face of each
-/// random draw. Draws can depend on earlier ones (a Trip that fails rolls no
-/// Morph), so this walks the tree of draws rather than a fixed grid.
-pub(crate) fn attack_outcomes(game: &Game, action: &Move) -> Vec<Outcome> {
-    let mut merged: HashMap<String, Outcome> = HashMap::new();
+/// random draw, or `None` past `limit` replays (Ornery dice multiply them).
+/// Draws can depend on earlier ones (a Trip that fails rolls no Morph), so
+/// this walks the tree of draws rather than a fixed grid. Sorted, so sums and
+/// ties come out the same in every process.
+pub(crate) fn attack_outcomes(game: &Game, action: &Move, limit: usize) -> Option<Vec<Outcome>> {
+    let mut merged: BTreeMap<String, Outcome> = BTreeMap::new();
     let mut faces = Vec::<u32>::new();
-    loop {
+    for _ in 0..limit {
         let mut rng = Rng::scripted(faces.clone());
         let mut result = game.clone();
         let extra_turn = apply_attack(&mut result, action, &mut rng);
@@ -41,13 +43,16 @@ pub(crate) fn attack_outcomes(game: &Game, action: &Move) -> Vec<Outcome> {
             });
         faces.resize(ranges.len(), 0);
         let Some(position) = (0..ranges.len()).rev().find(|&i| faces[i] + 1 < ranges[i]) else {
-            break;
+            return Some(merged.into_values().collect());
         };
         faces.truncate(position + 1);
         faces[position] += 1;
     }
-    merged.into_values().collect()
+    None
 }
+
+/// Replays allowed for one attack before the solver gives the move back.
+const OUTCOME_LIMIT: usize = 20_000;
 
 /// Solves the rest of the round for player 0, who is to move.
 pub(crate) struct Solver {
@@ -55,6 +60,9 @@ pub(crate) struct Solver {
     node_limit: usize,
     nodes: usize,
     memo: HashMap<String, f64>,
+    // Positions still being solved; meeting one again is a cycle (a Trip
+    // that keeps failing), which this solver leaves to Monte Carlo.
+    open: HashSet<String>,
 }
 
 impl Solver {
@@ -64,6 +72,7 @@ impl Solver {
             node_limit,
             nodes: 0,
             memo: HashMap::new(),
+            open: HashSet::new(),
         }
     }
 
@@ -89,13 +98,14 @@ impl Solver {
             return Some(value);
         }
         self.nodes += 1;
-        if self.nodes > self.node_limit {
+        if self.nodes > self.node_limit || !self.open.insert(key.clone()) {
             return None;
         }
         let mut best = 0.0f64;
         for action in moves_including_pass(game, self.fire_limit) {
             best = best.max(self.move_value(game, &action, passed)?);
         }
+        self.open.remove(&key);
         self.memo.insert(key, best);
         Some(best)
     }
@@ -111,7 +121,7 @@ impl Solver {
             return Some(1.0 - self.position_value(&next, true)?);
         }
         let mut value = 0.0;
-        for outcome in attack_outcomes(game, action) {
+        for outcome in attack_outcomes(game, action, OUTCOME_LIMIT)? {
             let mut next = outcome.game;
             let after = if outcome.extra_turn {
                 self.position_value(&next, false)?
