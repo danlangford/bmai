@@ -78,10 +78,12 @@ success result contains:
   worker count, global settings, and per-player AI/search settings after
   execution;
 - `replay`: the native stream partition, root seed, and decision index actually
-  used by the last native BMAI search, or null when no native search ran;
+  used by the last native BMAI search, or null when no native search ran,
+  including when the endgame solver answered;
 - `evaluation`: the last fight-search probability estimate, or null. It contains
   `player`, a zero-to-one `probability`, `simulations`, and a `source` of
-  `move_selection` or `selected_move_resample`.
+  `move_selection` or `selected_move_resample`. `simulations` of 0 marks an
+  exact endgame answer.
 
 Replay metadata describes the top-level decision. Candidate/batch/simulation
 coordinates are deterministically derived inside the versioned partition.
