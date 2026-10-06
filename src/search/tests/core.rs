@@ -217,7 +217,9 @@ fn each_playout_plays_its_own_engines_move() {
     );
     let fire_limit = Bmai3::default().fire_candidate_limit();
     let own_move = |playout, rng: &mut Rng| match playout {
-        crate::Playout::Quick => crate::engines::quick::attack(&game, rng, fire_limit),
+        crate::Playout::Quick => {
+            crate::engines::quick::attack(&game, rng, fire_limit, &crate::QuickTweaks::default())
+        }
         crate::Playout::Maximize => crate::engines::maximize::attack(&game, rng, fire_limit),
         crate::Playout::Random => crate::engines::random::attack(&game, rng, fire_limit),
     };

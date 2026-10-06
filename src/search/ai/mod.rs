@@ -28,6 +28,62 @@ impl Playout {
     }
 }
 
+/// Experimental adjustments to Quick's attack score, screened one at a time
+/// before any becomes Quick's default. The default is the C++ QAI.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct QuickTweaks {
+    /// The random bonus runs from 0 to this; the C++ QAI's is 4.
+    pub noise: u8,
+    /// Tenths of a point per point of my most valuable die left exposed.
+    pub exposure: u8,
+    /// Tenths of a point per of my dice a captured die could have taken.
+    pub danger: u8,
+    /// A Value attacker's reroll is already in the score, so skip its guess.
+    pub value_once: bool,
+    /// Tenths of a point per pip of Fire turned down.
+    pub fire_cost: u8,
+}
+
+impl Default for QuickTweaks {
+    fn default() -> Self {
+        Self {
+            noise: 4,
+            exposure: 0,
+            danger: 0,
+            value_once: false,
+            fire_cost: 0,
+        }
+    }
+}
+
+impl QuickTweaks {
+    /// Parses `classic` or a comma list such as `noise1,exposure10,valueonce`.
+    pub fn parse(value: &str) -> Result<Self, String> {
+        let mut tweaks = Self::default();
+        for part in value.split(',').filter(|part| *part != "classic") {
+            let number = |prefix: &str| -> Result<u8, String> {
+                part[prefix.len()..]
+                    .parse()
+                    .map_err(|_| format!("quick_tweaks needs a number after {prefix}, not {part}"))
+            };
+            if part == "valueonce" {
+                tweaks.value_once = true;
+            } else if part.starts_with("noise") {
+                tweaks.noise = number("noise")?;
+            } else if part.starts_with("exposure") {
+                tweaks.exposure = number("exposure")?;
+            } else if part.starts_with("danger") {
+                tweaks.danger = number("danger")?;
+            } else if part.starts_with("firecost") {
+                tweaks.fire_cost = number("firecost")?;
+            } else {
+                return Err(format!("unknown quick_tweaks part {part}"));
+            }
+        }
+        Ok(tweaks)
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct Stats {
     pub sims: usize,
@@ -68,6 +124,7 @@ impl Stats {
 pub struct Bmai3 {
     pub cull_moves: bool,
     pub playout: Playout,
+    pub quick_tweaks: QuickTweaks,
     pub max_ply: usize,
     pub max_branch: usize,
     pub min_sims: usize,
@@ -87,6 +144,7 @@ impl Default for Bmai3 {
         Self {
             cull_moves: true,
             playout: Playout::Quick,
+            quick_tweaks: QuickTweaks::default(),
             max_ply: 1,
             max_branch: DEFAULT_MAX_BRANCH,
             min_sims: MIN_SIMS,
