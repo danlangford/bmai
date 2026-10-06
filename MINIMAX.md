@@ -43,6 +43,21 @@ and `apply_attack`) and nothing else.
 | 7 | Twin dice beat a single die of the same size against smaller dice. | Falls out of exact reroll distributions. |
 | 2 | Small endgames can be solved exhaustively. | An exact endgame solver. |
 
+## The core idea: sides to capture or protect
+
+The engine plays to win the round, seen through the keep-threshold:
+
+1. **How many sides must I capture, or protect, to win?** From the
+   keep-threshold and the points already banked.
+2. **Which combinations of dice deliver that?** The opponent's dice I could
+   capture, and my own dice I must keep, each as minimal sets.
+3. **Attack a die from a combination I need, preferring the combinations with
+   the fewest dice**, weighed against the risk of rerolling dice from my own
+   protect combinations into the opponent's reach.
+
+The search checks these judgments against the opponent's best reply; the
+evaluation and move ordering are built from them.
+
 ## Shape of the search
 
 Expectiminimax over one round:
@@ -52,7 +67,7 @@ Expectiminimax over one round:
   enumerated exactly with their probabilities.
 - **Opponent's move:** the same, minimizing my result.
 - **Leaves:** an evaluation of my chance to win the round (below), or an
-  exact value from the endgame solver.
+  exact value from the endgame solver. Never Monte Carlo playouts.
 
 Depth counts moves, starting at two (my move and the reply). It deepens while
 a deterministic node budget allows, so results reproduce across machines; no
@@ -67,10 +82,13 @@ sums its own side can reach. The chance node therefore groups outcomes into
 **value classes** between those thresholds, with each class's probability.
 Article 1's triangular-number arithmetic is the one-die case of this.
 
-When classes still explode, or a skill's reroll has no exact distribution in
-the engine yet (Chance, Rage, Radioactive, Doppelganger, Mad and Mood
-together), the node samples a fixed number of outcomes from a seeded stream
-instead, and says so in the search's statistics.
+Exact odds come from the rules themselves, not from per-skill code: every
+random draw in BMAIR goes through `Rng::rand_below`, so the engine replays an
+attack with a scripted generator that enumerates each draw's faces in turn.
+That yields every outcome with its exact probability for any skill (Mood, Mad,
+Trip, Twin, Radioactive, and the rest), and identical resulting positions are
+merged. The engine never samples: it calculates the odds or it does not play
+the position.
 
 ### Ordering and pruning
 
@@ -134,11 +152,12 @@ worse, and the step's claimed gain shows up.
 6. **Swing chooser** from the keep-threshold model.
 7. **Remaining decisions** one at a time.
 
-## Open questions
+## Decisions
 
-- Is one round the right horizon? Match score could change what risks are
-  worth taking; Monte Carlo ignores it too.
-- Which skills need exact reroll distributions first? Proposed order: plain,
-  Twin, Trip, Shadow, Speed, Poison, Value, Fire, then the rest as sampled.
-- Should a leaf ever fall back to a few Monte Carlo playouts when the
-  evaluation is unsure, such as Turbo or Rage positions?
+- **One round is the horizon.** Every round counts the same toward the match,
+  and the only link between rounds, the loser retuning swing dice, never makes
+  losing a round worthwhile.
+- **Exact odds for every skill**, through the scripted generator. Where the
+  evaluation needs skill-specific judgment (reach, safety), skills are added
+  in order of how often they appear in recently played games.
+- **No simulation anywhere:** no playouts, no sampled rerolls.
