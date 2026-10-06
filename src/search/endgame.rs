@@ -51,6 +51,10 @@ pub(crate) fn attack_outcomes(game: &Game, action: &Move, limit: usize) -> Optio
     None
 }
 
+/// Moves deep a line may run before the solver gives the move back; failed
+/// Trips can make long lines of distinct positions, and each costs stack.
+const DEPTH_LIMIT: usize = 48;
+
 /// Replays allowed for one attack before the solver gives the move back.
 const OUTCOME_LIMIT: usize = 20_000;
 
@@ -98,12 +102,20 @@ impl Solver {
             return Some(value);
         }
         self.nodes += 1;
-        if self.nodes > self.node_limit || !self.open.insert(key.clone()) {
+        if self.nodes > self.node_limit
+            || self.open.len() >= DEPTH_LIMIT
+            || !self.open.insert(key.clone())
+        {
             return None;
         }
         let mut best = 0.0f64;
         for action in moves_including_pass(game, self.fire_limit) {
-            best = best.max(self.move_value(game, &action, passed)?);
+            let value = self.move_value(game, &action, passed);
+            let Some(value) = value else {
+                self.open.remove(&key);
+                return None;
+            };
+            best = best.max(value);
         }
         self.open.remove(&key);
         self.memo.insert(key, best);
