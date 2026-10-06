@@ -5,9 +5,9 @@
 use crate::Move;
 use std::sync::OnceLock;
 
-const DEFAULT_SIMS: usize = 500;
-const MIN_SIMS: usize = 10;
-const DEFAULT_MAX_BRANCH: usize = 5000;
+const DEFAULT_SIMS: usize = 4000;
+const MIN_SIMS: usize = 200;
+const DEFAULT_MAX_BRANCH: usize = 16000;
 
 /// The engine that plays Monte Carlo's simulated games. Playouts call it
 /// directly instead of through the engine trait, as they make millions of moves.

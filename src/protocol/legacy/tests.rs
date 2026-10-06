@@ -256,7 +256,12 @@ fn each_player_owns_its_engine_settings() {
     for (name, input, expected) in cases {
         let mut output = Vec::new();
         Parser::default()
-            .parse_string(&format!("seed 17\n{input}"), &mut output)
+            .parse_string(
+                &format!(
+                    "seed 17\nmode legacy\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
+                ),
+                &mut output,
+            )
             .unwrap();
         let output = String::from_utf8(output).unwrap();
         let observed = output
@@ -782,7 +787,7 @@ fn obsolete_sims_command_is_rejected_like_reference_binary() {
 #[test]
 fn rust_execution_and_rng_modes_are_independent_and_versioned() {
     let mut parser = Parser::default();
-    assert_eq!(parser.execution_mode(), ExecutionMode::Legacy);
+    assert_eq!(parser.execution_mode(), ExecutionMode::Native);
     assert_eq!(parser.rng_algorithm(), RngAlgorithm::LegacyParkMillerV1);
 
     let mut output = Vec::new();
@@ -824,9 +829,9 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
 }
 
 #[test]
-fn fire_overshooting_is_explicit_default_off_session_state() {
+fn fire_overshooting_is_explicit_default_on_session_state() {
     let mut parser = Parser::default();
-    assert!(!parser.game.fire_overshooting);
+    assert!(parser.game.fire_overshooting);
 
     let mut output = Vec::new();
     parser
@@ -985,4 +990,20 @@ fn reserve_fixture_emits_reference_protocol_action() {
     parser_scenario(include_str!("../../../tests/fixtures/bug16_in.txt"))
         .expect_reserve(Some(6))
         .run();
+}
+
+#[test]
+fn a_request_without_settings_gets_the_measured_defaults() {
+    let mut parser = Parser::default();
+    let mut output = Vec::new();
+    parser
+        .parse_string(
+            "game\nfight\nplayer 0 1 0\n6:6\nplayer 1 1 0\n6:3\ngetaction\nquit\n",
+            &mut output,
+        )
+        .unwrap();
+    let output = String::from_utf8(output).unwrap();
+    assert_eq!(parser.execution_mode(), ExecutionMode::Native);
+    assert!(parser.game.fire_overshooting);
+    assert!(output.contains("stats 1/200-4000/16000/0.50"), "{output}");
 }

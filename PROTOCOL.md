@@ -156,20 +156,20 @@ The stable command forms are:
 |---|---|
 | `game [TARGET_WINS]` | Begin a two-player state; the following line is a phase, followed by two `player ID DICE SCORE` blocks and one die per line. |
 | `ai PLAYER NAME` | Select the player's engine: `random`, `maximize`, `quick`, or `montecarlo`. |
-| `mode legacy\|parity\|native` | Select compatible or opt-in native execution. |
+| `mode legacy\|parity\|native` | Select C++-compatible or native execution (default `native`). |
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
-| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process; legacy results are unaffected. |
+| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process (default `auto`); legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
-| `ply [PLAYER] N` | Set global or per-player Monte Carlo depth, at least 1; see below. |
-| `max_sims [PLAYER] N` | Set global or per-player maximum simulations. |
-| `min_sims [PLAYER] N` | Set global or per-player minimum simulations. |
-| `maxbranch [PLAYER] N` | Set global or per-player branch budget; together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
+| `ply [PLAYER] N` | Set global or per-player Monte Carlo depth, at least 1 (default 1); see below. |
+| `max_sims [PLAYER] N` | Set global or per-player maximum simulations (default 4000). |
+| `min_sims [PLAYER] N` | Set global or per-player minimum simulations (default 200). |
+| `maxbranch [PLAYER] N` | Set global or per-player branch budget (default 16000); together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `cull [PLAYER] on\|off` | Let Monte Carlo search drop clearly losing candidates early (default on). |
 | `playout [PLAYER] quick\|maximize\|random` | Choose the engine that plays Monte Carlo's simulated games (default `quick`). |
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
-| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`. |
+| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`. |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |

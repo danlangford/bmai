@@ -1,5 +1,11 @@
 exit 0
 --- stdout
+Setting execution mode to legacy
+Setting Fire overshooting off
+Setting max ply to 1
+Setting max # simulations to 500
+Setting min # simulations to 10
+Setting max branch to 5000
 p0 s50.0 Dice (0)30:16 (0)30:16 (1000)6:5
 p1 s46.0 Dice (1000)5:4 (1000)7:3 (1000)9:3 (1000)11:3
 Setting max ply to 3

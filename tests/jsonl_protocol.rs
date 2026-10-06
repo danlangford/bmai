@@ -125,7 +125,7 @@ fn documented_jsonl_session_fixture_runs_as_one_persistent_process() {
     assert_eq!(responses[4]["id"], "reset");
     assert_eq!(
         responses[4]["result"]["session"]["execution_mode"],
-        "legacy"
+        "native"
     );
 }
 

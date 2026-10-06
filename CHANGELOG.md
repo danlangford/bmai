@@ -59,6 +59,22 @@ clear benefit. Each could return if that changes.
 - Exposing the fixed depth decay and cull thresholds as settings, given how
   little the exposed settings moved strength.
 
+## [0.23.0] - 2026-10-06
+
+### Changed
+
+- New defaults, so BMAIR plays well with no settings: `mode native` with
+  `workers auto`, Monte Carlo `max_sims 4000`, `min_sims 200`, and
+  `maxbranch 16000` (ply 1, as before), and `fire_overshooting on`. The
+  strength harness found this budget ties ply 2 on classic buttons and beats
+  it on Turbo, Fire, and Poison buttons in a quarter of the time. `workers 1`
+  suits machines short of memory. Library callers get the same Monte Carlo
+  and Fire overshooting defaults.
+- Quick, Maximize, and Random keep their Fire candidate limit of 500, so the
+  new Monte Carlo budget does not change how they play.
+- The golden fixtures pin the previous defaults, so their decisions and RNG
+  fingerprints are unchanged; their outputs gain only the settings' echoes.
+
 ## [0.22.0] - 2026-10-05
 
 ### Fixed
@@ -630,7 +646,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...HEAD
+[0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
 [0.22.0]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...bmair-v0.22.0
 [0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0

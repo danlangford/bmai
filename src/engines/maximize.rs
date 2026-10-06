@@ -53,7 +53,7 @@ impl Engine for Maximize {
     }
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
-        let fire_limit = crate::Bmai3::default().fire_candidate_limit();
+        let fire_limit = super::SIMPLE_FIRE_CANDIDATES;
         Choice::unsearched(attack(game, context.rng, fire_limit))
     }
 

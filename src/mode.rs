@@ -3,9 +3,9 @@
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ExecutionMode {
-    #[default]
     Legacy,
     /// Shares the legacy implementation until native behavior is tested apart.
+    #[default]
     Native,
 }
 

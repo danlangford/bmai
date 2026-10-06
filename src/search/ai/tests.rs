@@ -19,7 +19,12 @@ fn test_move(score: f32) -> Move {
 
 #[test]
 fn simulation_count_matches_cpp_decay_and_clamps() {
-    let ai = Bmai3::default();
+    let ai = Bmai3 {
+        max_sims: 500,
+        min_sims: 10,
+        max_branch: 5000,
+        ..Default::default()
+    };
     assert_eq!(ai.fire_candidate_limit(), 500);
     assert_eq!(ai.compute_number_sims(1, 1), 500);
     assert_eq!(ai.compute_number_sims(12, 1), 416);
@@ -31,6 +36,8 @@ fn simulation_count_matches_cpp_decay_and_clamps() {
 fn simulation_minimum_wins_when_it_exceeds_the_maximum_like_cpp() {
     let ai = Bmai3 {
         max_sims: 5,
+        min_sims: 10,
+        max_branch: 5000,
         ..Default::default()
     };
     assert_eq!(ai.compute_number_sims(1000, 1), 10);

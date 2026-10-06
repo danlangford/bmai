@@ -1,5 +1,11 @@
 exit 0
 --- stdout
+Setting execution mode to legacy
+Setting Fire overshooting off
+Setting max ply to 1
+Setting max # simulations to 500
+Setting min # simulations to 10
+Setting max branch to 5000
 p0 s0.0 Dice (0)8:8 (0)7:7
 p1 s0.0 Dice (200)20:15 (200000000)20:15 (200000000)20:8
 l1 p0 Valid Moves 4 Sims 500

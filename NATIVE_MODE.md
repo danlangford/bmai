@@ -80,7 +80,7 @@ threads, and trace settings resolve to a quiet configuration there. Candidate
 scores and any diagnostics are reduced and emitted only in canonical order on
 the coordinating thread. Legacy logging and protocol output are unchanged.
 
-Native search defaults to one configured worker. `workers auto` resolves to the
+Native search defaults to `workers auto` since 0.23.0, which resolves to the
 logical CPU parallelism available to the process and records that numeric value
 in session metadata. Individual evaluation batches still clamp their effective
 worker count to the number of tasks.
