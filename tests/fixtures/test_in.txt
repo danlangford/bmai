@@ -1,9 +1,3 @@
-mode legacy
-fire_overshooting off
-ply 1
-max_sims 500
-min_sims 10
-maxbranch 5000
 game
 fight
 player 0 2 31

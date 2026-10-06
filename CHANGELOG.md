@@ -63,17 +63,30 @@ clear benefit. Each could return if that changes.
 
 ### Changed
 
-- New defaults, so BMAIR plays well with no settings: `mode native` with
-  `workers auto`, Monte Carlo `max_sims 4000`, `min_sims 200`, and
-  `maxbranch 16000` (ply 1, as before), and `fire_overshooting on`. The
+- **Breaking for C++-style clients:** new defaults, so BMAIR plays well with
+  no settings: `mode native`, workers equal to the CPU parallelism (at most 8,
+  the most measured; `workers 1` suits machines short of memory), and Monte
+  Carlo `max_sims 4000`, `min_sims 200`, and `maxbranch 16000` at ply 1. The
   strength harness found this budget ties ply 2 on classic buttons and beats
-  it on Turbo, Fire, and Poison buttons in a quarter of the time. `workers 1`
-  suits machines short of memory. Library callers get the same Monte Carlo
-  and Fire overshooting defaults.
-- Quick, Maximize, and Random keep their Fire candidate limit of 500, so the
-  new Monte Carlo budget does not change how they play.
-- The golden fixtures pin the previous defaults, so their decisions and RNG
+  it on Turbo, Fire, and Poison buttons in a quarter of the time, with Fire
+  overshooting off, which stays the default as in ButtonWeavers. Clients that
+  send C++ BMAI input and expect its results must now also send `mode
+  legacy`, `ply 1`, `max_sims 500`, `min_sims 10`, and `maxbranch 5000`.
+  Library callers get the same Monte Carlo defaults.
+- Quick, Maximize, and Random use a fixed Fire candidate limit of 500, so
+  Monte Carlo's search settings never change how they play.
+- The golden test sends those C++ defaults before each fixture, so the
+  fixtures stay byte-identical C++ inputs and their decisions and RNG
   fingerprints are unchanged; their outputs gain only the settings' echoes.
+
+### Added
+
+- `careful`, an engine and Monte Carlo playout: Quick that also charges each
+  attack for the best capture it leaves the opponent. Quick is unchanged, as
+  the C++ QAI. `tests/strength/careful.sh` measures it.
+- `tests/strength/options.sh` and `tests/strength/matchups-options.txt`: the
+  many-option matchups (Turbo, Fire, Poison, Value, Trip) behind the new
+  budget.
 
 ## [0.22.0] - 2026-10-05
 

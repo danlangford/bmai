@@ -158,7 +158,7 @@ The stable command forms are:
 | `ai PLAYER NAME` | Select the player's engine: `random`, `maximize`, `quick`, `montecarlo`, or `careful`. |
 | `mode legacy\|parity\|native` | Select C++-compatible or native execution (default `native`). |
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
-| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process (default `auto`); legacy results are unaffected. |
+| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process (default: that parallelism, at most 8); legacy results are unaffected. |
 | `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
 | `ply [PLAYER] N` | Set global or per-player Monte Carlo depth, at least 1 (default 1); see below. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations (default 4000). |
@@ -169,7 +169,7 @@ The stable command forms are:
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
-| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`. |
+| `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `off`, as ButtonWeavers' per-player preference does. |
 | `surrender on\|off` | Enable or disable surrender selection. |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |
@@ -225,9 +225,11 @@ required fields will not change. Clients must ignore unknown object fields and
 use capability discovery before relying on optional behavior. Removing or
 retyping existing behavior requires a new protocol identifier.
 
-`legacy-v1` remains frozen to the upstream C++ compatibility contract described
-in `PARITY.md`. Native execution may intentionally evolve, but its algorithms
-and replay partitions are explicitly versioned and opt-in.
+`mode legacy` keeps the upstream C++ compatibility contract described in
+`PARITY.md`. Since 0.23.0 it is no longer the default: a client sending C++
+input must also send `mode legacy`, `ply 1`, `max_sims 500`, `min_sims 10`,
+and `maxbranch 5000`. Native execution may intentionally evolve, but its
+algorithms and replay partitions are explicitly versioned.
 
 The process protocol is the cross-language compatibility boundary. The public
 Rust types follow Cargo semantic versioning and may gain fields or

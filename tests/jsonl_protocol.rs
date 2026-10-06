@@ -57,7 +57,11 @@ fn jsonl_process_keeps_stdout_machine_clean_and_recovers_per_line() {
 
 #[test]
 fn max_sims_below_the_default_min_sims_searches_instead_of_panicking() {
-    let script = include_str!("fixtures/parity_min_sims_exceeds_max_sims_in.txt");
+    // A C++ fixture, so it needs C++ BMAI's defaults.
+    let script = format!(
+        "mode legacy\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{}",
+        include_str!("fixtures/parity_min_sims_exceeds_max_sims_in.txt")
+    );
     let request = serde_json::json!({
         "protocol": "jsonl-v1",
         "id": "low-max",

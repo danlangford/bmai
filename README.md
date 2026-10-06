@@ -183,7 +183,7 @@ request while keeping the pipe open to read the action.
 streams plus bounded parallel candidate evaluation. `mode legacy` selects the
 exact C++ compatibility contract, and `mode parity` is an alias.
 
-Native search defaults to `workers auto`. Set an explicit positive count or use
+Native search defaults to the CPU parallelism available, at most 8 workers. Set an explicit positive count or use
 `workers auto` to resolve the logical CPU parallelism available to the process.
 The resolved count is reported and included in replay metadata; worker settings
 do not affect legacy search.

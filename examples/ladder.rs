@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 //! Round-robin strength ladder:
-//! `cargo run --release --example ladder -- --engine quick --engine "montecarlo ply=2"`
+//! `cargo run --release --example ladder -- --engine quick --engine montecarlo`
 
 use bmair::strength::{Contestant, Matchup, markdown_table, play_pairing};
 

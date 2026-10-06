@@ -80,9 +80,9 @@ threads, and trace settings resolve to a quiet configuration there. Candidate
 scores and any diagnostics are reduced and emitted only in canonical order on
 the coordinating thread. Legacy logging and protocol output are unchanged.
 
-Native search defaults to `workers auto` since 0.23.0, which resolves to the
-logical CPU parallelism available to the process and records that numeric value
-in session metadata. Individual evaluation batches still clamp their effective
+Since 0.23.0 native search defaults to the CPU parallelism available, at most
+8 workers. `workers auto` resolves to the logical CPU parallelism available to
+the process and records that numeric value in session metadata. Individual evaluation batches still clamp their effective
 worker count to the number of tasks.
 
 Beginning with `bmair-native-stream-v2`, a simulation's initial consecutive
@@ -114,5 +114,5 @@ cannot change the action or a later decision stream.
 - no work stealing whose order affects culling;
 - no claim that equal fixture actions imply equal playing strength.
 
-The experiment may be discarded without migration because native mode is
-opt-in and has no compatibility promise before a separately versioned release.
+Native mode has been the default since 0.23.0, so changes to it are versioned
+releases with their own CHANGELOG entries and golden or strength evidence.

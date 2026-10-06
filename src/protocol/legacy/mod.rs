@@ -49,6 +49,10 @@ pub struct Parser {
     last_evaluation: Option<crate::protocol::ProbabilityEstimate>,
 }
 
+/// The most workers measured; memory grows with each one, so a bare
+/// request stays within it. `workers auto` still uses every CPU.
+const DEFAULT_WORKER_LIMIT: usize = 8;
+
 impl Default for Parser {
     fn default() -> Self {
         Self {
@@ -57,7 +61,7 @@ impl Default for Parser {
             execution_mode: ExecutionMode::default(),
             native_root_seed: 78_904_497,
             native_decision_index: 0,
-            native_workers: input::available_workers(),
+            native_workers: input::available_workers().min(DEFAULT_WORKER_LIMIT),
             rng: Rng::default(),
             ai: Bmai3::default(),
             player_engines: [PlayerEngine::Global, PlayerEngine::Global],
