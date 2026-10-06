@@ -122,9 +122,10 @@ Source files: `test/LegacyFunctions.cpp`, `PlayerTest.cpp`, `ParserTest.cpp`,
 - [x] `game [wins]`, `playgame`, `getaction`, `seed`, `surrender`, `quit`.
 - [x] Rust-only `mode legacy|parity|native` and
   `rng legacy|park-miller|bmai-park-miller-16807-v1` are explicit extensions.
-  They default to legacy behavior and therefore add no output or state change
-  to C++ protocol inputs. `mode native` is currently a named evolution seam,
-  not a behavior change.
+  Since 0.23.0 BMAIR defaults to `mode native` with a wider search budget, so
+  a C++ protocol input reproduces C++ only after `mode legacy`, `ply 1`,
+  `max_sims 500`, `min_sims 10`, and `maxbranch 5000`. The golden test sends
+  those before each fixture, which stays a byte-identical C++ input.
 - [x] Whole-line `#` comments between top-level commands are an explicit Rust
   parser extension. Batched-file and incremental-stdin tests prove identical
   behavior after comments are removed. Inline comments and comments within a

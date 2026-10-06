@@ -193,3 +193,62 @@ Caveats:
   across all cores, which these rows do not test.
 - Milliseconds per decision are wall time under eight-way concurrency on a
   shared machine.
+
+## 0.23.0 defaults and Quick experiments
+
+All runs use the harness's paired seats, eight threads unless noted, and the
+first contestant's score, so below 0.5 favours the second. Builds and seeds
+are each run's `build.txt` and `seeds.txt`. Fire overshooting follows each
+build's default: off before 0.23.0, on from 511d37b.
+
+### Many-option matchups
+
+`tests/strength/matchups-options.txt`: six pairings with Turbo, Fire, Poison,
+Value, and Trip dice, three from games 121248, 121297, and 121298. Build
+3b09a01 (Fire overshooting off), seeds 201 through 300, 600 pairs per row,
+against BMAIBagels' ply 2 (`max_sims 100`, `min_sims 5`, `maxbranch 400`):
+
+| Challenger | Ply 2 score (95% CI) | Ply 2 ms | Challenger ms |
+|---|---|---:|---:|
+| ply 1, `16000/800/64000` | 0.509 (0.485–0.533) | 4292 | 3734 |
+| ply 1, `4000/200/16000` | **0.463 (0.438–0.488)** | 3273 | 729 |
+| ply 2, `400/20/1600` | **0.448 (0.422–0.473)** | 3226 | 35680 |
+
+With the classic-matchup tie at the same setting (0.512, 0.486–0.539), ply 1
+at `4000/200/16000` became BMAIBagels' setting and BMAIR's default: no worse on
+classic buttons, better on many-option ones, and a quarter of ply 2's time.
+Four times ply 2's budget also wins here, at about fifty times that cost. A
+fourth row, that budget on classic matchups, was stopped because no result
+could have changed the choice.
+
+### Quick changes, none adopted
+
+Each change ran as Monte Carlo's playout at ply 1 `4000/200/16000` against the
+C++ QAI's, on both matchup sets. A screen of 150 pairs per row (seeds 401
+through 425) picked candidates; 600-pair confirmations on fresh seeds decided.
+
+| Change | Many-option | Classic | Playout time |
+|---|---|---|---|
+| Charge the opponent's best reply capture (`careful`, head to head, 600 pairs, 317ec18) | 0.469 (0.451–0.487) | 0.471 (0.454–0.487) | about 10 times |
+| Rules-aware reroll value (Konstant, Maximum, Mighty, Weak, Mood, Mad, Twin; uncommitted) | 0.480 (0.444–0.516) | 0.500, identical | +20%, unoptimized |
+| Random bonus 0 to 0, 1, or 2 instead of 4 | 0.493 to 0.520 | 0.473 to 0.487 | same |
+| Exposure: charge my most valuable Power-capturable die (screen) | 0.437 (0.384–0.489) | 0.493 (0.436–0.550) | +11% |
+| Exposure, confirmed (seeds 501 through 600) | 0.494 (0.469–0.519) | 0.516 (0.489–0.543) | +10% |
+| Danger: reward capturing dice that threaten mine, or Fire and Stinger (screen) | 0.483 (0.431–0.536) | 0.480 (0.426–0.534) | same |
+| Value once: skip the reroll guess for Value attackers (screen) | 0.483 (0.462–0.505) | 0.500, identical | same |
+| Fire cost: charge each pip of Fire turned down (screen) | 0.507 (0.470–0.544) | 0.500, identical | same |
+| Exposure, danger, and value once (seeds 501 through 600) | 0.465 (0.440–0.490) | 0.510 (0.483–0.537) | +15% |
+| Danger and value once, confirmed (seeds 601 through 700) | 0.495 (0.470–0.520) | 0.512 (0.484–0.540) | +4% |
+| Random legal opponent swing sizes instead of every minimum (d25ae73, four threads) | 0.493 (0.451–0.536) | 0.533 (0.478–0.589) | same |
+| Chance and Focus for initiative in simulated rounds (d25ae73, four threads) | 0.500 (0.481–0.519) | 0.500, identical | same |
+
+`careful` beat the C++ QAI head to head but was too slow for a playout, so its
+playout rows were stopped. Exposure's screen result did not survive
+confirmation, and the three-change bundle's narrow win did not survive without
+exposure, so it is treated as chance after this many comparisons. The code
+was removed; the Tabled list in CHANGELOG.md records the ideas.
+
+Caveats: screens of 150 pairs resolve about ±0.04 and confirmations about
+±0.027, so smaller effects read as ties; playout changes are diluted across
+thousands of simulated moves; and every run pits Monte Carlo against Monte
+Carlo over single rounds on twelve matchups.

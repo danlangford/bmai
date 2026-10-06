@@ -58,6 +58,38 @@ clear benefit. Each could return if that changes.
   nothing uses the defaults.
 - Exposing the fixed depth decay and cull thresholds as settings, given how
   little the exposed settings moved strength.
+- A Quick variant that charges each attack for the opponent's best reply
+  capture. It beat Quick in 53% of 2,400 games but played about 10 times
+  slower on many-option buttons, too slow for a playout.
+- Cheaper Quick changes as Monte Carlo's playout: a rules-aware reroll value,
+  a smaller random bonus, charging exposed dice or Fire turned down,
+  rewarding dangerous captures, counting a Value reroll once, random opponent
+  swing sizes, and Chance and Focus for initiative in simulated rounds. None
+  beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
+
+## [0.23.0] - 2026-10-06
+
+### Changed
+
+- New defaults, so BMAIR plays well with no settings: `mode native`,
+  `workers auto`, `fire_overshooting on`, and Monte Carlo `max_sims 4000`,
+  `min_sims 200`, and `maxbranch 16000` at ply 1. The strength harness found
+  this budget ties ply 2 on classic buttons and beats it on Turbo, Fire, and
+  Poison buttons in a quarter of the time. `workers 1` suits machines short
+  of memory, and ButtonWeavers players who have not turned on Fire
+  overshooting should send `fire_overshooting off`. Clients expecting C++
+  BMAI's results must now send `mode legacy`, `ply 1`, `max_sims 500`,
+  `min_sims 10`, `maxbranch 5000`, and `fire_overshooting off`.
+- Quick, Maximize, and Random use a fixed Fire candidate limit of 500, so
+  Monte Carlo's search settings never change how they play.
+- The golden test sends C++ BMAI's old defaults before each fixture, so the
+  golden decisions and RNG fingerprints are unchanged.
+
+### Added
+
+- `tests/strength/options.sh` and `tests/strength/matchups-options.txt`: the
+  many-option matchups (Turbo, Fire, Poison, Value, Trip) behind the new
+  budget.
 
 ## [0.22.0] - 2026-10-05
 
@@ -630,7 +662,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...HEAD
+[0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
 [0.22.0]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...bmair-v0.22.0
 [0.21.0]: https://github.com/danlangford/bmai/compare/bmair-v0.20.0...bmair-v0.21.0
 [0.20.0]: https://github.com/danlangford/bmai/compare/bmair-v0.19.0...bmair-v0.20.0

@@ -215,8 +215,11 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
             "method": "session.reset"
         }),
     );
-    assert_eq!(reset["result"]["session"]["execution_mode"], "legacy");
-    assert_eq!(reset["result"]["session"]["workers"], 1);
+    assert_eq!(reset["result"]["session"]["execution_mode"], "native");
+    assert_eq!(
+        reset["result"]["session"]["workers"],
+        std::thread::available_parallelism().map_or(1, usize::from)
+    );
     assert_eq!(reset["result"]["session"]["max_ply"], 1);
 }
 

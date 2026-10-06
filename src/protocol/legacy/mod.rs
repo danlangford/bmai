@@ -57,7 +57,7 @@ impl Default for Parser {
             execution_mode: ExecutionMode::default(),
             native_root_seed: 78_904_497,
             native_decision_index: 0,
-            native_workers: 1,
+            native_workers: input::available_workers(),
             rng: Rng::default(),
             ai: Bmai3::default(),
             player_engines: [PlayerEngine::Global, PlayerEngine::Global],

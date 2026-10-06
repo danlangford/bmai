@@ -40,10 +40,10 @@ the current deterministic native search with eight workers. Lower is better.
 | `bug16_in.txt` | 139.95s | 226.90s | 78.75s | 1.78x faster | 2.88x faster |
 | **Four-fixture total** | **208.31s** | **299.49s** | **103.16s** | **2.02x faster** | **2.90x faster** |
 
-Native parallel search is opt-in and deterministic across worker counts, but it
-does not promise legacy search decisions or RNG consumption. Eight workers also
-raise peak memory substantially for `bug16_in.txt` (about 497MB to 1.86GB), so
-the default remains one worker. [`BENCHMARKS.md`](BENCHMARKS.md) records commit
+Native parallel search is the default since 0.23.0 and is deterministic across
+worker counts, but it does not promise legacy search decisions or RNG
+consumption. Eight workers raise peak memory substantially for `bug16_in.txt`
+(about 497MB to 1.86GB), so `workers 1` suits machines short of memory. [`BENCHMARKS.md`](BENCHMARKS.md) records commit
 identities, build details, CPU time, memory, output checks, and methodology.
 
 ## Versioning
@@ -178,12 +178,11 @@ request while keeping the pipe open to read the action.
 
 ### Execution and RNG modes
 
-`mode legacy` selects the exact C++ compatibility contract and remains the
-default. `mode parity` is an alias. `mode native` selects the explicit
-Rust-native evolution point and currently enables deterministic per-simulation
-RNG streams plus bounded parallel candidate evaluation.
+`mode native` is the default since 0.23.0: deterministic per-simulation RNG
+streams plus bounded parallel candidate evaluation. `mode legacy` selects the
+exact C++ compatibility contract, and `mode parity` is an alias.
 
-Native search defaults to `workers 1`. Set an explicit positive count or use
+Native search defaults to `workers auto`. Set an explicit positive count or use
 `workers auto` to resolve the logical CPU parallelism available to the process.
 The resolved count is reported and included in replay metadata; worker settings
 do not affect legacy search.

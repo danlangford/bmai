@@ -7,7 +7,7 @@ Execution mode and RNG algorithm are independent configuration axes.
 - `mode legacy` (alias `parity`) is the executable C++ compatibility contract.
   Candidate enumeration, search decisions, state transitions, and RNG
   consumption must continue to satisfy `PARITY.md`.
-- `mode native` is the opt-in Rust-native evolution contract. Fight, reserve,
+- `mode native` is the default (since 0.23.0) Rust-native evolution contract. Fight, reserve,
   preround, Chance, and Focus searches give each top-level candidate simulation
   an independent, deterministically derived RNG stream. Match-driving commands
   assign the same replay keys across every internal BMAI decision. Future
@@ -17,7 +17,7 @@ Execution mode and RNG algorithm are independent configuration axes.
   execution mode and remains mandatory for exact C++ replay.
 - `workers N` selects the bounded native search worker count. `workers auto`
   resolves to the logical CPU parallelism available to the process. The setting
-  defaults to `1`, numeric values must be at least `1`, and neither form affects
+  defaults to `auto`, numeric values must be at least `1`, and neither form affects
   legacy search. Each evaluation batch clamps the effective count to its number
   of tasks, so an excessively large setting does not create idle threads. The
   resolved count remains part of performance-reproduction metadata even though

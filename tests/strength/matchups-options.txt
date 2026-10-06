@@ -1,0 +1,10 @@
+# label | first button's dice | second button's dice, in BMAIR notation.
+# Buttons with many choices per move (Turbo, Fire, Poison, Value, Trip), where
+# a thin per-candidate budget is likeliest to pick badly. The first three are
+# from BMAIBagels' games 121248, 121297 and 121298.
+Beatnik Turtle vs Lark | wHF4 8 10 vz20 vz20 | 6 20 2/8 4/12 6/10
+Pain vs Bunnies | t4 8 sz16 20 V? pX! | 1 1 1 1 X
+Pain vs Ein | t4 8 sz16 20 V? pX! | 8 8 f8 t8 X
+Firebreather vs Adam Spam | 4 F6 F6 12 S | F4 F6 6 12 X
+Paris vs Werner | 4/8! 6 10 10 12/20! | 8 10 10 12 pzsV!
+Torch vs Seiji | p6 p8 z10 z10 zspV! | 4 4 F10 f12 16

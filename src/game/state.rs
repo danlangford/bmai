@@ -35,7 +35,7 @@ impl Default for Game {
             surrender_allowed: true,
             target_wins: 3,
             turbo_accuracy: 1.0,
-            fire_overshooting: false,
+            fire_overshooting: true,
         }
     }
 }

@@ -18,6 +18,10 @@ use crate::Rng;
 use crate::game::{Game, Move};
 use crate::search::{ChanceMove, FocusMove, NativeEvaluation, NativeReplaySequence, SwingMove};
 
+/// Fixed, so Monte Carlo's search settings never change how these engines
+/// play.
+pub(crate) const SIMPLE_FIRE_CANDIDATES: usize = 500;
+
 /// The names `ai PLAYER NAME` accepts, in the order capabilities list them.
 pub const ENGINE_NAMES: [&str; 4] = ["random", "maximize", "quick", "montecarlo"];
 

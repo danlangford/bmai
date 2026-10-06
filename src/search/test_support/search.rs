@@ -186,9 +186,9 @@ impl SearchScenario {
         let target_wins = self.target_wins.unwrap_or(3);
         let mut input = String::new();
         match mode {
-            SearchMode::Legacy => {}
+            SearchMode::Legacy => input.push_str("mode legacy\n"),
             SearchMode::LegacyWithWorkers { workers } => {
-                input.push_str(&format!("workers {workers}\n"));
+                input.push_str(&format!("mode legacy\nworkers {workers}\n"));
             }
             SearchMode::Native { workers } => {
                 input.push_str("mode native\n");

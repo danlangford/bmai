@@ -472,7 +472,8 @@ fn already_legal_power_attack_does_not_offer_unrequested_fire_overshoot() {
     let mut target = die(0);
     target.sides[0] = 6;
     target.value = Some(5);
-    let game = game_with(vec![attacker, helper], vec![target]);
+    let mut game = game_with(vec![attacker, helper], vec![target]);
+    game.fire_overshooting = false;
 
     let matching = game
         .generate_valid_attacks()
