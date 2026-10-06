@@ -253,6 +253,7 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
 mod boom;
 mod core;
 mod doppelganger;
+mod endgame;
 mod jolt;
 mod mad;
 mod mood;

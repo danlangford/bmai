@@ -42,6 +42,7 @@ impl Engine for MonteCarlo {
             Setting::MaxBranch(branch) => self.search.max_branch = branch,
             Setting::Cull(cull) => self.search.cull_moves = cull,
             Setting::Playout(playout) => self.search.playout = playout,
+            Setting::Endgame(dice) => self.search.endgame_dice = dice,
         }
         Ok(())
     }
@@ -101,6 +102,16 @@ impl Engine for MonteCarlo {
     }
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
+        if let Some((choice, probability)) = solve_endgame(game, &self.search) {
+            return Choice {
+                search: Some(SearchSummary {
+                    score: probability as f32,
+                    win_probability: probability as f32,
+                    simulations: 0,
+                }),
+                choice,
+            };
+        }
         let result = match context.native() {
             Some(native) => select_native_bmai_action_with_stats(
                 game,
@@ -158,4 +169,15 @@ impl Engine for MonteCarlo {
             }),
         }
     }
+}
+
+/// Big enough for every position measured so far; larger ones go to Monte
+/// Carlo rather than slow the move down.
+const ENDGAME_NODE_LIMIT: usize = 200_000;
+
+fn solve_endgame(game: &Game, search: &Bmai3) -> Option<(Move, f64)> {
+    if search.endgame_dice == 0 || crate::search::dice_in_play(game) > search.endgame_dice {
+        return None;
+    }
+    crate::search::Solver::new(search.fire_candidate_limit(), ENDGAME_NODE_LIMIT).best_move(game)
 }

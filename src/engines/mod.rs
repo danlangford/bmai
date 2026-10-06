@@ -33,6 +33,7 @@ pub(crate) const MONTECARLO_SETTINGS: &[&str] = &[
     "maxbranch",
     "cull",
     "playout",
+    "endgame",
 ];
 
 pub(crate) fn engine(name: &str) -> Option<Box<dyn Engine>> {
@@ -53,6 +54,7 @@ pub enum Setting {
     MaxBranch(usize),
     Cull(bool),
     Playout(crate::Playout),
+    Endgame(usize),
 }
 
 impl Setting {
@@ -73,6 +75,10 @@ impl Setting {
                 "off" => Ok(Self::Cull(false)),
                 _ => Err(format!("cull needs on or off, not {value}")),
             },
+            "endgame" => value
+                .parse()
+                .map(Self::Endgame)
+                .map_err(|_| format!("endgame needs a dice count, not {value}")),
             "playout" => match value {
                 "quick" => Ok(Self::Playout(crate::Playout::Quick)),
                 "maximize" => Ok(Self::Playout(crate::Playout::Maximize)),
@@ -93,6 +99,7 @@ impl Setting {
             Self::MaxBranch(_) => "maxbranch",
             Self::Cull(_) => "cull",
             Self::Playout(_) => "playout",
+            Self::Endgame(_) => "endgame",
         }
     }
 }

@@ -67,6 +67,8 @@ impl Stats {
 #[derive(Clone, Debug)]
 pub struct Bmai3 {
     pub cull_moves: bool,
+    /// Solve attacks exactly once this many dice or fewer remain; 0 never.
+    pub endgame_dice: usize,
     pub playout: Playout,
     pub max_ply: usize,
     pub max_branch: usize,
@@ -86,6 +88,7 @@ impl Default for Bmai3 {
     fn default() -> Self {
         Self {
             cull_moves: true,
+            endgame_dice: 0,
             playout: Playout::Quick,
             max_ply: 1,
             max_branch: DEFAULT_MAX_BRANCH,
