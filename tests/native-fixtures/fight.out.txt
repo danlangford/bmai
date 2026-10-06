@@ -1,3 +1,4 @@
+Setting endgame to 0
 Setting execution mode to native
 Setting RNG to legacy (bmai-park-miller-16807-v1)
 Setting native workers to 3

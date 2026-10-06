@@ -96,8 +96,7 @@ fn check_fixtures(include: impl Fn(&str) -> bool) {
 
 /// The fixtures are C++ BMAI inputs, so they rely on the defaults BMAI had;
 /// pinning them here keeps the files runnable against C++.
-const CPP_DEFAULTS: &str =
-    "mode legacy\nfire_overshooting off\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
+const CPP_DEFAULTS: &str = "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
 
 fn run_fixture(fixture: &Path) -> String {
     let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))

@@ -32,7 +32,7 @@ impl Default for Game {
                 },
             ],
             phase: Phase::Preround,
-            surrender_allowed: true,
+            surrender_allowed: false,
             target_wins: 3,
             turbo_accuracy: 1.0,
             fire_overshooting: true,

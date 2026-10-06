@@ -5,8 +5,9 @@ SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 -->
 
-Status: draft, revised after review. Step 1 (the endgame solver) is being
-built and measured.
+Status: draft, revised after review. Step 1, the endgame solver, ships in
+0.24.0 (STRENGTH.md); the acceptance items it has not yet met are listed under
+step 1 below.
 
 ## Why a new engine
 

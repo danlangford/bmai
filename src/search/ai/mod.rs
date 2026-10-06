@@ -88,7 +88,7 @@ impl Default for Bmai3 {
     fn default() -> Self {
         Self {
             cull_moves: true,
-            endgame_dice: 0,
+            endgame_dice: 4,
             playout: Playout::Quick,
             max_ply: 1,
             max_branch: DEFAULT_MAX_BRANCH,

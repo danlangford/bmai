@@ -252,3 +252,26 @@ Caveats: screens of 150 pairs resolve about ±0.04 and confirmations about
 ±0.027, so smaller effects read as ties; playout changes are diluted across
 thousands of simulated moves; and every run pits Monte Carlo against Monte
 Carlo over single rounds on twelve matchups.
+
+## 0.24.0 endgame solver
+
+Fresh seeds 901 through 950, 300 pairs per matchup set, Monte Carlo at
+BMAIBagels' settings (ply 1, `4000/200/16000`) against the same with
+`endgame 4`, surrender allowed. With `BMAIR_TRACE_ENDGAME`, every decision the
+solver took also ran Monte Carlo and scored its choice exactly.
+
+| | Classic | Many-option |
+|---|---:|---:|
+| Endgame decisions (4 dice or fewer) | 523 | 428 |
+| Already certainly lost | 215 | 192 |
+| Monte Carlo chose a worse move | 4 (0.8%) | 7 (1.6%) |
+| Its mean and largest shortfall | 0.019, 0.039 | 0.046, 0.150 |
+| Monte Carlo surrendered a round it could win | 13 | 2 |
+| Mean and largest chance it gave up | 0.063, 0.102 | 0.045, 0.052 |
+| Harness score of plain Monte Carlo (95% CI) | 0.500 (0.495–0.505) | 0.495 (0.489–0.501) |
+
+Monte Carlo already plays four-die endgames well, so the solver moves the
+harness score little; its value is exact play and exact reported odds in
+those positions, at about 10% more time per decision. Its surrenders in live
+rounds led to surrender's new default of off. The harness timings above
+include the trace's extra Monte Carlo searches, so they overstate the cost.

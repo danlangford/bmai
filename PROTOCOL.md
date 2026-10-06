@@ -166,11 +166,12 @@ The stable command forms are:
 | `maxbranch [PLAYER] N` | Set global or per-player branch budget (default 16000); together with `min_sims`, this also bounds Fire-assisted candidates materialized per state. |
 | `cull [PLAYER] on\|off` | Let Monte Carlo search drop clearly losing candidates early (default on). |
 | `playout [PLAYER] quick\|maximize\|random` | Choose the engine that plays Monte Carlo's simulated games (default `quick`). |
+| `endgame [PLAYER] N` | Once N or fewer dice remain on both sides together, choose the attack by solving the rest of the round exactly, with every reroll's exact odds, instead of sampling (default 4; 0 never). A position too large, or one that can repeat (a Trip that keeps failing), is searched as usual. An exact answer reports zero simulations and skips `report_sims`. |
 | `report_sims N` | After native BMAI fight search chooses a move, evaluate only that move with exactly N fresh samples; zero disables the report and is the default. |
 | `turbo_accuracy F` | Control Turbo choices considered from extremes (`0`) to all (`1`). |
 | `special PLAYER [ID...]` | Apply button specials to a player for the current game; `game` clears them. IDs are listed in capabilities `button_specials` with the buttons that use each. |
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`; ButtonWeavers players who have not turned on that preference should send `off`. |
-| `surrender on\|off` | Enable or disable surrender selection. |
+| `surrender on\|off` | Enable or disable surrender selection (default `off`). |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. |
 | `playfair N` | Play N games between the players' engines and report wins split by who won initiative. |

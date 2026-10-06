@@ -739,24 +739,24 @@ fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
 
 #[test]
 fn surrender_policy_fixtures_emit_reference_protocol_actions() {
-    parser_scenario(include_str!(
+    parser_scenario(cpp_fixture(include_str!(
         "../../../tests/fixtures/SurrenderDefault-Pass-in.txt"
-    ))
+    )))
     .expect_surrender()
     .run();
-    parser_scenario(include_str!(
+    parser_scenario(cpp_fixture(include_str!(
         "../../../tests/fixtures/SurrenderOff-Pass-in.txt"
-    ))
+    )))
     .expect_pass()
     .run();
-    parser_scenario(include_str!(
+    parser_scenario(cpp_fixture(include_str!(
         "../../../tests/fixtures/SurrenderOn-Attack-in.txt"
-    ))
+    )))
     .expect_surrender()
     .run();
-    parser_scenario(include_str!(
+    parser_scenario(cpp_fixture(include_str!(
         "../../../tests/fixtures/SurrenderOn-Pass-in.txt"
-    ))
+    )))
     .expect_surrender()
     .run();
 }
@@ -1017,6 +1017,6 @@ fn a_request_without_settings_gets_the_measured_defaults() {
 /// C++ BMAI's defaults, which its fixtures assume and BMAIR no longer has.
 fn cpp_fixture(input: &str) -> String {
     format!(
-        "mode legacy\nfire_overshooting off\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
+        "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
     )
 }

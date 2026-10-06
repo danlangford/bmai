@@ -184,7 +184,8 @@ impl SearchScenario {
     fn protocol_input(&self, mode: SearchMode) -> String {
         let phase = self.phase.unwrap_or(Phase::Fight);
         let target_wins = self.target_wins.unwrap_or(3);
-        let mut input = String::new();
+        // These scenarios test Monte Carlo, which the solver would preempt.
+        let mut input = String::from("endgame 0\n");
         match mode {
             SearchMode::Legacy => input.push_str("mode legacy\n"),
             SearchMode::LegacyWithWorkers { workers } => {
