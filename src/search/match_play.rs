@@ -61,7 +61,7 @@ pub(super) fn play_games_with_policies_internal(
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct MatchResult {
     pub(crate) winner: usize,
-    pub(super) wins: [u8; 2],
+    pub(crate) wins: [u8; 2],
     pub(super) ties: usize,
     pub(super) initiative_winner: usize,
     pub(super) reserves_used: usize,

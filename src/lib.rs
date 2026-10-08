@@ -4,6 +4,7 @@
 
 mod engines;
 mod game;
+pub mod gauntlet;
 mod mode;
 pub mod native;
 pub mod protocol;

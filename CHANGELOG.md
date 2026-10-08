@@ -67,6 +67,22 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.26.0] - 2026-10-08
+
+### Added
+
+- `bmair gauntlet "RECIPE" [OPPONENTS]` plays one button against a field of
+  opponents and reports its match wins, win rate with a 95% interval, and
+  share of rounds won against each, then overall. Every seed is played from
+  both seats with one engine, by default `montecarlo max_sims=20 min_sims=5`,
+  which plays the 4,000-match default in about six seconds on an 18-core
+  M5 Pro. Without an opponents file it plays eight established ButtonWeavers
+  buttons between 40% and 60%; `--field` prints them for editing. Hammer
+  measures 48% against that field, against 52% on ButtonWeavers.
+- Gauntlet recipes and strength-harness matchups accept ButtonWeavers
+  notation (`p(12)`, `(X=12)`, `(X)?`, `p?(X)`) as well as BMAIR's. All 547
+  recipes in BMAIBagels' OPERATION LOOKING GLASS list convert and parse.
+
 ## [0.25.0] - 2026-10-07
 
 ### Changed
