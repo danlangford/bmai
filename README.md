@@ -148,7 +148,7 @@ player's engine. An engine rejects settings it does not use, and Monte Carlo
 often it wins:
 
 ```shell
-bmair gauntlet "dk(1) k(V) k(V) k(V) dmMH(4)"
+bmair gauntlet --engine "montecarlo max_sims=20 min_sims=5" "dk(1) k(V) k(V) k(V) dmMH(4)"
 ```
 
 ```text
@@ -157,15 +157,15 @@ Engine: montecarlo max_sims=20 min_sims=5
 500 games per opponent: seeds 1-250, each played from both seats
 
 Opponent        Won           Win %  95% CI       Rounds won
-Lucky           365/500       73.0%  69.0-77.0%        62.3%
-Vincent         401/500       80.2%  76.6-83.8%        66.5%
-Sailor Jupiter  193/500       38.6%  34.2-43.0%        49.2%
-Hammer          309/500       61.8%  57.5-66.1%        57.1%
-Monkeys         57/500        11.4%  8.7-14.1%         27.1%
-Lady K          230/500       46.0%  41.4-50.6%        47.9%
-Konami          8/500          1.6%  0.5-2.7%          14.3%
-Wolfman         325/500       65.0%  60.7-69.3%        59.0%
-Overall         1888/4000     47.2%  45.4-49.0%        48.7%
+Lucky           334/500       66.8%  62.8-70.8%        59.3%
+Vincent         390/500       78.0%  74.6-81.4%        65.6%
+Sailor Jupiter  194/500       38.8%  34.8-42.8%        49.4%
+Hammer          261/500       52.2%  47.7-56.7%        52.4%
+Monkeys         65/500        13.0%  10.1-15.9%        26.7%
+Lady K          213/500       42.6%  38.3-46.9%        45.6%
+Konami          7/500          1.4%  0.4-2.4%          15.4%
+Wolfman         318/500       63.6%  59.5-67.7%        57.4%
+Overall         1782/4000     44.5%  42.9-46.2%        47.2%
 ```
 
 Recipes may use ButtonWeavers notation, such as `p(12)`, `(X=12)`, and `(X)?`,
@@ -179,11 +179,12 @@ established buttons that win between 40% and 60% on ButtonWeavers.
 recipe.
 
 Each opponent gets 500 matches, first to three, with every seed played once
-from each seat. One engine plays both seats, `montecarlo max_sims=20
-min_sims=5` unless `--engine` names another in the strength harness's
-`name setting=value` form; at that budget the whole default field takes
-seconds. `--games`, `--seed`, and `--threads` set the rest, and `--help` lists
-them. The same seeds give the same results at any thread count. At 500 matches
+from each seat. One engine plays both seats: `montecarlo` at its default
+settings, unless `--engine` names another in the strength harness's
+`name setting=value` form. The default takes minutes for the whole field;
+`montecarlo max_sims=20 min_sims=5`, as above, takes seconds. Each match runs
+native search on one worker, and matches run in parallel across every core.
+`--games`, `--seed`, and `--threads` set the rest, and `--help` lists them. The same seeds give the same results at any thread count. At 500 matches
 the 95% interval is about four points either way.
 
 ### Skills

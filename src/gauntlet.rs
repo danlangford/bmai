@@ -10,12 +10,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::Rng;
 use crate::engines::Engine;
-use crate::search::{Engines, play_match_with_policies};
+use crate::search::{Engines, NativeReplaySequence, play_match_with_policies};
 use crate::strength::{Contestant, Matchup, game_seed, mean_with_interval, parse_game};
 
-/// Thousands of matches take seconds at this budget, and Hammer measures 48%
-/// against the default field with it, close to its 52% on ButtonWeavers.
-pub const DEFAULT_ENGINE: &str = "montecarlo max_sims=20 min_sims=5";
+pub const DEFAULT_ENGINE: &str = "montecarlo";
 pub const DEFAULT_GAMES: usize = 500;
 const TARGET_WINS: u8 = 3;
 
@@ -149,7 +147,15 @@ fn play_pair(seats: &Seats, seed: u32, engines: &Engines) -> Pair {
     let play = |matchup: &Matchup| {
         let mut rng = Rng::default();
         rng.reseed(game_seed(seed));
-        play_match_with_policies(&matchup.game, &mut rng, engines, None)
+        let mut decision_index = 0;
+        // Matches already fill every core, so each match's search stays on one.
+        let mut native = NativeReplaySequence {
+            algorithm: rng.algorithm(),
+            root_seed: u64::from(game_seed(seed)),
+            workers: 1,
+            decision_index: &mut decision_index,
+        };
+        play_match_with_policies(&matchup.game, &mut rng, engines, Some(&mut native))
     };
     let first = play(&seats.button_first);
     let second = play(&seats.button_second);

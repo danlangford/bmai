@@ -19,7 +19,7 @@ of `Name: recipe` lines; without it, the default field is played.
 
 options:
   --games N      matches per opponent, half from each seat (default 500)
-  --engine SPEC  the AI for both seats (default \"montecarlo max_sims=20 min_sims=5\")
+  --engine SPEC  the AI for both seats (default \"montecarlo\")
   --seed N       the first seed (default 1)
   --threads N    matches to play at once (default: every core)
   --field        print the default field and exit

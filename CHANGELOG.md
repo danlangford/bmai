@@ -74,11 +74,11 @@ clear benefit. Each could return if that changes.
 - `bmair gauntlet "RECIPE" [OPPONENTS]` plays one button against a field of
   opponents and reports its match wins, win rate with a 95% interval, and
   share of rounds won against each, then overall. Every seed is played from
-  both seats with one engine, by default `montecarlo max_sims=20 min_sims=5`,
-  which plays the 4,000-match default in about six seconds on an 18-core
-  M5 Pro. Without an opponents file it plays eight established ButtonWeavers
-  buttons between 40% and 60%; `--field` prints them for editing. Hammer
-  measures 48% against that field, against 52% on ButtonWeavers.
+  both seats with one engine, by default `montecarlo` at its default
+  settings. Each match runs native search on one worker, and matches run in
+  parallel across every core. Without an opponents file it plays eight
+  established ButtonWeavers buttons between 40% and 60%; `--field` prints
+  them for editing.
 - Gauntlet recipes and strength-harness matchups accept ButtonWeavers
   notation (`p(12)`, `(X=12)`, `(X)?`, `p?(X)`) as well as BMAIR's. All 547
   recipes in BMAIBagels' OPERATION LOOKING GLASS list convert and parse.
