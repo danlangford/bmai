@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{fight_over, moves_including_pass, win_probability};
 use crate::Rng;
-use crate::game::{Action, Game, Move, apply_attack, available_dice_count};
+use crate::game::{Action, Game, Move, Player, apply_attack, available_dice_count};
 
 /// One distinct result of an attack and how likely it is.
 pub(crate) struct Outcome {
@@ -18,13 +18,49 @@ pub(crate) struct Outcome {
     pub(crate) game: Game,
 }
 
+/// A position's identity for merging outcomes and caching values: every
+/// field of both players, packed. Text keys cost a third of the bot's time.
+fn state_key(flag: bool, players: &[Player]) -> Vec<u8> {
+    let mut key = Vec::with_capacity(256);
+    key.push(u8::from(flag));
+    for player in players {
+        key.extend_from_slice(&(player.id as u64).to_le_bytes());
+        key.extend_from_slice(&player.score.to_bits().to_le_bytes());
+        key.push(player.swing_set as u8);
+        for sides in &player.round_original_sides {
+            key.extend_from_slice(sides);
+        }
+        key.extend_from_slice(&player.round_transformed.to_le_bytes());
+        key.extend_from_slice(&player.radioactive_products.to_le_bytes());
+        key.extend_from_slice(&player.rage_replacements.to_le_bytes());
+        key.push(player.specials);
+        key.extend_from_slice(&(player.dice.len() as u64).to_le_bytes());
+        for die in &player.dice {
+            key.extend_from_slice(&die.properties.to_le_bytes());
+            key.extend_from_slice(&die.sides);
+            for swing in die.swing_type {
+                key.extend_from_slice(&swing.map_or(u32::MAX, u32::from).to_le_bytes());
+            }
+            key.extend_from_slice(&die.value.map_or(u16::MAX, u16::from).to_le_bytes());
+            key.push(
+                u8::from(die.captured)
+                    | u8::from(die.not_set) << 1
+                    | u8::from(die.dizzy) << 2
+                    | u8::from(die.in_reserve) << 3,
+            );
+            key.extend_from_slice(&(die.original_index as u64).to_le_bytes());
+        }
+    }
+    key
+}
+
 /// Every result of `action`, found by replaying it with each face of each
 /// random draw, or `None` past `limit` replays (Ornery dice multiply them).
 /// Draws can depend on earlier ones (a Trip that fails rolls no Morph), so
 /// this walks the tree of draws rather than a fixed grid. Sorted, so sums and
 /// ties come out the same in every process.
 pub(crate) fn attack_outcomes(game: &Game, action: &Move, limit: usize) -> Option<Vec<Outcome>> {
-    let mut merged: BTreeMap<String, Outcome> = BTreeMap::new();
+    let mut merged: BTreeMap<Vec<u8>, Outcome> = BTreeMap::new();
     let mut faces = Vec::<u32>::new();
     for _ in 0..limit {
         let mut rng = Rng::scripted(faces.clone());
@@ -32,7 +68,7 @@ pub(crate) fn attack_outcomes(game: &Game, action: &Move, limit: usize) -> Optio
         let extra_turn = apply_attack(&mut result, action, &mut rng);
         let ranges = rng.scripted_ranges().unwrap_or_default().to_vec();
         let probability = ranges.iter().map(|&range| 1.0 / f64::from(range)).product();
-        let key = format!("{extra_turn}{:?}", result.players);
+        let key = state_key(extra_turn, &result.players);
         merged
             .entry(key)
             .and_modify(|outcome| outcome.probability += probability)
@@ -63,10 +99,10 @@ pub(crate) struct Solver {
     fire_limit: usize,
     node_limit: usize,
     nodes: usize,
-    memo: HashMap<String, f64>,
+    memo: HashMap<Vec<u8>, f64>,
     // Positions still being solved; meeting one again is a cycle (a Trip
     // that keeps failing), which this solver leaves to Monte Carlo.
-    open: HashSet<String>,
+    open: HashSet<Vec<u8>>,
 }
 
 impl Solver {
@@ -104,7 +140,7 @@ impl Solver {
         if fight_over(game) {
             return Some(f64::from(win_probability(game)));
         }
-        let key = format!("{passed}{:?}", game.players);
+        let key = state_key(passed, &game.players);
         if let Some(&value) = self.memo.get(&key) {
             return Some(value);
         }
