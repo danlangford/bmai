@@ -70,6 +70,17 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.27.0] - 2026-10-08
+
+### Changed
+
+- Matches played in parallel, as in a gauntlet or strength run, no longer
+  wait on each other in the kernel. Every endgame-solver replay read two RNG
+  trace settings from the environment, and `getenv` takes a process-wide
+  lock; they are now read once. Hammer against the default field at
+  `max_sims=20 min_sims=5` fell from 79s to 17s on 18 cores, and from 1,284s
+  of CPU to 253s. Results are unchanged.
+
 ## [0.26.1] - 2026-10-08
 
 ### Fixed
@@ -738,7 +749,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.26.1...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...HEAD
+[0.27.0]: https://github.com/danlangford/bmai/compare/bmair-v0.26.1...bmair-v0.27.0
 [0.26.1]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...bmair-v0.26.1
 [0.26.0]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...bmair-v0.26.0
 [0.25.0]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...bmair-v0.25.0

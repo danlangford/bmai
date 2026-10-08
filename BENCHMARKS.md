@@ -163,3 +163,31 @@ profile, and output was byte-for-byte identical after every one.
 Tried and dropped: sorting dice through an index array instead of swapping
 them was 2% slower, since copying the dice back cost more than the swaps.
 
+## 0.27.0 gauntlet thread contention
+
+Measured on 2026-10-08 on an 18-core Apple M5 Pro (macOS 26), every core in
+use, against 0.26.1. Before the change, Hammer spent most of its time in the
+kernel: `sample` showed its threads waiting on the lock inside `getenv`,
+which every endgame-solver replay called twice to read the RNG trace
+settings. Gauntlet output was byte-for-byte identical after the change, as
+was the `BMAIR_TRACE_RNG_HASH` trace.
+
+| Gauntlet, default field | 0.26.1 | 0.27.0 |
+|---|---:|---:|
+| Hammer, 20/5, 500 games: wall | 78.8s | 16.7s |
+| Hammer, 20/5, 500 games: user + system | 331s + 953s | 252s + 1.1s |
+| `dk(1) k(V) k(V) k(V) dmMH(4)`, 20/5, 500 games: wall | 7.6s | 7.8s |
+| Hammer, default `montecarlo`, 16 games: wall | 27.0s | 26.9s |
+
+Hammer is `(6) (12) (20) (20) (X)`, and 20/5 is `--engine "montecarlo
+max_sims=20 min_sims=5"`. The Hammer 20/5 rows are single runs. The last two
+rows average alternating runs and are within noise, so neither button got
+slower. Hammer against Vincent alone at 20/5 (72 games, one run each) shows
+the scaling in wall time. Even on one thread, the reads took about a fifth
+of the time:
+
+| Threads | 0.26.1 | 0.27.0 |
+|---:|---:|---:|
+| 1 | 3.05s | 2.45s |
+| 6 | 1.96s | 0.73s |
+| 18 | 3.24s | 0.45s |
