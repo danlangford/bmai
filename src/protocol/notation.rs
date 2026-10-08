@@ -192,3 +192,80 @@ pub(crate) fn button_special(id: &str) -> Option<u8> {
         .find(|special| special.id == id)
         .map(|special| special.special)
 }
+
+/// Splits a recipe into BMAIR die tokens, accepting ButtonWeavers notation
+/// (`p(12)`, `(X=12)`, `(X)?`) as well as BMAIR's own (`p12`, `X-12`, `X?`).
+pub fn recipe_dice(recipe: &str) -> Vec<String> {
+    recipe.split_whitespace().map(bmair_die).collect()
+}
+
+/// Rewrites one ButtonWeavers die in BMAIR notation; BMAIR dice pass through.
+pub fn bmair_die(die: &str) -> String {
+    let Some((before, rest)) = die.split_once('(') else {
+        return die.replacen('=', "-", 1);
+    };
+    let Some((inside, after)) = rest.split_once(')') else {
+        return die.to_owned();
+    };
+    // The site sometimes writes postfix skills ahead of the parentheses: p?(X).
+    let prefix = before.replace(['!', '?', '&'], "");
+    let postfix = before
+        .chars()
+        .filter(|ch| matches!(ch, '!' | '?' | '&'))
+        .collect::<String>();
+    if inside.contains(',') {
+        return format!("{prefix}({inside}){postfix}{after}");
+    }
+    let (sides, defined) = inside
+        .split_once('=')
+        .map_or((inside, None), |(sides, size)| (sides, Some(size)));
+    let defined = defined.map(|size| format!("-{size}")).unwrap_or_default();
+    format!("{prefix}{sides}{postfix}{after}{defined}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn buttonweavers_dice_become_bmair_dice() {
+        for (site, bmair) in [
+            ("(6)", "6"),
+            ("p(12)", "p12"),
+            ("(X)", "X"),
+            ("(X=12)", "X-12"),
+            ("(6/30)", "6/30"),
+            ("(4,4)", "(4,4)"),
+            ("p(8,8)", "p(8,8)"),
+            ("(Z,Z)?", "(Z,Z)?"),
+            ("(X)?", "X?"),
+            ("(X)!", "X!"),
+            ("g(10/20)!", "g10/20!"),
+            ("p?(X)", "pX?"),
+            ("o!(Z)", "oZ!"),
+            ("dk(1)", "dk1"),
+            ("dmMH(4)", "dmMH4"),
+            ("(X=12)!", "X!-12"),
+        ] {
+            assert_eq!(bmair_die(site), bmair, "{site}");
+        }
+    }
+
+    #[test]
+    fn bmair_dice_pass_through() {
+        for die in [
+            "dk1", "kV", "X-12", "X!-12", "6/30", "(T,T)-2", "p(8,8)", "cX?-13",
+        ] {
+            assert_eq!(bmair_die(die), die);
+        }
+        assert_eq!(bmair_die("X=12"), "X-12");
+    }
+
+    #[test]
+    fn recipes_split_on_any_whitespace() {
+        assert_eq!(
+            recipe_dice(" (6)  p(10)\t(X) "),
+            ["6", "p10", "X"].map(String::from)
+        );
+    }
+}
