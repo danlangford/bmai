@@ -16,50 +16,93 @@ pub(crate) fn apply_attack_for_players(
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
+    let skills = skills_on_board(game);
+    let extra_turn = resolve_attack(game, action, attacker_player, target_player, rng, skills);
+    debug_assert_eq!(
+        skills_on_board(game) & !skills,
+        0,
+        "an attack brought a skill onto the board, so skipping its hooks was wrong"
+    );
+    extra_turn
+}
+
+/// Every skill on either side. Dice out of play count too: Warrior dice join
+/// mid-round, and Morphing, Doppelganger, and Rage only copy skills already
+/// here.
+fn skills_on_board(game: &Game) -> u64 {
+    game.players
+        .iter()
+        .flat_map(|player| &player.dice)
+        .fold(0, |all, die| all | die.properties)
+}
+
+/// `skills` lets hooks for skills not on the board cost nothing.
+fn resolve_attack(
+    game: &mut Game,
+    action: &Move,
+    attacker_player: usize,
+    target_player: usize,
+    rng: &mut Rng,
+    skills: u64,
+) -> bool {
     if action.attack == Some(Attack::Boom) {
         return apply_boom_attack(game, action, attacker_player, target_player, rng);
     }
     apply_fire_adjustments(game, action, attacker_player);
+    let present = |skill: u64| skills & skill != 0;
     // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = available_dice_count(&game.players[attacker_player]);
     let is_trip = action.attack == Some(Attack::Trip);
-    let attacking_jolt_dice = action
-        .attackers
-        .iter()
-        .filter(|index| game.players[attacker_player].dice[*index].has_property(property::JOLT))
-        .collect::<DieIndexSet>();
+    let attacking_jolt_dice = if present(property::JOLT) {
+        action
+            .attackers
+            .iter()
+            .filter(|index| game.players[attacker_player].dice[*index].has_property(property::JOLT))
+            .collect::<DieIndexSet>()
+    } else {
+        DieIndexSet::default()
+    };
     let attacking_jolt = !attacking_jolt_dice.is_empty();
-    let attacking_rage = action
-        .attackers
-        .iter()
-        .any(|index| game.players[attacker_player].dice[index].has_property(property::RAGE));
-    let captured_jolt = action
-        .targets
-        .iter()
-        .any(|index| game.players[target_player].dice[index].has_property(property::JOLT));
+    let attacking_rage = present(property::RAGE)
+        && action
+            .attackers
+            .iter()
+            .any(|index| game.players[attacker_player].dice[index].has_property(property::RAGE));
+    let captured_jolt = present(property::JOLT)
+        && action
+            .targets
+            .iter()
+            .any(|index| game.players[target_player].dice[index].has_property(property::JOLT));
     // ButtonWeavers keeps these hooks even after Doppelganger replaces the attacker.
-    let null_attacker = action
-        .attackers
-        .iter()
-        .any(|index| game.players[attacker_player].dice[index].has_property(property::NULL));
-    let value_attacker = action
-        .attackers
-        .iter()
-        .any(|index| game.players[attacker_player].dice[index].has_property(property::VALUE));
+    let null_attacker = present(property::NULL)
+        && action
+            .attackers
+            .iter()
+            .any(|index| game.players[attacker_player].dice[index].has_property(property::NULL));
+    let value_attacker = present(property::VALUE)
+        && action
+            .attackers
+            .iter()
+            .any(|index| game.players[attacker_player].dice[index].has_property(property::VALUE));
     let mut actual_attackers = action.attackers;
-    let decays = radioactive_decay_applies(game, action, attacker_player, target_player);
+    let decays = present(property::RADIOACTIVE)
+        && radioactive_decay_applies(game, action, attacker_player, target_player);
     // Decay strips Jolt after ButtonWeavers' Jolt hook has granted the turn.
     let jolt_dice_to_consume = if decays {
         DieIndexSet::default()
     } else {
         attacking_jolt_dice
     };
-    let rerolling_attackers = actual_attackers
-        .iter()
-        .filter(|index| {
-            !game.players[attacker_player].dice[*index].has_property(property::KONSTANT)
-        })
-        .collect::<DieIndexSet>();
+    let rerolling_attackers = if present(property::KONSTANT) {
+        actual_attackers
+            .iter()
+            .filter(|index| {
+                !game.players[attacker_player].dice[*index].has_property(property::KONSTANT)
+            })
+            .collect::<DieIndexSet>()
+    } else {
+        actual_attackers
+    };
     if decays && !is_trip {
         let attacker = action.attackers.first().expect("Radioactive attacker");
         actual_attackers = apply_radioactive_attack_effects(
@@ -92,7 +135,7 @@ pub(crate) fn apply_attack_for_players(
     }
 
     // Ornery dice reroll after every attack their player makes.
-    if action.attack.is_some() {
+    if action.attack.is_some() && present(property::ORNERY) {
         for attacker in 0..available_attackers {
             let die = &game.players[attacker_player].dice[attacker];
             if !rerolls_when_ornery(die) || die.not_set {
@@ -114,7 +157,7 @@ pub(crate) fn apply_attack_for_players(
     for attacker in actual_attackers.iter() {
         apply_attacker_nature_roll(game, attacker_player, attacker, rng);
     }
-    if action.attack.is_some() {
+    if action.attack.is_some() && present(property::ORNERY) {
         for attacker in 0..available_attackers {
             let die = &game.players[attacker_player].dice[attacker];
             if rerolls_when_ornery(die) && !actual_attackers.contains(attacker) {
@@ -132,12 +175,13 @@ pub(crate) fn apply_attack_for_players(
     }
 
     // Konstant attackers never reroll, so they cannot trigger it.
-    let time_and_space_extra_turn = actual_attackers.iter().any(|index| {
-        let die = &game.players[attacker_player].dice[index];
-        die.has_property(property::TIME_AND_SPACE)
-            && rerolling_attackers.contains(index)
-            && die.value_total() % 2 == 1
-    });
+    let time_and_space_extra_turn = present(property::TIME_AND_SPACE)
+        && actual_attackers.iter().any(|index| {
+            let die = &game.players[attacker_player].dice[index];
+            die.has_property(property::TIME_AND_SPACE)
+                && rerolling_attackers.contains(index)
+                && die.value_total() % 2 == 1
+        });
 
     let mut morph_extra_turn = false;
     if is_trip {
@@ -659,6 +703,9 @@ fn rerolls_when_ornery(die: &Die) -> bool {
 
 fn resize_mighty_and_weak(game: &mut Game, player: usize, index: usize) {
     let die = &mut game.players[player].dice[index];
+    if !die.has_property(property::MIGHTY | property::WEAK) {
+        return;
+    }
     let old_score = die.score(true);
     let dice = if die.has_property(property::TWIN) {
         2

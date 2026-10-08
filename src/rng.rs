@@ -188,13 +188,16 @@ impl Rng {
             self.native_stratum = None;
             return random % upper;
         };
-        let position = ((u128::from(stratum.index % next_radix)
-            + u128::from(stratum.offset % next_radix))
-            % u128::from(next_radix)) as u64;
-        let base_digit = position / stratum.radix % upper_u64;
+        let position = add_mod(
+            stratum.index % next_radix,
+            stratum.offset % next_radix,
+            next_radix,
+        );
+        // position < radix * upper, so this digit is already below upper.
+        let base_digit = position / stratum.radix;
         let lower_cell = position % stratum.radix;
         // A permutation of the faces, so full blocks stay exhaustive.
-        let value = (base_digit + lower_cell % upper_u64) % upper_u64;
+        let value = add_mod(base_digit, lower_cell % upper_u64, upper_u64);
         stratum.radix = next_radix;
         value as u32
     }
@@ -212,9 +215,37 @@ impl Drop for Rng {
     }
 }
 
+/// `(a + b) % modulus` for `a, b < modulus`, without a 128-bit division.
+fn add_mod(a: u64, b: u64, modulus: u64) -> u64 {
+    debug_assert!(a < modulus && b < modulus);
+    if a >= modulus - b {
+        a - (modulus - b)
+    } else {
+        a + b
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn add_mod_matches_a_128_bit_reference() {
+        let reference =
+            |a: u64, b: u64, m: u64| ((u128::from(a) + u128::from(b)) % u128::from(m)) as u64;
+        for m in [1, 2, 3, 7, 1 << 32, (1 << 32) + 1, u64::MAX - 1, u64::MAX] {
+            let near = |x: u64| [0, 1, x / 2, x.saturating_sub(2), x.saturating_sub(1)];
+            for a in near(m).into_iter().filter(|&a| a < m) {
+                // Includes the sum that lands exactly on the modulus.
+                let edges = [m - 1 - a, (m - a) % m];
+                for b in near(m).into_iter().chain(edges).filter(|&b| b < m) {
+                    assert_eq!(add_mod(a, b, m), reference(a, b, m), "{a} + {b} mod {m}");
+                }
+            }
+        }
+        // A sum landing exactly on the modulus wraps to zero.
+        assert_eq!(add_mod(3, 4, 7), 0);
+    }
 
     #[test]
     fn default_sequence_is_stable() {
