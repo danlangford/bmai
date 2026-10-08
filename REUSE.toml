@@ -57,6 +57,7 @@ path = [
     "MODES.md",
     "NATIVE_MODE.md",
     "PARITY.md",
+    "web/README.txt",
 ]
 SPDX-License-Identifier = "MIT"
 SPDX-FileCopyrightText = "Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>"

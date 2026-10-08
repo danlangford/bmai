@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="description" content="BMAIR, the Button Men AI, running in your browser.">
+  <title>BMAIR</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='3' width='26' height='26' rx='6' fill='%23b4462e'/%3E%3Ccircle cx='11' cy='11' r='2.6' fill='%23fff'/%3E%3Ccircle cx='21' cy='21' r='2.6' fill='%23fff'/%3E%3Ccircle cx='16' cy='16' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="title">
+      <h1>BMAIR</h1>
+      <span class="version" id="version">loading…</span>
+    </div>
+    <p class="tagline">The Button Men AI, compiled to WebAssembly and running entirely in this tab.</p>
+  </header>
+
+  <main>
+    <p class="notice" id="notice" hidden></p>
+
+    <form class="controls" id="controls">
+      <label class="field">
+        <span>Example</span>
+        <select id="example"></select>
+      </label>
+      <label class="field grow">
+        <span>Arguments</span>
+        <input id="args" type="text" autocomplete="off" spellcheck="false" placeholder="none (legacy protocol)">
+      </label>
+      <div class="actions">
+        <button type="submit" id="run" class="primary" disabled>Run</button>
+        <button type="button" id="stop" disabled>Stop</button>
+      </div>
+    </form>
+
+    <div class="panes">
+      <section class="pane" aria-labelledby="input-heading">
+        <div class="pane-header">
+          <h2 id="input-heading">Standard input</h2>
+          <button type="button" id="open">Open file…</button>
+          <input type="file" id="file" accept=".txt,.jsonl,.json,text/plain" hidden>
+        </div>
+        <textarea id="input" spellcheck="false" autocomplete="off" aria-labelledby="input-heading"></textarea>
+      </section>
+
+      <section class="pane" aria-labelledby="output-heading">
+        <div class="pane-header">
+          <h2 id="output-heading">Output</h2>
+          <span class="status" id="status" role="status"></span>
+          <button type="button" id="wrap" aria-pressed="false">Wrap</button>
+          <button type="button" id="copy" disabled>Copy</button>
+          <button type="button" id="save" disabled>Save</button>
+        </div>
+        <pre id="output" tabindex="0" aria-labelledby="output-heading"></pre>
+      </section>
+    </div>
+
+    <p class="hint">
+      <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> runs. Each run starts a fresh
+      engine. The browser gives the engine one thread, so <code>workers</code> and
+      <code>--threads</code> settings above 1 give the same results, only slower.
+    </p>
+  </main>
+
+  <footer>
+    <a href="https://github.com/danlangford/bmai">Source</a>
+    <a href="https://github.com/danlangford/bmai/blob/rust/PROTOCOL.md">Protocol reference</a>
+    <a href="https://github.com/danlangford/bmai/tree/rust/tests/fixtures">More game files</a>
+    <span>MIT licensed. Original BMAI © Denis Papp.</span>
+  </footer>
+</body>
+</html>

@@ -172,6 +172,29 @@ fn ordered_parallel_results_are_worker_count_independent() {
 }
 
 #[test]
+fn workers_drain_a_shared_queue_whatever_their_count() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    for count in [0, 1, 3, 64] {
+        let next = AtomicUsize::new(0);
+        let results = drain_with_workers(count, || {
+            let mut taken = Vec::new();
+            loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                if index >= 100 {
+                    break taken;
+                }
+                taken.push(index);
+            }
+        });
+        assert_eq!(results.len(), count.max(1));
+        let mut taken = results.into_iter().flatten().collect::<Vec<_>>();
+        taken.sort_unstable();
+        assert_eq!(taken, (0..100).collect::<Vec<_>>());
+    }
+}
+
+#[test]
 fn worker_identity_is_scoped_to_parallel_evaluation() {
     assert!(!native_worker_active());
     assert_eq!(

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-use std::process::{Command, Output};
+use std::io::Write;
+use std::process::{Command, Output, Stdio};
 
 fn gauntlet(arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_bmair"))
@@ -63,6 +64,36 @@ fn an_opponents_file_replaces_the_default_field() {
     assert!(output.status.success(), "{output:?}");
     let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("4 games per opponent: seeds 1-2, each played from both seats"));
+    assert!(stdout.contains("\nAvis "));
+    assert!(!stdout.contains("Lucky"));
+}
+
+#[test]
+fn a_dash_reads_the_opponents_from_standard_input() {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+        .args([
+            "gauntlet",
+            "--games",
+            "2",
+            "--engine",
+            "quick",
+            "6 12 20 20 X",
+            "-",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"Avis: (4) (4) (10) (12) (X)\n")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    let stdout = String::from_utf8(output.stdout).unwrap();
     assert!(stdout.contains("\nAvis "));
     assert!(!stdout.contains("Lucky"));
 }

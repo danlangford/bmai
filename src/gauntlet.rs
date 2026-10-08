@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::Rng;
 use crate::engines::Engine;
+use crate::native::drain_with_workers;
 use crate::search::{Engines, NativeReplaySequence, play_match_with_policies};
 use crate::strength::{Contestant, Matchup, game_seed, mean_with_interval, parse_game};
 
@@ -110,29 +111,21 @@ impl Gauntlet {
         let seeds = seeds.collect::<Vec<_>>();
         let next = AtomicUsize::new(0);
         let mut pairs = vec![Pair::default(); seeds.len()];
-        std::thread::scope(|scope| {
-            let workers = (0..threads.max(1))
-                .map(|_| {
-                    scope.spawn(|| {
-                        let engines: Engines = [self.engine.clone(), self.engine.clone()];
-                        let mut results = Vec::new();
-                        loop {
-                            let index = next.fetch_add(1, Ordering::Relaxed);
-                            let Some(&seed) = seeds.get(index) else {
-                                break;
-                            };
-                            results.push((index, play_pair(seats, seed, &engines)));
-                        }
-                        results
-                    })
-                })
-                .collect::<Vec<_>>();
-            for worker in workers {
-                for (index, pair) in worker.join().expect("a gauntlet worker panicked") {
-                    pairs[index] = pair;
-                }
+        let completed = drain_with_workers(threads, || {
+            let engines: Engines = [self.engine.clone(), self.engine.clone()];
+            let mut results = Vec::new();
+            loop {
+                let index = next.fetch_add(1, Ordering::Relaxed);
+                let Some(&seed) = seeds.get(index) else {
+                    break;
+                };
+                results.push((index, play_pair(seats, seed, &engines)));
             }
+            results
         });
+        for (index, pair) in completed.into_iter().flatten() {
+            pairs[index] = pair;
+        }
         Record {
             opponent: seats.button_first.label.clone(),
             games: 2 * pairs.len(),

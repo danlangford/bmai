@@ -83,7 +83,8 @@ the coordinating thread. Legacy logging and protocol output are unchanged.
 Since 0.23.0 native search defaults to `workers auto`, which resolves to the
 logical CPU parallelism available to the process and records that numeric value
 in session metadata. Individual evaluation batches still clamp their effective
-worker count to the number of tasks.
+worker count to the number of tasks. Builds that can't start threads, such as
+`wasm32-wasip1`, evaluate every batch on the coordinating thread.
 
 Beginning with `bmair-native-stream-v2`, a simulation's initial consecutive
 bounded draws are stratified across mixed-radix outcome cells by canonical

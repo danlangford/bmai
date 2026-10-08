@@ -83,22 +83,14 @@ Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
 unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
 binaries for Linux, Windows, and macOS, plus a `wasm32-wasip1` WebAssembly
-binary under Wasmtime. Each platform/architecture pair is uploaded as a
-separate workflow artifact; macOS Intel and Apple Silicon builds are not
-combined into a universal binary. Release artifacts include build metadata and
-SHA-256 checksums. Executable filenames use the embedded version, platform,
-architecture, and profile, such as `bmair-0.26.0-macos-arm64-release`,
-`bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm`, or
-`bmair-0.26.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
-
-The WebAssembly artifact uses WASI Preview 1 so it can keep the native
-executable's command-line, standard-input, and standard-output interface. Run
-it with a WASI runtime such as Wasmtime:
-
-```shell
-wasmtime bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm --version
-wasmtime bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm < game.txt
-```
+binary and the web site built from it. Each platform/architecture pair is
+uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
+are not combined into a universal binary. Release artifacts include build
+metadata and SHA-256 checksums. Executable filenames use the embedded version,
+platform, architecture, and profile, such as `bmair-0.27.0-macos-arm64-release`,
+`bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm`,
+`bmair-0.27.0-web-release.zip`, or
+`bmair-0.27.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
@@ -128,6 +120,18 @@ Or pipe protocol input through standard input:
 ```shell
 cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
+
+The WebAssembly release is a WASI Preview 1 command, so it keeps the native
+executable's arguments, standard input, and standard output. Run it with a
+WASI runtime such as Wasmtime:
+
+```shell
+wasmtime bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm --version
+wasmtime bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm < game.txt
+```
+
+WebAssembly can't start threads, so `workers` above 1 and gauntlet
+`--threads` take turns on one thread there. The results match a native build.
 
 `bmair --version` derives its displayed version from Cargo and
 `git describe`. An exact `bmair-v0.5.0` tag reports `0.5.0`; development builds
@@ -230,6 +234,37 @@ protocol. BMAIR flushes its banner, processes complete stdin commands without
 waiting for EOF, and treats `quit` as immediate termination. This supports the
 historical BMAIBagels `Popen` pattern of writing and flushing a complete legacy
 request while keeping the pipe open to read the action.
+
+### Web site
+
+`bmair-VERSION-web-release.zip` on each release is a static web site that
+runs the same WebAssembly engine in the visitor's browser. Unzip it onto any
+static host, or into a subdirectory of one; there is no server code, and
+nothing the visitor types leaves the browser. The page takes command-line
+arguments and standard input, so anything in this README works there,
+including the JSON Lines protocol and `bmair gauntlet`. The browser can't open
+files, so pass a gauntlet's opponents as `-` and paste them as input.
+
+To build and try the site locally, then serve it at `http://localhost:8000/`:
+
+```shell
+mise exec -- cargo build --release --locked --target wasm32-wasip1 --bin bmair
+scripts/package_web.sh target/wasm32-wasip1/release/bmair.wasm target/web/bmair-web.zip
+unzip -o target/web/bmair-web.zip -d target/web/site
+python3 -m http.server 8000 --directory target/web/site
+```
+
+The page lives in [`web/`](web/). `web/wasi.js` is a small WASI host that
+covers only the calls `bmair.wasm` makes and gives it no file access. Its
+tests run every golden fixture through that host and compare the output and
+RNG fingerprints with native:
+
+```shell
+BMAIR_WASM=target/wasm32-wasip1/release/bmair.wasm node --test tests/web/*.test.mjs
+```
+
+Add `BMAIR_WEB_SLOW_FIXTURES=1` to include the four slow fixtures, as CI does.
+`web/README.txt` ships in the zip and covers deployment and updates.
 
 ### Execution and RNG modes
 

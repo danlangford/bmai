@@ -15,7 +15,8 @@ usage: bmair gauntlet [options] \"RECIPE\" [OPPONENTS]
 
 Plays RECIPE against each opponent and reports how often it wins. Write the
 recipe in ButtonWeavers or BMAIR notation, inside quotes. OPPONENTS is a file
-of `Name: recipe` lines; without it, the default field is played.
+of `Name: recipe` lines, or - to read them from standard input; without it,
+the default field is played.
 
 options:
   --games N      matches per opponent, half from each seat (default 500)
@@ -127,10 +128,14 @@ fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> 
     }
     let (recipe, field) = match positional[..] {
         [recipe] => (recipe, gauntlet::DEFAULT_FIELD.to_owned()),
-        [recipe, path] => (
-            recipe,
-            fs::read_to_string(path).map_err(|error| format!("{path}: {error}"))?,
-        ),
+        [recipe, path] => {
+            let field = if path == "-" {
+                io::read_to_string(io::stdin())
+            } else {
+                fs::read_to_string(path)
+            };
+            (recipe, field.map_err(|error| format!("{path}: {error}"))?)
+        }
         [] => return Err(GAUNTLET_USAGE.into()),
         _ => {
             return Err(
