@@ -2,14 +2,25 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::cell::Cell;
+use std::sync::OnceLock;
 
 thread_local! {
     static NATIVE_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
-/// WebAssembly without shared memory cannot start threads. No worker count
-/// changes a result, so those builds do the same work on one thread.
-const THREADS_AVAILABLE: bool = !cfg!(all(target_family = "wasm", not(target_feature = "atomics")));
+/// No worker count changes a result, so where threads can't start the same
+/// work runs on one thread. Stable Rust gives a threaded WebAssembly build the
+/// same `cfg` as an unthreaded one, and either may run on a host without
+/// threads, so WebAssembly asks once at run time.
+fn threads_available() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    !cfg!(target_family = "wasm")
+        || *AVAILABLE.get_or_init(|| {
+            std::thread::Builder::new()
+                .spawn(|| {})
+                .is_ok_and(|probe| probe.join().is_ok())
+        })
+}
 
 pub(crate) fn native_worker_active() -> bool {
     NATIVE_WORKER_ACTIVE.get()
@@ -27,7 +38,7 @@ where
     if worker_count == 1 {
         return tasks.into_iter().map(evaluate).collect();
     }
-    if !THREADS_AVAILABLE {
+    if !threads_available() {
         // Traces stay as quiet as they would be inside real workers.
         let outer = NATIVE_WORKER_ACTIVE.replace(true);
         let results = tasks.into_iter().map(evaluate).collect();
@@ -75,7 +86,7 @@ where
     R: Send,
     F: Fn() -> R + Sync,
 {
-    if count <= 1 || !THREADS_AVAILABLE {
+    if count <= 1 || !threads_available() {
         return vec![work()];
     }
     std::thread::scope(|scope| {

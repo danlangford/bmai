@@ -87,9 +87,9 @@ clear benefit. Each could return if that changes.
 
 ### Changed
 
-- WebAssembly can't start threads, so `workers` above 1 and gauntlet
-  `--threads` run their work in turn there. Results match native builds; only
-  the speed differs. CI runs every golden fixture through the browser's
+- Where threads can't start, as in the WebAssembly release, `workers` above 1
+  and gauntlet `--threads` run their work in turn instead of crashing. Results
+  match native builds; only the speed differs. CI runs every golden fixture through the browser's
   WebAssembly host and compares output and RNG fingerprints with native.
 
 ## [0.26.1] - 2026-10-08

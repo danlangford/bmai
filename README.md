@@ -130,8 +130,8 @@ wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm --version
 wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm < game.txt
 ```
 
-WebAssembly can't start threads, so `workers` above 1 and gauntlet
-`--threads` take turns on one thread there. The results match a native build.
+This build can't start threads, so `workers` above 1 and gauntlet `--threads`
+take turns on one thread. The results match a native build.
 
 `bmair --version` derives its displayed version from Cargo and
 `git describe`. An exact `bmair-v0.5.0` tag reports `0.5.0`; development builds
