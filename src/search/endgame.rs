@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 
 use super::{fight_over, moves_including_pass, win_probability};
 use crate::Rng;
-use crate::game::{Action, Game, Move, Player, apply_attack, available_dice_count};
+use crate::game::{Action, Die, Game, Move, Player, apply_attack, available_dice_count};
 
 /// One distinct result of an attack and how likely it is.
 pub(crate) struct Outcome {
@@ -19,36 +19,60 @@ pub(crate) struct Outcome {
 }
 
 /// A position's identity for merging outcomes and caching values: every
-/// field of both players, packed. Text keys cost a third of the bot's time.
-fn state_key(flag: bool, players: &[Player]) -> Vec<u8> {
+/// field of both players, packed. Debug-text keys cost a third of the bot's
+/// time. The fields are destructured without `..` so a new one cannot be
+/// left out silently.
+pub(crate) fn state_key(flag: bool, players: &[Player]) -> Vec<u8> {
     let mut key = Vec::with_capacity(256);
     key.push(u8::from(flag));
     for player in players {
-        key.extend_from_slice(&(player.id as u64).to_le_bytes());
-        key.extend_from_slice(&player.score.to_bits().to_le_bytes());
-        key.push(player.swing_set as u8);
-        for sides in &player.round_original_sides {
+        let Player {
+            id,
+            score,
+            dice,
+            swing_set,
+            round_original_sides,
+            round_transformed,
+            radioactive_products,
+            rage_replacements,
+            specials,
+        } = player;
+        key.extend_from_slice(&(*id as u64).to_le_bytes());
+        key.extend_from_slice(&score.to_bits().to_le_bytes());
+        key.push(*swing_set as u8);
+        for sides in round_original_sides {
             key.extend_from_slice(sides);
         }
-        key.extend_from_slice(&player.round_transformed.to_le_bytes());
-        key.extend_from_slice(&player.radioactive_products.to_le_bytes());
-        key.extend_from_slice(&player.rage_replacements.to_le_bytes());
-        key.push(player.specials);
-        key.extend_from_slice(&(player.dice.len() as u64).to_le_bytes());
-        for die in &player.dice {
-            key.extend_from_slice(&die.properties.to_le_bytes());
-            key.extend_from_slice(&die.sides);
-            for swing in die.swing_type {
+        key.extend_from_slice(&round_transformed.to_le_bytes());
+        key.extend_from_slice(&radioactive_products.to_le_bytes());
+        key.extend_from_slice(&rage_replacements.to_le_bytes());
+        key.push(*specials);
+        key.extend_from_slice(&(dice.len() as u64).to_le_bytes());
+        for die in dice {
+            let Die {
+                properties,
+                sides,
+                swing_type,
+                value,
+                captured,
+                not_set,
+                dizzy,
+                original_index,
+                in_reserve,
+            } = die;
+            key.extend_from_slice(&properties.to_le_bytes());
+            key.extend_from_slice(sides);
+            for swing in swing_type {
                 key.extend_from_slice(&swing.map_or(u32::MAX, u32::from).to_le_bytes());
             }
-            key.extend_from_slice(&die.value.map_or(u16::MAX, u16::from).to_le_bytes());
+            key.extend_from_slice(&value.map_or(u16::MAX, u16::from).to_le_bytes());
             key.push(
-                u8::from(die.captured)
-                    | u8::from(die.not_set) << 1
-                    | u8::from(die.dizzy) << 2
-                    | u8::from(die.in_reserve) << 3,
+                u8::from(*captured)
+                    | u8::from(*not_set) << 1
+                    | u8::from(*dizzy) << 2
+                    | u8::from(*in_reserve) << 3,
             );
-            key.extend_from_slice(&(die.original_index as u64).to_le_bytes());
+            key.extend_from_slice(&(*original_index as u64).to_le_bytes());
         }
     }
     key

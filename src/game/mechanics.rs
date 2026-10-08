@@ -16,18 +16,39 @@ pub(crate) fn apply_attack_for_players(
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
+    let skills = skills_on_board(game);
+    let extra_turn = resolve_attack(game, action, attacker_player, target_player, rng, skills);
+    debug_assert_eq!(
+        skills_on_board(game) & !skills,
+        0,
+        "an attack brought a skill onto the board, so skipping its hooks was wrong"
+    );
+    extra_turn
+}
+
+/// Every skill on either side. Dice out of play count too: Warrior dice join
+/// mid-round, and Morphing, Doppelganger, and Rage only copy skills already
+/// here.
+fn skills_on_board(game: &Game) -> u64 {
+    game.players
+        .iter()
+        .flat_map(|player| &player.dice)
+        .fold(0, |all, die| all | die.properties)
+}
+
+/// `skills` lets hooks for skills not on the board cost nothing.
+fn resolve_attack(
+    game: &mut Game,
+    action: &Move,
+    attacker_player: usize,
+    target_player: usize,
+    rng: &mut Rng,
+    skills: u64,
+) -> bool {
     if action.attack == Some(Attack::Boom) {
         return apply_boom_attack(game, action, attacker_player, target_player, rng);
     }
     apply_fire_adjustments(game, action, attacker_player);
-    // Every skill on either side, so blocks for skills not on the board cost
-    // nothing. Dice out of play count too: Warrior dice join mid-round, and
-    // Morphing, Doppelganger, and Rage only copy skills already here.
-    let skills = game
-        .players
-        .iter()
-        .flat_map(|player| &player.dice)
-        .fold(0, |all, die| all | die.properties);
     let present = |skill: u64| skills & skill != 0;
     // A cached count, so attackers marked NOTSET below still count.
     let mut available_attackers = available_dice_count(&game.players[attacker_player]);

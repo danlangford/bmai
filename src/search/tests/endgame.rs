@@ -186,3 +186,73 @@ fn the_solver_matches_a_naive_solver_on_three_hundred_positions() {
         "every corpus position is small enough to solve"
     );
 }
+
+#[test]
+fn positions_differing_in_any_one_field_get_different_keys() {
+    let game = fight("6:5\n8:3", "4:2");
+    let base = crate::search::endgame::state_key(false, &game.players);
+    type Change = (&'static str, fn(&mut Game));
+    let changes: [Change; 18] = [
+        ("id", |g| g.players[0].id += 1),
+        ("score", |g| g.players[0].score += 0.5),
+        ("swing_set", |g| {
+            g.players[0].swing_set = crate::SwingSet::Locked
+        }),
+        ("round_original_sides", |g| {
+            g.players[0].round_original_sides[0][0] ^= 1
+        }),
+        ("round_transformed", |g| g.players[0].round_transformed ^= 1),
+        ("radioactive_products", |g| {
+            g.players[0].radioactive_products ^= 1
+        }),
+        ("rage_replacements", |g| g.players[0].rage_replacements ^= 1),
+        ("specials", |g| g.players[0].specials ^= 1),
+        ("dice", |g| {
+            g.players[0].dice.pop();
+        }),
+        ("properties", |g| g.players[0].dice[0].properties ^= 1),
+        ("sides", |g| g.players[0].dice[0].sides[0] ^= 1),
+        ("swing_type", |g| {
+            g.players[0].dice[0].swing_type[0] = Some('X')
+        }),
+        ("value", |g| g.players[0].dice[0].value = Some(1)),
+        ("captured", |g| g.players[0].dice[0].captured ^= true),
+        ("not_set", |g| g.players[0].dice[0].not_set ^= true),
+        ("dizzy", |g| g.players[0].dice[0].dizzy ^= true),
+        ("original_index", |g| {
+            g.players[0].dice[0].original_index ^= 1
+        }),
+        ("in_reserve", |g| g.players[0].dice[0].in_reserve ^= true),
+    ];
+    for (field, change) in changes {
+        let mut changed = game.clone();
+        change(&mut changed);
+        let key = crate::search::endgame::state_key(false, &changed.players);
+        assert_ne!(key, base, "{field}");
+    }
+    assert_ne!(crate::search::endgame::state_key(true, &game.players), base);
+}
+
+/// Outcomes are summed in key order, so the order is part of the answer down
+/// to the last bit; a change here is a change in solver values.
+#[test]
+fn solver_values_are_pinned_to_the_bit() {
+    let values = |player0: &str, player1: &str| -> Vec<u64> {
+        Solver::new(500, 300_000)
+            .move_values(&fight(player0, player1))
+            .unwrap()
+            .into_iter()
+            .map(|(_, value)| value.to_bits())
+            .collect()
+    };
+    assert_eq!(
+        values("^6:3\ns8:6", "(4,4):2\n%20:18"),
+        [0x3fe0a3d70a3d70a1]
+    );
+    // Two moves within a few ulps of each other: the near-tie a new order
+    // could flip.
+    assert_eq!(
+        values("20:18\nz2:1", "f12:3\nH20:16\n6:3"),
+        [0x3fbd867c3ece2a66, 0x3fbd867c3ece2a6c, 0x3fea60b60b60b60e]
+    );
+}
