@@ -70,16 +70,19 @@ impl Matchup {
     pub fn new(label: &str, first: &str, second: &str, target_wins: u8) -> Result<Self, String> {
         Ok(Self {
             label: label.to_string(),
-            game: game(first, second, target_wins)
+            game: parse_game(first, second, target_wins)
                 .map_err(|error| format!("matchup {label}: {error}"))?,
         })
     }
 }
 
-pub(crate) fn game(first: &str, second: &str, target_wins: u8) -> Result<Game, String> {
+pub(crate) fn parse_game(first: &str, second: &str, target_wins: u8) -> Result<Game, String> {
     let mut input = format!("game {target_wins}\npreround\n");
     for (player, recipe) in [first, second].into_iter().enumerate() {
         let dice = crate::notation::recipe_dice(recipe);
+        if dice.is_empty() {
+            return Err(format!("player {player} has no dice"));
+        }
         input.push_str(&format!("player {player} {} 0\n", dice.len()));
         for die in dice {
             input.push_str(&die);

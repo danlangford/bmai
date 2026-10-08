@@ -119,7 +119,7 @@ fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> 
             "--engine" => engine.clone_from(value()?),
             "--seed" => first_seed = positive(argument, value()?)?,
             "--threads" => threads = positive(argument, value()?)?,
-            flag if flag.starts_with("--") => {
+            flag if flag.starts_with('-') && flag != "-" => {
                 return Err(format!("unknown option {flag}\n\n{GAUNTLET_USAGE}").into());
             }
             recipe => positional.push(recipe),

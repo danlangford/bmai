@@ -9,8 +9,9 @@ use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::Rng;
+use crate::engines::Engine;
 use crate::search::{Engines, play_match_with_policies};
-use crate::strength::{Contestant, Matchup, game, game_seed, mean_with_interval};
+use crate::strength::{Contestant, Matchup, game_seed, mean_with_interval, parse_game};
 
 /// Thousands of matches take seconds at this budget, and Hammer measures 48%
 /// against the default field with it, close to its 52% on ButtonWeavers.
@@ -63,34 +64,51 @@ pub fn parse_field(text: &str) -> Result<Vec<Button>, String> {
 
 #[derive(Debug)]
 pub struct Gauntlet {
-    engine: Contestant,
-    /// Per opponent, the button seated first and then second.
-    matchups: Vec<[Matchup; 2]>,
+    engine: Box<dyn Engine>,
+    opponents: Vec<Seats>,
+}
+
+#[derive(Debug)]
+struct Seats {
+    button_first: Matchup,
+    button_second: Matchup,
 }
 
 impl Gauntlet {
     /// Checks every recipe up front, so a typo fails before any match is played.
-    pub fn new(recipe: &str, field: &[Button], engine: Contestant) -> Result<Self, String> {
-        game(recipe, recipe, TARGET_WINS).map_err(|error| format!("the button: {error}"))?;
-        let matchups = field
+    pub fn new(recipe: &str, field: &[Button], contestant: Contestant) -> Result<Self, String> {
+        parse_game(recipe, recipe, TARGET_WINS).map_err(|error| format!("the button: {error}"))?;
+        let opponents = field
             .iter()
             .map(|opponent| {
-                Ok([
-                    Matchup::new(&opponent.name, recipe, &opponent.recipe, TARGET_WINS)?,
-                    Matchup::new(&opponent.name, &opponent.recipe, recipe, TARGET_WINS)?,
-                ])
+                Ok(Seats {
+                    button_first: Matchup::new(
+                        &opponent.name,
+                        recipe,
+                        &opponent.recipe,
+                        TARGET_WINS,
+                    )?,
+                    button_second: Matchup::new(
+                        &opponent.name,
+                        &opponent.recipe,
+                        recipe,
+                        TARGET_WINS,
+                    )?,
+                })
             })
             .collect::<Result<Vec<_>, String>>()?;
-        Ok(Self { engine, matchups })
+        Ok(Self {
+            engine: contestant.engine,
+            opponents,
+        })
     }
 
     pub fn opponents(&self) -> usize {
-        self.matchups.len()
+        self.opponents.len()
     }
 
-    /// Plays each seed twice against one opponent, once from each seat.
     pub fn play(&self, opponent: usize, seeds: RangeInclusive<u32>, threads: usize) -> Record {
-        let [ahead, behind] = &self.matchups[opponent];
+        let seats = &self.opponents[opponent];
         let seeds = seeds.collect::<Vec<_>>();
         let next = AtomicUsize::new(0);
         let mut pairs = vec![Pair::default(); seeds.len()];
@@ -98,28 +116,14 @@ impl Gauntlet {
             let workers = (0..threads.max(1))
                 .map(|_| {
                     scope.spawn(|| {
-                        let engines: Engines =
-                            [self.engine.engine.clone(), self.engine.engine.clone()];
+                        let engines: Engines = [self.engine.clone(), self.engine.clone()];
                         let mut results = Vec::new();
                         loop {
                             let index = next.fetch_add(1, Ordering::Relaxed);
                             let Some(&seed) = seeds.get(index) else {
                                 break;
                             };
-                            let [first, second] = [ahead, behind].map(|matchup| {
-                                let mut rng = Rng::default();
-                                rng.reseed(game_seed(seed));
-                                play_match_with_policies(&matchup.game, &mut rng, &engines, None)
-                            });
-                            let pair = Pair {
-                                wins: usize::from(first.winner == 0)
-                                    + usize::from(second.winner == 1),
-                                rounds: [
-                                    usize::from(first.wins[0] + second.wins[1]),
-                                    usize::from(first.wins[1] + second.wins[0]),
-                                ],
-                            };
-                            results.push((index, pair));
+                            results.push((index, play_pair(seats, seed, &engines)));
                         }
                         results
                     })
@@ -132,12 +136,29 @@ impl Gauntlet {
             }
         });
         Record {
-            opponent: ahead.label.clone(),
+            opponent: seats.button_first.label.clone(),
             games: 2 * pairs.len(),
             wins: pairs.iter().map(|pair| pair.wins).sum(),
             rounds: [0, 1].map(|side| pairs.iter().map(|pair| pair.rounds[side]).sum()),
             pair_scores: pairs.iter().map(|pair| pair.wins as f64 / 2.0).collect(),
         }
+    }
+}
+
+fn play_pair(seats: &Seats, seed: u32, engines: &Engines) -> Pair {
+    let play = |matchup: &Matchup| {
+        let mut rng = Rng::default();
+        rng.reseed(game_seed(seed));
+        play_match_with_policies(&matchup.game, &mut rng, engines, None)
+    };
+    let first = play(&seats.button_first);
+    let second = play(&seats.button_second);
+    Pair {
+        wins: usize::from(first.winner == 0) + usize::from(second.winner == 1),
+        rounds: [
+            usize::from(first.wins[0] + second.wins[1]),
+            usize::from(first.wins[1] + second.wins[0]),
+        ],
     }
 }
 
@@ -284,6 +305,33 @@ mod tests {
         let field = [button("Fine", "(6) (X)")];
         let error = Gauntlet::new("(6) y(7)", &field, quick()).unwrap_err();
         assert!(error.starts_with("the button: "), "{error}");
+    }
+
+    #[test]
+    fn a_stronger_button_wins_most_games_from_either_seat() {
+        let quick = || Contestant::parse("quick").unwrap();
+        let big = "(20) (20) (20) (20) (20)";
+        let tiny = "(1) (1) (2) (2) (4)";
+        let strong = Gauntlet::new(big, &[button("Tiny", tiny)], quick())
+            .unwrap()
+            .play(0, 1..=10, 1);
+        let weak = Gauntlet::new(tiny, &[button("Big", big)], quick())
+            .unwrap()
+            .play(0, 1..=10, 1);
+        assert!(strong.wins >= 16, "{strong:?}");
+        assert!(weak.wins <= 4, "{weak:?}");
+        assert!(strong.rounds[0] > strong.rounds[1], "{strong:?}");
+        assert!(weak.rounds[0] < weak.rounds[1], "{weak:?}");
+    }
+
+    #[test]
+    fn a_button_needs_dice() {
+        let quick = || Contestant::parse("quick").unwrap();
+        let field = [button("Fine", "(6) (X)")];
+        for recipe in ["", "   "] {
+            let error = Gauntlet::new(recipe, &field, quick()).unwrap_err();
+            assert!(error.starts_with("the button: "), "{error}");
+        }
     }
 
     #[test]

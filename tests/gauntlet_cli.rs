@@ -87,3 +87,31 @@ fn an_unquoted_recipe_is_refused_before_any_play() {
             .contains("inside quotes")
     );
 }
+
+#[test]
+fn bad_arguments_fail_with_a_reason_before_any_play() {
+    for (arguments, reason) in [
+        (&["-g", "10", "(4)"][..], "unknown option -g"),
+        (
+            &["--games", "0", "(4)"],
+            "--games takes a whole number above zero, not 0",
+        ),
+        (
+            &["--threads", "x", "(4)"],
+            "--threads takes a whole number above zero, not x",
+        ),
+        (
+            &["--seed", "4294967295", "--games", "4", "(4)"],
+            "runs past the last seed",
+        ),
+        (&["--games"], "--games needs a value"),
+        (&["(4)", "no-such-opponents.txt"], "no-such-opponents.txt: "),
+        (&[""], "the button: player 0 has no dice"),
+    ] {
+        let output = gauntlet(arguments);
+        assert!(!output.status.success(), "{arguments:?}");
+        assert!(output.stdout.is_empty(), "{arguments:?}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.contains(reason), "{arguments:?}: {stderr}");
+    }
+}
