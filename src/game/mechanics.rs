@@ -659,6 +659,9 @@ fn rerolls_when_ornery(die: &Die) -> bool {
 
 fn resize_mighty_and_weak(game: &mut Game, player: usize, index: usize) {
     let die = &mut game.players[player].dice[index];
+    if !die.has_property(property::MIGHTY | property::WEAK) {
+        return;
+    }
     let old_score = die.score(true);
     let dice = if die.has_property(property::TWIN) {
         2
