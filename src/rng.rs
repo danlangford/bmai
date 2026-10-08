@@ -188,9 +188,15 @@ impl Rng {
             self.native_stratum = None;
             return random % upper;
         };
-        let position = ((u128::from(stratum.index % next_radix)
-            + u128::from(stratum.offset % next_radix))
-            % u128::from(next_radix)) as u64;
+        // (index + offset) mod next_radix; both are already reduced, so one
+        // subtraction wraps the sum without a 128-bit division.
+        let index = stratum.index % next_radix;
+        let offset = stratum.offset % next_radix;
+        let position = if index >= next_radix - offset {
+            index - (next_radix - offset)
+        } else {
+            index + offset
+        };
         let base_digit = position / stratum.radix % upper_u64;
         let lower_cell = position % stratum.radix;
         // A permutation of the faces, so full blocks stay exhaustive.
