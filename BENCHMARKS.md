@@ -141,3 +141,25 @@ identical on every golden fixture.
 In native mode on `bmai_in.txt`, user CPU fell from 10.71s to 6.66s with one
 worker and from 17.18s to 10.41s with `workers auto`.
 
+## 0.25.0 search speedups
+
+Measured on 2026-10-07 on an idle Intel Celeron G5905T (2 cores, Debian 13),
+with nothing else running. The input was 100 of BMAIBagels' logged fight
+decisions, run one after another with their logged settings (native mode,
+`workers auto`, Monte Carlo ply 1 with 4000/200/16000, `endgame 4`). Each
+binary ran three times; the figure is total CPU (user plus system) across
+all 100, and runs agreed within 0.02s. Each change was chosen from a `perf`
+profile, and output was byte-for-byte identical after every one.
+
+| Change | CPU | Saving |
+|---|---:|---:|
+| 0.24.0 | 8.93s | |
+| Solver keys from packed fields, not debug text | 6.31s | 29% |
+| Stratified roll without a 128-bit division | 6.18s | 2% |
+| Skip Mighty and Weak resizing for other dice | 6.06s | 2% |
+| Skip skill hooks when no die has the skill | 5.81s | 4% |
+| Two fewer divisions in the stratified roll | 5.75s | 1% |
+
+Tried and dropped: sorting dice through an index array instead of swapping
+them was 2% slower, since copying the dice back cost more than the swaps.
+

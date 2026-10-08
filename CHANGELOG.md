@@ -67,6 +67,22 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.25.0] - 2026-10-07
+
+### Changed
+
+- Searches use about 36% less CPU, measured on 100 of BMAIBagels' logged
+  decisions at its settings, with the same moves and reported odds:
+  - The endgame solver keys positions by their packed fields instead of
+    debug text, which had been a third of all CPU. Its outcomes now sum in a
+    different order, so internal values can differ in the last bit; tests
+    pin them to the bit.
+  - Attacks skip the hooks for Jolt, Rage, Null, Value, Konstant,
+    Radioactive, Ornery, and Time and Space when no die on the board has
+    the skill.
+  - Dice rolls avoid a 128-bit division and two divisions they did not need,
+    and dice without Mighty or Weak skip resizing.
+
 ## [0.24.0] - 2026-10-06
 
 ### Added
@@ -684,7 +700,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...HEAD
+[0.25.0]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...bmair-v0.25.0
 [0.24.0]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...bmair-v0.24.0
 [0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
 [0.22.0]: https://github.com/danlangford/bmai/compare/bmair-v0.21.0...bmair-v0.22.0
