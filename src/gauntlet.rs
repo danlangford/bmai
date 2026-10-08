@@ -219,11 +219,12 @@ fn play_pair(seats: &Seats, opponent: usize, seed: u32, engines: &Engines) -> Pa
     };
     let first = play(&seats.button_first);
     let second = play(&seats.button_second);
-    let (wins, score) = pair_result(first.winner, second.winner);
+    let (wins, cancelled, score) = pair_result(first.winner, second.winner);
     Pair {
         opponent,
         seed,
         wins: wins[0],
+        cancelled,
         score,
         rounds: [
             usize::from(first.wins[0] + second.wins[1]),
@@ -240,6 +241,8 @@ pub struct Pair {
     pub seed: u32,
     /// Games the button won of the two.
     pub wins: usize,
+    /// Games of the two cancelled at the round limit, each scored as a draw.
+    pub cancelled: usize,
     pub score: f64,
     /// Rounds the button won and lost.
     pub rounds: [usize; 2],
@@ -308,8 +311,8 @@ impl Shard {
 
 const BUILD_VERSION: &str = env!("BMAIR_BUILD_VERSION");
 
-/// Changes whenever a merge could misread an older shard's lines.
-pub const SHARD_FORMAT: u32 = 1;
+/// Changes whenever a merge could misread another build's lines.
+pub const SHARD_FORMAT: u32 = 2;
 
 /// The first line of a shard's output: everything that decides its results,
 /// so a merge can refuse parts of different gauntlets, and what the merge
@@ -361,6 +364,14 @@ pub fn merge<'a>(sources: impl IntoIterator<Item = (&'a str, &'a str)>) -> Resul
             }
             let at = format!("{source}:{}", index + 1);
             match serde_json::from_str::<ShardLine>(line) {
+                // Before the part's pair lines, which an older format may lack fields for.
+                Ok(ShardLine::Shard(header)) if header.format != SHARD_FORMAT => {
+                    let [part, count] = header.shard;
+                    return Err(format!(
+                        "{at}: shard {part}/{count} has format {}, not {SHARD_FORMAT}; merge it with the bmair that played it",
+                        header.format
+                    ));
+                }
                 Ok(ShardLine::Shard(header)) => headers.push((at, header)),
                 Ok(ShardLine::Pair(pair)) => pair_lines.push((at, pair)),
                 Err(error) => return Err(format!("{at}: {}", without_position(&error))),
@@ -377,12 +388,6 @@ pub fn merge<'a>(sources: impl IntoIterator<Item = (&'a str, &'a str)>) -> Resul
     for (at, header) in &headers {
         let [part, its_count] = header.shard;
         let name = format!("shard {part}/{its_count}");
-        if header.format != SHARD_FORMAT {
-            return Err(format!(
-                "{at}: {name} has format {}, not {SHARD_FORMAT}; merge it with the bmair that played it",
-                header.format
-            ));
-        }
         if header.bmair != first.bmair {
             return Err(format!(
                 "{at}: {name} was played by bmair {}, not {}",
@@ -497,6 +502,8 @@ pub struct Record {
     pub opponent: String,
     pub games: usize,
     pub wins: usize,
+    /// Matches cancelled at the round limit, each half a win in the win rate.
+    pub cancelled: usize,
     /// Rounds the button won and lost. Tied rounds are replayed, so they are not counted.
     pub rounds: [usize; 2],
     pair_scores: Vec<f64>,
@@ -508,6 +515,7 @@ impl Record {
             opponent: opponent.to_owned(),
             games: 2 * pairs.len(),
             wins: pairs.iter().map(|pair| pair.wins).sum(),
+            cancelled: pairs.iter().map(|pair| pair.cancelled).sum(),
             rounds: [0, 1].map(|side| pairs.iter().map(|pair| pair.rounds[side]).sum()),
             pair_scores: pairs.iter().map(|pair| pair.score).collect(),
         }
@@ -518,6 +526,7 @@ impl Record {
             opponent: "Overall".into(),
             games: records.iter().map(|record| record.games).sum(),
             wins: records.iter().map(|record| record.wins).sum(),
+            cancelled: records.iter().map(|record| record.cancelled).sum(),
             rounds: [0, 1].map(|side| records.iter().map(|record| record.rounds[side]).sum()),
             pair_scores: records
                 .iter()
@@ -559,7 +568,14 @@ impl Table {
     }
 
     pub fn header(&self) -> String {
-        self.line("Opponent", "Won", "Win %", "95% CI", "Rounds won")
+        self.line(
+            "Opponent",
+            "Won",
+            "Cancelled",
+            "Win %",
+            "95% CI",
+            "Rounds won",
+        )
     }
 
     pub fn row(&self, record: &Record) -> String {
@@ -567,17 +583,28 @@ impl Table {
         self.line(
             &record.opponent,
             &format!("{}/{}", record.wins, record.games),
+            &record.cancelled.to_string(),
             &percent(record.win_rate()),
             &format!("{:.1}-{:.1}%", 100.0 * low, 100.0 * high),
             &percent(record.round_rate()),
         )
     }
 
-    fn line(&self, name: &str, won: &str, rate: &str, interval: &str, rounds: &str) -> String {
+    fn line(
+        &self,
+        name: &str,
+        won: &str,
+        cancelled: &str,
+        rate: &str,
+        interval: &str,
+        rounds: &str,
+    ) -> String {
         let width = self.name_width;
-        format!("{name:<width$}  {won:<11}  {rate:>6}  {interval:<11}  {rounds:>10}")
-            .trim_end()
-            .to_owned()
+        format!(
+            "{name:<width$}  {won:<11}  {cancelled:>9}  {rate:>6}  {interval:<11}  {rounds:>10}"
+        )
+        .trim_end()
+        .to_owned()
     }
 }
 
@@ -685,7 +712,10 @@ mod tests {
         let quick = Contestant::parse("quick").unwrap();
         let gauntlet = Gauntlet::new(recipe, &[button("Nulls", recipe)], quick).unwrap();
         let record = gauntlet.play(0, 1..=2, 1);
-        assert_eq!((record.wins, record.games, record.rounds), (0, 4, [0, 0]));
+        assert_eq!(
+            (record.wins, record.cancelled, record.games, record.rounds),
+            (0, 4, 4, [0, 0])
+        );
         assert!((record.win_rate() - 0.5).abs() < 1e-9);
     }
 
@@ -707,6 +737,7 @@ mod tests {
                 opponent: "A".into(),
                 games: 4,
                 wins: 3,
+                cancelled: 0,
                 rounds: [9, 4],
                 pair_scores: vec![1.0, 0.5],
             },
@@ -714,13 +745,17 @@ mod tests {
                 opponent: "B".into(),
                 games: 2,
                 wins: 0,
+                cancelled: 1,
                 rounds: [2, 6],
-                pair_scores: vec![0.0],
+                pair_scores: vec![0.25],
             },
         ];
         let total = Record::total(&records);
-        assert_eq!((total.wins, total.games, total.rounds), (3, 6, [11, 10]));
-        assert!((total.win_rate() - 0.5).abs() < 1e-9);
+        assert_eq!(
+            (total.wins, total.cancelled, total.games, total.rounds),
+            (3, 1, 6, [11, 10])
+        );
+        assert!((total.win_rate() - 1.75 / 3.0).abs() < 1e-9);
     }
 
     #[test]
@@ -791,6 +826,7 @@ mod tests {
             opponent,
             seed,
             wins: 1,
+            cancelled: usize::from(seed == 4),
             // Distinct scores show the order a merge puts them in.
             score: f64::from(seed) / 10.0,
             rounds: [3, 3],
@@ -823,7 +859,14 @@ mod tests {
         assert_eq!(merged.seeds, 3..=4);
         let opponents = merged.records.iter().map(|record| record.opponent.as_str());
         assert_eq!(opponents.collect::<Vec<_>>(), ["A", "B"]);
-        assert_eq!((merged.records[1].wins, merged.records[1].games), (2, 4));
+        assert_eq!(
+            (
+                merged.records[1].wins,
+                merged.records[1].cancelled,
+                merged.records[1].games
+            ),
+            (2, 1, 4)
+        );
         assert_eq!(merged.records[1].pair_scores, [0.3, 0.4]);
     }
 
@@ -845,8 +888,13 @@ mod tests {
                 "x:1: EOF while parsing a value",
             ),
             (
+                "{\"type\":\"pair\",\"opponent\":0,\"seed\":3,\"wins\":1,\"score\":0.5,\"rounds\":[3,3]}"
+                    .into(),
+                "x:1: missing field `cancelled`",
+            ),
+            (
                 whole(|header| header.format = 0),
-                "x:2: shard 2/2 has format 0, not 1",
+                "x:2: shard 2/2 has format 0, not 2",
             ),
             (
                 whole(|header| header.bmair = "0.1.0".into()),
@@ -918,22 +966,39 @@ mod tests {
     }
 
     #[test]
+    fn a_merge_refuses_a_part_played_before_cancelled_counts() {
+        let mut old = header(1, 1);
+        old.format = 1;
+        let text = [
+            serde_json::to_string(&ShardLine::Shard(old)).unwrap(),
+            "{\"type\":\"pair\",\"opponent\":0,\"seed\":3,\"wins\":1,\"score\":0.5,\"rounds\":[3,3]}"
+                .into(),
+        ]
+        .join("\n");
+        assert_eq!(
+            merge([("old", text.as_str())]).unwrap_err(),
+            "old:1: shard 1/1 has format 1, not 2; merge it with the bmair that played it"
+        );
+    }
+
+    #[test]
     fn rows_line_up_under_the_header() {
         let table = Table::new(["Sailor Jupiter"]);
         let record = Record {
             opponent: "Lucky".into(),
             games: 4,
-            wins: 3,
+            wins: 2,
+            cancelled: 1,
             rounds: [9, 3],
-            pair_scores: vec![1.0, 0.5],
+            pair_scores: vec![1.0, 0.25],
         };
         assert_eq!(
             table.header(),
-            "Opponent        Won           Win %  95% CI       Rounds won"
+            "Opponent        Won          Cancelled   Win %  95% CI       Rounds won"
         );
         assert_eq!(
             table.row(&record),
-            "Lucky           3/4           75.0%  26.0-100.0%       75.0%"
+            "Lucky           2/4                  1   62.5%  0.0-100.0%        75.0%"
         );
     }
 }

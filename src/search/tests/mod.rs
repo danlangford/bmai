@@ -204,6 +204,53 @@ fn tied_round_has_no_loser() {
     assert_eq!(round_winner(&game), None);
 }
 
+#[test]
+fn a_cancelled_match_plays_its_200th_round() {
+    let game = null_mirror();
+    let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
+    let policies: Engines = [quick(), quick()];
+    let mut rng = Rng::default();
+    let result = play_match_with_policies(&game, &mut rng, &policies, None);
+    assert_eq!((result.winner, result.ties), (None, 199));
+
+    // Only the generator's position shows that round 200 was played.
+    let mut replay = Rng::default();
+    let mut replayed = game.clone();
+    let mut next_draw_after = |rounds| {
+        for _ in 0..rounds {
+            restore_dice_for_new_round(&mut replayed, &game);
+            play_round_with_policies(&mut replayed, &mut replay, &policies, None);
+        }
+        replay.clone().rand()
+    };
+    let after_199 = next_draw_after(199);
+    let after_200 = next_draw_after(1);
+    assert_ne!(after_199, after_200);
+    assert_eq!(rng.rand(), after_200);
+}
+
+#[test]
+fn play_games_writes_each_game_to_its_output() {
+    let ai = Bmai3 {
+        min_sims: 1,
+        max_sims: 1,
+        max_branch: 10,
+        ..Default::default()
+    };
+    let mut output = Vec::new();
+    let wins = play_games(&null_mirror(), 2, &mut Rng::default(), &ai, &mut output).unwrap();
+    assert_eq!(wins, [0, 0]);
+    assert_eq!(
+        String::from_utf8(output).unwrap(),
+        "game cancelled 0 - 0 - 199\n".repeat(2)
+    );
+}
+
+/// Null dice score nothing, so every round ties.
+fn null_mirror() -> Game {
+    native_fixture_game("game 1\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\n")
+}
+
 fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     let mut input = String::from("game\nfight\n");
     for (player, dice) in [attacker_dice, defender_dice].into_iter().enumerate() {

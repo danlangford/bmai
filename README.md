@@ -170,16 +170,16 @@ Button: dk(1) k(V) k(V) k(V) dmMH(4)
 Engine: montecarlo max_sims=20 min_sims=5
 500 games per opponent: seeds 1-250, each played from both seats
 
-Opponent        Won           Win %  95% CI       Rounds won
-Lucky           334/500       66.8%  62.8-70.8%        59.3%
-Vincent         390/500       78.0%  74.6-81.4%        65.6%
-Sailor Jupiter  194/500       38.8%  34.8-42.8%        49.4%
-Hammer          261/500       52.2%  47.7-56.7%        52.4%
-Monkeys         65/500        13.0%  10.1-15.9%        26.7%
-Lady K          213/500       42.6%  38.3-46.9%        45.6%
-Konami          7/500          1.4%  0.4-2.4%          15.4%
-Wolfman         318/500       63.6%  59.5-67.7%        57.4%
-Overall         1782/4000     44.5%  42.9-46.2%        47.2%
+Opponent        Won          Cancelled   Win %  95% CI       Rounds won
+Lucky           334/500              0   66.8%  62.8-70.8%        59.3%
+Vincent         390/500              0   78.0%  74.6-81.4%        65.6%
+Sailor Jupiter  194/500              0   38.8%  34.8-42.8%        49.4%
+Hammer          261/500              0   52.2%  47.7-56.7%        52.4%
+Monkeys         65/500               0   13.0%  10.1-15.9%        26.7%
+Lady K          213/500              0   42.6%  38.3-46.9%        45.6%
+Konami          7/500                0    1.4%  0.4-2.4%          15.4%
+Wolfman         318/500              0   63.6%  59.5-67.7%        57.4%
+Overall         1782/4000            0   44.5%  42.9-46.2%        47.2%
 ```
 
 Recipes may use ButtonWeavers notation, such as `p(12)`, `(X=12)`, and `(X)?`,
@@ -193,8 +193,9 @@ established buttons that win between 40% and 60% on ButtonWeavers.
 recipe.
 
 Each opponent gets 500 matches, first to three, with every seed played once
-from each seat. A match cancelled at ButtonWeavers' 200-round limit adds no
-win but counts as half a win toward Win %. One engine plays both seats: `montecarlo` at its default
+from each seat. A match cancelled at ButtonWeavers' 200-round limit is
+counted under Cancelled, not Won, and as half a win toward Win %. One engine
+plays both seats: `montecarlo` at its default
 settings, unless `--engine` names another in the strength harness's
 `name setting=value` form. The default takes minutes for the whole field;
 `montecarlo max_sims=20 min_sims=5`, as above, takes seconds. Each match runs

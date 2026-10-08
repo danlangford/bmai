@@ -70,6 +70,32 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.29.0] - 2026-10-09
+
+### Changed
+
+- `playfair` counts games cancelled at the 200-round limit in its header, as
+  in `PlayFairGames: 2 games, 2 cancelled`, instead of leaving them out
+  without saying so. With none cancelled the header is unchanged.
+- The strength harness table and `bmair gauntlet` have a Cancelled column.
+  The harness's First wins column now counts out of every game played, as
+  the gauntlet's Won column does, so it no longer shows `0/0`. Both still
+  score a cancelled match as a draw.
+- **Breaking:** gauntlet `--shard` pair lines carry a `cancelled` count, and
+  the shard format is now 2. `--merge` refuses parts played by an earlier
+  bmair rather than reading them as having no cancelled matches; replay
+  them with this one. The public `Pair` has the same new field.
+- **Breaking:** `play_games` takes a writer for its `game over` and
+  `game cancelled` lines and returns its I/O errors. `PairingResult` has a
+  `cancelled` field.
+
+### Fixed
+
+- `playgame` and `compare` printed each `game over` or `game cancelled` line
+  straight to stdout, not to the parser's output. Under
+  `--protocol jsonl-v1`, a `session.execute` that played games put those
+  lines ahead of its JSON response; they are now in its `legacy_output`.
+
 ## [0.28.0] - 2026-10-08
 
 ### Added
@@ -779,7 +805,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.29.0...HEAD
+[0.29.0]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...bmair-v0.29.0
 [0.28.0]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...bmair-v0.28.0
 [0.27.0]: https://github.com/danlangford/bmai/compare/bmair-v0.26.1...bmair-v0.27.0
 [0.26.1]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...bmair-v0.26.1

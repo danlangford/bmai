@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
+use std::io::{self, Write};
+
 use super::*;
 use crate::engines::{DecisionContext, Engine, MonteCarlo};
 
@@ -12,45 +14,25 @@ pub(crate) type Engines = [Box<dyn Engine>; 2];
 const MAX_ROUNDS: usize = 200;
 
 /// A game cancelled at the round limit counts for neither player.
-pub fn play_games(template: &Game, games: usize, rng: &mut Rng, ai: &Bmai3) -> [usize; 2] {
+pub fn play_games<W: Write>(
+    template: &Game,
+    games: usize,
+    rng: &mut Rng,
+    ai: &Bmai3,
+    output: &mut W,
+) -> io::Result<[usize; 2]> {
     let engine = || -> Box<dyn Engine> { Box::new(MonteCarlo::new(ai.clone())) };
-    play_games_with_policies(template, games, rng, &[engine(), engine()])
+    play_games_with_policies(template, games, rng, &[engine(), engine()], None, output)
 }
 
-pub(crate) fn play_games_with_policies(
-    template: &Game,
-    games: usize,
-    rng: &mut Rng,
-    policies: &Engines,
-) -> [usize; 2] {
-    play_games_with_policies_internal(template, games, rng, policies, None)
-}
-
-pub(crate) fn play_games_with_policies_native(
-    template: &Game,
-    games: usize,
-    rng: &mut Rng,
-    policies: &Engines,
-    root_seed: u64,
-    workers: usize,
-    decision_index: &mut u64,
-) -> [usize; 2] {
-    let mut native = NativeReplaySequence {
-        algorithm: rng.algorithm(),
-        root_seed,
-        workers,
-        decision_index,
-    };
-    play_games_with_policies_internal(template, games, rng, policies, Some(&mut native))
-}
-
-pub(super) fn play_games_with_policies_internal(
+pub(crate) fn play_games_with_policies<W: Write>(
     template: &Game,
     games: usize,
     rng: &mut Rng,
     policies: &Engines,
     mut native: Option<&mut NativeReplaySequence<'_>>,
-) -> [usize; 2] {
+    output: &mut W,
+) -> io::Result<[usize; 2]> {
     let mut matches = [0, 0];
     for _ in 0..games {
         let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
@@ -61,12 +43,13 @@ pub(super) fn play_games_with_policies_internal(
             }
             None => "cancelled",
         };
-        println!(
+        writeln!(
+            output,
             "game {outcome} {} - {} - {}",
             result.wins[0], result.wins[1], result.ties
-        );
+        )?;
     }
-    matches
+    Ok(matches)
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -140,33 +123,6 @@ pub(crate) fn play_match_with_policies(
 }
 
 pub(crate) fn play_fair_games(
-    template: &Game,
-    games: usize,
-    rng: &mut Rng,
-    policies: &Engines,
-) -> [[usize; 2]; 2] {
-    play_fair_games_internal(template, games, rng, policies, None)
-}
-
-pub(crate) fn play_fair_games_native(
-    template: &Game,
-    games: usize,
-    rng: &mut Rng,
-    policies: &Engines,
-    root_seed: u64,
-    workers: usize,
-    decision_index: &mut u64,
-) -> [[usize; 2]; 2] {
-    let mut native = NativeReplaySequence {
-        algorithm: rng.algorithm(),
-        root_seed,
-        workers,
-        decision_index,
-    };
-    play_fair_games_internal(template, games, rng, policies, Some(&mut native))
-}
-
-pub(super) fn play_fair_games_internal(
     template: &Game,
     games: usize,
     rng: &mut Rng,

@@ -43,7 +43,8 @@ and completion order are therefore absent from the result.
 2. **Implemented:** Run native search sequentially with one independent stream
    per simulation. Every direct `getaction` phase has a deterministic input and
    expected-output fixture, and a subprocess fixture covers replay sequencing
-   through a complete `playgame` command.
+   through complete `playgame` and `playfair` commands, with searches that
+   choose differently than legacy mode would.
 3. **Implemented:** Introduce bounded scoped standard-library workers without a
    dependency. The ordered task coordinator drives fight, reserve,
    preround/swing, Chance, and Focus evaluations. Match-driven native searches

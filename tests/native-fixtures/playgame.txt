@@ -16,4 +16,21 @@ playgame 1
 workers 3
 seed 17
 playgame 1
+seed 5
+max_sims 20
+min_sims 5
+game 3
+preround
+player 0 4 0
+4
+6
+8
+10
+player 1 4 0
+4
+6
+8
+12
+playgame 4
+playfair 2
 quit

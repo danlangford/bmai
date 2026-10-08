@@ -193,23 +193,18 @@ impl Parser {
                 self.game.surrender_allowed = value == "on";
             } else if line == "getaction" {
                 self.send_action(output)?;
-            } else if line.starts_with("playgame ") {
+            // C++'s compare is the same command as playgame.
+            } else if let Some(command) = ["playgame ", "compare "]
+                .into_iter()
+                .find(|command| line.starts_with(command))
+            {
                 self.require_preround()?;
-                let games = parse_usize(line.trim_start_matches("playgame "))?;
-                let policies = self.policies();
-                let wins = if self.execution_mode == ExecutionMode::Native {
-                    play_games_with_policies_native(
-                        &self.game,
-                        games,
-                        &mut self.rng,
-                        &policies,
-                        self.native_root_seed,
-                        self.native_workers,
-                        &mut self.native_decision_index,
-                    )
-                } else {
-                    play_games_with_policies(&self.game, games, &mut self.rng, &policies)
-                };
+                let games = parse_usize(line.trim_start_matches(command))?;
+                let wins = self
+                    .play_matches(|game, rng, policies, native| {
+                        play_games_with_policies(game, games, rng, policies, native, output)
+                    })
+                    .map_err(io_error)?;
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if let Some(games) = line.strip_prefix("playfair ") {
                 self.require_preround()?;
@@ -218,21 +213,20 @@ impl Parser {
                         "playfair takes only a game count; select engines with ai: {line}"
                     ))
                 })?;
-                let policies = self.policies();
-                let wins = if self.execution_mode == ExecutionMode::Native {
-                    play_fair_games_native(
-                        &self.game,
-                        games,
-                        &mut self.rng,
-                        &policies,
-                        self.native_root_seed,
-                        self.native_workers,
-                        &mut self.native_decision_index,
-                    )
+                let wins = self.play_matches(|game, rng, policies, native| {
+                    play_fair_games(game, games, rng, policies, native)
+                });
+                let cancelled = games - wins.iter().flatten().sum::<usize>();
+                // C++ has no round limit, so its header never needs the count.
+                if cancelled == 0 {
+                    writeln!(output, "PlayFairGames: {games} games")
                 } else {
-                    play_fair_games(&self.game, games, &mut self.rng, &policies)
-                };
-                writeln!(output, "PlayFairGames: {games} games").map_err(io_error)?;
+                    writeln!(
+                        output,
+                        "PlayFairGames: {games} games, {cancelled} cancelled"
+                    )
+                }
+                .map_err(io_error)?;
                 for player in 0..2 {
                     let initiatives = if player == 0 { [0, 1] } else { [1, 0] };
                     for initiative in initiatives {
@@ -251,24 +245,6 @@ impl Parser {
                         .map_err(io_error)?;
                     }
                 }
-            } else if line.starts_with("compare ") {
-                self.require_preround()?;
-                let games = parse_usize(line.trim_start_matches("compare "))?;
-                let policies = self.policies();
-                let wins = if self.execution_mode == ExecutionMode::Native {
-                    play_games_with_policies_native(
-                        &self.game,
-                        games,
-                        &mut self.rng,
-                        &policies,
-                        self.native_root_seed,
-                        self.native_workers,
-                        &mut self.native_decision_index,
-                    )
-                } else {
-                    play_games_with_policies(&self.game, games, &mut self.rng, &policies)
-                };
-                writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
             } else if line == "quit" {
                 break;
             } else if let Some(value) = argument(line, "seed") {
@@ -393,6 +369,26 @@ impl Parser {
 
     pub(super) fn policies(&self) -> Engines {
         [self.player_engine(0), self.player_engine(1)]
+    }
+
+    fn play_matches<T>(
+        &mut self,
+        play: impl FnOnce(&Game, &mut Rng, &Engines, Option<&mut NativeReplaySequence<'_>>) -> T,
+    ) -> T {
+        let policies = self.policies();
+        let native_mode = self.execution_mode == ExecutionMode::Native;
+        let mut sequence = NativeReplaySequence {
+            algorithm: self.rng.algorithm(),
+            root_seed: self.native_root_seed,
+            workers: self.native_workers,
+            decision_index: &mut self.native_decision_index,
+        };
+        play(
+            &self.game,
+            &mut self.rng,
+            &policies,
+            native_mode.then_some(&mut sequence),
+        )
     }
 
     pub(super) fn parse_game<W: Write>(

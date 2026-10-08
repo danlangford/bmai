@@ -437,6 +437,41 @@ fn playfair_plays_the_selected_engines_and_reports_initiative_split_stats() {
 }
 
 #[test]
+fn playgame_and_compare_write_each_game_to_the_output() {
+    for command in ["playgame 2", "compare 2"] {
+        let input = format!(
+            "game 1\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\nai 0 quick\nai 1 quick\n{command}\nquit\n"
+        );
+        let mut output = Vec::new();
+        Parser::default().parse_string(&input, &mut output).unwrap();
+        let output = String::from_utf8(output).unwrap();
+        assert!(
+            output.ends_with(
+                "\ngame cancelled 0 - 0 - 199\ngame cancelled 0 - 0 - 199\nmatches over 0 - 0\n"
+            ),
+            "{command}: {output}"
+        );
+    }
+}
+
+#[test]
+fn playfair_counts_games_cancelled_at_the_round_limit() {
+    let input = "game 1\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\nai 0 quick\nai 1 quick\nplayfair 2\nquit\n";
+    let mut output = Vec::new();
+    Parser::default().parse_string(input, &mut output).unwrap();
+    let output = String::from_utf8(output).unwrap();
+    assert!(
+        output.contains("PlayFairGames: 2 games, 2 cancelled\n"),
+        "{output}"
+    );
+    assert_eq!(
+        output.matches(" games 0 wins 0 losses 0 ").count(),
+        4,
+        "{output}"
+    );
+}
+
+#[test]
 fn cpp_game_parse_restores_default_ai_and_accepts_gameover_phase() {
     let input = "ai 0 quick\ngame 3\ngameover\nplayer 0 0 0\nplayer 1 0 0\nquit\n";
     let mut parser = Parser::default();

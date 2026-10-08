@@ -97,6 +97,45 @@ fn max_sims_below_the_default_min_sims_searches_instead_of_panicking() {
 }
 
 #[test]
+fn playgame_results_stay_inside_the_json_response() {
+    let request = serde_json::json!({
+        "protocol": "jsonl-v1",
+        "id": "play",
+        "method": "session.execute",
+        // Null dice can only tie, so the game is cancelled whatever the seed.
+        "params": {"script": "game 1\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\nai 0 quick\nai 1 quick\nplaygame 1\n"},
+    });
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+        .args(["--protocol", "jsonl-v1"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    writeln!(child.stdin.as_mut().unwrap(), "{request}").unwrap();
+    drop(child.stdin.take());
+
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(
+        output.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(stdout.lines().count(), 1, "{stdout}");
+    let response: Value = serde_json::from_str(&stdout).unwrap();
+    assert_eq!(response["id"], "play");
+    assert!(
+        response["result"]["legacy_output"]
+            .as_str()
+            .unwrap()
+            .ends_with("\ngame cancelled 0 - 0 - 199\nmatches over 0 - 0\n"),
+        "{response}"
+    );
+}
+
+#[test]
 fn documented_jsonl_session_fixture_runs_as_one_persistent_process() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
         .args(["--protocol", "jsonl-v1"])
