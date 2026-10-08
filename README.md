@@ -82,13 +82,23 @@ Protocol samples under `tests/fixtures/` have golden outputs in
 Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
 unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
-binaries for Linux, Windows, and macOS. Each platform/architecture pair is
-uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
-are not combined into a universal binary. Release artifacts include build
-metadata and SHA-256 checksums. Executable filenames use the embedded version,
-platform, architecture, and profile, such as
-`bmair-0.5.0-macos-arm64-release` for an exact release or
-`bmair-0.5.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
+binaries for Linux, Windows, and macOS, plus a `wasm32-wasip1` WebAssembly
+binary under Wasmtime. Each platform/architecture pair is uploaded as a
+separate workflow artifact; macOS Intel and Apple Silicon builds are not
+combined into a universal binary. Release artifacts include build metadata and
+SHA-256 checksums. Executable filenames use the embedded version, platform,
+architecture, and profile, such as `bmair-0.26.0-macos-arm64-release`,
+`bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm`, or
+`bmair-0.26.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
+
+The WebAssembly artifact uses WASI Preview 1 so it can keep the native
+executable's command-line, standard-input, and standard-output interface. Run
+it with a WASI runtime such as Wasmtime:
+
+```shell
+wasmtime bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm --version
+wasmtime bmair-0.26.0-webassembly-wasm32-wasip1-release.wasm < game.txt
+```
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already

@@ -178,3 +178,96 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           path: dist/*
+
+  build-webassembly:
+    name: WebAssembly wasm32-wasip1 / ${{ inputs.build_type || 'Release' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
+      - name: Select build metadata
+        shell: bash
+        env:
+          RELEASE_BUILD: ${{ inputs.release_build }}
+        run: |
+          if [[ "$RELEASE_BUILD" == true ]]; then
+            version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+            echo "BMAIR_GIT_DESCRIBE=bmair-v${version}-0-g${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+            echo "EXPECTED_VERSION=$version" >> "$GITHUB_ENV"
+          fi
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          targets: wasm32-wasip1
+      - name: Install Wasmtime
+        uses: bytecodealliance/actions/wasmtime/setup@v1
+        with:
+          version: 48.0.2
+      - name: Select Cargo profile
+        shell: bash
+        run: |
+          if [[ "$BUILD_TYPE" == "Release" ]]; then
+            echo "CARGO_PROFILE=release" >> "$GITHUB_ENV"
+            echo "CARGO_OUTPUT_DIR=release" >> "$GITHUB_ENV"
+          else
+            echo "CARGO_PROFILE=dev" >> "$GITHUB_ENV"
+            echo "CARGO_OUTPUT_DIR=debug" >> "$GITHUB_ENV"
+          fi
+      - name: Build WebAssembly binary
+        shell: bash
+        run: cargo build --profile "$CARGO_PROFILE" --locked --target wasm32-wasip1 --bin bmair
+      - name: Smoke test WebAssembly binary
+        shell: bash
+        run: |
+          wasm="target/wasm32-wasip1/${CARGO_OUTPUT_DIR}/bmair.wasm"
+          wasmtime "$wasm" --version
+          printf 'quit\n' | wasmtime "$wasm"
+          wasmtime "$wasm" < tests/fixtures/Insult_in.txt > wasm-smoke-test.out
+          grep -Fx 'action' wasm-smoke-test.out
+      - name: Prepare binary and build metadata
+        id: package
+        shell: bash
+        run: |
+          wasm="target/wasm32-wasip1/${CARGO_OUTPUT_DIR}/bmair.wasm"
+          reported_version=$(wasmtime "$wasm" --version)
+          build_version=${reported_version#bmair }
+          build_version=${build_version%% *}
+          if [[ -z "$build_version" || "$build_version" == "$reported_version" ]]; then
+            echo "could not extract build version from: $reported_version" >&2
+            exit 1
+          fi
+          profile=$(printf '%s' "$BUILD_TYPE" | tr '[:upper:]' '[:lower:]')
+          artifact_base="bmair-${build_version}-webassembly-wasm32-wasip1-${profile}"
+          mkdir -p dist
+          cp "$wasm" "dist/${artifact_base}.wasm"
+          if [[ -n "${EXPECTED_VERSION:-}" && "$reported_version" != "bmair ${EXPECTED_VERSION} ("* ]]; then
+            echo "release binary reports unexpected version: $reported_version" >&2
+            exit 1
+          fi
+          {
+            echo "Artifact: ${artifact_base}.wasm"
+            echo "Version: $reported_version"
+            echo "Git-Commit: $GITHUB_SHA"
+            echo "Git-Ref: $GITHUB_REF"
+            echo "Platform: WebAssembly"
+            echo "Architecture: wasm32"
+            echo "Target: wasm32-wasip1"
+            echo "Cargo-Profile: $CARGO_PROFILE"
+            rustc --version
+            wasmtime --version
+          } > "dist/${artifact_base}.build-info.txt"
+          cd dist
+          sha256sum "${artifact_base}.wasm" > "${artifact_base}.sha256"
+          echo "artifact_name=${artifact_base}" >> "$GITHUB_OUTPUT"
+      - name: Upload WebAssembly binary
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.package.outputs.artifact_name }}
+          if-no-files-found: error
+          retention-days: 7
+          path: dist/*

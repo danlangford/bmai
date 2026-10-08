@@ -67,6 +67,15 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.26.0] - 2026-10-08
+
+### Added
+
+- Release builds now include a release-optimized `wasm32-wasip1` WebAssembly
+  binary alongside the six native platform artifacts. CI smoke-tests its
+  version and standard-input protocol under Wasmtime and packages the same
+  build metadata and SHA-256 checksum as the native binaries.
+
 ## [0.25.0] - 2026-10-07
 
 ### Changed
@@ -700,7 +709,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...HEAD
+[0.26.0]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...bmair-v0.26.0
 [0.25.0]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...bmair-v0.25.0
 [0.24.0]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...bmair-v0.24.0
 [0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
