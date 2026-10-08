@@ -179,7 +179,8 @@ established buttons that win between 40% and 60% on ButtonWeavers.
 recipe.
 
 Each opponent gets 500 matches, first to three, with every seed played once
-from each seat. One engine plays both seats: `montecarlo` at its default
+from each seat. A match cancelled at ButtonWeavers' 200-round limit adds no
+win but counts as half a win toward Win %. One engine plays both seats: `montecarlo` at its default
 settings, unless `--engine` names another in the strength harness's
 `name setting=value` form. The default takes minutes for the whole field;
 `montecarlo max_sims=20 min_sims=5`, as above, takes seconds. Each match runs

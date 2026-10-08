@@ -179,6 +179,17 @@ fn failed_trip_still_decays_and_the_surviving_target_loses_radioactive() {
 }
 
 #[test]
+fn a_target_that_survives_a_failed_trip_is_radioactive_again_next_round() {
+    scenario()
+        .attacker("t4:1")
+        .attacks(Trip)
+        .defender("%20:10")
+        .expect_defender_dice(["20:13"])
+        .expect_next_round_defender_dice(["%20:13"])
+        .run();
+}
+
+#[test]
 fn berserk_halves_before_it_decays() {
     // Responder log: Bp(U=8) Berserk vs Hog%(6) -> p(U=4) -> two p(U=2).
     scenario()

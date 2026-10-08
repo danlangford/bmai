@@ -11,7 +11,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::Rng;
 use crate::engines::Engine;
 use crate::search::{Engines, NativeReplaySequence, play_match_with_policies};
-use crate::strength::{Contestant, Matchup, game_seed, mean_with_interval, parse_game};
+use crate::strength::{
+    Contestant, Matchup, game_seed, mean_with_interval, pair_result, parse_game,
+};
 
 pub const DEFAULT_ENGINE: &str = "montecarlo";
 pub const DEFAULT_GAMES: usize = 500;
@@ -138,7 +140,7 @@ impl Gauntlet {
             games: 2 * pairs.len(),
             wins: pairs.iter().map(|pair| pair.wins).sum(),
             rounds: [0, 1].map(|side| pairs.iter().map(|pair| pair.rounds[side]).sum()),
-            pair_scores: pairs.iter().map(|pair| pair.wins as f64 / 2.0).collect(),
+            pair_scores: pairs.iter().map(|pair| pair.score).collect(),
         }
     }
 }
@@ -159,8 +161,10 @@ fn play_pair(seats: &Seats, seed: u32, engines: &Engines) -> Pair {
     };
     let first = play(&seats.button_first);
     let second = play(&seats.button_second);
+    let (wins, score) = pair_result(first.winner, second.winner);
     Pair {
-        wins: usize::from(first.winner == 0) + usize::from(second.winner == 1),
+        wins: wins[0],
+        score,
         rounds: [
             usize::from(first.wins[0] + second.wins[1]),
             usize::from(first.wins[1] + second.wins[0]),
@@ -171,6 +175,7 @@ fn play_pair(seats: &Seats, seed: u32, engines: &Engines) -> Pair {
 #[derive(Clone, Copy, Debug, Default)]
 struct Pair {
     wins: usize,
+    score: f64,
     rounds: [usize; 2],
 }
 
@@ -348,6 +353,16 @@ mod tests {
         let record = gauntlet.play(0, 1..=10, 2);
         assert_eq!((record.wins, record.games), (10, 20));
         assert_eq!(record.rounds[0], record.rounds[1]);
+        assert!((record.win_rate() - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_cancelled_match_counts_as_a_draw() {
+        let recipe = "n(4) n(4)";
+        let quick = Contestant::parse("quick").unwrap();
+        let gauntlet = Gauntlet::new(recipe, &[button("Nulls", recipe)], quick).unwrap();
+        let record = gauntlet.play(0, 1..=2, 1);
+        assert_eq!((record.wins, record.games, record.rounds), (0, 4, [0, 0]));
         assert!((record.win_rate() - 0.5).abs() < 1e-9);
     }
 

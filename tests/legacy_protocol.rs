@@ -95,6 +95,52 @@ fn legacy_stdin_matches_bmaibagels_write_flush_read_contract() {
     assert!(stderr.is_empty(), "{stderr}");
 }
 
+#[test]
+fn null_captures_do_not_tie_every_later_round() {
+    let output = run_to_quit(
+        b"game 3\npreround\nplayer 0 5 0\n6\nn8\nn12\n20\nX\nplayer 1 5 0\n4\n4\n10\n12\nX\nai 0 quick\nai 1 quick\nplaygame 1\nquit\n",
+        "a match with Null dice never finished",
+    );
+    assert!(output.contains("\ngame over "), "{output}");
+}
+
+#[test]
+fn a_match_that_can_only_tie_is_cancelled_at_round_200() {
+    let output = run_to_quit(
+        b"game 3\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\nai 0 quick\nai 1 quick\nplaygame 1\nquit\n",
+        "a match that can only tie never finished",
+    );
+    assert!(
+        output.contains("\ngame cancelled 0 - 0 - 199\nmatches over 0 - 0\n"),
+        "{output}"
+    );
+}
+
+fn run_to_quit(input: &'static [u8], timeout_message: &str) -> String {
+    let mut child = spawn_bmair();
+    let mut stdin = child.stdin.take().unwrap();
+    stdin.write_all(input).unwrap();
+    stdin.flush().unwrap();
+    let stdout = child.stdout.take().unwrap();
+    let (sender, receiver) = mpsc::channel();
+    let reader = std::thread::spawn(move || {
+        let mut output = String::new();
+        BufReader::new(stdout).read_to_string(&mut output).unwrap();
+        sender.send(output).ok();
+    });
+    let output = receive_or_stop(receiver, &mut child, reader, timeout_message);
+    assert!(child.wait().unwrap().success());
+    let mut stderr = String::new();
+    child
+        .stderr
+        .take()
+        .unwrap()
+        .read_to_string(&mut stderr)
+        .unwrap();
+    assert!(stderr.is_empty(), "{stderr}");
+    output
+}
+
 fn spawn_bmair() -> Child {
     Command::new(env!("CARGO_BIN_EXE_bmair"))
         .stdin(Stdio::piped())

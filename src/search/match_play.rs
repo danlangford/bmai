@@ -7,6 +7,11 @@ use crate::engines::{DecisionContext, Engine, MonteCarlo};
 
 pub(crate) type Engines = [Box<dyn Engine>; 2];
 
+/// ButtonWeavers cancels a game when its 200th round ends, so a game that can
+/// only tie still ends.
+const MAX_ROUNDS: usize = 200;
+
+/// A game cancelled at the round limit counts for neither player.
 pub fn play_games(template: &Game, games: usize, rng: &mut Rng, ai: &Bmai3) -> [usize; 2] {
     let engine = || -> Box<dyn Engine> { Box::new(MonteCarlo::new(ai.clone())) };
     play_games_with_policies(template, games, rng, &[engine(), engine()])
@@ -49,9 +54,15 @@ pub(super) fn play_games_with_policies_internal(
     let mut matches = [0, 0];
     for _ in 0..games {
         let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
-        matches[result.winner] += 1;
+        let outcome = match result.winner {
+            Some(winner) => {
+                matches[winner] += 1;
+                "over"
+            }
+            None => "cancelled",
+        };
         println!(
-            "game over {} - {} - {}",
+            "game {outcome} {} - {} - {}",
             result.wins[0], result.wins[1], result.ties
         );
     }
@@ -60,7 +71,8 @@ pub(super) fn play_games_with_policies_internal(
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct MatchResult {
-    pub(crate) winner: usize,
+    /// `None` when the match is cancelled at the round limit.
+    pub(crate) winner: Option<usize>,
     pub(crate) wins: [u8; 2],
     pub(super) ties: usize,
     pub(super) initiative_winner: usize,
@@ -78,9 +90,15 @@ pub(crate) fn play_match_with_policies(
     let mut ties = 0usize;
     let mut initiative = 0;
     let mut reserves_used = 0;
+    let mut cancelled = false;
     while wins[0] < template.target_wins && wins[1] < template.target_wins {
+        let round_number = usize::from(wins[0]) + usize::from(wins[1]) + ties + 1;
         restore_dice_for_new_round(&mut game, template);
         let round = play_round_with_policies(&mut game, rng, policies, native.as_deref_mut());
+        if round_number >= MAX_ROUNDS {
+            cancelled = true;
+            break;
+        }
         let Some(winner) = round.0 else {
             ties += 1;
             continue;
@@ -113,7 +131,7 @@ pub(crate) fn play_match_with_policies(
         }
     }
     MatchResult {
-        winner: usize::from(wins[1] > wins[0]),
+        winner: (!cancelled).then(|| usize::from(wins[1] > wins[0])),
         wins,
         ties,
         initiative_winner: initiative,
@@ -158,7 +176,9 @@ pub(super) fn play_fair_games_internal(
     let mut wins = [[0usize; 2]; 2];
     for _ in 0..games {
         let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
-        wins[result.initiative_winner][result.winner] += 1;
+        if let Some(winner) = result.winner {
+            wins[result.initiative_winner][winner] += 1;
+        }
     }
     wins
 }
