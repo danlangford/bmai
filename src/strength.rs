@@ -151,15 +151,15 @@ pub fn play_pairing(
                 rng.reseed(game_seed(*seed));
                 play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
             });
-            results.push((index, [as_seat_0 == 0, as_seat_1 == 1]));
+            results.push((index, [as_seat_0, as_seat_1]));
         }
         results
     });
-    for (index, first_won) in completed.into_iter().flatten() {
-        let first_count = first_won.iter().filter(|won| **won).count();
-        wins[0] += first_count;
-        wins[1] += 2 - first_count;
-        scores[index] = first_count as f64 / 2.0;
+    for (index, [as_seat_0, as_seat_1]) in completed.into_iter().flatten() {
+        let (pair_wins, score) = pair_result(as_seat_0, as_seat_1);
+        wins[0] += pair_wins[0];
+        wins[1] += pair_wins[1];
+        scores[index] = score;
     }
     let (first_score, interval) = mean_with_interval(&scores);
     PairingResult {
@@ -173,6 +173,16 @@ pub fn play_pairing(
         first_ms_per_decision: clocks[0].ms_per_decision(),
         second_ms_per_decision: clocks[1].ms_per_decision(),
     }
+}
+
+/// Each contestant's wins over a seat-swapped pair and the first's score. A
+/// cancelled match scores as a draw.
+pub(crate) fn pair_result(as_seat_0: Option<usize>, as_seat_1: Option<usize>) -> ([usize; 2], f64) {
+    let first_wins = usize::from(as_seat_0 == Some(0)) + usize::from(as_seat_1 == Some(1));
+    let second_wins = usize::from(as_seat_0 == Some(1)) + usize::from(as_seat_1 == Some(0));
+    let cancelled = 2 - first_wins - second_wins;
+    let score = (first_wins as f64 + 0.5 * cancelled as f64) / 2.0;
+    ([first_wins, second_wins], score)
 }
 
 /// Park-Miller seeded with consecutive integers rolls nearly the same opening
@@ -385,6 +395,20 @@ mod tests {
         assert_eq!(result.pairs, 20);
         assert_eq!(result.first_wins + result.second_wins, 40);
         assert_eq!(result.first_wins, result.second_wins);
+        assert!((result.first_score - 0.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn a_cancelled_match_scores_as_a_draw() {
+        assert_eq!(pair_result(None, None), ([0, 0], 0.5));
+        assert_eq!(pair_result(Some(0), None), ([1, 0], 0.75));
+        assert_eq!(pair_result(None, Some(0)), ([0, 1], 0.25));
+
+        let quick = Contestant::parse("quick").unwrap();
+        let random = Contestant::parse("random").unwrap();
+        let matchup = Matchup::parse("nulls | n4 n4 | n4 n4", 1).unwrap();
+        let result = play_pairing(&quick, &random, &[matchup], 1..=3, 2);
+        assert_eq!((result.first_wins, result.second_wins), (0, 0));
         assert!((result.first_score - 0.5).abs() < 1e-9);
     }
 

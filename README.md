@@ -87,10 +87,10 @@ binary and the web site built from it. Each platform/architecture pair is
 uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
 are not combined into a universal binary. Release artifacts include build
 metadata and SHA-256 checksums. Executable filenames use the embedded version,
-platform, architecture, and profile, such as `bmair-0.27.0-macos-arm64-release`,
-`bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm`,
-`bmair-0.27.0-web-release.zip`, or
-`bmair-0.27.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
+platform, architecture, and profile, such as `bmair-0.28.0-macos-arm64-release`,
+`bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm`,
+`bmair-0.28.0-web-release.zip`, or
+`bmair-0.28.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
@@ -126,8 +126,8 @@ executable's arguments, standard input, and standard output. Run it with a
 WASI runtime such as Wasmtime:
 
 ```shell
-wasmtime bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm --version
-wasmtime bmair-0.27.0-webassembly-wasm32-wasip1-release.wasm < game.txt
+wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm --version
+wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm < game.txt
 ```
 
 WebAssembly can't start threads, so `workers` above 1 and gauntlet
@@ -193,7 +193,8 @@ established buttons that win between 40% and 60% on ButtonWeavers.
 recipe.
 
 Each opponent gets 500 matches, first to three, with every seed played once
-from each seat. One engine plays both seats: `montecarlo` at its default
+from each seat. A match cancelled at ButtonWeavers' 200-round limit adds no
+win but counts as half a win toward Win %. One engine plays both seats: `montecarlo` at its default
 settings, unless `--engine` names another in the strength harness's
 `name setting=value` form. The default takes minutes for the whole field;
 `montecarlo max_sims=20 min_sims=5`, as above, takes seconds. Each match runs

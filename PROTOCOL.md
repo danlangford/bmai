@@ -175,8 +175,8 @@ The stable command forms are:
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`; ButtonWeavers players who have not turned on that preference should send `off`. |
 | `surrender on\|off` | Enable or disable surrender selection (default `off`). |
 | `getaction` | Select an action for player zero in the supplied phase. |
-| `playgame N` / `compare N` | Run N complete games from a preround state. |
-| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. |
+| `playgame N` / `compare N` | Run N complete games from a preround state. A game is cancelled when its 200th round ends, whatever that round's result, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player. |
+| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Cancelled games are left out. |
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
 

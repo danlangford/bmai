@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Swing-size ranking from the same threshold math.
 - Review the protocol and JSONL schema while they can still change, then
   freeze them for 1.0.
+- Start Berserk, Morphing, and Mighty dice at their recipe size each round,
+  as ButtonWeavers does. They still keep a size changed in one round for the
+  rest of the match.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
 - Pass search a single randomness source, the sequential generator or a
   native replay key, so no search takes a generator it ignores. Offer a
@@ -67,7 +70,7 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
-## [0.27.0] - 2026-10-08
+## [0.28.0] - 2026-10-08
 
 ### Added
 
@@ -88,6 +91,25 @@ clear benefit. Each could return if that changes.
   `--threads` run their work in turn there. Results match native builds; only
   the speed differs. CI runs every golden fixture through the browser's
   WebAssembly host and compares output and RNG fingerprints with native.
+
+## [0.26.1] - 2026-10-08
+
+### Fixed
+
+- Skills a round adds or removes no longer carry into the next round, since
+  ButtonWeavers deals each round's dice from the recipe:
+  - A die captured by a Null or Value die kept that skill. Null spread from
+    round to round until every die scored zero, every round tied, and
+    `playgame` replayed tied rounds forever. Avis against `6 n8 n12 20 X`,
+    and the other Null buttons that hung, now finish with every engine.
+  - A Warrior die that attacked stayed an ordinary die.
+  - A Radioactive die that survived a failed Trip stayed non-Radioactive.
+- A game is cancelled when its 200th round ends, whatever that round's
+  result, as on ButtonWeavers, so a game that can only tie still ends. Two
+  all-Null buttons are one example. `playgame` and `compare` print
+  `game cancelled` instead of `game over` and count it for neither player,
+  and `playfair` leaves it out. The strength harness and `bmair gauntlet`
+  score it as a draw.
 
 ## [0.26.0] - 2026-10-08
 
@@ -738,8 +760,9 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...HEAD
-[0.27.0]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...bmair-v0.27.0
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...HEAD
+[0.28.0]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...bmair-v0.28.0
+[0.26.1]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...bmair-v0.26.1
 [0.26.0]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...bmair-v0.26.0
 [0.25.0]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...bmair-v0.25.0
 [0.24.0]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...bmair-v0.24.0
