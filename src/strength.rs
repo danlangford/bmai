@@ -20,7 +20,7 @@ use crate::{Parser, Rng};
 #[derive(Clone, Debug)]
 pub struct Contestant {
     spec: String,
-    engine: Box<dyn Engine>,
+    pub(crate) engine: Box<dyn Engine>,
 }
 
 impl Contestant {
@@ -50,11 +50,12 @@ impl Contestant {
     }
 }
 
-/// Two buttons, written `label | dice | dice` with dice in BMAIR notation.
+/// Two buttons, written `label | dice | dice` with dice in BMAIR or
+/// ButtonWeavers notation.
 #[derive(Clone, Debug)]
 pub struct Matchup {
     pub label: String,
-    game: Game,
+    pub(crate) game: Game,
 }
 
 impl Matchup {
@@ -63,24 +64,36 @@ impl Matchup {
         let [label, first, second] = fields[..] else {
             return Err(format!("a matchup is label | dice | dice, not {line}"));
         };
-        let mut input = format!("game {target_wins}\npreround\n");
-        for (player, dice) in [first, second].into_iter().enumerate() {
-            let dice = dice.split_whitespace().collect::<Vec<_>>();
-            input.push_str(&format!("player {player} {} 0\n", dice.len()));
-            for die in dice {
-                input.push_str(die);
-                input.push('\n');
-            }
-        }
-        let mut parser = Parser::default();
-        parser
-            .parse_string(&input, &mut Vec::new())
-            .map_err(|error| format!("matchup {label}: {error}"))?;
+        Self::new(label, first, second, target_wins)
+    }
+
+    pub fn new(label: &str, first: &str, second: &str, target_wins: u8) -> Result<Self, String> {
         Ok(Self {
             label: label.to_string(),
-            game: parser.game,
+            game: parse_game(first, second, target_wins)
+                .map_err(|error| format!("matchup {label}: {error}"))?,
         })
     }
+}
+
+pub(crate) fn parse_game(first: &str, second: &str, target_wins: u8) -> Result<Game, String> {
+    let mut input = format!("game {target_wins}\npreround\n");
+    for (player, recipe) in [first, second].into_iter().enumerate() {
+        let dice = crate::notation::recipe_dice(recipe);
+        if dice.is_empty() {
+            return Err(format!("player {player} has no dice"));
+        }
+        input.push_str(&format!("player {player} {} 0\n", dice.len()));
+        for die in dice {
+            input.push_str(&die);
+            input.push('\n');
+        }
+    }
+    let mut parser = Parser::default();
+    parser
+        .parse_string(&input, &mut Vec::new())
+        .map_err(|error| error.to_string())?;
+    Ok(parser.game)
 }
 
 #[derive(Clone, Debug)]
@@ -171,7 +184,7 @@ pub fn play_pairing(
 
 /// Park-Miller seeded with consecutive integers rolls nearly the same opening
 /// dice for neighbouring seeds, so each seed is mixed first (murmur3 fmix32).
-fn game_seed(seed: u32) -> u32 {
+pub(crate) fn game_seed(seed: u32) -> u32 {
     let mut mixed = seed;
     mixed = (mixed ^ (mixed >> 16)).wrapping_mul(0x85eb_ca6b);
     mixed = (mixed ^ (mixed >> 13)).wrapping_mul(0xc2b2_ae35);
@@ -181,7 +194,7 @@ fn game_seed(seed: u32) -> u32 {
 }
 
 /// A normal 95% interval over the paired scores.
-fn mean_with_interval(scores: &[f64]) -> (f64, (f64, f64)) {
+pub(crate) fn mean_with_interval(scores: &[f64]) -> (f64, (f64, f64)) {
     if scores.is_empty() {
         return (f64::NAN, (f64::NAN, f64::NAN));
     }

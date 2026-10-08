@@ -71,10 +71,17 @@ clear benefit. Each could return if that changes.
 
 ### Added
 
-- Release builds now include a release-optimized `wasm32-wasip1` WebAssembly
-  binary alongside the six native platform artifacts. CI smoke-tests its
-  version and standard-input protocol under Wasmtime and packages the same
-  build metadata and SHA-256 checksum as the native binaries.
+- `bmair gauntlet "RECIPE" [OPPONENTS]` plays one button against a field of
+  opponents and reports its match wins, win rate with a 95% interval, and
+  share of rounds won against each, then overall. Every seed is played from
+  both seats with one engine, by default `montecarlo` at its default
+  settings. Each match runs native search on one worker, and matches run in
+  parallel across every core. Without an opponents file it plays eight
+  established ButtonWeavers buttons between 40% and 60%; `--field` prints
+  them for editing.
+- Gauntlet recipes and strength-harness matchups accept ButtonWeavers
+  notation (`p(12)`, `(X=12)`, `(X)?`, `p?(X)`) as well as BMAIR's. All 547
+  recipes in BMAIBagels' OPERATION LOOKING GLASS list convert and parse.
 
 ## [0.25.0] - 2026-10-07
 
@@ -709,8 +716,7 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...HEAD
-[0.26.0]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...bmair-v0.26.0
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...HEAD
 [0.25.0]: https://github.com/danlangford/bmai/compare/bmair-v0.24.0...bmair-v0.25.0
 [0.24.0]: https://github.com/danlangford/bmai/compare/bmair-v0.23.0...bmair-v0.24.0
 [0.23.0]: https://github.com/danlangford/bmai/compare/bmair-v0.22.0...bmair-v0.23.0
