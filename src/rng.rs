@@ -197,10 +197,17 @@ impl Rng {
         } else {
             index + offset
         };
-        let base_digit = position / stratum.radix % upper_u64;
+        // position < radix * upper, so this digit is already below upper.
+        let base_digit = position / stratum.radix;
         let lower_cell = position % stratum.radix;
-        // A permutation of the faces, so full blocks stay exhaustive.
-        let value = (base_digit + lower_cell % upper_u64) % upper_u64;
+        // A permutation of the faces, so full blocks stay exhaustive. Both
+        // terms are below upper, so one subtraction wraps their sum.
+        let shift = lower_cell % upper_u64;
+        let value = if base_digit >= upper_u64 - shift {
+            base_digit - (upper_u64 - shift)
+        } else {
+            base_digit + shift
+        };
         stratum.radix = next_radix;
         value as u32
     }
