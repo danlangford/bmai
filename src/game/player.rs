@@ -11,7 +11,6 @@ pub struct Player {
     pub dice: Vec<Die>,
     pub swing_set: SwingSet,
     pub round_original_sides: [[u8; 2]; MAX_DICE],
-    pub round_transformed: u32,
     pub radioactive_products: u32,
     pub rage_replacements: u32,
     pub specials: u8,

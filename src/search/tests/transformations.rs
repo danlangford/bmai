@@ -75,6 +75,7 @@ fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
 
     let mut game = template.clone();
     game.players[0].dice[0].sides = [18, 0];
+    record_round_sides(&mut game);
     let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert_eq!(game.players[0].dice[0].sides, [8, 10]);
@@ -103,6 +104,7 @@ fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
     template.players[1].dice = vec![first_target, second_target];
 
     let mut game = template.clone();
+    record_round_sides(&mut game);
     let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert!(game.players[0].dice[0].has_property(property::DOPPELGANGER));
@@ -122,6 +124,6 @@ fn doppelganger_round_reset_does_not_preserve_mighty_side_changes() {
         .attacker("DH6:6")
         .attacks(Power)
         .defender("M4:4")
-        .expect_next_round_attacker_dice(["HD6:6"])
+        .expect_next_round_attacker_dice(["HD6"])
         .run();
 }

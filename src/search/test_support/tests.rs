@@ -203,7 +203,7 @@ fn scenario_can_assert_extra_turns_and_next_round_state() {
         .defender("1:1")
         .expect_extra_turn(true)
         .expect_attacker_dice(["M6:6"])
-        .expect_next_round_attacker_dice(["MJ6:6"])
+        .expect_next_round_attacker_dice(["MJ6"])
         .run();
 }
 

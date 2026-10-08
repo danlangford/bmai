@@ -283,3 +283,19 @@ fn the_first_swing_move_matches_the_first_generated_one() {
         );
     }
 }
+
+#[test]
+fn a_round_loser_chooses_its_option_again_starting_from_its_last_choice() {
+    let template = native_fixture_game("game\npreround\nplayer 0 1 0\n4/12\nplayer 1 1 0\n6\n");
+    let mut game = template.clone();
+    let mut selection = SwingMove::empty();
+    selection.push_option((0, true));
+    apply_swing_move(&mut game.players[0], &selection);
+    record_round_sides(&mut game);
+    game.players[0].swing_set = SwingSet::Not;
+
+    restore_dice_for_new_round(&mut game, &template);
+
+    assert_eq!(game.players[0].dice[0].sides, [12, 4]);
+    assert!(needs_set_swing(&game.players[0]));
+}

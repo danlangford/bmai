@@ -20,3 +20,14 @@ fn chance_rerolls_resize_mood_dice() {
         .expect_player_dice(["cX?-12:1", "1:1"])
         .run();
 }
+
+#[test]
+fn a_round_winner_keeps_the_mood_size_it_chose() {
+    scenario()
+        .attacker("X?-13:13")
+        .attacks(Power)
+        .defender("1:1")
+        .expect_attacker_dice(["X-12?:1"])
+        .expect_next_round_attacker_dice(["X?-13"])
+        .run();
+}

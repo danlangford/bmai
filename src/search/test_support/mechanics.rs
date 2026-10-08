@@ -224,6 +224,7 @@ impl Scenario {
             game.players[0].score = scores[0];
             game.players[1].score = scores[1];
         }
+        record_round_sides(&mut game);
         let template = game.clone();
         let attackers = resolve_original_indices(
             "attacker",
@@ -328,10 +329,6 @@ impl Scenario {
                 assert_round_dice("next-round defender", &game, 1, &expected);
             }
             for (label, player) in [("attacker", 0), ("defender", 1)] {
-                assert_eq!(
-                    game.players[player].round_transformed, 0,
-                    "next-round {label} still has transformed-recipe bookkeeping"
-                );
                 assert_eq!(
                     game.players[player].radioactive_products, 0,
                     "next-round {label} still has Radioactive-product bookkeeping"

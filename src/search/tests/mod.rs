@@ -297,19 +297,25 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
     }
 }
 
+mod berserk;
 mod boom;
 mod core;
 mod doppelganger;
 mod endgame;
 mod jolt;
 mod mad;
+mod mighty;
 mod mood;
+mod morphing;
 mod null;
 mod parity;
 mod radioactive;
 mod rage;
+mod reserve;
 mod rush;
 mod specials;
 mod transformations;
+mod turbo;
 mod value;
 mod warrior;
+mod weak;

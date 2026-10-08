@@ -27,7 +27,7 @@ fn boom_removes_the_boom_die_unscored_and_rerolls_the_target() {
         .expect_defender_dice(["6:3"])
         .expect_captured_defender_dice(Vec::<&str>::new())
         .expect_scores(0.0, 3.0)
-        .expect_next_round_attacker_dice(["b4:2"])
+        .expect_next_round_attacker_dice(["b4"])
         .run();
 }
 

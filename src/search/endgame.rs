@@ -32,7 +32,6 @@ pub(crate) fn state_key(flag: bool, players: &[Player]) -> Vec<u8> {
             dice,
             swing_set,
             round_original_sides,
-            round_transformed,
             radioactive_products,
             rage_replacements,
             specials,
@@ -43,7 +42,6 @@ pub(crate) fn state_key(flag: bool, players: &[Player]) -> Vec<u8> {
         for sides in round_original_sides {
             key.extend_from_slice(sides);
         }
-        key.extend_from_slice(&round_transformed.to_le_bytes());
         key.extend_from_slice(&radioactive_products.to_le_bytes());
         key.extend_from_slice(&rage_replacements.to_le_bytes());
         key.push(*specials);

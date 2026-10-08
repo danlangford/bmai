@@ -13,6 +13,6 @@ fn a_null_capture_nulls_the_die_only_for_the_round() {
         .defender("20:5")
         .expect_scores(0.0, 0.0)
         .expect_captured_defender_dice(["n20:5"])
-        .expect_next_round_defender_dice(["20:5"])
+        .expect_next_round_defender_dice(["20"])
         .run();
 }

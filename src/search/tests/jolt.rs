@@ -23,7 +23,7 @@ fn consumed_jolt_returns_at_the_start_of_the_next_round() {
         .attacks(Power)
         .defender("1:1")
         .expect_attacker_dice(["6:5"])
-        .expect_next_round_attacker_dice(["J6:5"])
+        .expect_next_round_attacker_dice(["J6"])
         .run();
 }
 

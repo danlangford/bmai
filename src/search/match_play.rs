@@ -74,29 +74,11 @@ pub(crate) fn play_match_with_policies(
     let mut initiative = 0;
     let mut reserves_used = 0;
     let mut cancelled = false;
+    let mut loser: Option<usize> = None;
     while wins[0] < template.target_wins && wins[1] < template.target_wins {
         let round_number = usize::from(wins[0]) + usize::from(wins[1]) + ties + 1;
-        restore_dice_for_new_round(&mut game, template);
-        let round = play_round_with_policies(&mut game, rng, policies, native.as_deref_mut());
-        if round_number >= MAX_ROUNDS {
-            cancelled = true;
-            break;
-        }
-        let Some(winner) = round.0 else {
-            ties += 1;
-            continue;
-        };
-        initiative = round.1;
-        wins[winner] += 1;
-        let loser = 1 - winner;
-        game.players[loser].swing_set = SwingSet::Not;
-        for die in &mut game.players[loser].dice {
-            if die.swing_type.iter().any(Option::is_some) {
-                die.not_set = true;
-            }
-        }
-        if wins[0] < template.target_wins
-            && wins[1] < template.target_wins
+        // ButtonWeavers offers reserve dice once the next round's dice are dealt.
+        if let Some(loser) = loser.take()
             && game.players[loser].dice.iter().any(|die| die.in_reserve)
         {
             let mut oriented = game.clone();
@@ -112,6 +94,20 @@ pub(crate) fn play_match_with_policies(
                 reserves_used += 1;
             }
         }
+        let round = play_round_with_policies(&mut game, rng, policies, native.as_deref_mut());
+        if round_number >= MAX_ROUNDS {
+            cancelled = true;
+            break;
+        }
+        if let Some(winner) = round.0 {
+            initiative = round.1;
+            wins[winner] += 1;
+            loser = Some(1 - winner);
+            game.players[1 - winner].swing_set = SwingSet::Not;
+        } else {
+            ties += 1;
+        }
+        restore_dice_for_new_round(&mut game, template);
     }
     MatchResult {
         winner: (!cancelled).then(|| usize::from(wins[1] > wins[0])),
@@ -146,6 +142,7 @@ pub(super) fn play_round_with_policies(
     mut native: Option<&mut NativeReplaySequence<'_>>,
 ) -> (Option<usize>, usize) {
     play_preround_with_policies(game, rng, policies, native.as_deref_mut());
+    record_round_sides(game);
     for player in &mut game.players {
         player.score = 0.0;
         for die in &mut player.dice {
