@@ -2,6 +2,8 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
+use std::sync::OnceLock;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RngAlgorithm {
     LegacyParkMillerV1,
@@ -48,11 +50,19 @@ struct DrawScript {
 
 impl Default for Rng {
     fn default() -> Self {
+        // getenv takes a process-wide lock, and the endgame solver builds one per replay.
+        static TRACE: OnceLock<(bool, bool)> = OnceLock::new();
+        let &(trace_raw, trace_hash) = TRACE.get_or_init(|| {
+            (
+                std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
+                std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
+            )
+        });
         Self {
             algorithm: RngAlgorithm::LegacyParkMillerV1,
             seed: 78_904_497,
-            trace_raw: std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
-            trace_hash: std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
+            trace_raw,
+            trace_hash,
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: None,
