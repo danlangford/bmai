@@ -946,16 +946,16 @@ pub(crate) fn restore_dice_for_new_round(game: &mut Game, template: &Game) {
                 continue;
             };
 
-            if original.has_property(property::JOLT) {
-                die.properties |= property::JOLT;
-            } else {
-                die.properties &= !property::JOLT;
-            }
-            if original.has_property(property::RAGE) {
-                die.properties |= property::RAGE;
-            } else {
-                die.properties &= !property::RAGE;
-            }
+            // ButtonWeavers deals each round's dice from the recipe. A skill
+            // lost with a change of size, such as Berserk, can't come back alone.
+            let round_skills = property::JOLT
+                | property::RAGE
+                | property::NULL
+                | property::VALUE
+                | property::WARRIOR
+                | property::RADIOACTIVE;
+            die.properties =
+                (die.properties & !round_skills) | (original.properties & round_skills);
         }
     }
 }

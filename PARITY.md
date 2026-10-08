@@ -228,6 +228,8 @@ case named in the final column.
 | base random AI, Maximizer, QAI, legacy BMAI, BMAI3 | `engines` (`random`, `maximize`, `quick`, `montecarlo`) and `search::ai` evaluators | seeded `ai` and `playfair` comparisons for every engine | covered |
 | max ply, QAI transition, BMAI3 batches/culling/Trip threshold, surrender | `search::fight` rollout control plus `search::ai` batching/culling | exact ply-2 and full bug16 traces, evaluator tests | covered |
 | round/match standings including ties, loser swing reset, initiative fairness matrix | `search::match_play` round, match, and fairness orchestration | bmsim fixture, `playfair` for every engine, `tied_round_has_no_loser`, and complete-match reserve regression | covered |
+| ButtonWeavers recipe restore of skills a round adds or removes: Jolt, Rage, Null, Value, Warrior, Radioactive | `restore_dice_for_new_round` | next-round scenarios in `search::tests::{jolt,rage,null,value,warrior,radioactive}` and `null_captures_do_not_tie_every_later_round` | covered Rust extension |
+| ButtonWeavers cancellation of a game whose 200th round ends | `MAX_ROUNDS` in `play_match_with_policies` | `a_match_that_can_only_tie_is_cancelled_at_round_200` | covered Rust extension |
 | `BMC_RNG` seed expansion, integer/float output, consumption order | `Rng` dispatching `LegacyParkMillerV1`; RNG passed through all stochastic operations | version/name/continuity tests, exact sequence/distribution tests, and multi-million-event fixture traces | covered |
 
 Native search deliberately advances beyond C++ BMAI3's probability-reporting

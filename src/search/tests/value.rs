@@ -22,6 +22,17 @@ fn an_attacking_value_die_scores_its_new_value() {
 }
 
 #[test]
+fn a_value_capture_makes_the_die_value_only_for_the_round() {
+    scenario()
+        .attacker("v8:8")
+        .attacks(Power)
+        .defender("20:5")
+        .expect_captured_defender_dice(["v20:5"])
+        .expect_next_round_defender_dice(["20:5"])
+        .run();
+}
+
+#[test]
 fn a_focused_value_die_scores_its_lowered_value() {
     let mut game = native_fixture_game("game\nfight\nplayer 0 1 4\nvf20:8\nplayer 1 1 3\n6:3\n");
     apply_focus_move(
