@@ -224,8 +224,12 @@ impl Scenario {
             game.players[0].score = scores[0];
             game.players[1].score = scores[1];
         }
-        record_round_sides(&mut game);
-        let template = game.clone();
+        let selections = record_round_sides(&game);
+        let recipe = parse_game_with_specials(
+            &recipe_of(&self.attacker_dice),
+            &recipe_of(&self.defender_dice),
+            &self.specials,
+        );
         let attackers = resolve_original_indices(
             "attacker",
             &game.players[0].dice,
@@ -321,7 +325,7 @@ impl Scenario {
         if self.expected_next_round_attacker_dice.is_some()
             || self.expected_next_round_defender_dice.is_some()
         {
-            restore_dice_for_new_round(&mut game, &template);
+            restore_dice_for_new_round(&mut game, &recipe, &selections);
             if let Some(expected) = self.expected_next_round_attacker_dice {
                 assert_round_dice("next-round attacker", &game, 0, &expected);
             }
@@ -355,6 +359,28 @@ pub(super) fn resolve_original_indices(
                     die.original_index == *original_index && !die.captured && !die.in_reserve
                 })
                 .unwrap_or_else(|| panic!("scenario has no active {label} die {original_index}"))
+        })
+        .collect()
+}
+
+/// The dice a scenario's round was dealt from: no swing sizes, option
+/// choices, or values.
+fn recipe_of(dice: &[String]) -> Vec<String> {
+    dice.iter()
+        .map(|die| {
+            let definition = die
+                .split_once(':')
+                .map_or(die.as_str(), |(definition, _)| definition);
+            let mut recipe = String::new();
+            let mut chars = definition.chars().peekable();
+            while let Some(ch) = chars.next() {
+                if ch == '-' {
+                    while chars.next_if(char::is_ascii_digit).is_some() {}
+                } else {
+                    recipe.push(ch);
+                }
+            }
+            recipe
         })
         .collect()
 }

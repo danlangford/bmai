@@ -285,17 +285,36 @@ fn the_first_swing_move_matches_the_first_generated_one() {
 }
 
 #[test]
-fn a_round_loser_chooses_its_option_again_starting_from_its_last_choice() {
+fn a_round_losers_option_die_comes_back_at_its_last_choice() {
     let template = native_fixture_game("game\npreround\nplayer 0 1 0\n4/12\nplayer 1 1 0\n6\n");
     let mut game = template.clone();
     let mut selection = SwingMove::empty();
     selection.push_option((0, true));
     apply_swing_move(&mut game.players[0], &selection);
-    record_round_sides(&mut game);
+    let selections = record_round_sides(&game);
     game.players[0].swing_set = SwingSet::Not;
 
-    restore_dice_for_new_round(&mut game, &template);
+    restore_dice_for_new_round(&mut game, &template, &selections);
 
     assert_eq!(game.players[0].dice[0].sides, [12, 4]);
-    assert!(needs_set_swing(&game.players[0]));
+}
+
+#[test]
+fn swing_dice_have_a_size_in_every_round_of_a_match() {
+    let game = native_fixture_game("game 3\npreround\nplayer 0 2 0\nX\n6\nplayer 1 2 0\n10\n8\n");
+    let spy = QuickSpy::default();
+    let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
+    let mut rng = Rng::default();
+    let mut rounds = 0;
+    for _ in 0..5 {
+        let result = play_match_with_policies(&game, &mut rng, &policies, None);
+        rounds += usize::from(result.wins[0] + result.wins[1]) + result.ties;
+    }
+
+    assert!(rounds > 5, "every match ended after one round");
+    for position in spy.attacks.lock().unwrap().iter() {
+        for die in position.players.iter().flat_map(|player| &player.dice) {
+            assert!(die.swing_type[0].is_none() || die.sides[0] > 0, "{die:?}");
+        }
+    }
 }

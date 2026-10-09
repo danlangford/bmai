@@ -276,8 +276,8 @@ pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut
     apply_auxiliary_decision(&mut simulation, accepted);
     // QAI, because BMAI here would nest a new search at every move.
     let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
-    let (winner, _) = play_round_with_policies(&mut simulation, rng, &[quick(), quick()], None);
-    match winner {
+    let round = play_round_with_policies(&mut simulation, rng, &[quick(), quick()], None);
+    match round.winner {
         Some(0) => 1.0,
         None => 0.5,
         Some(1) => 0.0,

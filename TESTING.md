@@ -30,10 +30,12 @@ Use `.attackers([...]).using([...])` or
 The indices refer to recipe declaration order even when production parsing
 reorders dice for play; the default attacker and target are declaration index
 zero. Expectations can cover attack legality, scores, extra turns, active dice,
-captured defender dice, and either side's next-round dice. The scenario's dice
-hold the round's swing and option selections, and next-round dice are dealt but
-not yet rolled, so they are written without values: `B20:10` halved by a
-Berserk attack comes back as `B20`. Rerolls
+captured defender dice, and either side's next-round dice. Next-round dice are
+dealt from the scenario's recipe, its dice without swing sizes, option choices,
+or values, and then get the scenario's swing and option selections back. They
+aren't rolled yet, so expectations carry no values: `B20:10` halved by a
+Berserk attack comes back as `B20`, and `Y&-13:13` comes back as `Y&-13`
+whatever size Mad rerolled it to. Rerolls
 use BMAIR's stable test default; `.seed(...)` selects a specific replay seed
 when the exact roll matters. `.turbo(...)` chooses an option-die branch (`0` or
 `1`) or a Turbo swing size. `.with_scores(...)` overrides the scores derived

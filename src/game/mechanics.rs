@@ -889,21 +889,32 @@ pub(crate) fn swing_range(swing: char) -> (u8, u8) {
     }
 }
 
-/// Run once the round's swing and option selections are made, so
-/// `restore_dice_for_new_round` can give them back.
-pub(crate) fn record_round_sides(game: &mut Game) {
-    for player in &mut game.players {
+/// Each die's sides as its round starts, which hold the swing and option
+/// selections. Only `record_round_sides` makes one, so no restore can skip it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RoundSelections([[[u8; 2]; MAX_DICE]; 2]);
+
+/// Run once the round's swing and option selections are made.
+pub(crate) fn record_round_sides(game: &Game) -> RoundSelections {
+    let mut selections = [[[0; 2]; MAX_DICE]; 2];
+    for (player, sides) in game.players.iter().zip(&mut selections) {
         for die in &player.dice {
-            player.round_original_sides[die.original_index] = die.sides;
+            sides[die.original_index] = die.sides;
         }
     }
+    RoundSelections(selections)
 }
 
 /// ButtonWeavers deals each round's dice fresh from the button recipe, so
 /// nothing a die gains or loses in a round lasts into the next. Only swing and
 /// option selections carry over; a round loser makes them again.
-pub(crate) fn restore_dice_for_new_round(game: &mut Game, template: &Game) {
-    for (player, recipe) in game.players.iter_mut().zip(&template.players) {
+pub(crate) fn restore_dice_for_new_round(
+    game: &mut Game,
+    template: &Game,
+    selections: &RoundSelections,
+) {
+    let players = game.players.iter_mut().zip(&template.players);
+    for (player_index, (player, recipe)) in players.enumerate() {
         let products = player.radioactive_products | player.rage_replacements;
         player
             .dice
@@ -911,16 +922,19 @@ pub(crate) fn restore_dice_for_new_round(game: &mut Game, template: &Game) {
         player.radioactive_products = 0;
         player.rage_replacements = 0;
         for die in &mut player.dice {
+            let original_index = die.original_index;
             let original = recipe
                 .dice
                 .iter()
-                .find(|original| original.original_index == die.original_index)
-                .expect("a die outlasted its round without a recipe");
-            let in_reserve = die.in_reserve;
+                .find(|original| original.original_index == original_index)
+                .unwrap_or_else(|| {
+                    panic!("player {player_index} die {original_index} has no recipe to restore")
+                });
+            let was_in_reserve = die.in_reserve;
             *die = *original;
             // A loser's option dice keep the last selection too, because the
             // swing search orders option candidates from it, as in C++.
-            let selected = player.round_original_sides[die.original_index];
+            let selected = selections.0[player_index][original_index];
             if die.has_property(property::OPTION) {
                 die.sides = selected;
             } else {
@@ -931,7 +945,7 @@ pub(crate) fn restore_dice_for_new_round(game: &mut Game, template: &Game) {
                 }
             }
             // A reserve die joins the button for the rest of the game.
-            if !in_reserve {
+            if !was_in_reserve {
                 die.in_reserve = false;
                 die.properties &= !property::RESERVE;
             }

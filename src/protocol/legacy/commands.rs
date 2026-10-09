@@ -452,7 +452,6 @@ impl Parser {
                 dice.push(die);
             }
             self.game.players[id].dice = dice;
-            self.game.players[id].round_original_sides = [[0; 2]; crate::game::MAX_DICE];
             self.game.players[id].radioactive_products = 0;
             self.game.players[id].rage_replacements = 0;
             self.game.players[id].specials = 0;

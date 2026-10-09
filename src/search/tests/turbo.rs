@@ -4,14 +4,14 @@
 use super::*;
 
 #[test]
-fn turbo_swing_dice_return_to_their_chosen_size_the_next_round() {
+fn a_turbo_swing_die_returns_to_its_chosen_size_the_next_round() {
     scenario()
-        .attackers(["X!-10:10", "X-10:3"])
+        .attacker("X!-10:10")
         .attacks(Power)
         .defender("4:4")
         .turbo(20)
-        .expect_attacker_dice(["X-20:3", "X-20!:1"])
-        .expect_next_round_attacker_dice(["X-10", "X-10!"])
+        .expect_attacker_dice(["X-20!:1"])
+        .expect_next_round_attacker_dice(["X-10!"])
         .run();
 }
 

@@ -6,7 +6,7 @@ pub(crate) mod ai;
 
 use self::ai::{Bmai3, EvaluationCoordinate, Playout};
 use crate::game::{
-    Action, Die, Game, Move, SwingSet, apply_attack, apply_attack_for_players,
+    Action, Die, Game, Move, RoundSelections, SwingSet, apply_attack, apply_attack_for_players,
     apply_before_roll_effects, available_dice_count, check_initiative, initiative_winner,
     optimize_dice, property, record_round_sides, recover_dizzy_dice, restore_dice_for_new_round,
     roll_die, roll_round_dice, roll_scheduled_die, special, swing_range,
