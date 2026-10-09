@@ -55,3 +55,20 @@ fn the_round_loser_picks_a_reserve_die_from_freshly_dealt_dice() {
         }
     }
 }
+
+#[test]
+fn no_reserve_die_is_offered_after_the_round_that_ends_the_match() {
+    let game =
+        native_fixture_game("game 1\npreround\nplayer 0 2 0\n6\nr20\nplayer 1 2 0\n6\nr20\n");
+    let spy = QuickSpy::default();
+    let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
+    let mut rng = Rng::default();
+    let mut decided = 0;
+    for _ in 0..10 {
+        let result = play_match_with_policies(&game, &mut rng, &policies, None);
+        decided += usize::from(result.winner.is_some());
+    }
+
+    assert!(decided > 0, "no match had a round loser");
+    assert!(spy.reserves.lock().unwrap().is_empty());
+}

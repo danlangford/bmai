@@ -363,8 +363,8 @@ pub(super) fn resolve_original_indices(
         .collect()
 }
 
-/// Without the scenario's own sizes and option choices, a next-round check
-/// could not tell a restored selection from the recipe.
+/// A recipe that kept the scenario's sizes and option choices would pass
+/// next-round checks even if the restore dropped the selections.
 fn recipe_of(dice: &[String]) -> Vec<String> {
     dice.iter()
         .map(|die| {
