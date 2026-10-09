@@ -2,9 +2,24 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::cell::Cell;
+use std::sync::OnceLock;
 
 thread_local! {
     static NATIVE_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
+}
+
+/// No worker count changes a result, so where threads can't start the same
+/// work runs on one thread. Stable Rust gives a threaded WebAssembly build the
+/// same `cfg` as an unthreaded one, and a host may refuse to spawn, so
+/// WebAssembly asks once at run time.
+fn threads_available() -> bool {
+    static AVAILABLE: OnceLock<bool> = OnceLock::new();
+    !cfg!(target_family = "wasm")
+        || *AVAILABLE.get_or_init(|| {
+            std::thread::Builder::new()
+                .spawn(|| {})
+                .is_ok_and(|probe| probe.join().is_ok())
+        })
 }
 
 pub(crate) fn native_worker_active() -> bool {
@@ -22,6 +37,13 @@ where
     let worker_count = workers.max(1).min(tasks.len().max(1));
     if worker_count == 1 {
         return tasks.into_iter().map(evaluate).collect();
+    }
+    if !threads_available() {
+        // Traces stay as quiet as they would be inside real workers.
+        let outer = NATIVE_WORKER_ACTIVE.replace(true);
+        let results = tasks.into_iter().map(evaluate).collect();
+        NATIVE_WORKER_ACTIVE.set(outer);
+        return results;
     }
 
     let mut assignments = (0..worker_count)
@@ -54,4 +76,24 @@ where
     });
     completed.sort_unstable_by_key(|(index, _)| *index);
     completed.into_iter().map(|(_, result)| result).collect()
+}
+
+/// Runs up to `count` copies of `work` at once and returns each copy's result.
+/// Where threads can't start, a single copy runs, so each copy must keep
+/// taking work from a shared queue until none is left.
+pub(crate) fn drain_with_workers<R, F>(count: usize, work: F) -> Vec<R>
+where
+    R: Send,
+    F: Fn() -> R + Sync,
+{
+    if count <= 1 || !threads_available() {
+        return vec![work()];
+    }
+    std::thread::scope(|scope| {
+        let handles = (0..count).map(|_| scope.spawn(&work)).collect::<Vec<_>>();
+        handles
+            .into_iter()
+            .map(|handle| handle.join().expect("a worker panicked"))
+            .collect()
+    })
 }

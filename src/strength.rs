@@ -13,6 +13,7 @@ use std::time::Instant;
 
 use crate::engines::{Choice, DecisionContext, Engine, Setting};
 use crate::game::{Game, Move};
+use crate::native::drain_with_workers;
 use crate::search::{ChanceMove, Engines, FocusMove, SwingMove, play_match_with_policies};
 use crate::{Parser, Rng};
 
@@ -126,49 +127,40 @@ pub fn play_pairing(
     let next = AtomicUsize::new(0);
     let mut scores = vec![0.0f64; units.len()];
     let mut wins = [0usize; 2];
-    std::thread::scope(|scope| {
-        let workers = (0..threads.max(1))
-            .map(|_| {
-                scope.spawn(|| {
-                    let timed = |contestant: &Contestant, clock: &Clock| -> Box<dyn Engine> {
-                        Box::new(Timed {
-                            inner: contestant.engine.clone(),
-                            clock: clock.clone(),
-                        })
-                    };
-                    let first = timed(first, &clocks[0]);
-                    let second = timed(second, &clocks[1]);
-                    let mut results = Vec::new();
-                    loop {
-                        let index = next.fetch_add(1, Ordering::Relaxed);
-                        let Some((matchup, seed)) = units.get(index) else {
-                            break;
-                        };
-                        let seated = [
-                            [first.clone(), second.clone()],
-                            [second.clone(), first.clone()],
-                        ];
-                        let [as_seat_0, as_seat_1] = seated.map(|engines: Engines| {
-                            let mut rng = Rng::default();
-                            rng.reseed(game_seed(*seed));
-                            play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
-                        });
-                        results.push((index, [as_seat_0, as_seat_1]));
-                    }
-                    results
-                })
+    let completed = drain_with_workers(threads, || {
+        let timed = |contestant: &Contestant, clock: &Clock| -> Box<dyn Engine> {
+            Box::new(Timed {
+                inner: contestant.engine.clone(),
+                clock: clock.clone(),
             })
-            .collect::<Vec<_>>();
-        for worker in workers {
-            for (index, [as_seat_0, as_seat_1]) in worker.join().expect("a pairing worker panicked")
-            {
-                let (pair_wins, score) = pair_result(as_seat_0, as_seat_1);
-                wins[0] += pair_wins[0];
-                wins[1] += pair_wins[1];
-                scores[index] = score;
-            }
+        };
+        let first = timed(first, &clocks[0]);
+        let second = timed(second, &clocks[1]);
+        let mut results = Vec::new();
+        loop {
+            let index = next.fetch_add(1, Ordering::Relaxed);
+            let Some((matchup, seed)) = units.get(index) else {
+                break;
+            };
+            let seated = [
+                [first.clone(), second.clone()],
+                [second.clone(), first.clone()],
+            ];
+            let [as_seat_0, as_seat_1] = seated.map(|engines: Engines| {
+                let mut rng = Rng::default();
+                rng.reseed(game_seed(*seed));
+                play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
+            });
+            results.push((index, [as_seat_0, as_seat_1]));
         }
+        results
     });
+    for (index, [as_seat_0, as_seat_1]) in completed.into_iter().flatten() {
+        let (pair_wins, score) = pair_result(as_seat_0, as_seat_1);
+        wins[0] += pair_wins[0];
+        wins[1] += pair_wins[1];
+        scores[index] = score;
+    }
     let (first_score, interval) = mean_with_interval(&scores);
     PairingResult {
         first: first.spec.clone(),

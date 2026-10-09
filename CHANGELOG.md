@@ -70,6 +70,36 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.28.0] - 2026-10-08
+
+### Added
+
+- A web site you can host anywhere. Each release includes
+  `bmair-VERSION-web-release.zip`, a static site that runs BMAIR in the
+  browser: unzip it onto GitHub Pages, Netlify, Cloudflare Pages, S3, or any
+  web server. The page takes the same arguments and standard input as the
+  command line, offers examples, and shows output as the engine writes it.
+  Nothing leaves the browser.
+- Each release also includes the WebAssembly engine on its own,
+  `bmair-VERSION-webassembly-wasm32-wasip1-release.wasm`, for WASI runtimes
+  such as Wasmtime. It is the same file the web site runs.
+- `bmair gauntlet "RECIPE" -` reads the opponents from standard input.
+- `bmair gauntlet --shard K/N` plays one part of a gauntlet and prints its
+  matches as JSON lines, and `bmair gauntlet --merge` prints the table for
+  every part, identical to a single run. Long gauntlets can now be split
+  across processes or machines.
+- The web site plays a gauntlet on every core, one engine per Web Worker, and
+  shows how many games are done. 80 games against the default field take
+  under 9 seconds on 18 cores, ten times faster than one engine.
+
+### Changed
+
+- Where threads can't start, as in the WebAssembly release, `workers` above 1
+  and gauntlet `--threads` run their work in turn instead of crashing. Results
+  match native builds; only the speed differs. CI runs every golden fixture
+  through the browser's WebAssembly host and compares output and RNG
+  fingerprints with native.
+
 ## [0.27.0] - 2026-10-08
 
 ### Changed
@@ -749,7 +779,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...HEAD
+[0.28.0]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...bmair-v0.28.0
 [0.27.0]: https://github.com/danlangford/bmai/compare/bmair-v0.26.1...bmair-v0.27.0
 [0.26.1]: https://github.com/danlangford/bmai/compare/bmair-v0.26.0...bmair-v0.26.1
 [0.26.0]: https://github.com/danlangford/bmai/compare/bmair-v0.25.0...bmair-v0.26.0

@@ -31,6 +31,11 @@ Unit tests sit beside the module they protect. End-to-end protocol and parity
 tests live under `tests/`, while reusable scenario builders remain behind
 `cfg(test)` in `search/test_support/`.
 
+The browser page in `web/` is another adapter, written in JavaScript. It runs
+the unchanged `wasm32-wasip1` executable through its own WASI host, so it adds
+no Rust entry point. `scripts/package_web.sh` bundles it into the release's
+static site, and `tests/web/` holds it to the native golden output.
+
 ## Dependency direction
 
 ```text

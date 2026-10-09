@@ -82,13 +82,15 @@ Protocol samples under `tests/fixtures/` have golden outputs in
 Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
 unrelated evidence. The shared build workflow tests native `x86_64` and ARM64
-binaries for Linux, Windows, and macOS. Each platform/architecture pair is
+binaries for Linux, Windows, and macOS, plus a `wasm32-wasip1` WebAssembly
+binary and the web site built from it. Each platform/architecture pair is
 uploaded as a separate workflow artifact; macOS Intel and Apple Silicon builds
 are not combined into a universal binary. Release artifacts include build
 metadata and SHA-256 checksums. Executable filenames use the embedded version,
-platform, architecture, and profile, such as
-`bmair-0.5.0-macos-arm64-release` for an exact release or
-`bmair-0.5.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
+platform, architecture, and profile, such as `bmair-0.28.0-macos-arm64-release`,
+`bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm`,
+`bmair-0.28.0-web-release.zip`, or
+`bmair-0.28.0-dev.2+gabcdef0-macos-arm64-release` for a development build.
 
 Every merge-ready pull request must increase the Cargo version and add its dated
 `CHANGELOG.md` entry. The required PR gate fails if that version is already
@@ -118,6 +120,18 @@ Or pipe protocol input through standard input:
 ```shell
 cargo run --release --locked < tests/fixtures/Insult_in.txt
 ```
+
+The WebAssembly release is a WASI Preview 1 command, so it keeps the native
+executable's arguments, standard input, and standard output. Run it with a
+WASI runtime such as Wasmtime:
+
+```shell
+wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm --version
+wasmtime bmair-0.28.0-webassembly-wasm32-wasip1-release.wasm < game.txt
+```
+
+This build can't start threads, so `workers` above 1 and gauntlet `--threads`
+take turns on one thread. The results match a native build.
 
 `bmair --version` derives its displayed version from Cargo and
 `git describe`. An exact `bmair-v0.5.0` tag reports `0.5.0`; development builds
@@ -188,6 +202,23 @@ native search on one worker, and matches run in parallel across every core.
 `--games`, `--seed`, and `--threads` set the rest, and `--help` lists them. The same seeds give the same results at any thread count. At 500 matches
 the 95% interval is about four points either way.
 
+A long gauntlet can be split across processes or machines. Run each part with
+the same options plus `--shard K/N`; each part prints its matches as JSON
+lines. `--merge` then reads every part, from files or standard input, checks
+that they come from one gauntlet with no match missing or repeated, and prints
+the table a single run would:
+
+```shell
+# On each of four machines, with K from 1 to 4:
+bmair gauntlet --shard K/4 "dk(1) k(V) k(V) k(V) dmMH(4)" > partK.jsonl
+# Then, with every part in one place:
+bmair gauntlet --merge part1.jsonl part2.jsonl part3.jsonl part4.jsonl
+```
+
+Each part uses every core of its machine. Errors name the file and line, and a
+missing match names the part to run again. [`PROTOCOL.md`](PROTOCOL.md)
+describes the JSON lines.
+
 ### Skills
 
 BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
@@ -221,6 +252,43 @@ protocol. BMAIR flushes its banner, processes complete stdin commands without
 waiting for EOF, and treats `quit` as immediate termination. This supports the
 historical BMAIBagels `Popen` pattern of writing and flushing a complete legacy
 request while keeping the pipe open to read the action.
+
+### Web site
+
+`bmair-VERSION-web-release.zip` on each release is a static web site that
+runs the same WebAssembly engine in the visitor's browser. Unzip it onto any
+static host, or into a subdirectory of one; there is no server code, and
+nothing the visitor types leaves the browser. The page takes command-line
+arguments and standard input, so anything in this README works there,
+including the JSON Lines protocol and `bmair gauntlet`. The browser can't open
+files, so pass a gauntlet's opponents as `-` and paste them as input.
+
+The engine gets one thread in a browser, so the page splits a gauntlet into
+shards instead: one engine per Web Worker, `--threads` of them or one per core,
+then `--merge` for the table. Separate engines scale like native threads and
+need no special hosting. Everything else runs as one engine, where `workers`
+above 1 gives the same results, only slower.
+
+To build and try the site locally, then serve it at `http://localhost:8000/`:
+
+```shell
+mise exec -- cargo build --release --locked --target wasm32-wasip1 --bin bmair
+scripts/package_web.sh target/wasm32-wasip1/release/bmair.wasm target/web/bmair-web.zip
+unzip -o target/web/bmair-web.zip -d target/web/site
+python3 -m http.server 8000 --directory target/web/site
+```
+
+The page lives in [`web/`](web/). `web/wasi.js` is a small WASI host that
+covers only the calls `bmair.wasm` makes and gives it no file access. Its
+tests run every golden fixture through that host and compare the output and
+RNG fingerprints with native:
+
+```shell
+BMAIR_WASM=target/wasm32-wasip1/release/bmair.wasm node --test tests/web/*.test.mjs
+```
+
+Add `BMAIR_WEB_SLOW_FIXTURES=1` to include the four slow fixtures, as CI does.
+`web/README.txt` ships in the zip and covers deployment and updates.
 
 ### Execution and RNG modes
 

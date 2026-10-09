@@ -21,7 +21,10 @@ Execution mode and RNG algorithm are independent configuration axes.
   legacy search. Each evaluation batch clamps the effective count to its number
   of tasks, so an excessively large setting does not create idle threads. The
   resolved count remains part of performance-reproduction metadata even though
-  results are count-independent.
+  results are count-independent. WASI can't report a core count, so WebAssembly
+  builds resolve `auto` to `1`. Where threads can't start, as in the
+  `wasm32-wasip1` release, a larger count is recorded as given but evaluated
+  on the calling thread, with the same results.
 
 Selecting a mode never implicitly selects or reseeds an RNG. Selecting an RNG
 never changes execution mode and does not reset its stream.
