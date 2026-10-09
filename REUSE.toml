@@ -51,9 +51,6 @@ path = [
     ".gitignore",
     "AGENTS.md",
     "BENCHMARKS.md",
-    "MODES.md",
-    "NATIVE_MODE.md",
-    "PARITY.md",
     "web/README.txt",
 ]
 SPDX-License-Identifier = "MIT"

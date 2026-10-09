@@ -75,7 +75,7 @@ initiative_scenario()
     .run();
 ```
 
-`.seated_as(1)` puts the player in seat 1, for C++'s seat-keyed Chance rule.
+`.seated_as(1)` puts the player in seat 1, for rules that depend on the roller's seat.
 `.expect_initiative(...)` checks who wins initiative on the dice, and
 `.expect_chance_success(...)` and `.expect_next_initiative(...)` check what
 `apply_chance_move` reports.
@@ -93,7 +93,7 @@ roll("(Y,Y)&-13:13")
 
 The DSL is deliberately test-only and dependency-free. It is not a second game
 implementation: setup is parsed by `Parser`, attack legality comes from
-`generate_valid_attacks_in_cpp_order` (`.passes()` skips it), resolution comes from
+`Game::valid_attacks` (`.passes()` skips it), resolution comes from
 `apply_attack`, round restoration comes from `restore_dice_for_new_round`, and
 Chance, Focus, and rerolls use `apply_chance_move`, `apply_focus_move`, and
 `roll_scheduled_die`. Expected dice are written using the protocol notation and
@@ -105,8 +105,8 @@ outcome: Radioactive decay removing Mad is Mad's rule, so it is in `mad.rs`,
 and a Mighty target growing on a Boom reroll is Boom's rule, so it is in
 `boom.rs`. When both skills' rules shape the outcome, prefer the skill whose
 ButtonWeavers skills-page entry describes the interaction from its side.
-`parity.rs` holds tests mapped to upstream C++ tests, including the ones whose
-expectations were corrected by ButtonWeavers engine probes.
+`parity.rs` holds tests that came from C++ BMAI's own suite, some with
+expectations corrected by ButtonWeavers engine probes.
 
 Prefer a scenario when its recipe and outcome tell the whole rules story. Keep
 a lower-level test when it needs to inspect an intermediate state, exercise a

@@ -7,12 +7,13 @@ SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.no
 -->
 
 BMAIR is the Rust implementation of the Button Men AI. The `bmair` executable
-accepts the same line-oriented game protocol and parser commands as the
-original engine.
+accepts the original engine's line-oriented game protocol, and a JSON Lines
+protocol beside it.
 
-The original C++ engine is maintained separately at
-[pappde/bmai](https://github.com/pappde/bmai). Its behavior and test cases are
-the reference specification for this port.
+BMAIR began as a port of the C++ engine, which is maintained separately at
+[pappde/bmai](https://github.com/pappde/bmai). It now plays by ButtonWeavers'
+rules, and [`RULES.md`](RULES.md) maps each rule to the code and tests behind
+it.
 
 ## Lineage
 
@@ -22,9 +23,6 @@ at upstream BMAI commit
 [`1fcb826`](https://github.com/pappde/bmai/commit/1fcb826c923a4b01a4a8b97e05f8b5cd0b3ce0d1),
 and the Rust commits descend directly from it. The upstream and port copyright
 notices are retained under the MIT license.
-
-The parity record in [`PARITY.md`](PARITY.md) maps the C++ implementation and
-tests to their Rust equivalents.
 
 ## Performance snapshot
 
@@ -40,9 +38,9 @@ the current deterministic native search with eight workers. Lower is better.
 | `bug16_in.txt` | 139.95s | 226.90s | 78.75s | 1.78x faster | 2.88x faster |
 | **Four-fixture total** | **208.31s** | **299.49s** | **103.16s** | **2.02x faster** | **2.90x faster** |
 
-Native parallel search is the default since 0.23.0 and is deterministic across
-worker counts, but it does not promise legacy search decisions or RNG
-consumption. Eight workers raise peak memory substantially for `bug16_in.txt`
+Native parallel search, the default since 0.23.0, is now the only search. It
+is deterministic across worker counts but does not reproduce
+C++ BMAI's decisions. Eight workers raise peak memory substantially for `bug16_in.txt`
 (about 497MB to 1.86GB), so `workers 1` suits machines short of memory. [`BENCHMARKS.md`](BENCHMARKS.md) records commit
 identities, build details, CPU time, memory, output checks, and methodology.
 
@@ -139,7 +137,7 @@ report the upcoming Cargo version plus the number of commits since the previous
 release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
-`getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
+`getaction`, `ai`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
 `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
 `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.
@@ -248,7 +246,7 @@ The complete wire contract and compatibility policy are in
 intended to support Python consumers such as bmaibagels without requiring those
 consumers to move engine logic into Python or Rust.
 
-Existing subprocess clients may continue using the C++-compatible legacy
+Existing subprocess clients may continue using the original line-based
 protocol. BMAIR flushes its banner, processes complete stdin commands without
 waiting for EOF, and treats `quit` as immediate termination. This supports the
 historical BMAIBagels `Popen` pattern of writing and flushing a complete legacy
@@ -291,36 +289,26 @@ BMAIR_WASM=target/wasm32-wasip1/release/bmair.wasm node --test tests/web/*.test.
 Add `BMAIR_WEB_SLOW_FIXTURES=1` to include the four slow fixtures, as CI does.
 `web/README.txt` ships in the zip and covers deployment and updates.
 
-### Execution and RNG modes
+### Search and RNG
 
-`mode native` is the default since 0.23.0: deterministic per-simulation RNG
-streams plus bounded parallel candidate evaluation. `mode legacy` selects the
-exact C++ compatibility contract, and `mode parity` is an alias.
-
-Native search defaults to `workers auto`. Set an explicit positive count or use
-`workers auto` to resolve the logical CPU parallelism available to the process.
-The resolved count is reported and included in replay metadata; worker settings
-do not affect legacy search.
+Search runs its simulations in parallel and stays deterministic: the same
+position, seed, and settings give the same move for any worker count.
+`workers auto`, the default, uses the logical CPU parallelism available to
+the process; set a positive count instead to limit it. Older clients may still
+send `mode native`, which is accepted and does nothing.
 
 For a user-visible probability estimate, `report_sims N` keeps normal bounded
 search responsible for choosing the fight move, then evaluates only that move
-with exactly `N` fresh native samples. It defaults to zero, requires native
-BMAI fight search to produce a report, and does not change the selected action
-or consume a later decision stream. Clients should discover the command through
-capabilities before using it.
+with exactly `N` fresh samples. It defaults to zero, requires Monte Carlo
+search, and does not change the selected action or a later decision's
+streams. Clients should discover the command through capabilities before
+using it.
 
-`rng legacy` selects BMAI's Park-Miller minimal-standard generator (multiplier
-16807, modulus 2^31-1) with BMAI's historical seed expansion. `rng park-miller`
-is an alias. Its stable replay identifier is
-`bmai-park-miller-16807-v1`. Selecting an RNG does not reseed it; use `seed`
-separately. Protocols intended for durable replay should record the execution
-mode, RNG replay identifier, seed, BMAIR version, and all search
-settings. The compatibility and replay contracts are defined in
-[`MODES.md`](MODES.md).
-
-The first Rust-native search experiment is specified in
-[`NATIVE_MODE.md`](NATIVE_MODE.md). It targets deterministic parallel
-candidate simulation while keeping legacy mode as the compatibility oracle.
+`rng park-miller` (alias `rng legacy`) selects BMAI's Park-Miller
+minimal-standard generator, the only one. Its replay identifier is
+`bmai-park-miller-16807-v1`. Selecting a generator does not reseed it; use
+`seed` separately. [`SEARCH.md`](SEARCH.md) describes how searches stay
+deterministic and what a durable replay must record.
 
 ## Verification
 

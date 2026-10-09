@@ -5,6 +5,10 @@ SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 -->
 
+Each section records how its runs were made. Runs marked legacy execution used
+the C++-compatible search BMAIR has since removed; the strength harness now
+plays natively, as `bmair gauntlet` does.
+
 ## Preregistered design
 
 This design was committed before inspecting match results. Native and legacy
