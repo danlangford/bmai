@@ -169,6 +169,7 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
             "params": { "script": "workers 4\nseed 17\nply 2\n" }
         }),
     );
+    assert_eq!(changed["result"]["session"]["execution_mode"], "native");
     assert_eq!(changed["result"]["session"]["workers"], 4);
     assert_eq!(changed["result"]["session"]["max_ply"], 2);
     assert_eq!(

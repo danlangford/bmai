@@ -96,6 +96,7 @@ impl Parser {
             surrender_allowed: self.game.surrender_allowed,
             turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.game.turbo_accuracy),
             fire_overshooting: self.game.fire_overshooting,
+            execution_mode: "native",
             rng: self.rng.replay_id(),
             native_root_seed: self.native_root_seed,
             native_decision_index: self.native_decision_index,

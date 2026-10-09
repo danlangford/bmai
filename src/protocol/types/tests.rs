@@ -31,6 +31,10 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
     assert_eq!(value["protocols"][0], "legacy-v1");
     assert_eq!(value["protocols"][1], "jsonl-v1");
     assert_eq!(value["native"]["automatic_workers"], true);
+    assert_eq!(
+        value["native"]["execution_modes"],
+        serde_json::json!(["native"])
+    );
     assert!(
         value["commands"]
             .as_array()
@@ -40,6 +44,7 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
     assert_eq!(
         value["commands"],
         serde_json::json!([
+            "mode",
             "rng",
             "workers",
             "game",

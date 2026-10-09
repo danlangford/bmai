@@ -222,7 +222,7 @@ impl Parser {
                     play_fair_games(game, games, rng, policies, native)
                 });
                 let cancelled = games - wins.iter().flatten().sum::<usize>();
-                // C++ has no round limit, so its header never needs the count.
+                // Clients that never see a cancellation keep the header they parse.
                 if cancelled == 0 {
                     writeln!(output, "PlayFairGames: {games} games")
                 } else {
