@@ -94,9 +94,9 @@ clear benefit. Each could return if that changes.
   unchanged.
 - Every Turbo die with a size to choose can choose one when it attacks. Only
   a button's first Turbo die could take a size, even a fixed die with none to
-  choose, so a later Turbo die rerolled at its old size. When several Turbo dice make one Skill
-  attack, the search sizes the first and the others keep theirs, which
-  ButtonWeavers accepts.
+  choose, so a later Turbo die rerolled at its old size. When several Turbo
+  dice make one Skill attack, the search sizes the first and the others keep
+  theirs, which ButtonWeavers accepts.
 - Konstant Turbo dice and a Turbo die that has just morphed are no longer
   offered sizes, as ButtonWeavers asks only attacking Turbo dice that reroll
   and have not morphed. A Morphing Turbo die took the Turbo size after
