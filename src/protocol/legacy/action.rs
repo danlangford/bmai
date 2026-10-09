@@ -35,9 +35,7 @@ impl Parser {
                     return Err(ParseError("report_sims requires montecarlo search".into()));
                 }
                 if let Some(settings) = engine.montecarlo() {
-                    let moves = self.game.valid_attacks(
-                        settings.fire_candidate_limit(),
-                    );
+                    let moves = self.game.valid_attacks(settings.fire_candidate_limit());
                     writeln!(
                         output,
                         "l1 p0 Valid Moves {} Sims {}",

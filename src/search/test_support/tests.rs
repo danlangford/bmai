@@ -121,20 +121,20 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
         assert_eq!([game.players[0].score, game.players[1].score], [22.0, 37.0]);
 
         game.players.swap(0, 1);
-        let queer_capture =
-            game.valid_attacks(usize::MAX)
-                .into_iter()
-                .find(|candidate| {
-                    candidate.attack == Some(Shadow)
-                        && candidate
-                            .attackers
-                            .iter()
-                            .any(|index| game.players[0].dice[index].original_index == 0)
-                        && candidate
-                            .targets
-                            .iter()
-                            .any(|index| game.players[1].dice[index].original_index == 0)
-                });
+        let queer_capture = game
+            .valid_attacks(usize::MAX)
+            .into_iter()
+            .find(|candidate| {
+                candidate.attack == Some(Shadow)
+                    && candidate
+                        .attackers
+                        .iter()
+                        .any(|index| game.players[0].dice[index].original_index == 0)
+                    && candidate
+                        .targets
+                        .iter()
+                        .any(|index| game.players[1].dice[index].original_index == 0)
+            });
 
         if matches!(poison_roll, 5 | 6) {
             apply_attack(&mut game, &queer_capture.unwrap(), &mut rng);

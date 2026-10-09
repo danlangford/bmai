@@ -34,8 +34,7 @@ pub(crate) fn select_native_bmai_action(
     native: NativeEvaluation,
     settings: &Bmai3,
 ) -> SearchResult {
-    let mut moves =
-        game.valid_attacks(settings.fire_candidate_limit());
+    let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
         moves.push(pass_move());
     }
@@ -145,8 +144,7 @@ pub(super) fn select_bmai_action_at_level_with_stats(
 ) -> SearchResult {
     let trace = trace_settings().bmai_attack;
     let trace_evaluation = trace_settings().attack_eval;
-    let mut moves =
-        game.valid_attacks(settings.fire_candidate_limit());
+    let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
         moves.push(pass_move());
     }

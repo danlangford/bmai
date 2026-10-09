@@ -74,7 +74,9 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         workers,
     });
 
-    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_preround_in.txt"));
+    let game = native_fixture_game(include_str!(
+        "../../../tests/fixtures/native_preround_in.txt"
+    ));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 1,
@@ -248,15 +250,11 @@ fn native_fixture_game(input: &str) -> Game {
 }
 
 fn apply_generated_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
-    assert!(
-        game.valid_attacks(usize::MAX)
-            .iter()
-            .any(|candidate| {
-                candidate.attack == action.attack
-                    && candidate.attackers == action.attackers
-                    && candidate.targets == action.targets
-            })
-    );
+    assert!(game.valid_attacks(usize::MAX).iter().any(|candidate| {
+        candidate.attack == action.attack
+            && candidate.attackers == action.attackers
+            && candidate.targets == action.targets
+    }));
     apply_attack(game, action, rng)
 }
 
