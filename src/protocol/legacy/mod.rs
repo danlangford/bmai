@@ -6,10 +6,10 @@ use std::fmt;
 use std::io::{BufRead, Write};
 
 use crate::engines::{DecisionContext, Engine, MonteCarlo, Setting};
-use crate::game::{Action, Die, DieIndexSet, Game, MAX_DICE, Move, Phase, SwingSet, property};
+use crate::game::{Action, Die, DieIndexSet, Game, Move, Phase, SwingSet, property};
 use crate::search::{
-    Engines, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move, play_fair_games,
-    play_games_with_policies,
+    Engines, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move,
+    offer_courtesy_auxiliary, play_fair_games, play_games_with_policies,
 };
 use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm};
 
@@ -214,13 +214,11 @@ impl Parser {
 }
 
 mod action;
-mod auxiliary;
 mod commands;
 mod die;
 mod input;
 mod output;
 
-use auxiliary::*;
 use die::*;
 use input::*;
 use output::*;

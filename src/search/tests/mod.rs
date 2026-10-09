@@ -12,43 +12,6 @@ use crate::game::{Die, Player};
 use std::sync::{Arc, Mutex};
 use test_support::{initiative_scenario, roll, scenario};
 
-fn auxiliary_game() -> Game {
-    let input = "game 3\naux\nplayer 0 2 0\n6\n+Y\nplayer 1 2 0\n8\n+p12\nquit\n";
-    let mut parser = crate::Parser::default();
-    parser.parse_string(input, &mut Vec::new()).unwrap();
-    parser.game
-}
-
-#[test]
-fn mutual_auxiliary_acceptance_keeps_each_die_and_removes_the_skill() {
-    let mut game = auxiliary_game();
-
-    apply_auxiliary_decision(&mut game, true);
-
-    assert_eq!(game.players[0].dice.len(), 2);
-    assert_eq!(game.players[1].dice.len(), 2);
-    assert!(game.players.iter().all(|player| {
-        player
-            .dice
-            .iter()
-            .all(|die| !die.has_property(property::AUXILIARY))
-    }));
-    assert_eq!(game.players[0].dice[1].swing_type[0], Some('Y'));
-    assert!(game.players[1].dice[1].has_property(property::POISON));
-}
-
-#[test]
-fn either_auxiliary_decline_removes_both_dice() {
-    let mut game = auxiliary_game();
-
-    apply_auxiliary_decision(&mut game, false);
-
-    assert_eq!(game.players[0].dice.len(), 1);
-    assert_eq!(game.players[1].dice.len(), 1);
-    assert_eq!(game.players[0].dice[0].sides_max(), 6);
-    assert_eq!(game.players[1].dice[0].sides_max(), 8);
-}
-
 #[test]
 fn native_fight_score_summary_is_stable() {
     let input = include_str!("../../../tests/native-fixtures/fight.txt");
@@ -303,6 +266,8 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
 struct QuickSpy {
     attacks: Arc<Mutex<Vec<Game>>>,
     reserves: Arc<Mutex<Vec<Game>>>,
+    auxiliaries: Arc<Mutex<Vec<Game>>>,
+    declines_auxiliary: bool,
 }
 
 impl Engine for QuickSpy {
@@ -358,10 +323,16 @@ impl Engine for QuickSpy {
         game: &Game,
         context: &mut DecisionContext<'_, '_>,
     ) -> Choice<Option<usize>> {
-        Quick.auxiliary(game, context)
+        self.auxiliaries.lock().unwrap().push(game.clone());
+        if self.declines_auxiliary {
+            Choice::unsearched(None)
+        } else {
+            Quick.auxiliary(game, context)
+        }
     }
 }
 
+mod auxiliary;
 mod berserk;
 mod boom;
 mod core;

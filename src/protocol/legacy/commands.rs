@@ -476,8 +476,20 @@ impl Parser {
                 output,
             )?;
         }
+        for (id, player) in self.game.players.iter().enumerate() {
+            let count = player
+                .dice
+                .iter()
+                .filter(|die| die.has_property(property::AUXILIARY))
+                .count();
+            if count > 1 {
+                return Err(ParseError(format!(
+                    "player {id} has {count} Auxiliary dice; ButtonWeavers permits one"
+                )));
+            }
+        }
         if self.game.phase == Phase::Auxiliary {
-            prepare_auxiliary_phase(&mut self.game)?;
+            offer_courtesy_auxiliary(&mut self.game);
         }
         self.player_engines = [PlayerEngine::Global, PlayerEngine::Global];
         Ok(pos)

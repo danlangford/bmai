@@ -70,6 +70,33 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.32.0] - 2026-10-09
+
+### Fixed
+
+- Full matches decide Auxiliary dice, as ButtonWeavers does before the
+  first round. `playgame`, `compare`, `playfair`, `bmair gauntlet` (on the
+  command line and the web site), and the strength harness had skipped the
+  choice, so every Auxiliary die played for its owner alone and the opponent
+  never got its courtesy copy. Now a player without one is given a copy,
+  player 0 chooses, then player 1 if player 0 accepted, and the dice stay
+  only if both accept. The outcome is written into the recipe every round is
+  dealt from: declined dice never return, and accepted dice play without the
+  skill. Matches without Auxiliary dice consume the same RNG and native
+  replay keys as before.
+- A position with two Auxiliary dice for one player is rejected in every
+  phase, not only `aux`, so a match cannot start from one.
+- Choosing in an `aux` state no longer ignores swing sizes the position
+  gives the player who receives the courtesy copy. Adding the copy let that
+  player choose every swing size again in the rounds the choice simulates,
+  even when the copy was a fixed die or was declined, so a position with
+  `X-10` could be judged as if X were free and draw a different answer. Now
+  only an accepted Auxiliary die with a swing size still to choose reopens
+  its owner's swing choice; an accepted Option die keeps the size the
+  position gives or its first-listed one. Full matches follow the same rule.
+  ButtonWeavers positions never give swing sizes before the Auxiliary choice,
+  so their choices are unchanged.
+
 ## [0.31.0] - 2026-10-09
 
 ### Fixed

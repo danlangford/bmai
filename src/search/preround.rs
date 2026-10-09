@@ -249,6 +249,26 @@ pub(crate) fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<u
     })
 }
 
+/// ButtonWeavers gives a player without an Auxiliary die a copy of the
+/// opponent's, so both players choose.
+pub(crate) fn offer_courtesy_auxiliary(game: &mut Game) {
+    let (source, index, target) = match game.players.each_ref().map(auxiliary_die) {
+        [Some(index), None] => (0, index, 1),
+        [None, Some(index)] => (1, index, 0),
+        _ => return,
+    };
+    assert!(
+        game.players[target].dice.len() < crate::game::MAX_DICE,
+        "courtesy Auxiliary die exceeds player {target} capacity {}",
+        crate::game::MAX_DICE
+    );
+    let mut die = game.players[source].dice[index];
+    die.original_index = game.players[target].dice.len();
+    die.value = None;
+    die.not_set = true;
+    game.players[target].dice.push(die);
+}
+
 /// On ButtonWeavers a decline by either player removes every Auxiliary die.
 pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
     let accepted = accepted
@@ -257,6 +277,14 @@ pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
         });
     for player in &mut game.players {
         let selected = accepted.then(|| auxiliary_die(player)).flatten();
+        // A lock keeps the swing sizes a position gave, so only an added die
+        // that has none may lift it.
+        if selected.is_some_and(|index| {
+            let die = &player.dice[index];
+            (0..2).any(|side| die.swing_type[side].is_some() && die.sides[side] == 0)
+        }) {
+            player.swing_set = SwingSet::Not;
+        }
         let mut index = 0;
         player.dice.retain_mut(|die| {
             let keep = !die.has_property(property::AUXILIARY) || Some(index) == selected;
