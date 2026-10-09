@@ -3,7 +3,6 @@
 
 /// Change this whenever the derivation changes, so recorded searches replay.
 pub const NATIVE_STREAM_PARTITION_ID: &str = "bmair-native-stream-v2";
-pub const NATIVE_STREAM_PARTITION_V1_ID: &str = "bmair-native-stream-v1";
 
 const ROOT_SALT: u64 = 0x524f_4f54_5345_4544; // "ROOTSEED"
 const DECISION_SALT: u64 = 0x4445_4349_5349_4f4e; // "DECISION"
@@ -14,30 +13,7 @@ const STATE_DOMAIN: u64 = 0x5354_4154_455f_5f5f; // "STATE___"
 const STREAM_DOMAIN: u64 = 0x5354_5245_414d_5f5f; // "STREAM__"
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum NativeStreamVersion {
-    V1,
-    V2,
-}
-
-impl NativeStreamVersion {
-    pub const CURRENT: Self = Self::V2;
-
-    pub(crate) const fn completes_probability_sample(self) -> bool {
-        matches!(self, Self::V2)
-    }
-
-    #[must_use]
-    pub const fn partition_id(self) -> &'static str {
-        match self {
-            Self::V1 => NATIVE_STREAM_PARTITION_V1_ID,
-            Self::V2 => NATIVE_STREAM_PARTITION_ID,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct NativeReplayKey {
-    pub stream_version: NativeStreamVersion,
     pub root_seed: u64,
     pub decision_index: u64,
 }
@@ -79,34 +55,8 @@ impl NativeSimulationKey {
     /// Rust's default hashing is not a stable replay format.
     #[must_use]
     pub fn derive_stream_seed(self) -> NativeStreamSeed {
-        match self.replay.stream_version {
-            NativeStreamVersion::V1 => self.derive_v1_stream_seed(),
-            NativeStreamVersion::V2 => self.derive_v2_stream_seed(),
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn stratum(self) -> Option<NativeStratum> {
-        match self.replay.stream_version {
-            NativeStreamVersion::V1 => None,
-            NativeStreamVersion::V2 => Some(NativeStratum {
-                index: self.simulation_index,
-                offset: self.derive_v2_stratum_offset(),
-                radix: 1,
-            }),
-        }
-    }
-
-    fn derive_v1_stream_seed(self) -> NativeStreamSeed {
-        self.derive_stream_seed_for_domain(0x424d_4149_525f_4e31) // "BMAIR_N1"
-    }
-
-    fn derive_v2_stream_seed(self) -> NativeStreamSeed {
-        self.derive_stream_seed_for_domain(0x424d_4149_525f_4e32) // "BMAIR_N2"
-    }
-
-    fn derive_stream_seed_for_domain(self, domain: u64) -> NativeStreamSeed {
-        let mut accumulator = mix64(domain);
+        const DOMAIN: u64 = 0x424d_4149_525f_4e32; // "BMAIR_N2"
+        let mut accumulator = mix64(DOMAIN);
         accumulator = fold(accumulator, self.replay.root_seed, ROOT_SALT);
         accumulator = fold(accumulator, self.replay.decision_index, DECISION_SALT);
         accumulator = fold(accumulator, self.candidate_index, CANDIDATE_SALT);
@@ -119,12 +69,17 @@ impl NativeSimulationKey {
         }
     }
 
-    fn derive_v2_stratum_offset(self) -> u64 {
+    #[must_use]
+    pub(crate) fn stratum(self) -> NativeStratum {
         const DOMAIN: u64 = 0x5354_5241_5455_4d32; // "STRATUM2"
         let mut accumulator = mix64(DOMAIN);
         accumulator = fold(accumulator, self.replay.root_seed, ROOT_SALT);
         accumulator = fold(accumulator, self.replay.decision_index, DECISION_SALT);
-        fold(accumulator, self.candidate_index, CANDIDATE_SALT)
+        NativeStratum {
+            index: self.simulation_index,
+            offset: fold(accumulator, self.candidate_index, CANDIDATE_SALT),
+            radix: 1,
+        }
     }
 }
 

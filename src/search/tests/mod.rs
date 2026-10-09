@@ -25,7 +25,6 @@ fn native_fight_score_summary_is_stable() {
         ..Default::default()
     };
     let replay = crate::native::NativeReplayKey {
-        stream_version: crate::native::NativeStreamVersion::V1,
         root_seed: 17,
         decision_index: 0,
     };
@@ -33,13 +32,14 @@ fn native_fight_score_summary_is_stable() {
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     let mut expected: Option<(Move, f32)> = None;
     for workers in [1, 2, available] {
-        let result = select_bmai_action_at_level_native(
-            &parser.game,
-            LegacyParkMillerV1,
+        let native = NativeEvaluation {
+            algorithm: LegacyParkMillerV1,
             replay,
             workers,
-            &settings,
-        );
+        };
+        let search = select_native_bmai_action(&parser.game, native, &settings);
+        let probability = search.win_probability();
+        let result = (search.best_move, probability);
         if let Some(expected) = &expected {
             assert_eq!(result.0.action, expected.0.action);
             assert_eq!(result.0.attack, expected.0.attack);
@@ -64,7 +64,6 @@ fn native_fight_score_summary_is_stable() {
 #[test]
 fn native_initiative_phase_scores_are_worker_count_independent() {
     let replay = crate::native::NativeReplayKey {
-        stream_version: crate::native::NativeStreamVersion::V1,
         root_seed: 17,
         decision_index: 0,
     };

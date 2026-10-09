@@ -75,12 +75,15 @@ impl Parser {
                 if let (Some(settings), Some(replay), true) =
                     (engine.montecarlo(), replay, self.report_sims > 0 && !exact)
                 {
+                    let native = NativeEvaluation {
+                        algorithm: self.rng.algorithm(),
+                        replay,
+                        workers: self.native_workers,
+                    };
                     let estimate = evaluate_selected_native_bmai_move(
                         &self.game,
                         &action,
-                        self.rng.algorithm(),
-                        replay,
-                        self.native_workers,
+                        native,
                         settings,
                         self.report_sims,
                     );
@@ -193,7 +196,7 @@ impl Parser {
         let replay = context.issued_replay();
         if let Some(replay) = replay {
             self.last_replay = Some(crate::protocol::ReplayMetadata {
-                stream_partition: replay.stream_version.partition_id(),
+                stream_partition: crate::native::NATIVE_STREAM_PARTITION_ID,
                 root_seed: replay.root_seed,
                 decision_index: replay.decision_index,
             });

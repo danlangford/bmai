@@ -29,40 +29,9 @@ impl SearchResult {
     }
 }
 
-pub(crate) fn select_native_bmai_action_with_stats(
+pub(crate) fn select_native_bmai_action(
     game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> SearchResult {
-    select_bmai_action_at_level_native_with_stats(game, rng_algorithm, replay, workers, settings)
-}
-
-#[cfg(test)]
-pub(super) fn select_bmai_action_at_level_native(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> (Move, f32) {
-    let result = select_bmai_action_at_level_native_with_stats(
-        game,
-        rng_algorithm,
-        replay,
-        workers,
-        settings,
-    );
-    let probability = result.win_probability();
-    (result.best_move, probability)
-}
-
-pub(super) fn select_bmai_action_at_level_native_with_stats(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+    native: NativeEvaluation,
     settings: &Bmai3,
 ) -> SearchResult {
     let mut moves =
@@ -77,11 +46,9 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
             .iter()
             .map(|request| (request.candidate.clone(), request.coordinate))
             .collect();
-        crate::native::ordered_parallel_map(tasks, workers, |(candidate, coordinate)| {
+        crate::native::ordered_parallel_map(tasks, native.workers, |(candidate, coordinate)| {
             let mut simulation = game.clone();
-            let mut simulation_rng = native_simulation_rng(
-                rng_algorithm,
-                replay,
+            let mut simulation_rng = native.simulation_rng(
                 coordinate.candidate_index,
                 coordinate.batch_index,
                 coordinate.simulation_index,
@@ -97,11 +64,7 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
             )
         })
     };
-    let selected = if replay.stream_version.completes_probability_sample() {
-        evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch)
-    } else {
-        evaluator.evaluate_moves_batched(moves, 1, &mut evaluate_batch)
-    };
+    let selected = evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch);
     let probability = evaluator.last_probability_win;
     let selected = if probability == 0.0 && game.surrender_allowed {
         Move {
@@ -126,9 +89,7 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
 pub(crate) fn evaluate_selected_native_bmai_move(
     game: &Game,
     selected: &Move,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+    native: NativeEvaluation,
     settings: &Bmai3,
     simulations: usize,
 ) -> SearchProbability {
@@ -140,11 +101,9 @@ pub(crate) fn evaluate_selected_native_bmai_move(
             simulation_index,
         })
         .collect();
-    let scores = crate::native::ordered_parallel_map(tasks, workers, |coordinate| {
+    let scores = crate::native::ordered_parallel_map(tasks, native.workers, |coordinate| {
         let mut simulation = game.clone();
-        let mut simulation_rng = native_simulation_rng(
-            rng_algorithm,
-            replay,
+        let mut simulation_rng = native.simulation_rng(
             coordinate.candidate_index,
             coordinate.batch_index,
             coordinate.simulation_index,
@@ -163,26 +122,6 @@ pub(crate) fn evaluate_selected_native_bmai_move(
         score: scores.iter().sum(),
         simulations,
     }
-}
-
-pub(super) fn native_simulation_rng(
-    algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    candidate_index: impl TryInto<u64>,
-    batch_index: usize,
-    simulation_index: usize,
-) -> Rng {
-    let candidate_index = candidate_index
-        .try_into()
-        .ok()
-        .expect("candidate index must fit in the replay format");
-    let key = crate::native::NativeSimulationKey {
-        replay,
-        candidate_index,
-        batch_index: batch_index as u64,
-        simulation_index: simulation_index as u64,
-    };
-    Rng::from_native_stream(algorithm, key.derive_stream_seed(), key.stratum())
 }
 
 pub(super) fn select_bmai_action_at_level(

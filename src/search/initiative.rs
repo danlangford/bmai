@@ -107,9 +107,7 @@ pub(crate) fn select_chance_action(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = native_simulation_rng(
-                        context.algorithm,
-                        context.replay,
+                    let mut simulation_rng = context.simulation_rng(
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
@@ -333,9 +331,7 @@ pub(crate) fn select_focus_action(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = native_simulation_rng(
-                        context.algorithm,
-                        context.replay,
+                    let mut simulation_rng = context.simulation_rng(
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,

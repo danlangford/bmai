@@ -27,15 +27,8 @@ pub(crate) fn select_swing_action(
     }
     let max_moves = ai.max_branch / ai.min_sims;
     if moves.len() > max_moves {
-        let mut selection_rng = native.map(|context| {
-            native_simulation_rng(
-                context.algorithm,
-                context.replay,
-                NATIVE_ENUMERATION_STREAM,
-                0,
-                0,
-            )
-        });
+        let mut selection_rng =
+            native.map(|context| context.simulation_rng(NATIVE_ENUMERATION_STREAM, 0, 0));
         randomly_select_swing_moves(
             &mut moves,
             &game.players[player],
@@ -89,9 +82,7 @@ pub(crate) fn select_swing_action(
                     let mut simulation = game.clone();
                     apply_swing_move(&mut simulation.players[player], &candidate);
                     simulation.players[player].swing_set = SwingSet::Locked;
-                    let mut simulation_rng = native_simulation_rng(
-                        context.algorithm,
-                        context.replay,
+                    let mut simulation_rng = context.simulation_rng(
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
@@ -273,9 +264,7 @@ pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut
 
 pub(crate) fn select_native_bmai_auxiliary_action(
     game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+    native: NativeEvaluation,
     ai: &Bmai3,
 ) -> AuxiliarySearchResult {
     let Some(auxiliary) = acceptable_auxiliary_die(&game.players[0]) else {
@@ -298,10 +287,9 @@ pub(crate) fn select_native_bmai_auxiliary_action(
         .collect();
     let results = crate::native::ordered_parallel_map(
         tasks,
-        workers,
+        native.workers,
         |(candidate_index, candidate, simulation_index)| {
-            let mut simulation_rng =
-                native_simulation_rng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            let mut simulation_rng = native.simulation_rng(candidate_index, 0, simulation_index);
             evaluate_auxiliary_decision(game, candidate.is_some(), &mut simulation_rng)
         },
     );
@@ -325,9 +313,7 @@ pub(crate) fn select_native_bmai_auxiliary_action(
 
 pub(crate) fn select_native_bmai_reserve_action(
     game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+    native: NativeEvaluation,
     ai: &Bmai3,
 ) -> Option<usize> {
     let reserve_indices = game.players[0]
@@ -352,14 +338,13 @@ pub(crate) fn select_native_bmai_reserve_action(
         .collect();
     let results = crate::native::ordered_parallel_map(
         tasks,
-        workers,
+        native.workers,
         |(candidate_index, candidate, simulation_index)| {
             let mut simulation = game.clone();
             if let Some(index) = candidate {
                 apply_use_reserve(&mut simulation.players[0].dice[index]);
             }
-            let mut simulation_rng =
-                native_simulation_rng(rng_algorithm, replay, candidate_index, 0, simulation_index);
+            let mut simulation_rng = native.simulation_rng(candidate_index, 0, simulation_index);
             let fight_level = play_preround(&mut simulation, &mut simulation_rng, ai, 2);
             play_simulated_round(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
         },

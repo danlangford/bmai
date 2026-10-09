@@ -23,8 +23,29 @@ pub(crate) struct NativeEvaluation {
     pub(crate) workers: usize,
 }
 
+impl NativeEvaluation {
+    pub(crate) fn simulation_rng(
+        self,
+        candidate_index: impl TryInto<u64>,
+        batch_index: usize,
+        simulation_index: usize,
+    ) -> Rng {
+        let candidate_index = candidate_index
+            .try_into()
+            .ok()
+            .expect("candidate index must fit in the replay format");
+        let key = crate::native::NativeSimulationKey {
+            replay: self.replay,
+            candidate_index,
+            batch_index: batch_index as u64,
+            simulation_index: simulation_index as u64,
+        };
+        Rng::from_native_stream(self.algorithm, key.derive_stream_seed(), key.stratum())
+    }
+}
+
 fn completes_native_probability_sample(native: Option<NativeEvaluation>) -> bool {
-    native.is_some_and(|context| context.replay.stream_version.completes_probability_sample())
+    native.is_some()
 }
 
 pub(crate) struct NativeReplaySequence<'a> {
@@ -37,7 +58,6 @@ pub(crate) struct NativeReplaySequence<'a> {
 impl NativeReplaySequence<'_> {
     pub(crate) fn next(&mut self) -> NativeEvaluation {
         let replay = crate::native::NativeReplayKey {
-            stream_version: crate::native::NativeStreamVersion::CURRENT,
             root_seed: self.root_seed,
             decision_index: *self.decision_index,
         };
@@ -190,7 +210,7 @@ use preround::*;
 
 pub(crate) use fight::{
     ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, pass_move,
-    restore_simulation, select_native_bmai_action_with_stats,
+    restore_simulation, select_native_bmai_action,
 };
 pub(crate) use initiative::{select_chance_action, select_focus_action};
 pub(crate) use match_play::{
