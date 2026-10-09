@@ -611,6 +611,7 @@ pub(crate) fn apply_attack_player_effects(
     attacker: usize,
     actually_attacking: bool,
 ) {
+    let sides_before_attack = game.players[attacker_player].dice[attacker].sides;
     if !game.players[attacker_player].dice[attacker].has_property(property::KONSTANT) {
         game.players[attacker_player].dice[attacker].not_set = true;
     }
@@ -636,6 +637,11 @@ pub(crate) fn apply_attack_player_effects(
         let die = &mut game.players[attacker_player].dice[attacker];
         let old_score = die.score(true);
         if die.has_property(property::OPTION) {
+            // ButtonWeavers' Turbo sets one of the die's option sizes, so
+            // Berserk's halving does not last.
+            if action.attack == Some(Attack::Berserk) {
+                die.sides = sides_before_attack;
+            }
             if action.turbo_option == 1 {
                 die.sides.swap(0, 1);
             }

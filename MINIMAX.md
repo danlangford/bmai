@@ -155,9 +155,8 @@ than the last (Brier score) before it reaches the harness.
 
 When few dice remain, solve the rest of the round exactly over the
 generator's moves, both players at their best. The shipped solver keys a
-position by every field of both players in game order (`state_key`), not by
-the canonical key above: at four dice few positions transpose, so the
-canonical key waits for the `minimax` engine's larger searches.
+position by every field of both players in game order (`state_key`); the
+canonical key above is not built yet and waits for the `minimax` engine.
 A prototype for plain dice found 2v2 at hundreds of states, 3v3 at thousands
 to tens of thousands, and 4v4 at about 780,000, so step 1 starts at four or
 six dice in total. Each decision has a node budget and an outcome cap, which

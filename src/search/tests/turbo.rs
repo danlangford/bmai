@@ -52,7 +52,7 @@ fn a_twin_turbo_swing_resizes_both_halves() {
 }
 
 #[test]
-fn every_turbo_die_chooses_a_size_when_it_attacks() {
+fn a_second_turbo_die_chooses_a_size_when_it_attacks_alone() {
     scenario()
         .attackers(["X!-10:10", "X!-10:9"])
         .attacks(Power)
@@ -98,4 +98,30 @@ fn a_turbo_die_that_morphs_is_not_asked_for_a_size() {
         .turbo(20)
         .expect_allowed(false)
         .run();
+}
+
+#[test]
+fn a_fixed_turbo_die_leaves_the_choice_to_a_swing_turbo_die() {
+    scenario()
+        .attackers(["16!:8", "X!-10:2"])
+        .attacks(Skill)
+        .using([0, 1])
+        .defender("10:10")
+        .turbo(20)
+        .expect_attacker_die(0, "16!:1")
+        .expect_attacker_die(1, "X-20!:13")
+        .run();
+}
+
+#[test]
+fn a_berserk_turbo_option_die_keeps_a_full_option_size() {
+    for (selection, expected) in [(0, "30/1!:11"), (1, "1/30!:1")] {
+        scenario()
+            .attacker("B1/30!-30:30")
+            .attacks(Berserk)
+            .defender("30:30")
+            .turbo(selection)
+            .expect_attacker_dice([expected])
+            .run();
+    }
 }

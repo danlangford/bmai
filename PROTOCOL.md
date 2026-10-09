@@ -109,12 +109,14 @@ Actions use a `type` discriminator:
 
 An attack may include `turbo`. Option Turbo is
 `{"kind":"option","die":0,"value":20}`; swing Turbo is
-`{"kind":"swing","die":0,"swing":"X","value":12}`. Either resizes only the
-named die, the first attacking Turbo die that rerolls and has not just
-morphed, as ButtonWeavers' `setTurboSize` does; any other attacking Turbo die
-keeps its size. Legacy output's `option DIE VALUE` and `swing X VALUE` lines
-describe the same die. Die numbers are original wire-protocol indices, even
-when internal dice storage is optimized.
+`{"kind":"swing","die":0,"swing":"X","value":12}`. ButtonWeavers lets each
+attacking Turbo die that rerolls and has not just morphed choose a size, and
+`setTurboSize` resizes only that die. BMAIR chooses for the first such die,
+which `die` names; a client submits the current size of any other attacking
+Turbo die, since ButtonWeavers needs a size for each. Legacy output's
+`option DIE VALUE` and `swing X VALUE` lines describe the same die. Die
+numbers are original wire-protocol indices, even when internal dice storage
+is optimized.
 An assisted attack includes `"fire":[{"die":1,"value":3}]`, naming the
 final displayed value of each Fire die turned down for the attack. The field is
 omitted for attacks without Fire assistance.

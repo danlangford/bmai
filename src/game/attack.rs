@@ -911,10 +911,12 @@ impl Game {
     }
 }
 
-/// ButtonWeavers asks only attacking Turbo dice that reroll; Konstant dice
-/// keep their value.
+/// ButtonWeavers asks only attacking Turbo dice that reroll, and a fixed die
+/// has no other size; Konstant dice keep their value.
 fn chooses_turbo_size(die: &Die) -> bool {
-    die.has_property(property::TURBO) && !die.has_property(property::KONSTANT)
+    die.has_property(property::TURBO)
+        && !die.has_property(property::KONSTANT)
+        && (die.has_property(property::OPTION) || die.swing_type[0].is_some())
 }
 
 /// The die an attack's Turbo selection resizes. ButtonWeavers lets every

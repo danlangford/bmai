@@ -90,17 +90,20 @@ clear benefit. Each could return if that changes.
   `setTurboSize` does. A Turbo swing size used to change every die of that
   swing type the player had, attacking or not, so Ping's two `(X)!` dice and
   nelde's five `td(Y)!` dice moved together. A Twin Turbo die resizes both
-  halves, and Trip now judges its reach that way too. Buttons with one Turbo
-  die and no other die of its swing type play as before, and every golden
-  output is unchanged.
-- Every Turbo die can choose a size when it attacks. Only a button's first
-  Turbo die was offered sizes, so a second one attacking alone rerolled at its
-  old size. When several Turbo dice make one Skill attack, the search sizes
-  the first and the others keep theirs, which ButtonWeavers accepts.
+  halves, and Trip now judges its reach that way too. Every golden output is
+  unchanged.
+- Every Turbo die with a size to choose can choose one when it attacks. Only
+  a button's first Turbo die was offered sizes, even a fixed one, so a later
+  Turbo die rerolled at its old size. When several Turbo dice make one Skill
+  attack, the search sizes the first and the others keep theirs, which
+  ButtonWeavers accepts.
 - Konstant Turbo dice and a Turbo die that has just morphed are no longer
   offered sizes, as ButtonWeavers asks only attacking Turbo dice that reroll
   and have not morphed. A Morphing Turbo die took the Turbo size after
-  morphing.
+  morphing. A Trip still asks first, since it morphs only after its roll.
+- A Berserk Turbo option die, such as TheMachine's `B(1/30)!`, ends a
+  Berserk attack at one of its option sizes, as ButtonWeavers'
+  `set_optionValue` requires. Keeping its size left it halved, at 15.
 
 ## [0.32.0] - 2026-10-09
 
