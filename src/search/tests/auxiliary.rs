@@ -159,6 +159,129 @@ fn buttons_without_auxiliary_dice_skip_the_choice() {
     assert!(dice_shown_in_question_order(&spy).is_empty());
 }
 
+/// Round 1's dice, since a round loser chooses its swing sizes again.
+fn first_round_swing_dice(spy: &QuickSpy, swing: char) -> Vec<Die> {
+    spy.attacks.lock().unwrap()[0]
+        .players
+        .iter()
+        .flat_map(|player| player.dice.iter())
+        .filter(|die| die.swing_type[0] == Some(swing))
+        .copied()
+        .collect()
+}
+
+#[test]
+fn an_accepted_fixed_courtesy_die_keeps_the_receivers_given_swing_size() {
+    let (_, spy) = play_spied(
+        "game 3\npreround\nplayer 0 2 0\n4\n+6\nplayer 1 1 0\nX-10\n",
+        [true, true],
+    );
+
+    assert_eq!(dice_shown_in_question_order(&spy).len(), 2);
+    let swing = first_round_swing_dice(&spy, 'X');
+    assert_eq!(swing.len(), 1);
+    assert_eq!(swing[0].sides_max(), 10);
+}
+
+#[test]
+fn a_declined_courtesy_swing_die_keeps_the_receivers_given_swing_size() {
+    // Gordo cannot add a V-Z swing die, so player 1 declines.
+    let (_, spy) = play_spied(
+        "game 3\npreround\nplayer 0 2 0\n4\n+X\nplayer 1 1 0\nY-10\nspecial 1 unique_sizes\n",
+        [true, true],
+    );
+
+    assert_eq!(dice_shown_in_question_order(&spy).len(), 2);
+    assert!(first_round_swing_dice(&spy, 'X').is_empty());
+    let swing = first_round_swing_dice(&spy, 'Y');
+    assert_eq!(swing.len(), 1);
+    assert_eq!(swing[0].sides_max(), 10);
+}
+
+#[test]
+fn an_accepted_courtesy_swing_die_gets_a_size_despite_the_receivers_given_one() {
+    let (_, spy) = play_spied(
+        "game 3\npreround\nplayer 0 2 0\n4\n+X\nplayer 1 1 0\nY-10\n",
+        [true, true],
+    );
+
+    let swing = first_round_swing_dice(&spy, 'X');
+    assert_eq!(swing.len(), 2);
+    assert!(swing.iter().all(|die| die.sides_max() > 0), "{swing:?}");
+}
+
+#[test]
+fn only_an_accepted_die_with_an_unsized_swing_half_unlocks_a_given_swing_size() {
+    // An Option die always has a playable size, and its choice can't be told
+    // apart from no choice, so it never reopens sizes the position gave.
+    for (auxiliary, accepted, swing_set) in [
+        ("+X", false, SwingSet::Locked),
+        ("+X", true, SwingSet::Not),
+        ("+X-6", true, SwingSet::Locked),
+        ("+4/12", true, SwingSet::Locked),
+        ("+4/X", true, SwingSet::Not),
+    ] {
+        let mut game = native_fixture_game(&format!(
+            "game 3\naux\nplayer 0 2 0\n4\n{auxiliary}\nplayer 1 1 0\nY-10\n"
+        ));
+        assert_eq!(game.players[1].swing_set, SwingSet::Locked, "{auxiliary}");
+
+        apply_auxiliary_decision(&mut game, accepted);
+
+        assert_eq!(
+            game.players[1].swing_set, swing_set,
+            "{auxiliary} accepted {accepted}"
+        );
+    }
+}
+
+fn swing_sizes(player: &Player) -> Vec<(usize, [u8; 2])> {
+    let mut sizes = player
+        .dice
+        .iter()
+        .filter(|die| die.swing_type.iter().any(Option::is_some))
+        .map(|die| (die.original_index, die.sides))
+        .collect::<Vec<_>>();
+    sizes.sort_unstable();
+    sizes
+}
+
+#[test]
+fn swing_sizes_around_a_courtesy_die_carry_into_the_next_round() {
+    for (input, expected) in [
+        // The receiver's given size is kept.
+        (
+            "game 3\npreround\nplayer 0 2 0\n4\n+6\nplayer 1 1 0\nX-10\n",
+            Some(vec![(0, [10, 0])]),
+        ),
+        // The courtesy swing die, at index 1, is sized with the rest.
+        (
+            "game 3\npreround\nplayer 0 2 0\n4\n+X\nplayer 1 1 0\nY-10\n",
+            None,
+        ),
+    ] {
+        let template = native_fixture_game(input);
+        let quick: Engines = [Box::new(Quick), Box::new(Quick)];
+        let mut rng = Rng::default();
+        rng.reseed(17);
+        let recipe = choose_auxiliary_dice(&template, &mut rng, &quick, None);
+        let mut game = recipe.clone();
+        let selections = play_preround_with_policies(&mut game, &mut rng, &quick, None);
+        let chosen = swing_sizes(&game.players[1]);
+        if let Some(expected) = expected {
+            assert_eq!(chosen, expected, "{input}");
+        } else {
+            assert_eq!(chosen.len(), 2, "{input}");
+            assert!(chosen.iter().all(|(_, sides)| sides[0] > 0), "{chosen:?}");
+        }
+
+        restore_dice_for_new_round(&mut game, &recipe, &selections);
+
+        assert_eq!(swing_sizes(&game.players[1]), chosen, "{input}");
+        assert_eq!(game.players[1].swing_set, SwingSet::Locked, "{input}");
+    }
+}
+
 type Keys = Vec<(&'static str, Option<u64>)>;
 
 #[derive(Clone, Debug)]

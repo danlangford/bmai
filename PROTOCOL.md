@@ -193,7 +193,11 @@ reserve, Chance, Focus, and fight; initiative/gameover are state-description
 phases rather than direct action requests. In an Auxiliary state, the action is
 `aux DIE` to accept the indexed die or `aux -1` to decline. When only one
 player supplies an Auxiliary die, BMAIR creates ButtonWeavers' courtesy copy
-for the other player before evaluating the choice.
+for the other player before evaluating the choice. Swing sizes the position
+gives stand unless an accepted Auxiliary die has a swing size still to choose;
+then its owner chooses all its swing sizes again. An accepted Option die never
+reopens them, so against given sizes it plays the size the position selected,
+or its first-listed size.
 
 Gordo's restriction is applied when the caller sends `special N unique_sizes`;
 other button-specific eligibility is the caller's responsibility. BMAIR

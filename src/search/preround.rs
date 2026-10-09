@@ -267,7 +267,6 @@ pub(crate) fn offer_courtesy_auxiliary(game: &mut Game) {
     die.value = None;
     die.not_set = true;
     game.players[target].dice.push(die);
-    game.players[target].swing_set = SwingSet::Not;
 }
 
 /// On ButtonWeavers a decline by either player removes every Auxiliary die.
@@ -278,6 +277,14 @@ pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
         });
     for player in &mut game.players {
         let selected = accepted.then(|| auxiliary_die(player)).flatten();
+        // A lock keeps the swing sizes a position gave, so only an added die
+        // that has none may lift it.
+        if selected.is_some_and(|index| {
+            let die = &player.dice[index];
+            (0..2).any(|side| die.swing_type[side].is_some() && die.sides[side] == 0)
+        }) {
+            player.swing_set = SwingSet::Not;
+        }
         let mut index = 0;
         player.dice.retain_mut(|die| {
             let keep = !die.has_property(property::AUXILIARY) || Some(index) == selected;

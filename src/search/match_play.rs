@@ -121,7 +121,7 @@ pub(crate) fn play_match_with_policies(
 
 /// ButtonWeavers decides Auxiliary dice once per game and rewrites both
 /// recipes, so every later round deals the outcome too.
-fn choose_auxiliary_dice(
+pub(super) fn choose_auxiliary_dice(
     template: &Game,
     rng: &mut Rng,
     policies: &Engines,
