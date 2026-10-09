@@ -8,7 +8,7 @@ fn a_reserve_die_added_after_a_loss_stays_in_play_in_later_rounds() {
     let template =
         native_fixture_game("game\npreround\nplayer 0 3 0\n6\nr8\nr10\nplayer 1 1 0\n4\n");
     let mut game = template.clone();
-    let selections = record_round_sides(&game);
+    let selections = record_round_selections(&game);
     apply_use_reserve(&mut game.players[0].dice[1]);
 
     for _ in 0..2 {

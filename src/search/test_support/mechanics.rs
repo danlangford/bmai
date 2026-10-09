@@ -224,12 +224,7 @@ impl Scenario {
             game.players[0].score = scores[0];
             game.players[1].score = scores[1];
         }
-        let selections = record_round_sides(&game);
-        let recipe = parse_game_with_specials(
-            &recipe_of(&self.attacker_dice),
-            &recipe_of(&self.defender_dice),
-            &self.specials,
-        );
+        let selections = record_round_selections(&game);
         let attackers = resolve_original_indices(
             "attacker",
             &game.players[0].dice,
@@ -325,6 +320,11 @@ impl Scenario {
         if self.expected_next_round_attacker_dice.is_some()
             || self.expected_next_round_defender_dice.is_some()
         {
+            let recipe = parse_game_with_specials(
+                &recipe_of(&self.attacker_dice),
+                &recipe_of(&self.defender_dice),
+                &self.specials,
+            );
             restore_dice_for_new_round(&mut game, &recipe, &selections);
             if let Some(expected) = self.expected_next_round_attacker_dice {
                 assert_round_dice("next-round attacker", &game, 0, &expected);
@@ -363,8 +363,8 @@ pub(super) fn resolve_original_indices(
         .collect()
 }
 
-/// The dice a scenario's round was dealt from: no swing sizes, option
-/// choices, or values.
+/// Without the scenario's own sizes and option choices, a next-round check
+/// could not tell a restored selection from the recipe.
 fn recipe_of(dice: &[String]) -> Vec<String> {
     dice.iter()
         .map(|die| {

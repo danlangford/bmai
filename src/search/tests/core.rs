@@ -291,7 +291,7 @@ fn a_round_losers_option_die_comes_back_at_its_last_choice() {
     let mut selection = SwingMove::empty();
     selection.push_option((0, true));
     apply_swing_move(&mut game.players[0], &selection);
-    let selections = record_round_sides(&game);
+    let selections = record_round_selections(&game);
     game.players[0].swing_set = SwingSet::Not;
 
     restore_dice_for_new_round(&mut game, &template, &selections);
@@ -300,21 +300,50 @@ fn a_round_losers_option_die_comes_back_at_its_last_choice() {
 }
 
 #[test]
-fn swing_dice_have_a_size_in_every_round_of_a_match() {
-    let game = native_fixture_game("game 3\npreround\nplayer 0 2 0\nX\n6\nplayer 1 2 0\n10\n8\n");
-    let spy = QuickSpy::default();
-    let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
+fn the_next_round_deals_swing_dice_at_the_sizes_chosen_before_the_fight() {
+    let recipe = native_fixture_game("game\npreround\nplayer 0 2 0\nX&\n4\nplayer 1 2 0\n6\nY?\n");
+    let policies: Engines = [Box::new(Quick), Box::new(Quick)];
     let mut rng = Rng::default();
-    let mut rounds = 0;
-    for _ in 0..5 {
-        let result = play_match_with_policies(&game, &mut rng, &policies, None);
-        rounds += usize::from(result.wins[0] + result.wins[1]) + result.ties;
-    }
+    // Quick takes the first swing setting, so each round's own preround
+    // chooses these sizes too.
+    let mut chosen = recipe.clone();
+    play_preround_with_policies(&mut chosen, &mut rng, &policies, None);
+    let mut resized_in_round = false;
+    for _ in 0..20 {
+        let mut game = recipe.clone();
+        let round = play_round_with_policies(&mut game, &mut rng, &policies, None);
+        let sides = |player: &Player, original_index: usize| {
+            player
+                .dice
+                .iter()
+                .find(|die| die.original_index == original_index)
+                .map(|die| die.sides)
+        };
+        resized_in_round |= game
+            .players
+            .iter()
+            .zip(&chosen.players)
+            .any(|(played, chosen)| {
+                played
+                    .dice
+                    .iter()
+                    .any(|die| sides(chosen, die.original_index) != Some(die.sides))
+            });
 
-    assert!(rounds > 5, "every match ended after one round");
-    for position in spy.attacks.lock().unwrap().iter() {
-        for die in position.players.iter().flat_map(|player| &player.dice) {
-            assert!(die.swing_type[0].is_none() || die.sides[0] > 0, "{die:?}");
+        restore_dice_for_new_round(&mut game, &recipe, &round.selections);
+
+        for (dealt, chosen) in game.players.iter().zip(&chosen.players) {
+            for die in &dealt.dice {
+                assert_eq!(
+                    Some(die.sides),
+                    sides(chosen, die.original_index),
+                    "{die:?}"
+                );
+            }
         }
     }
+    assert!(
+        resized_in_round,
+        "no Mad or Mood die changed size in a round"
+    );
 }

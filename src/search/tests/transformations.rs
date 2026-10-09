@@ -24,7 +24,7 @@ fn radioactive_doppelganger_can_transfer_the_full_twenty_die_pool() {
         template.players[1].dice.push(target);
     }
     let mut game = template.clone();
-    let selections = record_round_sides(&game);
+    let selections = record_round_selections(&game);
 
     for _ in 0..10 {
         let attacker = game.players[0]
@@ -76,7 +76,7 @@ fn doppelganger_recipe_returns_at_the_start_of_the_next_round() {
 
     let mut game = template.clone();
     game.players[0].dice[0].sides = [18, 0];
-    let selections = record_round_sides(&game);
+    let selections = record_round_selections(&game);
     let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert_eq!(game.players[0].dice[0].sides, [8, 10]);
@@ -105,7 +105,7 @@ fn repeated_doppelganger_captures_restore_the_rounds_original_recipe() {
     template.players[1].dice = vec![first_target, second_target];
 
     let mut game = template.clone();
-    let selections = record_round_sides(&game);
+    let selections = record_round_selections(&game);
     let action = Move::new_attack(Power, [0], [0], 0.0);
     apply_generated_attack(&mut game, &action, &mut Rng::default());
     assert!(game.players[0].dice[0].has_property(property::DOPPELGANGER));

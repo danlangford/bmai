@@ -890,12 +890,12 @@ pub(crate) fn swing_range(swing: char) -> (u8, u8) {
 }
 
 /// Each die's sides as its round starts, which hold the swing and option
-/// selections. Only `record_round_sides` makes one, so no restore can skip it.
+/// selections. Only `record_round_selections` makes one, so no restore can skip it.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RoundSelections([[[u8; 2]; MAX_DICE]; 2]);
 
 /// Run once the round's swing and option selections are made.
-pub(crate) fn record_round_sides(game: &Game) -> RoundSelections {
+pub(crate) fn record_round_selections(game: &Game) -> RoundSelections {
     let mut selections = [[[0; 2]; MAX_DICE]; 2];
     for (player, sides) in game.players.iter().zip(&mut selections) {
         for die in &player.dice {
@@ -910,11 +910,11 @@ pub(crate) fn record_round_sides(game: &Game) -> RoundSelections {
 /// option selections carry over; a round loser makes them again.
 pub(crate) fn restore_dice_for_new_round(
     game: &mut Game,
-    template: &Game,
+    recipe: &Game,
     selections: &RoundSelections,
 ) {
-    let players = game.players.iter_mut().zip(&template.players);
-    for (player_index, (player, recipe)) in players.enumerate() {
+    let players = game.players.iter_mut().zip(&recipe.players);
+    for (player_index, (player, button)) in players.enumerate() {
         let products = player.radioactive_products | player.rage_replacements;
         player
             .dice
@@ -923,7 +923,7 @@ pub(crate) fn restore_dice_for_new_round(
         player.rage_replacements = 0;
         for die in &mut player.dice {
             let original_index = die.original_index;
-            let original = recipe
+            let original = button
                 .dice
                 .iter()
                 .find(|original| original.original_index == original_index)
