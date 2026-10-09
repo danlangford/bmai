@@ -119,6 +119,20 @@ fn a_match_that_can_only_tie_is_cancelled_at_round_200() {
 }
 
 #[test]
+fn a_declined_auxiliary_die_stays_out_of_every_round() {
+    // Gordo cannot add the courtesy X, so only Null dice play and every round
+    // ties; a player 0 X would win the match.
+    let output = run_to_quit(
+        b"game 3\npreround\nplayer 0 3 0\nn4\nn4\n+X\nplayer 1 2 0\nn4\nn4\nspecial 1 unique_sizes\nai 0 quick\nai 1 quick\nplaygame 1\nquit\n",
+        "a match with a declined Auxiliary die never finished",
+    );
+    assert!(
+        output.contains("\ngame cancelled 0 - 0 - 199\nmatches over 0 - 0\n"),
+        "{output}"
+    );
+}
+
+#[test]
 fn rng_hash_trace_skips_endgame_solver_replays() {
     let stderr = run_traced(
         "BMAIR_TRACE_RNG_HASH",

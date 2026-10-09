@@ -249,6 +249,27 @@ pub(crate) fn acceptable_auxiliary_die(player: &crate::game::Player) -> Option<u
     })
 }
 
+/// ButtonWeavers gives a player without an Auxiliary die a copy of the
+/// opponent's, so both players choose.
+pub(crate) fn offer_courtesy_auxiliary(game: &mut Game) {
+    let (source, index, target) = match game.players.each_ref().map(auxiliary_die) {
+        [Some(index), None] => (0, index, 1),
+        [None, Some(index)] => (1, index, 0),
+        _ => return,
+    };
+    assert!(
+        game.players[target].dice.len() < crate::game::MAX_DICE,
+        "courtesy Auxiliary die exceeds player {target} capacity {}",
+        crate::game::MAX_DICE
+    );
+    let mut die = game.players[source].dice[index];
+    die.original_index = game.players[target].dice.len();
+    die.value = None;
+    die.not_set = true;
+    game.players[target].dice.push(die);
+    game.players[target].swing_set = SwingSet::Not;
+}
+
 /// On ButtonWeavers a decline by either player removes every Auxiliary die.
 pub(crate) fn apply_auxiliary_decision(game: &mut Game, accepted: bool) {
     let accepted = accepted

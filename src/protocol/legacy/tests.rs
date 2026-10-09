@@ -575,6 +575,15 @@ fn auxiliary_phase_adds_the_buttonweavers_courtesy_copy() {
 }
 
 #[test]
+fn auxiliary_phase_appends_the_courtesy_copy_after_the_receivers_dice() {
+    parser_scenario(
+        "game 3\naux\nplayer 0 2 0\n6\n10\nplayer 1 1 0\n+12\nai 0 quick\ngetaction\nquit\n",
+    )
+    .expect_auxiliary(Some(2))
+    .run();
+}
+
+#[test]
 fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
     parser_scenario("game 3\naux\nplayer 0 1 0\n6\nplayer 1 1 0\n6\nai 0 quick\ngetaction\nquit\n")
         .expect_auxiliary(None)
@@ -582,17 +591,27 @@ fn auxiliary_phase_declines_when_no_auxiliary_die_exists() {
 }
 
 #[test]
-fn auxiliary_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
-    let error = Parser::default()
-        .parse_string(
-            "game 3\naux\nplayer 0 2 0\n+6\n+8\nplayer 1 1 0\n+6\nquit\n",
-            &mut Vec::new(),
-        )
-        .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "player 0 has 2 Auxiliary dice; ButtonWeavers permits one"
-    );
+fn every_phase_rejects_a_buttonweavers_invalid_second_auxiliary_die() {
+    for (phase, dice) in [
+        ("aux", ["+6", "+8", "+6"]),
+        ("preround", ["+6", "+8", "+6"]),
+        ("fight", ["+6:1", "+8:2", "+6:3"]),
+    ] {
+        let [first, second, opponent] = dice;
+        let error = Parser::default()
+            .parse_string(
+                &format!(
+                    "game 3\n{phase}\nplayer 0 2 0\n{first}\n{second}\nplayer 1 1 0\n{opponent}\nquit\n"
+                ),
+                &mut Vec::new(),
+            )
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "player 0 has 2 Auxiliary dice; ButtonWeavers permits one",
+            "{phase}"
+        );
+    }
 }
 
 #[test]

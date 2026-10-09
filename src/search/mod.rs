@@ -201,8 +201,8 @@ pub(crate) use match_play::{
     Engines, play_fair_games, play_games_with_policies, play_match_with_policies,
 };
 pub(crate) use preround::{
-    acceptable_auxiliary_die, first_swing_move, select_bmai_auxiliary_action,
-    select_bmai_reserve_action, select_native_bmai_auxiliary_action,
+    acceptable_auxiliary_die, first_swing_move, offer_courtesy_auxiliary,
+    select_bmai_auxiliary_action, select_bmai_reserve_action, select_native_bmai_auxiliary_action,
     select_native_bmai_reserve_action, select_swing_action,
 };
 

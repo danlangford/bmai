@@ -68,7 +68,8 @@ pub(crate) fn play_match_with_policies(
     policies: &Engines,
     mut native: Option<&mut NativeReplaySequence<'_>>,
 ) -> MatchResult {
-    let mut game = template.clone();
+    let recipe = choose_auxiliary_dice(template, rng, policies, native.as_deref_mut());
+    let mut game = recipe.clone();
     let mut wins = [0u8, 0u8];
     let mut ties = 0usize;
     let mut initiative = 0;
@@ -82,7 +83,7 @@ pub(crate) fn play_match_with_policies(
             break;
         }
         // ButtonWeavers deals the next round before offering reserve dice.
-        restore_dice_for_new_round(&mut game, template, &round.selections);
+        restore_dice_for_new_round(&mut game, &recipe, &round.selections);
         let Some(winner) = round.winner else {
             ties += 1;
             continue;
@@ -116,6 +117,41 @@ pub(crate) fn play_match_with_policies(
         initiative_winner: initiative,
         reserves_used,
     }
+}
+
+/// ButtonWeavers decides Auxiliary dice once per game and rewrites both
+/// recipes, so every later round deals the outcome too.
+fn choose_auxiliary_dice(
+    template: &Game,
+    rng: &mut Rng,
+    policies: &Engines,
+    mut native: Option<&mut NativeReplaySequence<'_>>,
+) -> Game {
+    let mut recipe = template.clone();
+    offer_courtesy_auxiliary(&mut recipe);
+    if recipe
+        .players
+        .iter()
+        .all(|player| auxiliary_die(player).is_none())
+    {
+        return recipe;
+    }
+    // A decline ends the choice for both players on ButtonWeavers.
+    let accepted = (0..2).all(|player| {
+        let mut oriented = recipe.clone();
+        if player == 1 {
+            oriented.players.swap(0, 1);
+        }
+        policies[player]
+            .auxiliary(
+                &oriented,
+                &mut DecisionContext::new(rng, native.as_deref_mut()),
+            )
+            .choice
+            .is_some()
+    });
+    apply_auxiliary_decision(&mut recipe, accepted);
+    recipe
 }
 
 pub(crate) fn play_fair_games(

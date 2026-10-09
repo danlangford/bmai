@@ -175,8 +175,8 @@ The stable command forms are:
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`; ButtonWeavers players who have not turned on that preference should send `off`. |
 | `surrender on\|off` | Enable or disable surrender selection (default `off`). |
 | `getaction` | Select an action for player zero in the supplied phase. |
-| `playgame N` / `compare N` | Run N complete games from a preround state. A game is cancelled when its 200th round ends, whatever that round's result, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player. |
-| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Cancelled games are left out of the split and counted in the header, `PlayFairGames: N games, C cancelled`; with none cancelled the header is `PlayFairGames: N games`. |
+| `playgame N` / `compare N` | Run N complete games from a preround state. Auxiliary dice are decided once, before the first round, as in an `aux` state: player 0 chooses first, and a decline by either player removes every Auxiliary die for the whole game. A game is cancelled when its 200th round ends, whatever that round's result, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player. |
+| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Auxiliary dice are decided as for `playgame`. Cancelled games are left out of the split and counted in the header, `PlayFairGames: N games, C cancelled`; with none cancelled the header is `PlayFairGames: N games`. |
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
 
@@ -197,7 +197,7 @@ for the other player before evaluating the choice.
 
 Gordo's restriction is applied when the caller sends `special N unique_sizes`;
 other button-specific eligibility is the caller's responsibility. BMAIR
-validates the engine-level limit of one Auxiliary die per player.
+rejects a second Auxiliary die for a player in any phase.
 Legacy parser errors terminate the process with a nonzero exit status. JSONL
 converts those same errors into recoverable `execution_error` responses and
 rolls back the request.
