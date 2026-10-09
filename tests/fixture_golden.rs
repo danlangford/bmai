@@ -2,9 +2,10 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 //! Change detectors, not a rules oracle: the focused tests check rules against
-//! ButtonWeavers. The fingerprint covers the session generator's draws, but
-//! native simulations draw from derived streams, so a search change shows in
-//! the reported scores and actions. After an intentional change, regenerate with
+//! ButtonWeavers. The fingerprint covers only the session generator's draws.
+//! Native simulations draw from derived streams, so a search change shows only
+//! if it moves a reported score or a chosen action, and many fixtures report no
+//! score. After an intentional change, regenerate with
 //! `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
 //! and review the diff.
 

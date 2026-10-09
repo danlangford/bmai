@@ -7,9 +7,9 @@ its skills page. When BMAIR and ButtonWeavers disagree, BMAIR changes; a
 correct skill matters more than matching BMAIR's past output. The C++ BMAI
 that BMAIR was ported from is history, not a reference.
 
-Comments are the exception. Write one only when a reader needs a reason the
-code cannot give; keep it short and explain why the code is there, never what
-it does or how it works.
+Write a comment only when a reader needs a reason the code cannot give; keep
+it short and explain why the code is there, never what it does or how it
+works.
 
 A rule change needs a focused test that names the ButtonWeavers behavior it
 pins, and a row in `RULES.md` citing it. Check real buttons in

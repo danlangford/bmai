@@ -115,8 +115,8 @@ test("worker counts above one give the one-worker result", async () => {
   assert.equal(await play(4), await play(1));
 });
 
-// The fixtures pin C++ defaults; the page runs BMAIR's, whose endgame solver
-// recurses deeper than anything else on WebAssembly's 1 MiB stack.
+// BMAIR's defaults include the endgame solver, which recurses deeper than
+// anything else on WebAssembly's 1 MiB stack.
 test("BMAIR's own defaults run, endgame solver included", async () => {
   const fixture = await readFile(new URL("tests/fixtures/Insult_in.txt", root), "utf8");
   const fight = await bmair([], fixture);

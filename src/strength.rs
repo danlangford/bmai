@@ -3,9 +3,8 @@
 
 //! Measures one engine configuration against another. Every seed is played
 //! with each contestant in each seat, so neither gains from a seat or button
-//! advantage. The dice are not shared: in legacy mode a search draws from the
-//! same generator as the dice, so the two games of a pair diverge at the
-//! first search.
+//! advantage. Search draws from its own streams, so the two games of a pair
+//! share dice only until their players' moves differ.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};

@@ -16,8 +16,8 @@ pub struct Player {
 }
 
 impl Player {
-    /// Available dice by falling value, then the rest. Stable, so tied dice
-    /// keep their order.
+    /// No rule orders tied dice; a stable sort keeps their candidate indices,
+    /// and so their replay streams, where they were.
     pub fn optimize_dice(&mut self) {
         self.dice
             .sort_by_key(|die| std::cmp::Reverse(die.is_available().then(|| die.value_total())));

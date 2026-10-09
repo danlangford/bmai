@@ -34,7 +34,7 @@ resulting position, and BMAIR applies the rules when it simulates.
 | ButtonWeavers rule | Implementation | Evidence |
 |---|---|---|
 | Die notation, including a shared `-N` size for every swing half of a Twin | `protocol::legacy::die` | `defined_swing_size_applies_to_every_swing_half_of_a_twin`, `zero_does_not_lock_a_swing_definition`, `forced_win_is_reported_as_certain`, the parser tests, and every fixture |
-| Swing and option selection, rolling, and keeping available dice ordered by value | `apply_swing_move`, `roll_die`, `Player::optimize_dice` | swing, option, Turbo, and Unique tests |
+| Swing and option selection and rolling | `apply_swing_move`, `roll_die` | swing, option, Turbo, and Unique tests |
 | Scoring for ordinary, Poison, Value, Null, and Warrior dice | `Die::score` | the score tests in `game::tests` and each skill's scoring scenarios |
 | Power, Skill, Speed, Trip, Shadow, and Berserk attacks | `Game::valid_attacks` | the attack, Stealth, and Insult tests |
 | Konstant, Stealth, Warrior, Stinger, Unskilled, and Queer attack restrictions | `can_do_attack`, `can_be_attacked`, `skill_stack_can_hit` | the signed Konstant, Stinger, and Warrior matrix and the Stealth and Insult regressions |
@@ -49,7 +49,8 @@ resulting position, and BMAIR applies the rules when it simulates.
 | Fire-assisted Power and Skill attacks, with turndowns that last | `FireAdjustment` and Fire candidate expansion | the Fire section below |
 | Radioactive decay of the attacker in every one-attacker, one-target attack | `radioactive_decay_applies`, `apply_radioactive_attack_effects`, `split_radioactive_attacker` | the Radioactive section below |
 | Rush two-target attacks by or against Rush dice | `Attack::Rush` in `Game::valid_attacks` | the Rush section below |
-| Initiative, Chance chains, Focus values, and dizzy dice | `check_initiative` and `search::initiative` | the Konstant Chance, player-order, and parser initiative tests |
+| Initiative, Focus values, and dizzy dice | `check_initiative` and `search::initiative` | the Konstant Chance and parser initiative tests |
+| A Chance reroll gains the initiative only when the roller then holds it alone (`react_to_initiative_chance`) | `apply_chance_move` | `a_chance_reroll_succeeds_only_when_the_roller_wins_initiative` |
 | Simultaneous preround choices across swing and option dice, and Unique swing | `search::preround` | the locked swing and option regressions and the Unique tests |
 | Auxiliary dice: mutual accept or decline, the courtesy copy, and one decision per full match written into the recipe | `offer_courtesy_auxiliary`, `apply_auxiliary_decision`, `choose_auxiliary_dice` | `search::tests::auxiliary`, `auxiliary_phase_appends_the_courtesy_copy_after_the_receivers_dice`, `a_declined_auxiliary_die_stays_out_of_every_round` |
 | Reserve dice after a round loss | the reserve step of `play_match_with_policies` | `complete_native_match_uses_reserve_after_a_round_loss`, `the_round_loser_picks_a_reserve_die_from_freshly_dealt_dice`, `no_reserve_die_is_offered_after_the_round_that_ends_the_match` |
@@ -259,8 +260,20 @@ would accept.
 |---|---|
 | When several Turbo dice make one Skill attack, search offers sizes for the first only; the others keep their size | Offering every combination multiplies candidates (five `Y` Turbo dice give 20⁵). ButtonWeavers needs a size for each attacking Turbo die but accepts the current one. |
 | A Speed die's two-target attack is offered once, as Speed, not again as Rush | The two attacks have the same legality and resolution (`speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush`). |
-| Dice keep their end-of-round positions instead of returning to recipe order, and a loser's option dice come back at its last choice | Positions set roll order and candidate indices but no rule. |
+| Available dice are kept ordered by value, ties in their existing order; they keep their end-of-round positions instead of returning to recipe order; and a loser's option dice come back at its last choice | Positions set roll order and candidate indices but no rule. |
 | Search builds at most `max(1, maxbranch / min_sims)` Fire-assisted candidates per position | A large button cannot spend the whole budget enumerating allocations (`fire_candidate_construction_obeys_the_search_budget`). |
+
+## Known differences real buttons reach
+
+These predate the move to ButtonWeavers and are queued to fix.
+
+- **One Chance die per action.** ButtonWeavers rerolls a single Chance die
+  each time (`react_to_initiative_chance` takes one `rerolledDieIdx`); BMAIR
+  offers every subset. FuzzFace, John Kovalic, Pikathulhu, and Ulthar each
+  have two Chance dice.
+- **Initiative ties.** ButtonWeavers breaks a tie at random
+  (`do_next_step_determine_initiative`); BMAIR gives it to seat 0, in
+  simulations and full matches alike.
 
 ## Known gaps
 
@@ -282,5 +295,8 @@ No current ButtonWeavers button reaches these; each waits for one that does.
 - **Courtesy Option dice.** An accepted Auxiliary Option die never reopens its
   owner's swing choice, because a `Die` cannot tell a chosen option from an
   unchosen one.
+- **Chance and Giant.** ButtonWeavers' Chance check ignores button specials,
+  so Giant's no-initiative rule does not apply there; BMAIR applies it. Giant
+  has no Chance dice.
 - **Chaotic.** BMAIR does not implement Chaotic, so Rage gained during a
   Chaotic reroll is untested.

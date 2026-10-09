@@ -77,10 +77,12 @@ clear benefit. Each could return if that changes.
   working; `mode legacy` and `mode parity` are errors. JSONL keeps
   `session.execution_mode`, now always `native`, and `native.execution_modes`
   lists only `native`.
-- **Breaking:** in the library, `ExecutionMode`, `play_games` (which played
-  legacy-mode matches), `Game::generate_valid_attacks_in_cpp_order`, and
-  `native::NativeStreamVersion`; `NativeReplayKey` no longer carries a stream
-  version, and `Game::generate_valid_attacks` is now `valid_attacks_by_score`.
+- **Breaking:** in the library, `ExecutionMode`, `Parser::execution_mode`,
+  `play_games` (which played legacy-mode matches),
+  `Game::generate_valid_attacks_in_cpp_order`, `native::NativeStreamVersion`,
+  and `native::NATIVE_STREAM_PARTITION_V1_ID`; `NativeReplayKey` no longer
+  carries a stream version, and `Game::generate_valid_attacks` is now
+  `valid_attacks_by_score`.
 - Fourteen search traces: thirteen the port added to compare step by step
   against C++ BMAI (`BMAIR_TRACE_AI`, `_ATTACK_EVAL`, `_BMAI_ATTACK`,
   `_CHANCE`, `_FOCUS`, `_QAI`, `_QAI_MOVES`, `_RNG`, `_SWING`,
@@ -88,7 +90,8 @@ clear benefit. Each could return if that changes.
   `BMAIR_TRACE_RESERVE`, which only legacy search printed.
   `BMAIR_TRACE_RNG_HASH` and `BMAIR_TRACE_ENDGAME` remain.
 - Native stream version 1, which only tests still built. Replay metadata
-  still reports `bmair-native-stream-v2`, so recorded keys stay valid.
+  still reports `bmair-native-stream-v2` and its derivation is unchanged; as
+  always, a replay also needs its BMAIR version, since candidate order moved.
 - PARITY.md, MODES.md, and NATIVE_MODE.md.
 
 ### Changed

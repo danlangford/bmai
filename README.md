@@ -137,7 +137,7 @@ report the upcoming Cargo version plus the number of commits since the previous
 release, abbreviated commit SHA, and a `dirty` suffix when appropriate.
 
 The supported top-level commands are `game`, `playgame`, `compare`, `playfair`,
-`getaction`, `ai`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
+`getaction`, `ai`, `mode`, `rng`, `workers`, `seed`, `surrender`, `ply`, `max_sims`,
 `min_sims`, `maxbranch`, `report_sims`, `turbo_accuracy`, `fire_overshooting`,
 `debug`, `debugply`, and `quit`. See
 [`tests/fixtures/`](tests/fixtures/) for complete game-state examples.

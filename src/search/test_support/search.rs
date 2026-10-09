@@ -68,8 +68,7 @@ impl SearchScenario {
         self
     }
 
-    /// Each count runs the scenario again, so a result that depends on the
-    /// worker count fails.
+    /// Runs the scenario once per count against the same expectations.
     pub(crate) fn workers(mut self, counts: impl IntoIterator<Item = usize>) -> Self {
         self.worker_counts = counts.into_iter().collect();
         self

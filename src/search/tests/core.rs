@@ -123,6 +123,24 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .expect_chance_success(true)
         .expect_next_initiative(1)
         .run();
+    initiative_scenario()
+        .player(["ck20:4"])
+        .opponent(["20:5"])
+        .chance_rerolls([0])
+        .expect_initiative(Some(0))
+        .expect_chance_success(true)
+        .expect_next_initiative(0)
+        .run();
+    // ButtonWeavers needs the roller to hold the initiative alone.
+    initiative_scenario()
+        .seated_as(1)
+        .player(["ck20:5"])
+        .opponent(["20:5"])
+        .chance_rerolls([0])
+        .expect_initiative(None)
+        .expect_chance_success(false)
+        .expect_next_initiative(0)
+        .run();
 }
 
 #[test]
@@ -343,4 +361,28 @@ fn the_next_round_deals_swing_dice_at_the_sizes_chosen_before_the_fight() {
         resized_in_round,
         "no Mad or Mood die changed size in a round"
     );
+}
+
+#[test]
+fn a_swing_list_with_enough_extreme_moves_keeps_only_those_in_order() {
+    let game = native_fixture_game("game 3\npreround\nplayer 0 3 0\nX\nY\nZ\nplayer 1 1 0\n6\n");
+    let player = &game.players[0];
+    let generated = generate_swing_moves(player);
+    let extreme = |action: &SwingMove| {
+        action.values().iter().all(|(swing, value)| {
+            let (minimum, maximum) = swing_range(*swing);
+            *value == minimum || *value == maximum
+        })
+    };
+    let mut moves = generated.clone();
+    super::preround::randomly_select_swing_moves(&mut moves, player, 8, &mut Rng::default());
+    let settings = |moves: &[SwingMove]| {
+        moves
+            .iter()
+            .map(|action| (action.values().to_vec(), action.options().to_vec()))
+            .collect::<Vec<_>>()
+    };
+    let expected = generated.into_iter().filter(extreme).collect::<Vec<_>>();
+    assert_eq!(expected.len(), 8);
+    assert_eq!(settings(&moves), settings(&expected));
 }

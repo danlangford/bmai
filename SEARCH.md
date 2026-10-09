@@ -13,8 +13,10 @@ order in which threads finish.
 
 Every top-level decision draws a replay key from its session: the root seed
 and a decision index that advances only when a Monte Carlo search runs. Quick,
-Maximize, Random and immediate passes draw none, so mixing engines cannot shift
-a later search's streams.
+Maximize, Random, immediate passes and endgame-solver answers draw none, so
+mixing engines cannot shift a later search's streams. One exception:
+`BMAIR_TRACE_ENDGAME` runs a comparison search for each solved decision, which
+draws a key and so changes later results.
 
 Within a decision, each simulation gets its own generator, seeded from the
 replay key, the candidate's canonical index, the evaluation batch, and the
@@ -70,6 +72,7 @@ A recorded game or search can be replayed from:
 - the stream partition and, for each decision, its root seed and decision
   index (JSONL's `replay`; `session.native_decision_index` is the next one);
 - each player's engine and its settings: ply, minimum and maximum
-  simulations, maximum branch, and Turbo accuracy.
+  simulations, maximum branch, cull, playout, and endgame;
+- the game settings: Turbo accuracy, surrender, and Fire overshooting.
 
 The worker count is worth recording for performance, not for the result.

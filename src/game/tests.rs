@@ -435,6 +435,29 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
 }
 
 #[test]
+fn turbo_swing_offers_each_size_once_at_any_accuracy() {
+    let mut game = Game::default();
+    let mut turbo = die(property::TURBO);
+    turbo.sides[0] = 10;
+    turbo.swing_type[0] = Some('X');
+    turbo.value = Some(10);
+    game.players[0].dice = vec![turbo];
+    let mut target = die(0);
+    target.value = Some(8);
+    game.players[1].dice = vec![target];
+    game.turbo_accuracy = 2.0;
+
+    let mut choices = game
+        .valid_attacks(usize::MAX)
+        .iter()
+        .filter(|action| action.attack == Some(Attack::Power))
+        .map(|action| action.turbo_option)
+        .collect::<Vec<_>>();
+    choices.sort_unstable();
+    assert_eq!(choices, (4_i16..=20).collect::<Vec<_>>());
+}
+
+#[test]
 fn generation_order_appends_turbo_alternatives_after_every_base_attack() {
     let mut game = Game::default();
     let mut turbo = die(property::TURBO);
