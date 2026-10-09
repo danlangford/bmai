@@ -67,7 +67,7 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let mut best: Option<(f32, Move)> = None;
     let mut move_count = 0usize;
     let mut simulation = ScratchGame::new(game);
-    for candidate in game.generate_valid_attacks_in_cpp_order_for_search(fire_limit) {
+    for candidate in game.valid_attacks(fire_limit) {
         move_count += 1;
         if trace_rng {
             eprintln!(

@@ -7,7 +7,7 @@ Setting max # simulations to 100
 Setting min # simulations to 5
 Setting max branch to 400
 l1 p0 Valid Moves 12 Sims 33
-l1 p0 best move (30.4 points, 92.1% win)
+l1 p0 best move (30.4 points, 92.2% win)
 stats 3/5-100/400/0.50
 action
 power

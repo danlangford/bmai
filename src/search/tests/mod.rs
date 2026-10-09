@@ -14,7 +14,7 @@ use test_support::{initiative_scenario, roll, scenario};
 
 #[test]
 fn native_fight_score_summary_is_stable() {
-    let input = include_str!("../../../tests/native-fixtures/fight.txt");
+    let input = include_str!("../../../tests/fixtures/native_fight_in.txt");
     let setup = input.split_once("getaction").unwrap().0;
     let mut parser = crate::Parser::default();
     parser.parse_string(setup, &mut Vec::new()).unwrap();
@@ -74,7 +74,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         workers,
     });
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/preround.txt"));
+    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_preround_in.txt"));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 1,
@@ -89,7 +89,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(swing[1], swing[0]);
     assert_eq!(swing[2], swing[0]);
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/chance.txt"));
+    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_chance_in.txt"));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 2,
@@ -105,7 +105,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(chance[1], chance[0]);
     assert_eq!(chance[2], chance[0]);
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/focus.txt"));
+    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_focus_in.txt"));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 2,
@@ -237,7 +237,7 @@ fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
             input.push('\n');
         }
     }
-    native_fixture_game(&input).generate_valid_attacks_in_cpp_order()
+    native_fixture_game(&input).valid_attacks(usize::MAX)
 }
 
 fn native_fixture_game(input: &str) -> Game {
@@ -249,7 +249,7 @@ fn native_fixture_game(input: &str) -> Game {
 
 fn apply_generated_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
     assert!(
-        game.generate_valid_attacks_in_cpp_order()
+        game.valid_attacks(usize::MAX)
             .iter()
             .any(|candidate| {
                 candidate.attack == action.attack

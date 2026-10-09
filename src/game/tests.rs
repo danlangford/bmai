@@ -35,7 +35,7 @@ fn game_with(attacker: Vec<Die>, target: Vec<Die>) -> Game {
 }
 
 fn attacks(game: &Game, kind: Attack) -> Vec<Move> {
-    game.generate_valid_attacks()
+    game.valid_attacks_by_score()
         .into_iter()
         .filter(|action| action.attack == Some(kind))
         .collect()
@@ -51,7 +51,7 @@ fn valued_die(value: i32, properties: u64, original_index: usize) -> Die {
 
 fn has_skill(game: &Game, attackers: &[usize], target: usize) -> bool {
     let expected: DieIndexSet = attackers.iter().copied().collect();
-    game.generate_valid_attacks().iter().any(|action| {
+    game.valid_attacks_by_score().iter().any(|action| {
         action.attack == Some(Attack::Skill)
             && action.attackers == expected
             && action.targets.first() == Some(target)
@@ -424,7 +424,7 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
     target.value = Some(8);
     game.players[1].dice = vec![target];
 
-    let moves = game.generate_valid_attacks();
+    let moves = game.valid_attacks_by_score();
     let mut choices = moves
         .iter()
         .filter(|action| action.attack == Some(Attack::Power))
@@ -435,7 +435,7 @@ fn turbo_swing_expands_an_attack_to_every_default_accuracy_choice() {
 }
 
 #[test]
-fn cpp_order_appends_turbo_alternatives_after_every_base_attack() {
+fn generation_order_appends_turbo_alternatives_after_every_base_attack() {
     let mut game = Game::default();
     let mut turbo = die(property::TURBO);
     turbo.sides[0] = 10;
@@ -449,7 +449,7 @@ fn cpp_order_appends_turbo_alternatives_after_every_base_attack() {
     target.value = Some(8);
     game.players[1].dice = vec![target];
 
-    let moves = game.generate_valid_attacks_in_cpp_order();
+    let moves = game.valid_attacks(usize::MAX);
     let first_alternative = moves
         .iter()
         .position(|action| action.turbo_option >= 0 && action.turbo_option != 10)
@@ -476,7 +476,7 @@ fn already_legal_power_attack_does_not_offer_unrequested_fire_overshoot() {
     game.fire_overshooting = false;
 
     let matching = game
-        .generate_valid_attacks()
+        .valid_attacks_by_score()
         .into_iter()
         .filter(|action| {
             action.attack == Some(Attack::Power)
@@ -507,7 +507,7 @@ fn optional_overshoots_cannot_exhaust_the_required_fire_budget() {
     game.fire_overshooting = true;
 
     let assisted = game
-        .generate_valid_attacks_in_cpp_order_for_search(1)
+        .valid_attacks(1)
         .into_iter()
         .filter(|action| !action.fire.is_empty())
         .collect::<Vec<_>>();
@@ -530,7 +530,7 @@ fn fire_plan_is_not_reused_for_a_different_turbo_option_size() {
     let game = game_with(vec![turbo, helper], vec![target]);
 
     let assisted = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter(|action| action.attack == Some(Attack::Power) && !action.fire.is_empty())
         .collect::<Vec<_>>();
@@ -555,7 +555,7 @@ fn fire_candidate_construction_obeys_the_search_budget() {
     target.value = Some(50);
     let game = game_with(dice, vec![target]);
 
-    let moves = game.generate_valid_attacks_in_cpp_order_for_search(3);
+    let moves = game.valid_attacks(3);
     assert_eq!(
         moves
             .iter()
@@ -574,14 +574,14 @@ fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
     konstant.value = Some(8);
     konstant_game.players[0].dice = vec![konstant];
     konstant_game.players[1].dice = vec![target];
-    assert!(konstant_game.generate_valid_attacks().is_empty());
+    assert!(konstant_game.valid_attacks_by_score().is_empty());
 
     let mut stealth_game = Game::default();
     let mut stealth = die(property::STEALTH);
     stealth.value = Some(7);
     stealth_game.players[0].dice = vec![stealth];
     stealth_game.players[1].dice = vec![target];
-    assert!(stealth_game.generate_valid_attacks().is_empty());
+    assert!(stealth_game.valid_attacks_by_score().is_empty());
 
     let mut ordinary = die(0);
     ordinary.original_index = 1;
@@ -589,7 +589,7 @@ fn copied_cpp_skill_restrictions_match_konstant_and_stealth_cases() {
     stealth_game.players[0].dice = vec![stealth, ordinary];
     assert!(
         stealth_game
-            .generate_valid_attacks()
+            .valid_attacks_by_score()
             .iter()
             .any(|action| { action.attack == Some(Attack::Skill) && action.attackers.len() == 2 })
     );
@@ -633,7 +633,7 @@ fn cpp_basic_power_and_skill_attack_generation() {
     target.value = Some(6);
     assert!(
         game_with(vec![konstant], vec![target])
-            .generate_valid_attacks()
+            .valid_attacks_by_score()
             .is_empty()
     );
 }
@@ -661,7 +661,7 @@ fn cpp_insult_and_stealth_restrictions() {
     stealth_target.value = Some(6);
     assert!(
         game_with(vec![ordinary], vec![stealth_target])
-            .generate_valid_attacks()
+            .valid_attacks_by_score()
             .is_empty()
     );
     let mut second = ordinary;

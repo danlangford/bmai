@@ -122,7 +122,7 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
 
         game.players.swap(0, 1);
         let queer_capture =
-            game.generate_valid_attacks_in_cpp_order()
+            game.valid_attacks(usize::MAX)
                 .into_iter()
                 .find(|candidate| {
                     candidate.attack == Some(Shadow)

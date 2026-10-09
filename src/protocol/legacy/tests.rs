@@ -761,7 +761,7 @@ fn value_fixtures_emit_reference_protocol_actions() {
 }
 
 #[test]
-fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
+fn deterministic_fight_fixtures_emit_their_protocol_actions() {
     parser_scenario(include_str!("../../../tests/fixtures/bug55_a_in.txt"))
         .expect_attack(Skill)
         .using([2, 0])
@@ -774,7 +774,7 @@ fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
         .run();
     parser_scenario(include_str!("../../../tests/fixtures/bug105372_in.txt"))
         .expect_attack(Skill)
-        .using([2, 1, 0])
+        .using([2, 0, 1])
         .targeting([0])
         .run();
     parser_scenario(include_str!(
@@ -909,7 +909,7 @@ fn native_worker_setting_validates_input_and_does_not_change_results() {
         .unwrap_err();
     assert_eq!(malformed.to_string(), "invalid integer: many");
 
-    let fixture = include_str!("../../../tests/native-fixtures/fight.txt");
+    let fixture = include_str!("../../../tests/fixtures/native_fight_in.txt");
     let run = |workers: usize| {
         let input = fixture.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
@@ -939,7 +939,7 @@ fn native_worker_auto_uses_available_logical_parallelism() {
 
 #[test]
 fn native_replay_index_advances_only_for_native_bmai_searches() {
-    let fixture = include_str!("../../../tests/native-fixtures/fight.txt");
+    let fixture = include_str!("../../../tests/fixtures/native_fight_in.txt");
 
     let mut qai = Parser::default();
     qai.parse_string(
@@ -955,42 +955,6 @@ fn native_replay_index_advances_only_for_native_bmai_searches() {
 }
 
 #[test]
-fn native_wire_fixtures_are_deterministic() {
-    let cases = [
-        (
-            include_str!("../../../tests/native-fixtures/fight.txt"),
-            include_str!("../../../tests/native-fixtures/fight.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/reserve.txt"),
-            include_str!("../../../tests/native-fixtures/reserve.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/preround.txt"),
-            include_str!("../../../tests/native-fixtures/preround.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/chance.txt"),
-            include_str!("../../../tests/native-fixtures/chance.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/focus.txt"),
-            include_str!("../../../tests/native-fixtures/focus.out.txt"),
-        ),
-    ];
-
-    for (input, expected) in cases {
-        // Windows checkouts may use CRLF; the writer always emits `\n`.
-        let expected = expected.replace("\r\n", "\n");
-        for _ in 0..2 {
-            let mut output = Vec::new();
-            Parser::default().parse_string(input, &mut output).unwrap();
-            assert_eq!(String::from_utf8(output).unwrap(), expected);
-        }
-    }
-}
-
-#[test]
 fn native_phases_are_worker_count_independent() {
     let run = |input: &str, workers: usize| {
         let input = input.replace("workers 3", &format!("workers {workers}"));
@@ -1003,10 +967,10 @@ fn native_phases_are_worker_count_independent() {
     };
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     for input in [
-        include_str!("../../../tests/native-fixtures/reserve.txt"),
-        include_str!("../../../tests/native-fixtures/preround.txt"),
-        include_str!("../../../tests/native-fixtures/chance.txt"),
-        include_str!("../../../tests/native-fixtures/focus.txt"),
+        include_str!("../../../tests/fixtures/native_reserve_in.txt"),
+        include_str!("../../../tests/fixtures/native_preround_in.txt"),
+        include_str!("../../../tests/fixtures/native_chance_in.txt"),
+        include_str!("../../../tests/fixtures/native_focus_in.txt"),
     ] {
         let expected = run(input, 1);
         for workers in [2, available] {

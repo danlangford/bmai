@@ -466,7 +466,7 @@ fn infinite_turbo_accuracy_offers_every_size_instead_of_hanging() {
     let mut game = native_fixture_game("game\nfight\nplayer 0 1 0\ntX!-4:1\nplayer 1 1 0\n20:3\n");
     game.turbo_accuracy = f32::INFINITY;
     let sizes = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter(|candidate| candidate.attack == Some(Trip))
         .count();

@@ -398,15 +398,7 @@ pub(super) fn randomly_select_swing_moves(
         .count();
 
     if extreme_moves >= max {
-        let mut index = 0;
-        while index < moves.len() {
-            if extreme_settings(&moves[index]) == swing_dice {
-                index += 1;
-            } else {
-                // C++'s move list removes this way, which determines move order.
-                moves.swap_remove(index);
-            }
-        }
+        moves.retain(|action| extreme_settings(action) == swing_dice);
         return;
     }
 

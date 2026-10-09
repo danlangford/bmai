@@ -35,7 +35,7 @@ pub(crate) fn select_native_bmai_action(
     settings: &Bmai3,
 ) -> SearchResult {
     let mut moves =
-        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
+        game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
         moves.push(pass_move());
     }
@@ -146,7 +146,7 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     let trace = trace_settings().bmai_attack;
     let trace_evaluation = trace_settings().attack_eval;
     let mut moves =
-        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
+        game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
         moves.push(pass_move());
     }
@@ -331,7 +331,7 @@ pub(super) fn win_probability(game: &Game) -> f32 {
 }
 
 pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
-    let mut moves = game.generate_valid_attacks_in_cpp_order_for_search(fire_limit);
+    let mut moves = game.valid_attacks(fire_limit);
     if moves.is_empty() {
         moves.push(pass_move());
     }

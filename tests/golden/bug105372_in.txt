@@ -12,7 +12,7 @@ l1 p0 best move (1.0 points, 100.0% win)
 stats 2/5-100/400/0.50
 action
 skill
-2 1 0
+2 0 1
 0
 --- stderr
 RNG_HASH 0 14695981039346656037

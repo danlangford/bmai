@@ -267,7 +267,7 @@ impl Scenario {
         }
         let allowed = self.passes
             || game
-                .generate_valid_attacks_in_cpp_order()
+                .valid_attacks(usize::MAX)
                 .iter()
                 .any(|candidate| {
                     candidate.attack == move_to_apply.attack

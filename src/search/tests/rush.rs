@@ -224,7 +224,7 @@ fn speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush() {
     assert!(rush_attacks(&["#z6:6"], &["2:2", "4:4"]).is_empty());
     let game = native_fixture_game("game\nfight\nplayer 0 1 0\n#z6:6\nplayer 1 2 0\n2:2\n4:4\n");
     let speed = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter(|candidate| candidate.targets.len() == 2)
         .map(|candidate| candidate.attack)
@@ -518,7 +518,7 @@ fn shadow_rush_die_offers_both_attack_types() {
     let game =
         native_fixture_game("game\nfight\nplayer 0 1 0\n#s6:3\nplayer 1 3 0\n1:1\n2:2\n5:5\n");
     let attacks = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter_map(|candidate| candidate.attack)
         .collect::<Vec<_>>();

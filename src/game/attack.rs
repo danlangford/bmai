@@ -453,7 +453,7 @@ fn fire_plans_for_skill(
 }
 
 impl Game {
-    fn generate_valid_attack_candidates_in_cpp_order(&self, fire_limit: usize) -> Vec<Move> {
+    fn attack_candidates(&self, fire_limit: usize) -> Vec<Move> {
         let attacker = &self.players[0];
         let target = &self.players[1];
         let available = AvailableDiceList::new(attacker);
@@ -818,19 +818,13 @@ impl Game {
         moves
     }
 
-    pub fn generate_valid_attacks(&self) -> Vec<Move> {
-        // QAI and protocol users depend on this API's score order.
-        self.generate_valid_attacks_for_search(usize::MAX)
+    /// Best-scoring first, which the score-driven policies rely on.
+    pub fn valid_attacks_by_score(&self) -> Vec<Move> {
+        self.valid_attacks_by_score_within(usize::MAX)
     }
 
-    pub fn generate_valid_attacks_in_cpp_order(&self) -> Vec<Move> {
-        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(usize::MAX);
-        expand_turbo_moves(self, &mut moves);
-        moves
-    }
-
-    fn generate_valid_attacks_for_search(&self, fire_limit: usize) -> Vec<Move> {
-        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(fire_limit);
+    fn valid_attacks_by_score_within(&self, fire_limit: usize) -> Vec<Move> {
+        let mut moves = self.attack_candidates(fire_limit);
         moves.sort_by(|a, b| {
             b.score
                 .total_cmp(&a.score)
@@ -840,17 +834,16 @@ impl Game {
         moves
     }
 
-    pub(crate) fn generate_valid_attacks_in_cpp_order_for_search(
-        &self,
-        fire_limit: usize,
-    ) -> Vec<Move> {
-        let mut moves = self.generate_valid_attack_candidates_in_cpp_order(fire_limit);
+    /// In generation order, which search keeps so a candidate's index, and
+    /// so its replay stream, stays put.
+    pub(crate) fn valid_attacks(&self, fire_limit: usize) -> Vec<Move> {
+        let mut moves = self.attack_candidates(fire_limit);
         expand_turbo_moves(self, &mut moves);
         moves
     }
 
     pub fn attack_action(&self) -> Move {
-        let moves = self.generate_valid_attacks_for_search(DEFAULT_FIRE_CANDIDATE_LIMIT);
+        let moves = self.valid_attacks_by_score_within(DEFAULT_FIRE_CANDIDATE_LIMIT);
         if self.surrender_allowed && self.players[1].score - self.players[0].score >= 20.0 {
             return Move {
                 action: Action::Surrender,
@@ -881,7 +874,7 @@ impl Game {
     }
 
     pub fn attack_action_deep(&self) -> Move {
-        let moves = self.generate_valid_attacks_for_search(DEFAULT_FIRE_CANDIDATE_LIMIT);
+        let moves = self.valid_attacks_by_score_within(DEFAULT_FIRE_CANDIDATE_LIMIT);
         moves
             .into_iter()
             .filter(|candidate| candidate.action == Action::Attack)
@@ -987,29 +980,16 @@ fn expand_turbo_moves(game: &Game, moves: &mut Vec<Move>) {
             let mut changed = moves[move_index].clone();
             changed.turbo_option = 1;
             moves.push(changed);
-        } else if let Some(swing) = turbo_die.swing_type[0] {
-            let current = i16::from(turbo_die.sides[0]);
-            moves[move_index].turbo_option = current;
+        } else if turbo_die.swing_type[0].is_some() {
+            // `turbo_sizes` lists the current size first.
+            let mut sizes = turbo_sizes(turbo_die, accuracy).into_iter();
+            moves[move_index].turbo_option = sizes.next().expect("the current size").0;
             if !moves[move_index].fire.is_empty() {
                 continue;
             }
-            // Unlike `turbo_sizes`, this keeps C++'s duplicate sizes at
-            // accuracies above 1 so non-Trip candidate order is unchanged.
-            let (minimum, maximum) = turbo_swing_range(swing);
-            let mut choices = vec![minimum, maximum];
-            let step = turbo_step(accuracy);
-            let mut candidate = f32::from(minimum + 1);
-            while candidate < f32::from(maximum) {
-                choices.push(candidate as u8);
-                candidate += step;
-            }
-            for sides in choices {
-                let sides = i16::from(sides);
-                if sides == current {
-                    continue;
-                }
+            for (size, _) in sizes {
                 let mut changed = moves[move_index].clone();
-                changed.turbo_option = sides;
+                changed.turbo_option = size;
                 moves.push(changed);
             }
         }

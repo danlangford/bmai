@@ -87,7 +87,7 @@ fn every_attack_keeps_the_score_equal_to_the_dice() {
             count(attacker),
             count(defender)
         ));
-        for action in game.generate_valid_attacks_in_cpp_order_for_search(80) {
+        for action in game.valid_attacks(80) {
             for seed in 1..=20 {
                 let mut after = game.clone();
                 let mut rng = Rng::default();
