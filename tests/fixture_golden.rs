@@ -9,7 +9,9 @@
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod common;
 
 /// Searches too long for every `cargo test`; CI runs them on every pull request.
 const SLOW_FIXTURES: &[&str] = &[
@@ -99,7 +101,7 @@ fn check_fixtures(include: impl Fn(&str) -> bool) {
 const CPP_DEFAULTS: &str = "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
 
 fn run_fixture(fixture: &Path) -> String {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .env("BMAIR_TRACE_RNG_HASH", "1")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

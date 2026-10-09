@@ -136,7 +136,7 @@ fn naive_move_value(game: &Game, action: &Move, passed: bool, depth: usize) -> f
 /// Seeded small positions with common skills; no Trip, whose failures can
 /// repeat a position, which the naive solver cannot handle.
 fn corpus(count: usize) -> Vec<Game> {
-    let mut rng = crate::Rng::untraced_default();
+    let mut rng = crate::Rng::default();
     rng.reseed(20_261_006);
     // Time and Space and Morphing grant extra turns; Shadow and Konstant
     // leave sides with no attack, so passes occur.

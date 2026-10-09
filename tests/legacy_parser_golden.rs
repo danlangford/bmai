@@ -5,7 +5,9 @@
 //! agreed on every case except that it prints a Twin die's total size.
 
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod common;
 
 #[test]
 fn invalid_commands_fail_with_the_cpp_error() {
@@ -111,7 +113,7 @@ fn is_banner(line: &str) -> bool {
 }
 
 fn execute(input: &str) -> std::process::Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -2,8 +2,6 @@
 // SPDX-FileCopyrightText: Copyright 2001-2026 Denis Papp
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-use std::sync::OnceLock;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RngAlgorithm {
     LegacyParkMillerV1,
@@ -32,7 +30,6 @@ impl RngAlgorithm {
 pub struct Rng {
     algorithm: RngAlgorithm,
     seed: u32,
-    trace_raw: bool,
     trace_hash: bool,
     trace_count: u64,
     trace_fingerprint: u64,
@@ -50,19 +47,12 @@ struct DrawScript {
 
 impl Default for Rng {
     fn default() -> Self {
-        // getenv takes a process-wide lock, and the endgame solver builds one per replay.
-        static TRACE: OnceLock<(bool, bool)> = OnceLock::new();
-        let &(trace_raw, trace_hash) = TRACE.get_or_init(|| {
-            (
-                std::env::var_os("BMAIR_TRACE_RAW_RNG").is_some(),
-                std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some(),
-            )
-        });
+        // Untraced, since scripted builds and drops one per endgame replay;
+        // sessions and matches opt in with trace_from_env.
         Self {
             algorithm: RngAlgorithm::LegacyParkMillerV1,
             seed: 78_904_497,
-            trace_raw,
-            trace_hash,
+            trace_hash: false,
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: None,
@@ -72,17 +62,15 @@ impl Default for Rng {
 }
 
 impl Rng {
-    #[cfg(test)]
-    pub(crate) fn untraced_default() -> Self {
+    pub(crate) fn trace_from_env(&mut self) {
+        self.trace_hash = std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some();
+    }
+
+    pub(crate) fn restarted(&self) -> Self {
         Self {
-            algorithm: RngAlgorithm::LegacyParkMillerV1,
-            seed: 78_904_497,
-            trace_raw: false,
-            trace_hash: false,
-            trace_count: 0,
-            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
-            native_stratum: None,
+            trace_hash: self.trace_hash,
             script: None,
+            ..Self::default()
         }
     }
 
@@ -94,12 +82,9 @@ impl Rng {
         Self {
             algorithm,
             seed: seed.legacy_park_miller_state(),
-            trace_raw: false,
-            trace_hash: false,
-            trace_count: 0,
-            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: stratum,
             script: None,
+            ..Self::default()
         }
     }
 
@@ -171,9 +156,6 @@ impl Rng {
             self.trace_count += 1;
             self.trace_fingerprint ^= u64::from(self.seed);
             self.trace_fingerprint = self.trace_fingerprint.wrapping_mul(0x0000_0100_0000_01b3);
-        }
-        if self.trace_raw {
-            eprintln!("RNG {}", self.seed);
         }
         self.seed
     }
@@ -255,6 +237,18 @@ mod tests {
         }
         // A sum landing exactly on the modulus wraps to zero.
         assert_eq!(add_mod(3, 4, 7), 0);
+    }
+
+    #[test]
+    fn a_restarted_generator_keeps_its_trace_setting_and_starts_over() {
+        let mut rng = Rng::default();
+        rng.trace_hash = true;
+        rng.reseed(17);
+        rng.rand();
+        let mut restarted = rng.restarted();
+        assert!(restarted.trace_hash);
+        assert_eq!(restarted.trace_count, 0);
+        assert_eq!(restarted.rand(), 1_150_470_880);
     }
 
     #[test]

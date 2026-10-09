@@ -150,8 +150,7 @@ pub fn play_pairing(
                 [second.clone(), first.clone()],
             ];
             let [as_seat_0, as_seat_1] = seated.map(|engines: Engines| {
-                let mut rng = Rng::default();
-                rng.reseed(game_seed(*seed));
+                let mut rng = match_rng(*seed);
                 play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
             });
             results.push((index, [as_seat_0, as_seat_1]));
@@ -202,6 +201,14 @@ pub(crate) fn game_seed(seed: u32) -> u32 {
     mixed ^= mixed >> 16;
     // 0 asks the generator for the clock, and multiples of 2^31 - 1 never change state.
     1 + mixed % 0x7fff_fffe
+}
+
+/// Shared, so the gauntlet's trace test covers the strength harness too.
+pub(crate) fn match_rng(seed: u32) -> Rng {
+    let mut rng = Rng::default();
+    rng.trace_from_env();
+    rng.reseed(game_seed(seed));
+    rng
 }
 
 /// A normal 95% interval over the paired scores.

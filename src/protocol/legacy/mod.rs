@@ -71,6 +71,18 @@ impl Default for Parser {
 }
 
 impl Parser {
+    pub fn trace_rng_from_env(&mut self) {
+        self.rng.trace_from_env();
+    }
+
+    pub(crate) fn reset(&mut self) {
+        // A session opts into tracing once, so a reset keeps it.
+        *self = Self {
+            rng: self.rng.restarted(),
+            ..Self::default()
+        };
+    }
+
     pub const fn execution_mode(&self) -> ExecutionMode {
         self.execution_mode
     }
