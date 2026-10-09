@@ -70,6 +70,24 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.31.0] - 2026-10-09
+
+### Fixed
+
+- Every round of a `playgame`, `compare`, `playfair`, `gauntlet`, or
+  strength-harness match now starts from the button recipe, sizes included.
+  0.26.1 restored the skills a round adds or removes, but sizes still carried
+  over: a Berserk die that attacked stayed halved without Berserk, a Morphing
+  die kept the size it captured, and Mighty and Weak dice kept growing or
+  shrinking from round to round.
+- A player who wins or ties a round keeps the swing sizes and option sides
+  they chose, not the sizes Mad, Mood, Turbo, or Mighty left behind. The
+  loser still chooses again.
+- A round loser picks a reserve die after the next round's dice are dealt, as
+  on ButtonWeavers. The reserve search had simulated the next round with the
+  last round's Radioactive products, Rage replacements, and resized dice
+  still in play.
+
 ## [0.30.0] - 2026-10-09
 
 ### Changed
@@ -841,7 +859,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...HEAD
+[0.31.0]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...bmair-v0.31.0
 [0.30.0]: https://github.com/danlangford/bmai/compare/bmair-v0.29.0...bmair-v0.30.0
 [0.29.0]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...bmair-v0.29.0
 [0.28.0]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...bmair-v0.28.0

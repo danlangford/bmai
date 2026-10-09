@@ -31,7 +31,7 @@ fn attacking_rage_die_loses_rage() {
         .defender("1:1")
         .expect_attacker_dice(["6:5"])
         .expect_no_defender_dice()
-        .expect_next_round_attacker_dice(["G6:5"])
+        .expect_next_round_attacker_dice(["G6"])
         .run();
 }
 
@@ -80,7 +80,7 @@ fn captured_rage_die_is_replaced_until_the_round_ends() {
         .expect_defender_dice(["6:1"])
         .expect_captured_defender_dice(["G6:6"])
         .expect_scores(16.0, 3.0)
-        .expect_next_round_defender_dice(["G6:6"])
+        .expect_next_round_defender_dice(["G6"])
         .run();
 }
 

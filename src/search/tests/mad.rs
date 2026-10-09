@@ -100,3 +100,14 @@ fn mad_parses_before_or_after_the_swing_size() {
         assert!(game.players[0].dice[0].has_property(property::MAD), "{die}");
     }
 }
+
+#[test]
+fn a_round_winner_keeps_the_mad_size_it_chose() {
+    scenario()
+        .attacker("Y&-13:13")
+        .attacks(Power)
+        .defender("1:1")
+        .expect_attacker_dice(["Y-2&:1"])
+        .expect_next_round_attacker_dice(["Y&-13"])
+        .run();
+}

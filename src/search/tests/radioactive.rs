@@ -94,7 +94,7 @@ fn decay_products_return_to_the_original_recipe_next_round() {
         .attacker("%7:7")
         .attacks(Power)
         .defender("3:3")
-        .expect_next_round_attacker_dice(["%7:7"])
+        .expect_next_round_attacker_dice(["%7"])
         .run();
 }
 
@@ -185,7 +185,7 @@ fn a_target_that_survives_a_failed_trip_is_radioactive_again_next_round() {
         .attacks(Trip)
         .defender("%20:10")
         .expect_defender_dice(["20:13"])
-        .expect_next_round_defender_dice(["%20:13"])
+        .expect_next_round_defender_dice(["%20"])
         .run();
 }
 
@@ -304,7 +304,7 @@ fn decay_removes_jolt_after_jolt_grants_its_extra_turn() {
         .defender("1:1")
         .expect_extra_turn(true)
         .expect_attacker_dice(["4:1", "4:1"])
-        .expect_next_round_attacker_dice(["J%8:8"])
+        .expect_next_round_attacker_dice(["J%8"])
         .run();
 }
 
@@ -335,7 +335,7 @@ fn rage_attacker_loses_rage_before_it_decays() {
         .attacks(Power)
         .defender("1:1")
         .expect_attacker_dice(["4:1", "4:1"])
-        .expect_next_round_attacker_dice(["%G8:8"])
+        .expect_next_round_attacker_dice(["%G8"])
         .run();
 }
 

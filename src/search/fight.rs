@@ -478,8 +478,6 @@ pub(crate) fn restore_simulation(simulation: &mut Game, source: &Game) {
             score,
             dice,
             swing_set,
-            round_original_sides,
-            round_transformed,
             radioactive_products,
             rage_replacements,
             specials,
@@ -492,8 +490,6 @@ pub(crate) fn restore_simulation(simulation: &mut Game, source: &Game) {
             simulation.dice.clone_from(dice);
         }
         simulation.swing_set = *swing_set;
-        simulation.round_original_sides = *round_original_sides;
-        simulation.round_transformed = *round_transformed;
         simulation.radioactive_products = *radioactive_products;
         simulation.rage_replacements = *rage_replacements;
         simulation.specials = *specials;

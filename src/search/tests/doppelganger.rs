@@ -14,7 +14,7 @@ fn doppelganger_power_attack_copies_the_captured_die_recipe() {
         .expect_allowed(true)
         .expect_attacker_die(0, "pM12:12")
         .expect_no_defender_dice()
-        .expect_next_round_attacker_dice(["tD20:20"])
+        .expect_next_round_attacker_dice(["tD20"])
         .run();
 }
 
@@ -99,7 +99,7 @@ fn radioactive_doppelganger_decays_before_both_products_copy_the_target() {
         .expect_extra_turn(true)
         .expect_attacker_dice(["pM8:8", "pM8:8"])
         .expect_no_defender_dice()
-        .expect_next_round_attacker_dice(["^JD%17!?:17"])
+        .expect_next_round_attacker_dice(["^JD%17!?"])
         .run();
 }
 

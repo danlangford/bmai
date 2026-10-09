@@ -283,3 +283,67 @@ fn the_first_swing_move_matches_the_first_generated_one() {
         );
     }
 }
+
+#[test]
+fn a_round_losers_option_die_comes_back_at_its_last_choice() {
+    let template = native_fixture_game("game\npreround\nplayer 0 1 0\n4/12\nplayer 1 1 0\n6\n");
+    let mut game = template.clone();
+    let mut selection = SwingMove::empty();
+    selection.push_option((0, true));
+    apply_swing_move(&mut game.players[0], &selection);
+    let selections = record_round_selections(&game);
+    game.players[0].swing_set = SwingSet::Not;
+
+    restore_dice_for_new_round(&mut game, &template, &selections);
+
+    assert_eq!(game.players[0].dice[0].sides, [12, 4]);
+}
+
+#[test]
+fn the_next_round_deals_swing_dice_at_the_sizes_chosen_before_the_fight() {
+    let recipe = native_fixture_game("game\npreround\nplayer 0 2 0\nX&\n4\nplayer 1 2 0\n6\nY?\n");
+    let policies: Engines = [Box::new(Quick), Box::new(Quick)];
+    let mut rng = Rng::default();
+    // Quick takes the first swing setting, so each round's own preround
+    // chooses these sizes too.
+    let mut chosen = recipe.clone();
+    play_preround_with_policies(&mut chosen, &mut rng, &policies, None);
+    let mut resized_in_round = false;
+    for _ in 0..20 {
+        let mut game = recipe.clone();
+        let round = play_round_with_policies(&mut game, &mut rng, &policies, None);
+        let sides = |player: &Player, original_index: usize| {
+            player
+                .dice
+                .iter()
+                .find(|die| die.original_index == original_index)
+                .map(|die| die.sides)
+        };
+        resized_in_round |= game
+            .players
+            .iter()
+            .zip(&chosen.players)
+            .any(|(played, chosen)| {
+                played
+                    .dice
+                    .iter()
+                    .any(|die| sides(chosen, die.original_index) != Some(die.sides))
+            });
+
+        restore_dice_for_new_round(&mut game, &recipe, &round.selections);
+
+        for (dealt, chosen) in game.players.iter().zip(&chosen.players) {
+            for die in &dealt.dice {
+                assert_eq!(
+                    Some(die.sides),
+                    sides(chosen, die.original_index),
+                    "{die:?}"
+                );
+            }
+        }
+    }
+    assert!(
+        resized_in_round,
+        "no Mad or Mood die changed size in a round"
+    );
+}

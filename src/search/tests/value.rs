@@ -28,7 +28,7 @@ fn a_value_capture_makes_the_die_value_only_for_the_round() {
         .attacks(Power)
         .defender("20:5")
         .expect_captured_defender_dice(["v20:5"])
-        .expect_next_round_defender_dice(["20:5"])
+        .expect_next_round_defender_dice(["20"])
         .run();
 }
 

@@ -24,7 +24,7 @@ fn rush_die_captures_two_dice_whose_values_sum_to_its_value() {
         .expect_no_defender_dice()
         .expect_captured_defender_dice(["2:2", "4:4"])
         .expect_scores(9.0, 0.0)
-        .expect_next_round_attacker_dice(["#6:5"])
+        .expect_next_round_attacker_dice(["#6"])
         .run();
 }
 
@@ -378,8 +378,8 @@ fn rage_rush_attacker_loses_rage_and_both_rage_targets_are_replaced() {
         .expect_attacker_dice(["#6:5"])
         .expect_defender_dice(["4:1", "#2:1"])
         .expect_captured_defender_dice(["G#2:2", "G4:4"])
-        .expect_next_round_attacker_dice(["G#6:5"])
-        .expect_next_round_defender_dice(["G#2:2", "G4:4"])
+        .expect_next_round_attacker_dice(["G#6"])
+        .expect_next_round_defender_dice(["G#2", "G4"])
         .run();
 }
 

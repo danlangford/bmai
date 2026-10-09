@@ -7,7 +7,9 @@ use crate::Action::Attack;
 use crate::Attack::{Berserk, Power, Skill, Speed, Trip};
 use crate::Phase::Fight;
 use crate::RngAlgorithm::LegacyParkMillerV1;
+use crate::engines::{Choice, DecisionContext, Engine, Quick};
 use crate::game::{Die, Player};
+use std::sync::{Arc, Mutex};
 use test_support::{initiative_scenario, roll, scenario};
 
 fn auxiliary_game() -> Game {
@@ -218,8 +220,8 @@ fn a_cancelled_match_plays_its_200th_round() {
     let mut replayed = game.clone();
     let mut next_draw_after = |rounds| {
         for _ in 0..rounds {
-            restore_dice_for_new_round(&mut replayed, &game);
-            play_round_with_policies(&mut replayed, &mut replay, &policies, None);
+            let round = play_round_with_policies(&mut replayed, &mut replay, &policies, None);
+            restore_dice_for_new_round(&mut replayed, &game, &round.selections);
         }
         replay.clone().rand()
     };
@@ -297,19 +299,88 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+struct QuickSpy {
+    attacks: Arc<Mutex<Vec<Game>>>,
+    reserves: Arc<Mutex<Vec<Game>>>,
+}
+
+impl Engine for QuickSpy {
+    fn name(&self) -> &'static str {
+        "quick spy"
+    }
+
+    fn clone_box(&self) -> Box<dyn Engine> {
+        Box::new(self.clone())
+    }
+
+    fn swing(
+        &self,
+        game: &Game,
+        player: usize,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> SwingMove {
+        Quick.swing(game, player, context)
+    }
+
+    fn chance(
+        &self,
+        game: &Game,
+        player: usize,
+        initiative: usize,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> ChanceMove {
+        Quick.chance(game, player, initiative, context)
+    }
+
+    fn focus(
+        &self,
+        game: &Game,
+        player: usize,
+        initiative: usize,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> FocusMove {
+        Quick.focus(game, player, initiative, context)
+    }
+
+    fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
+        self.attacks.lock().unwrap().push(game.clone());
+        Quick.attack(game, context)
+    }
+
+    fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
+        self.reserves.lock().unwrap().push(game.clone());
+        Quick.reserve(game, context)
+    }
+
+    fn auxiliary(
+        &self,
+        game: &Game,
+        context: &mut DecisionContext<'_, '_>,
+    ) -> Choice<Option<usize>> {
+        Quick.auxiliary(game, context)
+    }
+}
+
+mod berserk;
 mod boom;
 mod core;
 mod doppelganger;
 mod endgame;
 mod jolt;
 mod mad;
+mod mighty;
 mod mood;
+mod morphing;
 mod null;
 mod parity;
 mod radioactive;
 mod rage;
+mod reserve;
 mod rush;
 mod specials;
 mod transformations;
+mod turbo;
 mod value;
 mod warrior;
+mod weak;

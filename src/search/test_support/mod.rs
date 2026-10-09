@@ -4,7 +4,7 @@
 //! A thin adapter: setup, legality, and resolution all use production code,
 //! so scenarios cannot drift from the real rules.
 
-use super::{apply_attack, restore_dice_for_new_round};
+use super::{apply_attack, record_round_selections, restore_dice_for_new_round};
 use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
 use crate::{Attack, Die, Game, Move, Parser, Phase, Rng, property};
 use std::ops::RangeInclusive;

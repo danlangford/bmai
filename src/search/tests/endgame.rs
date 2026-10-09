@@ -192,16 +192,12 @@ fn positions_differing_in_any_one_field_get_different_keys() {
     let game = fight("6:5\n8:3", "4:2");
     let base = crate::search::endgame::state_key(false, &game.players);
     type Change = (&'static str, fn(&mut Game));
-    let changes: [Change; 18] = [
+    let changes: [Change; 16] = [
         ("id", |g| g.players[0].id += 1),
         ("score", |g| g.players[0].score += 0.5),
         ("swing_set", |g| {
             g.players[0].swing_set = crate::SwingSet::Locked
         }),
-        ("round_original_sides", |g| {
-            g.players[0].round_original_sides[0][0] ^= 1
-        }),
-        ("round_transformed", |g| g.players[0].round_transformed ^= 1),
         ("radioactive_products", |g| {
             g.players[0].radioactive_products ^= 1
         }),
