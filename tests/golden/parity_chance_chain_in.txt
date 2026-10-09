@@ -13,4 +13,4 @@ game over 0 - 1 - 0
 game over 0 - 1 - 0
 matches over 1 - 2
 --- stderr
-RNG_HASH 22 4040930891648578396
+RNG_HASH 21 5964439918725058868

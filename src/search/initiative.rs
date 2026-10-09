@@ -54,8 +54,8 @@ pub(super) fn apply_chance_move(
         }
     }
     game.players[player].optimize_dice();
-    // C++ tests `initiative != 0`, so success means player 0 won, whoever rolled.
-    if check_initiative(game) == Some(0) {
+    // ButtonWeavers counts a reroll only when the roller alone then has initiative.
+    if check_initiative(game) == Some(player) {
         (player, true)
     } else {
         (previous_initiative, false)

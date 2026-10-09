@@ -104,13 +104,22 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
 }
 
 #[test]
-fn cpp_chance_success_is_keyed_to_player_zero_initiative() {
+fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
     initiative_scenario()
         .seated_as(1)
         .player(["ck20:6"])
         .opponent(["20:5"])
         .chance_rerolls([0])
         .expect_initiative(Some(0))
+        .expect_chance_success(false)
+        .expect_next_initiative(0)
+        .run();
+    initiative_scenario()
+        .seated_as(1)
+        .player(["ck20:4"])
+        .opponent(["20:5"])
+        .chance_rerolls([0])
+        .expect_initiative(Some(1))
         .expect_chance_success(true)
         .expect_next_initiative(1)
         .run();
