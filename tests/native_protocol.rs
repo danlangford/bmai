@@ -50,20 +50,6 @@ fn native_playgame_wire_fixture_is_deterministic() {
     }
 }
 
-#[test]
-fn native_playgame_wire_fixture_plays_differently_in_legacy_mode() {
-    let native = include_str!("native-fixtures/playgame.txt");
-    let legacy = native.replacen("mode native", "mode legacy", 1);
-    let results = |input: &str| {
-        run(input)
-            .lines()
-            .filter(|line| line.starts_with("matches over ") || line.contains(" stats: "))
-            .map(str::to_owned)
-            .collect::<Vec<_>>()
-    };
-    assert_ne!(results(native), results(&legacy));
-}
-
 fn run(input: &str) -> String {
     let mut child = common::bmair()
         .stdin(Stdio::piped())

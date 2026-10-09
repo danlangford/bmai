@@ -43,7 +43,7 @@ fn the_round_loser_picks_a_reserve_die_from_freshly_dealt_dice() {
     let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
     let mut rng = Rng::default();
     for _ in 0..20 {
-        play_match_with_policies(&recipe, &mut rng, &policies, None);
+        play_match_with_policies(&recipe, &mut rng, &policies, &mut unsearched(&mut 0));
     }
 
     let seen = spy.reserves.lock().unwrap();
@@ -65,7 +65,7 @@ fn no_reserve_die_is_offered_after_the_round_that_ends_the_match() {
     let mut rng = Rng::default();
     let mut decided = 0;
     for _ in 0..10 {
-        let result = play_match_with_policies(&game, &mut rng, &policies, None);
+        let result = play_match_with_policies(&game, &mut rng, &policies, &mut unsearched(&mut 0));
         decided += usize::from(result.winner.is_some());
     }
 

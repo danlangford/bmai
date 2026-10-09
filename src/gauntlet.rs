@@ -16,9 +16,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::engines::Engine;
 use crate::native::drain_with_workers;
-use crate::search::{Engines, NativeReplaySequence, play_match_with_policies};
+use crate::search::Engines;
 use crate::strength::{
-    Contestant, Matchup, game_seed, match_rng, mean_with_interval, pair_result, parse_game,
+    Contestant, Matchup, mean_with_interval, pair_result, parse_game, play_seeded_match,
 };
 
 pub const DEFAULT_ENGINE: &str = "montecarlo";
@@ -203,18 +203,7 @@ impl Gauntlet {
 }
 
 fn play_pair(seats: &Seats, opponent: usize, seed: u32, engines: &Engines) -> Pair {
-    let play = |matchup: &Matchup| {
-        let mut rng = match_rng(seed);
-        let mut decision_index = 0;
-        // Matches already fill every core, so each match's search stays on one.
-        let mut native = NativeReplaySequence {
-            algorithm: rng.algorithm(),
-            root_seed: u64::from(game_seed(seed)),
-            workers: 1,
-            decision_index: &mut decision_index,
-        };
-        play_match_with_policies(&matchup.game, &mut rng, engines, Some(&mut native))
-    };
+    let play = |matchup: &Matchup| play_seeded_match(&matchup.game, seed, engines);
     let first = play(&seats.button_first);
     let second = play(&seats.button_second);
     let (wins, cancelled, score) = pair_result(first.winner, second.winner);

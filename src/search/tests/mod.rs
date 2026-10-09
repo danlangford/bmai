@@ -148,7 +148,7 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
             workers,
             decision_index: &mut decision_index,
         };
-        let result = play_match_with_policies(&game, &mut rng, &policies, Some(&mut native));
+        let result = play_match_with_policies(&game, &mut rng, &policies, &mut native);
         (result, decision_index)
     };
 
@@ -175,7 +175,7 @@ fn a_cancelled_match_plays_its_200th_round() {
     let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
     let policies: Engines = [quick(), quick()];
     let mut rng = Rng::default();
-    let result = play_match_with_policies(&game, &mut rng, &policies, None);
+    let result = play_match_with_policies(&game, &mut rng, &policies, &mut unsearched(&mut 0));
     assert_eq!((result.winner, result.ties), (None, 199));
 
     // Only the generator's position shows that round 200 was played.
@@ -196,19 +196,32 @@ fn a_cancelled_match_plays_its_200th_round() {
 
 #[test]
 fn play_games_writes_each_game_to_its_output() {
-    let ai = Bmai3 {
-        min_sims: 1,
-        max_sims: 1,
-        max_branch: 10,
-        ..Default::default()
-    };
+    let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
     let mut output = Vec::new();
-    let wins = play_games(&null_mirror(), 2, &mut Rng::default(), &ai, &mut output).unwrap();
+    let wins = play_games_with_policies(
+        &null_mirror(),
+        2,
+        &mut Rng::default(),
+        &[quick(), quick()],
+        &mut unsearched(&mut 0),
+        &mut output,
+    )
+    .unwrap();
     assert_eq!(wins, [0, 0]);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         "game cancelled 0 - 0 - 199\n".repeat(2)
     );
+}
+
+/// For engines that never search, so no replay key is ever drawn from it.
+fn unsearched(decision_index: &mut u64) -> NativeReplaySequence<'_> {
+    NativeReplaySequence {
+        algorithm: LegacyParkMillerV1,
+        root_seed: 0,
+        workers: 1,
+        decision_index,
+    }
 }
 
 /// Null dice score nothing, so every round ties.

@@ -5,7 +5,6 @@
 mod engines;
 mod game;
 pub mod gauntlet;
-mod mode;
 pub mod native;
 pub mod protocol;
 mod rng;
@@ -14,7 +13,6 @@ pub mod strength;
 
 pub use engines::{ENGINE_NAMES, Setting};
 pub use game::{Action, Attack, Die, DieIndexSet, Game, Move, Phase, Player, SwingSet, property};
-pub use mode::ExecutionMode;
 pub use protocol::jsonl;
 pub use protocol::jsonl::{BmairSession, SessionExecuteResult, run_jsonl};
 pub use protocol::legacy::{ParseError, Parser};
@@ -28,6 +26,5 @@ pub use protocol::{
 };
 pub use rng::{Rng, RngAlgorithm};
 pub use search::ai::{Bmai3, EvaluationCoordinate, Playout, Stats};
-pub use search::play_games;
 #[cfg(test)]
 mod build_metadata;

@@ -1,12 +1,5 @@
 exit 0
 --- stdout
-Setting execution mode to legacy
-Setting Fire overshooting off
-Setting endgame to 0
-Setting max ply to 1
-Setting max # simulations to 500
-Setting min # simulations to 10
-Setting max branch to 5000
 target wins set to 3
 p0 s0.0 Dice
 p1 s0.0 Dice
@@ -18,4 +11,4 @@ stats 3/5-100/400/0.50
 action
 reserve 6
 --- stderr
-RNG_HASH 1289429591 14439799326066600414
+RNG_HASH 0 14695981039346656037

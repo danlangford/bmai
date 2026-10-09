@@ -29,14 +29,6 @@ impl SearchResult {
     }
 }
 
-pub(crate) fn select_bmai_action_with_stats(
-    game: &Game,
-    rng: &mut Rng,
-    settings: &Bmai3,
-) -> SearchResult {
-    select_bmai_action_at_level_with_stats(game, rng, settings, 1, false)
-}
-
 pub(crate) fn select_native_bmai_action_with_stats(
     game: &Game,
     rng_algorithm: crate::RngAlgorithm,

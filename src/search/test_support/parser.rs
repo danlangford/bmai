@@ -25,24 +25,8 @@ impl ParserScenario {
         self
     }
 
-    pub(crate) fn expect_reserve(mut self, die: Option<usize>) -> Self {
-        self.expected_action.action = Some(ExpectedAction::Reserve(die));
-        self
-    }
-
     pub(crate) fn expect_auxiliary(mut self, die: Option<usize>) -> Self {
         self.expected_action.action = Some(ExpectedAction::Auxiliary(die));
-        self
-    }
-
-    pub(crate) fn expect_swings(mut self, swings: impl IntoIterator<Item = (char, u8)>) -> Self {
-        self.expected_action.action = Some(ExpectedAction::SetSwing {
-            swings: swings
-                .into_iter()
-                .map(|(swing, value)| SwingSelection { swing, value })
-                .collect(),
-            options: Vec::new(),
-        });
         self
     }
 
@@ -105,20 +89,6 @@ pub(super) fn legacy_action_suffix(action: &ProtocolAction) -> String {
                 .map(|selection| format!("fire {} {}\n", selection.die, selection.value))
                 .collect::<String>()
         ),
-        ProtocolAction::Reserve { die } => {
-            let die = die.map_or_else(|| "-1".into(), |value| value.to_string());
-            format!("action\nreserve {die}\n")
-        }
-        ProtocolAction::SetSwing { swings, options } => {
-            let mut output = String::from("action\n");
-            for selection in swings {
-                output.push_str(&format!("swing {} {}\n", selection.swing, selection.value));
-            }
-            for selection in options {
-                output.push_str(&format!("option {} {}\n", selection.die, selection.value));
-            }
-            output
-        }
         _ => panic!("parser scenario cannot yet render {action:?}"),
     }
 }

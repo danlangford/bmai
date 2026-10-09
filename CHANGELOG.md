@@ -67,6 +67,26 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.34.0] - 2026-10-09
+
+### Removed
+
+- **Breaking:** legacy execution mode, the C++ BMAI compatibility contract.
+  BMAIR always searches natively, as it has by default since 0.23.0.
+  `mode native` is still accepted and does nothing, so older clients keep
+  working; `mode legacy` and `mode parity` are errors.
+- **Breaking:** the JSONL `session.execution_mode` field, the
+  `native.execution_modes` capability, and `mode` in the capability command
+  list.
+- **Breaking:** the library's `ExecutionMode` type and `play_games`, which
+  played legacy-mode matches.
+
+### Changed
+
+- The strength harness plays its matches natively, as `bmair gauntlet` does.
+- The golden fixtures run in native mode at BMAIR's own defaults, not at C++
+  BMAI's.
+
 ## [0.33.0] - 2026-10-09
 
 ### Changed
@@ -921,7 +941,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...HEAD
+[0.34.0]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...bmair-v0.34.0
 [0.33.0]: https://github.com/danlangford/bmai/compare/bmair-v0.32.0...bmair-v0.33.0
 [0.32.0]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...bmair-v0.32.0
 [0.31.0]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...bmair-v0.31.0

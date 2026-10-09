@@ -14,7 +14,10 @@ use std::time::Instant;
 use crate::engines::{Choice, DecisionContext, Engine, Setting};
 use crate::game::{Game, Move};
 use crate::native::drain_with_workers;
-use crate::search::{ChanceMove, Engines, FocusMove, SwingMove, play_match_with_policies};
+use crate::search::{
+    ChanceMove, Engines, FocusMove, MatchResult, NativeReplaySequence, SwingMove,
+    play_match_with_policies,
+};
 use crate::{Parser, Rng};
 
 /// An engine and its settings, written as `montecarlo ply=2 cull=off`.
@@ -149,10 +152,8 @@ pub fn play_pairing(
                 [first.clone(), second.clone()],
                 [second.clone(), first.clone()],
             ];
-            let [as_seat_0, as_seat_1] = seated.map(|engines: Engines| {
-                let mut rng = match_rng(*seed);
-                play_match_with_policies(&matchup.game, &mut rng, &engines, None).winner
-            });
+            let [as_seat_0, as_seat_1] = seated
+                .map(|engines: Engines| play_seeded_match(&matchup.game, *seed, &engines).winner);
             results.push((index, [as_seat_0, as_seat_1]));
         }
         results
@@ -209,6 +210,20 @@ pub(crate) fn match_rng(seed: u32) -> Rng {
     rng.trace_from_env();
     rng.reseed(game_seed(seed));
     rng
+}
+
+/// The gauntlet and the strength harness play every match this way. Matches
+/// already fill every core, so each match's search stays on one.
+pub(crate) fn play_seeded_match(game: &Game, seed: u32, engines: &Engines) -> MatchResult {
+    let mut rng = match_rng(seed);
+    let mut decision_index = 0;
+    let mut native = NativeReplaySequence {
+        algorithm: rng.algorithm(),
+        root_seed: u64::from(game_seed(seed)),
+        workers: 1,
+        decision_index: &mut decision_index,
+    };
+    play_match_with_policies(game, &mut rng, engines, &mut native)
 }
 
 /// A normal 95% interval over the paired scores.

@@ -23,8 +23,6 @@ const module = await WebAssembly.compile(await readFile(wasmPath));
 
 // Keep in step with tests/fixture_golden.rs.
 const SLOW_FIXTURES = ["bmai_in.txt", "bmsim_in.txt", "bug11_in.txt", "bug16_in.txt"];
-const CPP_DEFAULTS =
-  "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
 const UNSTABLE_PREFIXES = [
   "BMAIR:",
   "Rust port Copyright",
@@ -80,7 +78,7 @@ test("every golden fixture matches native output", async (context) => {
     await context.test(name, async () => {
       const fixture = await readFile(new URL(`tests/fixtures/${name}`, root), "utf8");
       const expected = await readFile(new URL(`tests/golden/${name}`, root), "utf8");
-      const result = await bmair([], CPP_DEFAULTS + fixture, { BMAIR_TRACE_RNG_HASH: "1" });
+      const result = await bmair([], fixture, { BMAIR_TRACE_RNG_HASH: "1" });
       assert.equal(normalizeLikeGolden(result), expected);
     });
   }

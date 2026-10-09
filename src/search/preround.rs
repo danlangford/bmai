@@ -189,48 +189,6 @@ pub(crate) fn select_swing_action(
     (best, probability)
 }
 
-pub(crate) fn select_bmai_reserve_action(game: &Game, rng: &mut Rng, ai: &Bmai3) -> Option<usize> {
-    let reserve_indices = game.players[0]
-        .dice
-        .iter()
-        .enumerate()
-        .filter_map(|(index, die)| die.in_reserve.then_some(index))
-        .collect::<Vec<_>>();
-    let sims = ai.compute_number_sims(reserve_indices.len() + 1, 1);
-    let mut best_score = -1.0f32;
-    let mut best = None;
-    let mut simulation = game.clone();
-
-    for candidate in reserve_indices.into_iter().map(Some).chain([None]) {
-        let mut score = 0.0f32;
-        if trace_settings().reserve {
-            eprintln!(
-                "RESERVE_BEGIN candidate={candidate:?} seed={} sims={sims}",
-                rng.debug_seed()
-            );
-        }
-        for _ in 0..sims {
-            restore_simulation(&mut simulation, game);
-            if let Some(index) = candidate {
-                apply_use_reserve(&mut simulation.players[0].dice[index]);
-            }
-            let fight_level = play_preround(&mut simulation, rng, ai, 2);
-            score += play_simulated_round(&mut simulation, rng, ai, fight_level, 0);
-        }
-        if trace_settings().reserve {
-            eprintln!(
-                "RESERVE_END candidate={candidate:?} seed={} score={score:.1}",
-                rng.debug_seed()
-            );
-        }
-        if score > best_score {
-            best_score = score;
-            best = candidate;
-        }
-    }
-    best
-}
-
 pub(super) fn auxiliary_die(player: &crate::game::Player) -> Option<usize> {
     player
         .dice
@@ -311,37 +269,6 @@ pub(super) fn evaluate_auxiliary_decision(game: &Game, accepted: bool, rng: &mut
         Some(1) => 0.0,
         Some(_) => unreachable!("Button Men has exactly two players"),
     }
-}
-
-pub(crate) fn select_bmai_auxiliary_action(
-    game: &Game,
-    rng: &mut Rng,
-    ai: &Bmai3,
-) -> AuxiliarySearchResult {
-    let Some(auxiliary) = acceptable_auxiliary_die(&game.players[0]) else {
-        return AuxiliarySearchResult {
-            die: None,
-            score: 0.0,
-            simulations: 0,
-        };
-    };
-    let simulations = ai.compute_number_sims(2, 1);
-    let candidates = [Some(auxiliary), None];
-    let mut best = AuxiliarySearchResult {
-        die: None,
-        score: -1.0,
-        simulations,
-    };
-    for candidate in candidates {
-        let score = (0..simulations)
-            .map(|_| evaluate_auxiliary_decision(game, candidate.is_some(), rng))
-            .sum();
-        if score > best.score {
-            best.die = candidate;
-            best.score = score;
-        }
-    }
-    best
 }
 
 pub(crate) fn select_native_bmai_auxiliary_action(

@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::Attack::{Rush, Shadow};
-use test_support::{LEGACY, NATIVE, native, search_scenario};
+use test_support::search_scenario;
 
 fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     attacks_by(attacker_dice, defender_dice)
@@ -496,7 +496,7 @@ fn rush_notation_inside_game_blocks_is_not_a_comment() {
 }
 
 #[test]
-fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
+fn search_reports_a_round_winning_rush() {
     search_scenario()
         .phase(Fight)
         .player(0, 3.0, ["#6:6"])
@@ -505,7 +505,7 @@ fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
         .simulations(5, 50)
         .max_branch(100)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 100.0..=100.0)
         .expect_attack(Rush)
         .using([0])

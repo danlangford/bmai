@@ -40,7 +40,6 @@ fn capabilities_have_stable_protocol_names_and_serialize() {
     assert_eq!(
         value["commands"],
         serde_json::json!([
-            "mode",
             "rng",
             "workers",
             "game",

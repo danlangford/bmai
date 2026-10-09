@@ -5,7 +5,7 @@
 
 use super::*;
 use crate::Attack::Boom;
-use test_support::{LEGACY, NATIVE, native, search_scenario};
+use test_support::search_scenario;
 
 const REROLL_SEED: u32 = 3;
 
@@ -281,7 +281,7 @@ fn search_reports_a_boom_when_it_is_the_only_attack() {
         .simulations(5, 20)
         .max_branch(100)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_attack(Boom)
         .using([0])
         .targeting([0])

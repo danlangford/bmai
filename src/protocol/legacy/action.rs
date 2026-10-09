@@ -30,11 +30,6 @@ impl Parser {
                     .map_err(io_error)
             }
             Phase::Fight => {
-                if self.report_sims > 0 && self.execution_mode != ExecutionMode::Native {
-                    return Err(ParseError(
-                        "report_sims requires native execution mode".into(),
-                    ));
-                }
                 let engine = self.player_engine(0);
                 if self.report_sims > 0 && engine.montecarlo().is_none() {
                     return Err(ParseError("report_sims requires montecarlo search".into()));
@@ -187,14 +182,13 @@ impl Parser {
         decision: impl FnOnce(&dyn Engine, &Game, &mut DecisionContext<'_, '_>) -> T,
     ) -> (T, Option<crate::native::NativeReplayKey>) {
         let engine = self.player_engine(0);
-        let native_mode = self.execution_mode == ExecutionMode::Native;
         let mut sequence = NativeReplaySequence {
             algorithm: self.rng.algorithm(),
             root_seed: self.native_root_seed,
             workers: self.native_workers,
             decision_index: &mut self.native_decision_index,
         };
-        let mut context = DecisionContext::new(&mut self.rng, native_mode.then_some(&mut sequence));
+        let mut context = DecisionContext::new(&mut self.rng, Some(&mut sequence));
         let result = decision(engine.as_ref(), &self.game, &mut context);
         let replay = context.issued_replay();
         if let Some(replay) = replay {

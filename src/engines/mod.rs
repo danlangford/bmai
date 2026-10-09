@@ -193,10 +193,15 @@ impl<'a, 'b> DecisionContext<'a, 'b> {
         }
     }
 
-    pub(crate) fn native(&mut self) -> Option<NativeEvaluation> {
-        let evaluation = self.native.as_deref_mut().map(NativeReplaySequence::next)?;
+    /// Only playout engines, which never search, decide without a sequence.
+    pub(crate) fn native(&mut self) -> NativeEvaluation {
+        let evaluation = self
+            .native
+            .as_deref_mut()
+            .map(NativeReplaySequence::next)
+            .expect("a searching engine decides only where a replay sequence exists");
         self.issued = Some(evaluation.replay);
-        Some(evaluation)
+        evaluation
     }
 
     /// The replay key this decision used, if it searched natively.

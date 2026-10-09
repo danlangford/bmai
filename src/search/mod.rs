@@ -61,7 +61,6 @@ pub(crate) struct TraceSettings {
     swing_sim: bool,
     swing_moves: bool,
     swing: bool,
-    reserve: bool,
     chance: bool,
     focus: bool,
     bmai_attack: bool,
@@ -78,7 +77,6 @@ pub(crate) fn trace_settings() -> &'static TraceSettings {
         swing_sim: false,
         swing_moves: false,
         swing: false,
-        reserve: false,
         chance: false,
         focus: false,
         bmai_attack: false,
@@ -97,7 +95,6 @@ pub(crate) fn trace_settings() -> &'static TraceSettings {
         swing_sim: std::env::var_os("BMAIR_TRACE_SWING_SIM").is_some(),
         swing_moves: std::env::var_os("BMAIR_TRACE_SWING_MOVES").is_some(),
         swing: std::env::var_os("BMAIR_TRACE_SWING").is_some(),
-        reserve: std::env::var_os("BMAIR_TRACE_RESERVE").is_some(),
         chance: std::env::var_os("BMAIR_TRACE_CHANCE").is_some(),
         focus: std::env::var_os("BMAIR_TRACE_FOCUS").is_some(),
         bmai_attack: std::env::var_os("BMAIR_TRACE_BMAI_ATTACK").is_some(),
@@ -193,17 +190,15 @@ use preround::*;
 
 pub(crate) use fight::{
     ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, pass_move,
-    restore_simulation, select_bmai_action_with_stats, select_native_bmai_action_with_stats,
+    restore_simulation, select_native_bmai_action_with_stats,
 };
 pub(crate) use initiative::{select_chance_action, select_focus_action};
-pub use match_play::play_games;
 pub(crate) use match_play::{
-    Engines, play_fair_games, play_games_with_policies, play_match_with_policies,
+    Engines, MatchResult, play_fair_games, play_games_with_policies, play_match_with_policies,
 };
 pub(crate) use preround::{
     acceptable_auxiliary_die, first_swing_move, offer_courtesy_auxiliary,
-    select_bmai_auxiliary_action, select_bmai_reserve_action, select_native_bmai_auxiliary_action,
-    select_native_bmai_reserve_action, select_swing_action,
+    select_native_bmai_auxiliary_action, select_native_bmai_reserve_action, select_swing_action,
 };
 
 #[cfg(test)]

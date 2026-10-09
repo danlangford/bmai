@@ -1,12 +1,5 @@
 exit 0
 --- stdout
-Setting execution mode to legacy
-Setting Fire overshooting off
-Setting endgame to 0
-Setting max ply to 1
-Setting max # simulations to 500
-Setting min # simulations to 10
-Setting max branch to 5000
 target wins set to 1
 p0 s0.0 Dice (10000005)10 (b0400)10 (200000200)6
 p1 s0.0 Dice (100000080)8 (100)6 (402000)(4,6)
