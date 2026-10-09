@@ -158,12 +158,12 @@ use match_play::*;
 use preround::*;
 
 pub(crate) use fight::{
-    ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, pass_move,
-    restore_simulation, select_native_bmai_action,
+    ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, restore_simulation,
+    select_native_bmai_action,
 };
 pub(crate) use initiative::{select_chance_action, select_focus_action};
 pub(crate) use match_play::{
-    Engines, MatchResult, play_fair_games, play_games_with_policies, play_match_with_policies,
+    Engines, MatchResult, play_fair_games, play_games, play_match_with_policies,
 };
 pub(crate) use preround::{
     acceptable_auxiliary_die, first_swing_move, offer_courtesy_auxiliary,

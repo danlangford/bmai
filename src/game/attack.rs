@@ -845,15 +845,7 @@ impl Game {
     pub fn attack_action(&self) -> Move {
         let moves = self.valid_attacks_by_score_within(DEFAULT_FIRE_CANDIDATE_LIMIT);
         if self.surrender_allowed && self.players[1].score - self.players[0].score >= 20.0 {
-            return Move {
-                action: Action::Surrender,
-                attack: None,
-                attackers: Vec::new().into(),
-                targets: Vec::new().into(),
-                score: 0.0,
-                turbo_option: -1,
-                fire: FireAdjustment::default(),
-            };
+            return Move::surrender();
         }
         if let Some(best) = moves.first() {
             return best.clone();

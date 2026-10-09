@@ -7,7 +7,7 @@ use crate::Rng;
 use crate::game::{Game, Move, apply_attack, property};
 use crate::search::{
     ChanceMove, FocusMove, ScratchGame, SwingMove, acceptable_auxiliary_die, first_swing_move,
-    pass_move, restore_simulation,
+    restore_simulation,
 };
 
 /// The C++ "Quick AI": fast enough to play out every Monte Carlo simulation.
@@ -77,5 +77,5 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
             best = Some((score, candidate));
         }
     }
-    best.map_or_else(pass_move, |(_, action)| action)
+    best.map_or_else(Move::pass, |(_, action)| action)
 }

@@ -237,7 +237,7 @@ impl Scenario {
         );
         let mut move_to_apply = match self.attack {
             Some(attack) => Move::new_attack(attack, attackers, targets, 0.0),
-            None => super::super::fight::pass_move(),
+            None => Move::pass(),
         };
         if let Some(selection) = self.turbo_option {
             move_to_apply.turbo_option = selection;

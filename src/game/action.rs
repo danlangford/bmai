@@ -48,6 +48,26 @@ impl FireAdjustment {
 }
 
 impl Move {
+    pub(crate) fn pass() -> Self {
+        Self::without_attack(Action::Pass)
+    }
+
+    pub(crate) fn surrender() -> Self {
+        Self::without_attack(Action::Surrender)
+    }
+
+    fn without_attack(action: Action) -> Self {
+        Self {
+            action,
+            attack: None,
+            attackers: DieIndexSet::default(),
+            targets: DieIndexSet::default(),
+            score: 0.0,
+            turbo_option: -1,
+            fire: FireAdjustment::default(),
+        }
+    }
+
     pub(crate) fn new_attack(
         kind: Attack,
         attackers: impl Into<DieIndexSet>,

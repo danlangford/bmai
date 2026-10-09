@@ -9,7 +9,7 @@ use crate::engines::{DecisionContext, Engine, MonteCarlo, Setting};
 use crate::game::{Action, Die, DieIndexSet, Game, Move, Phase, SwingSet, property};
 use crate::search::{
     Engines, NativeEvaluation, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move,
-    offer_courtesy_auxiliary, play_fair_games, play_games_with_policies,
+    offer_courtesy_auxiliary, play_fair_games, play_games,
 };
 use crate::{Bmai3, Rng, RngAlgorithm};
 

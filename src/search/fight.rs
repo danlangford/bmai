@@ -36,7 +36,7 @@ pub(crate) fn select_native_bmai_action(
 ) -> SearchResult {
     let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(pass_move());
+        moves.push(Move::pass());
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -65,15 +65,7 @@ pub(crate) fn select_native_bmai_action(
     let selected = evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch);
     let probability = evaluator.last_probability_win;
     let selected = if probability == 0.0 && game.surrender_allowed {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
+        Move::surrender()
     } else {
         selected
     };
@@ -142,7 +134,7 @@ pub(super) fn select_bmai_action_at_level_with_stats(
 ) -> SearchResult {
     let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(pass_move());
+        moves.push(Move::pass());
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -160,15 +152,7 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     });
     let probability = evaluator.last_probability_win;
     let selected = if probability == 0.0 && game.surrender_allowed {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
+        Move::surrender()
     } else {
         selected
     };
@@ -259,18 +243,6 @@ pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, a
     }
 }
 
-pub(crate) fn pass_move() -> Move {
-    Move {
-        action: Action::Pass,
-        attack: None,
-        attackers: Vec::new().into(),
-        targets: Vec::new().into(),
-        score: 0.0,
-        turbo_option: -1,
-        fire: crate::game::FireAdjustment::default(),
-    }
-}
-
 pub(super) fn fight_over(game: &Game) -> bool {
     game.players
         .iter()
@@ -288,7 +260,7 @@ pub(super) fn win_probability(game: &Game) -> f32 {
 pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
     let mut moves = game.valid_attacks(fire_limit);
     if moves.is_empty() {
-        moves.push(pass_move());
+        moves.push(Move::pass());
     }
     moves
 }

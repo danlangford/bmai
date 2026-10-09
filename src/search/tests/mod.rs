@@ -199,7 +199,7 @@ fn a_cancelled_match_plays_its_200th_round() {
 fn play_games_writes_each_game_to_its_output() {
     let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
     let mut output = Vec::new();
-    let wins = play_games_with_policies(
+    let wins = play_games(
         &null_mirror(),
         2,
         &mut Rng::default(),

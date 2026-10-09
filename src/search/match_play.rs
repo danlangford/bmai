@@ -14,7 +14,7 @@ pub(crate) type Engines = [Box<dyn Engine>; 2];
 const MAX_ROUNDS: usize = 200;
 
 /// A game cancelled at the round limit counts for neither player.
-pub(crate) fn play_games_with_policies<W: Write>(
+pub(crate) fn play_games<W: Write>(
     template: &Game,
     games: usize,
     rng: &mut Rng,

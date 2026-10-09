@@ -207,7 +207,7 @@ impl Parser {
                 let games = parse_usize(line.trim_start_matches(command))?;
                 let wins = self
                     .play_matches(|game, rng, policies, native| {
-                        play_games_with_policies(game, games, rng, policies, native, output)
+                        play_games(game, games, rng, policies, native, output)
                     })
                     .map_err(io_error)?;
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
