@@ -6,9 +6,11 @@ use std::process::{Command, Stdio};
 
 use serde_json::Value;
 
+mod common;
+
 #[test]
 fn jsonl_process_keeps_stdout_machine_clean_and_recovers_per_line() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .args(["--protocol", "jsonl-v1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -68,7 +70,7 @@ fn max_sims_below_the_default_min_sims_searches_instead_of_panicking() {
         "method": "session.execute",
         "params": {"script": script},
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .args(["--protocol", "jsonl-v1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -105,7 +107,7 @@ fn playgame_results_stay_inside_the_json_response() {
         // Null dice can only tie, so the game is cancelled whatever the seed.
         "params": {"script": "game 1\npreround\nplayer 0 2 0\nn4\nn4\nplayer 1 2 0\nn4\nn4\nai 0 quick\nai 1 quick\nplaygame 1\n"},
     });
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .args(["--protocol", "jsonl-v1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -137,7 +139,7 @@ fn playgame_results_stay_inside_the_json_response() {
 
 #[test]
 fn documented_jsonl_session_fixture_runs_as_one_persistent_process() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .args(["--protocol", "jsonl-v1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -174,10 +176,7 @@ fn documented_jsonl_session_fixture_runs_as_one_persistent_process() {
 
 #[test]
 fn capabilities_flag_emits_one_json_document_without_a_banner() {
-    let output = Command::new(env!("CARGO_BIN_EXE_bmair"))
-        .arg("--capabilities")
-        .output()
-        .unwrap();
+    let output = common::bmair().arg("--capabilities").output().unwrap();
     assert!(output.status.success());
     assert!(output.stderr.is_empty());
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
@@ -191,7 +190,7 @@ fn capabilities_flag_emits_one_json_document_without_a_banner() {
 
 #[test]
 fn unsupported_process_protocol_is_a_clean_fatal_cli_error() {
-    let output = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let output = common::bmair()
         .args(["--protocol", "jsonl-v0"])
         .output()
         .unwrap();
@@ -201,6 +200,64 @@ fn unsupported_process_protocol_is_a_clean_fatal_cli_error() {
         String::from_utf8(output.stderr).unwrap(),
         "unsupported protocol: jsonl-v0\n"
     );
+}
+
+#[test]
+fn the_hash_trace_restarts_with_the_session() {
+    let reset = serde_json::json!({"protocol": "jsonl-v1", "id": 2, "method": "session.reset"});
+    let output = run_session(
+        common::bmair().env("BMAIR_TRACE_RNG_HASH", "1"),
+        &[execute(1, PLAYGAME), reset, execute(3, PLAYGAME)],
+    );
+    let responses = strict_responses(&output.stdout);
+    assert_eq!(responses.len(), 3);
+    assert!(
+        responses.iter().all(|response| response["ok"] == true),
+        "{responses:?}"
+    );
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let games = stderr
+        .lines()
+        .filter(|line| line.starts_with("RNG_HASH ") && !line.starts_with("RNG_HASH 0 "))
+        .collect::<Vec<_>>();
+    assert_eq!(games.len(), 2, "{stderr}");
+    assert_eq!(games[0], games[1]);
+}
+
+const PLAYGAME: &str = "game 3\npreround\nplayer 0 2 0\n6\n8\nplayer 1 2 0\n4\n10\nai 0 quick\nai 1 quick\nplaygame 1\n";
+
+fn execute(id: u32, script: &str) -> Value {
+    serde_json::json!({
+        "protocol": "jsonl-v1",
+        "id": id,
+        "method": "session.execute",
+        "params": {"script": script},
+    })
+}
+
+fn run_session(command: &mut Command, requests: &[Value]) -> std::process::Output {
+    let mut child = command
+        .args(["--protocol", "jsonl-v1"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = child.stdin.take().unwrap();
+    for request in requests {
+        writeln!(stdin, "{request}").unwrap();
+    }
+    drop(stdin);
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    output
+}
+
+fn strict_responses(stdout: &[u8]) -> Vec<Value> {
+    String::from_utf8_lossy(stdout)
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap_or_else(|error| panic!("{line}: {error}")))
+        .collect()
 }
 
 fn responses_to_bytes(responses: &[Value]) -> Vec<u8> {

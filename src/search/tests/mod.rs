@@ -118,7 +118,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         ..Default::default()
     };
     let swing = contexts.map(|context| {
-        let mut rng = Rng::untraced_default();
+        let mut rng = Rng::default();
         let (action, score) = select_swing_action(&game, 0, &mut rng, &settings, 1, Some(context));
         (action.values().to_vec(), action.options().to_vec(), score)
     });
@@ -133,7 +133,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         ..Default::default()
     };
     let chance = contexts.map(|context| {
-        let mut rng = Rng::untraced_default();
+        let mut rng = Rng::default();
         let (action, score) =
             select_chance_action(&game, 0, &mut rng, &settings, 1, 1, Some(context));
         (action.reroll, score)
@@ -149,7 +149,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         ..Default::default()
     };
     let focus = contexts.map(|context| {
-        let mut rng = Rng::untraced_default();
+        let mut rng = Rng::default();
         let (action, score) =
             select_focus_action(&game, 0, &mut rng, &settings, 1, 1, Some(context));
         (action.values, score)

@@ -110,7 +110,7 @@ impl BmairSession {
     }
 
     pub fn reset(&mut self) {
-        self.parser = Parser::default();
+        self.parser.reset();
     }
 
     pub fn metadata(&self) -> SessionMetadata {
@@ -207,6 +207,7 @@ impl BmairSession {
 
 pub fn run_jsonl<R: BufRead, W: Write>(reader: R, mut writer: W) -> std::io::Result<()> {
     let mut session = BmairSession::default();
+    session.parser.trace_rng_from_env();
     for line in reader.lines() {
         let line = line?;
         if line.trim().is_empty() {

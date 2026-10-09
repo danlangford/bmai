@@ -70,6 +70,42 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.30.0] - 2026-10-09
+
+### Changed
+
+- `BMAIR_TRACE_RNG_HASH` now traces only the generators that play a
+  protocol session or a match: the legacy and JSONL sessions, and each
+  `bmair gauntlet` or strength-harness match. Every default generator used
+  to read it, so throwaway ones printed too.
+- In the library, `Rng::default()`, `Parser::default()` and
+  `BmairSession::default()` no longer read the trace setting. Call
+  `Parser::trace_rng_from_env` to trace a parser; `run_jsonl` traces its
+  session.
+
+### Removed
+
+- `BMAIR_TRACE_RAW_RNG`, which printed every draw. It served the C++
+  raw-stream comparison that the golden fixtures replaced in 0.15.0, and
+  nothing used it since.
+
+### Fixed
+
+- `BMAIR_TRACE_RNG_HASH` no longer floods stderr when the endgame solver is
+  on, as it is for Monte Carlo by default. Every solver replay printed two
+  `RNG_HASH 0 14695981039346656037` lines for generators that never drew,
+  and each parser that read gauntlet or strength-harness recipes printed
+  one more. Hammer against Vincent, 8 games at `max_sims=20 min_sims=5` on
+  one thread, wrote 1,351,885 stderr lines; it now writes its 8 match
+  fingerprints. Only this diagnostic stream changes. The fingerprints and
+  all other output are identical.
+- `cargo test` passes with any `BMAIR_TRACE_*` setting exported. The
+  integration tests ran BMAIR with the developer's environment: the RNG
+  hash trace failed eight tests that expect empty stderr or exact output,
+  and a search trace such as `BMAIR_TRACE_QAI` failed the golden fixtures
+  and filled the stderr pipe of the legacy protocol match tests, which read
+  it only once BMAIR exits, so they timed out.
+
 ## [0.29.0] - 2026-10-09
 
 ### Changed
@@ -805,7 +841,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.29.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...HEAD
+[0.30.0]: https://github.com/danlangford/bmai/compare/bmair-v0.29.0...bmair-v0.30.0
 [0.29.0]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...bmair-v0.29.0
 [0.28.0]: https://github.com/danlangford/bmai/compare/bmair-v0.27.0...bmair-v0.28.0
 [0.27.0]: https://github.com/danlangford/bmai/compare/bmair-v0.26.1...bmair-v0.27.0

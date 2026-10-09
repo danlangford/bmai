@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod common;
 
 /// Positions the endgame solver answers, including game 121248's at six dice.
 const POSITIONS: [&str; 3] = [
@@ -13,7 +15,7 @@ const POSITIONS: [&str; 3] = [
 
 /// Every answer from one process: the action and the probability's bits.
 fn answers() -> Vec<String> {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .args(["--protocol", "jsonl-v1"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

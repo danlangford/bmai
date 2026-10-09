@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod common;
 
 #[test]
 fn native_playgame_wire_fixture_is_deterministic() {
@@ -63,7 +65,7 @@ fn native_playgame_wire_fixture_plays_differently_in_legacy_mode() {
 }
 
 fn run(input: &str) -> String {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .spawn()

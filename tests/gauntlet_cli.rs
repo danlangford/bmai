@@ -4,8 +4,10 @@
 use std::io::Write;
 use std::process::{Command, Output, Stdio};
 
+mod common;
+
 fn gauntlet(arguments: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_bmair"))
+    common::bmair()
         .arg("gauntlet")
         .args(arguments)
         .output()
@@ -89,8 +91,11 @@ fn a_dash_reads_the_opponents_from_standard_input() {
 }
 
 fn bmair_with_input(arguments: &[&str], input: &[u8]) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
-        .args(arguments)
+    run_with_input(common::bmair().args(arguments), input)
+}
+
+fn run_with_input(command: &mut Command, input: &[u8]) -> Output {
+    let mut child = command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -241,4 +246,29 @@ fn bad_arguments_fail_with_a_reason_before_any_play() {
         let stderr = String::from_utf8(output.stderr).unwrap();
         assert!(stderr.contains(reason), "{arguments:?}: {stderr}");
     }
+}
+
+#[test]
+fn the_hash_trace_prints_one_fingerprint_per_match() {
+    let output = run_with_input(
+        common::bmair().env("BMAIR_TRACE_RNG_HASH", "1").args([
+            "gauntlet",
+            "--games",
+            "4",
+            "--engine",
+            "quick",
+            "6 12 20 20 X",
+            "-",
+        ]),
+        b"Avis: (4) (4) (10) (12) (X)\n",
+    );
+    assert!(output.status.success(), "{output:?}");
+    let stderr = String::from_utf8(output.stderr).unwrap();
+    let draws = stderr
+        .lines()
+        .filter_map(|line| line.strip_prefix("RNG_HASH "))
+        .map(|line| line.split(' ').next().unwrap().parse::<u64>().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(draws.len(), 4, "{stderr}");
+    assert!(draws.iter().all(|&count| count > 0), "{stderr}");
 }

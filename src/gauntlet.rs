@@ -14,12 +14,11 @@ use std::sync::{Mutex, OnceLock, PoisonError};
 
 use serde::{Deserialize, Serialize};
 
-use crate::Rng;
 use crate::engines::Engine;
 use crate::native::drain_with_workers;
 use crate::search::{Engines, NativeReplaySequence, play_match_with_policies};
 use crate::strength::{
-    Contestant, Matchup, game_seed, mean_with_interval, pair_result, parse_game,
+    Contestant, Matchup, game_seed, match_rng, mean_with_interval, pair_result, parse_game,
 };
 
 pub const DEFAULT_ENGINE: &str = "montecarlo";
@@ -205,8 +204,7 @@ impl Gauntlet {
 
 fn play_pair(seats: &Seats, opponent: usize, seed: u32, engines: &Engines) -> Pair {
     let play = |matchup: &Matchup| {
-        let mut rng = Rng::default();
-        rng.reseed(game_seed(seed));
+        let mut rng = match_rng(seed);
         let mut decision_index = 0;
         // Matches already fill every core, so each match's search stays on one.
         let mut native = NativeReplaySequence {

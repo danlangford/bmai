@@ -2,7 +2,9 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use std::io::Write;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
+
+mod common;
 
 /// BMAIBagels' request in game 121248 just before it claimed 100%; the
 /// opponent's best line wins about 17.5% by hand.
@@ -12,7 +14,7 @@ ply 2\nmax_sims 100\nmin_sims 5\nmaxbranch 400\nreport_sims 1000\nsurrender off\
 
 #[test]
 fn a_rerolled_value_die_leaves_the_opponent_a_chance() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+    let mut child = common::bmair()
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

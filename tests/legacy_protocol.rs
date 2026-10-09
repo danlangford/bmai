@@ -7,6 +7,8 @@ use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+mod common;
+
 const TIMEOUT: Duration = Duration::from_secs(10);
 const FIGHT_REQUEST: &[u8] = b"game\nfight\nplayer 0 1 1\n1:1\nplayer 1 2 30\n1:1\n(30,30):60\nsurrender off\ngetaction\nquit\n";
 
@@ -116,6 +118,25 @@ fn a_match_that_can_only_tie_is_cancelled_at_round_200() {
     );
 }
 
+#[test]
+fn rng_hash_trace_skips_endgame_solver_replays() {
+    let stderr = run_traced(
+        "BMAIR_TRACE_RNG_HASH",
+        b"endgame 4\ngame 3\nfight\nplayer 0 2 10\n^6:3\nf8:5\nplayer 1 2 12\nv10:7\nz6:2\ngetaction\nquit\n",
+    );
+    let hash_lines = stderr.lines().filter(|line| line.starts_with("RNG_HASH "));
+    let first = stderr.lines().next().unwrap_or_default();
+    assert_eq!(hash_lines.count(), 1, "first stderr line: {first}");
+}
+
+fn run_traced(variable: &str, input: &[u8]) -> String {
+    let mut child = piped_bmair().env(variable, "1").spawn().unwrap();
+    child.stdin.take().unwrap().write_all(input).unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    String::from_utf8(output.stderr).unwrap()
+}
+
 fn run_to_quit(input: &'static [u8], timeout_message: &str) -> String {
     let mut child = spawn_bmair();
     let mut stdin = child.stdin.take().unwrap();
@@ -142,12 +163,16 @@ fn run_to_quit(input: &'static [u8], timeout_message: &str) -> String {
 }
 
 fn spawn_bmair() -> Child {
-    Command::new(env!("CARGO_BIN_EXE_bmair"))
+    piped_bmair().spawn().unwrap()
+}
+
+fn piped_bmair() -> Command {
+    let mut command = common::bmair();
+    command
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap()
+        .stderr(Stdio::piped());
+    command
 }
 
 fn receive_or_stop<T: Send + 'static>(

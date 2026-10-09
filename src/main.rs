@@ -90,6 +90,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     output.flush()?;
 
     let mut parser = Parser::default();
+    parser.trace_rng_from_env();
     if let Some(path) = arguments.first() {
         writeln!(output, "Reading from {path}")?;
         let input = fs::read_to_string(path)?;
