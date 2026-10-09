@@ -197,8 +197,7 @@ pub(crate) use fight::{
 pub(crate) use initiative::{select_chance_action, select_focus_action};
 pub use match_play::play_games;
 pub(crate) use match_play::{
-    Engines, play_fair_games, play_fair_games_native, play_games_with_policies,
-    play_games_with_policies_native, play_match_with_policies,
+    Engines, play_fair_games, play_games_with_policies, play_match_with_policies,
 };
 pub(crate) use preround::{
     acceptable_auxiliary_die, first_swing_move, select_bmai_auxiliary_action,

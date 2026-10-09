@@ -105,6 +105,8 @@ pub struct PairingResult {
     pub pairs: usize,
     pub first_wins: usize,
     pub second_wins: usize,
+    /// Matches cancelled at the round limit, which score as draws.
+    pub cancelled: usize,
     /// The first contestant's mean score per pair, with a 95% interval.
     pub first_score: f64,
     pub interval: (f64, f64),
@@ -127,6 +129,7 @@ pub fn play_pairing(
     let next = AtomicUsize::new(0);
     let mut scores = vec![0.0f64; units.len()];
     let mut wins = [0usize; 2];
+    let mut cancelled = 0;
     let completed = drain_with_workers(threads, || {
         let timed = |contestant: &Contestant, clock: &Clock| -> Box<dyn Engine> {
             Box::new(Timed {
@@ -156,9 +159,10 @@ pub fn play_pairing(
         results
     });
     for (index, [as_seat_0, as_seat_1]) in completed.into_iter().flatten() {
-        let (pair_wins, score) = pair_result(as_seat_0, as_seat_1);
+        let (pair_wins, pair_cancelled, score) = pair_result(as_seat_0, as_seat_1);
         wins[0] += pair_wins[0];
         wins[1] += pair_wins[1];
+        cancelled += pair_cancelled;
         scores[index] = score;
     }
     let (first_score, interval) = mean_with_interval(&scores);
@@ -168,6 +172,7 @@ pub fn play_pairing(
         pairs: units.len(),
         first_wins: wins[0],
         second_wins: wins[1],
+        cancelled,
         first_score,
         interval,
         first_ms_per_decision: clocks[0].ms_per_decision(),
@@ -175,14 +180,17 @@ pub fn play_pairing(
     }
 }
 
-/// Each contestant's wins over a seat-swapped pair and the first's score. A
-/// cancelled match scores as a draw.
-pub(crate) fn pair_result(as_seat_0: Option<usize>, as_seat_1: Option<usize>) -> ([usize; 2], f64) {
+/// Each contestant's wins over a seat-swapped pair, the matches cancelled, and
+/// the first's score. A cancelled match scores as a draw.
+pub(crate) fn pair_result(
+    as_seat_0: Option<usize>,
+    as_seat_1: Option<usize>,
+) -> ([usize; 2], usize, f64) {
     let first_wins = usize::from(as_seat_0 == Some(0)) + usize::from(as_seat_1 == Some(1));
     let second_wins = usize::from(as_seat_0 == Some(1)) + usize::from(as_seat_1 == Some(0));
     let cancelled = 2 - first_wins - second_wins;
     let score = (first_wins as f64 + 0.5 * cancelled as f64) / 2.0;
-    ([first_wins, second_wins], score)
+    ([first_wins, second_wins], cancelled, score)
 }
 
 /// Park-Miller seeded with consecutive integers rolls nearly the same opening
@@ -217,17 +225,18 @@ pub(crate) fn mean_with_interval(scores: &[f64]) -> (f64, (f64, f64)) {
 
 pub fn markdown_table(results: &[PairingResult]) -> String {
     let mut table = String::from(
-        "| First | Second | Pairs | First wins | First score (95% CI) | First ms/decision | Second ms/decision |\n\
-         |---|---|---:|---:|---|---:|---:|\n",
+        "| First | Second | Pairs | First wins | Cancelled | First score (95% CI) | First ms/decision | Second ms/decision |\n\
+         |---|---|---:|---:|---:|---|---:|---:|\n",
     );
     for result in results {
         table.push_str(&format!(
-            "| `{}` | `{}` | {} | {}/{} | {:.3} ({:.3}–{:.3}) | {:.2} | {:.2} |\n",
+            "| `{}` | `{}` | {} | {}/{} | {} | {:.3} ({:.3}–{:.3}) | {:.2} | {:.2} |\n",
             result.first,
             result.second,
             result.pairs,
             result.first_wins,
-            result.first_wins + result.second_wins,
+            2 * result.pairs,
+            result.cancelled,
             result.first_score,
             result.interval.0,
             result.interval.1,
@@ -400,16 +409,25 @@ mod tests {
 
     #[test]
     fn a_cancelled_match_scores_as_a_draw() {
-        assert_eq!(pair_result(None, None), ([0, 0], 0.5));
-        assert_eq!(pair_result(Some(0), None), ([1, 0], 0.75));
-        assert_eq!(pair_result(None, Some(0)), ([0, 1], 0.25));
+        assert_eq!(pair_result(None, None), ([0, 0], 2, 0.5));
+        assert_eq!(pair_result(Some(0), None), ([1, 0], 1, 0.75));
+        assert_eq!(pair_result(None, Some(0)), ([0, 1], 1, 0.25));
+        assert_eq!(pair_result(Some(0), Some(0)), ([1, 1], 0, 0.5));
 
         let quick = Contestant::parse("quick").unwrap();
         let random = Contestant::parse("random").unwrap();
         let matchup = Matchup::parse("nulls | n4 n4 | n4 n4", 1).unwrap();
         let result = play_pairing(&quick, &random, &[matchup], 1..=3, 2);
-        assert_eq!((result.first_wins, result.second_wins), (0, 0));
+        assert_eq!(
+            (result.first_wins, result.second_wins, result.cancelled),
+            (0, 0, 6)
+        );
         assert!((result.first_score - 0.5).abs() < 1e-9);
+        let table = markdown_table(&[result]);
+        assert!(
+            table.contains("| `quick` | `random` | 3 | 0/6 | 6 | 0.500 "),
+            "{table}"
+        );
     }
 
     #[test]

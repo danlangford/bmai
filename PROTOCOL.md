@@ -176,7 +176,7 @@ The stable command forms are:
 | `surrender on\|off` | Enable or disable surrender selection (default `off`). |
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. A game is cancelled when its 200th round ends, whatever that round's result, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player. |
-| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Cancelled games are left out. |
+| `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Cancelled games are left out of the split and counted in the header, `PlayFairGames: N games, C cancelled`; with none cancelled the header is `PlayFairGames: N games`. |
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
 
@@ -226,12 +226,12 @@ table, and `bmair gauntlet --merge` reads every part back. The first line of a
 part describes the run:
 
 ```json
-{"type":"shard","format":1,"bmair":"0.28.0","button":"(4) (6) (8) (10) (X)","engine":"montecarlo","field":[{"name":"Avis","recipe":"(4) (4) (10) (12) (X)"}],"seeds":[1,250],"shard":[1,4],"pairs":63}
+{"type":"shard","format":2,"bmair":"0.29.0","button":"(4) (6) (8) (10) (X)","engine":"montecarlo","field":[{"name":"Avis","recipe":"(4) (4) (10) (12) (X)"}],"seeds":[1,250],"shard":[1,4],"pairs":63}
 ```
 
 | Field | Meaning |
 |---|---|
-| `format` | Shard format version, currently `1`. |
+| `format` | Shard format version, currently `2`. |
 | `bmair` | Build version that played the part. Another build may play a seed differently. |
 | `button`, `engine` | The recipe under test and the engine spec for both seats. |
 | `field` | Opponents in table order, each with `name` and `recipe`. |
@@ -244,19 +244,21 @@ each seat, written as soon as it finishes, so pairs arrive in completion
 order:
 
 ```json
-{"type":"pair","opponent":0,"seed":17,"wins":2,"score":1.0,"rounds":[6,2]}
+{"type":"pair","opponent":0,"seed":17,"wins":2,"cancelled":0,"score":1.0,"rounds":[6,2]}
 ```
 
 `opponent` is a 0-based index into `field`. `wins` counts the button's wins of
-the two games, and `score` is its share of the pair, with a cancelled match
-counting as half. `rounds` is `[won, lost]` for the button.
+the two games, `cancelled` the games cancelled at the 200-round limit, and
+`score` is the button's share of the pair, with a cancelled match counting as
+half. `rounds` is `[won, lost]` for the button.
 
 Pairs are dealt to parts in turn: the pair at position `p` of opponent `o`
 belongs to part `(o * seeds_per_opponent + p) % N + 1`. A merge requires
 headers that agree on everything but `shard` and `pairs`, every part exactly
 once, and every opponent and seed exactly once, then prints the table a single
-run would. Readers ignore unknown fields; a change that would make an older
-merge misread a line bumps `format`.
+run would. Readers ignore unknown fields. A change that would make a merge
+misread another build's lines bumps `format`: format 2 added `cancelled`,
+which format 1 parts lack.
 
 ## Compatibility policy
 

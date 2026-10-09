@@ -23,24 +23,58 @@ fn native_playgame_wire_fixture_is_deterministic() {
         Setting native workers to 3\n\
         Seeding with 17\n\
         game over 1 - 0 - 0\n\
-        matches over 1 - 0\n";
+        matches over 1 - 0\n\
+        Seeding with 5\n\
+        Setting max # simulations to 20\n\
+        Setting min # simulations to 5\n\
+        target wins set to 3\n\
+        p0 s0.0 Dice (0)4 (0)6 (0)8 (0)10 \n\
+        p1 s0.0 Dice (0)4 (0)6 (0)8 (0)12 \n\
+        game over 3 - 1 - 0\n\
+        game over 1 - 3 - 0\n\
+        game over 0 - 3 - 0\n\
+        game over 0 - 3 - 0\n\
+        matches over 1 - 3\n\
+        PlayFairGames: 2 games\n\
+        P0 stats: initiative P0 games 0 wins 0 losses 0 percent nan%\n\
+        P0 stats: initiative P1 games 2 wins 1 losses 1 percent 50.0%\n\
+        P1 stats: initiative P1 games 2 wins 1 losses 1 percent 50.0%\n\
+        P1 stats: initiative P0 games 0 wins 0 losses 0 percent nan%\n";
 
     for _ in 0..2 {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
-        child
-            .stdin
-            .as_mut()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
-        let output = child.wait_with_output().unwrap();
-        assert!(output.status.success());
-        let stdout = String::from_utf8(output.stdout).unwrap();
+        let stdout = run(input);
         let protocol = stdout.split_once("Setting execution mode").unwrap().1;
         assert_eq!(format!("Setting execution mode{protocol}"), expected);
     }
+}
+
+#[test]
+fn native_playgame_wire_fixture_plays_differently_in_legacy_mode() {
+    let native = include_str!("native-fixtures/playgame.txt");
+    let legacy = native.replacen("mode native", "mode legacy", 1);
+    let results = |input: &str| {
+        run(input)
+            .lines()
+            .filter(|line| line.starts_with("matches over ") || line.contains(" stats: "))
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+    };
+    assert_ne!(results(native), results(&legacy));
+}
+
+fn run(input: &str) -> String {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(input.as_bytes())
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success());
+    String::from_utf8(output.stdout).unwrap()
 }
