@@ -32,9 +32,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Swing-size ranking from the same threshold math.
 - Review the protocol and JSONL schema while they can still change, then
   freeze them for 1.0.
-- Start Berserk, Morphing, and Mighty dice at their recipe size each round,
-  as ButtonWeavers does. They still keep a size changed in one round for the
-  rest of the match.
 - Wildcard (`C`) remains deferred until the protocol can carry deck state.
 - Pass search a single randomness source, the sequential generator or a
   native replay key, so no search takes a generator it ignores. Offer a
@@ -69,6 +66,44 @@ clear benefit. Each could return if that changes.
   rewarding dangerous captures, counting a Value reroll once, random opponent
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
+
+## [0.33.0] - 2026-10-09
+
+### Changed
+
+- A swing Turbo selection in a JSONL attack names its die, as the option
+  form does: `{"kind":"swing","die":0,"swing":"X","value":12}`. A button can
+  have several Turbo dice of one swing type.
+- PROTOCOL.md states that a game cancelled at its 200th round leaves that
+  round unscored, as ButtonWeavers' `do_next_step_end_round` does, which is
+  why 200 tied rounds print `game cancelled 0 - 0 - 199`. Behavior is
+  unchanged.
+- MINIMAX.md describes the shipped endgame solver: on at four dice since
+  0.24.0, and keyed by every field of both players rather than the canonical
+  key the `minimax` engine will need.
+- CI reruns the integration tests with every `BMAIR_TRACE_*` setting
+  exported, so a test that inherits a developer's trace fails before merge.
+
+### Fixed
+
+- Turbo resizes only the die that attacked, as ButtonWeavers'
+  `setTurboSize` does. A Turbo swing size used to change every die of that
+  swing type the player had, attacking or not, so Ping's two `(X)!` dice and
+  nelde's five `td(Y)!` dice moved together. A Twin Turbo die resizes both
+  halves, and Trip now judges its reach that way too. Every golden output is
+  unchanged.
+- Every Turbo die with a size to choose can choose one when it attacks. Only
+  a button's first Turbo die could take a size, even a fixed die with none to
+  choose, so a later Turbo die rerolled at its old size. When several Turbo
+  dice make one Skill attack, the search sizes the first and the others keep
+  theirs, which ButtonWeavers accepts.
+- Konstant Turbo dice and a Turbo die that has just morphed are no longer
+  offered sizes, as ButtonWeavers asks only attacking Turbo dice that reroll
+  and have not morphed. A Morphing Turbo die took the Turbo size after
+  morphing. A Trip still asks first, since it morphs only after its roll.
+- A Berserk Turbo option die, such as TheMachine's `B(1/30)!`, ends a
+  Berserk attack at one of its option sizes, as ButtonWeavers'
+  `set_optionValue` requires. Keeping its size left it halved, at 15.
 
 ## [0.32.0] - 2026-10-09
 
@@ -886,7 +921,9 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...HEAD
+[0.33.0]: https://github.com/danlangford/bmai/compare/bmair-v0.32.0...bmair-v0.33.0
+[0.32.0]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...bmair-v0.32.0
 [0.31.0]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...bmair-v0.31.0
 [0.30.0]: https://github.com/danlangford/bmai/compare/bmair-v0.29.0...bmair-v0.30.0
 [0.29.0]: https://github.com/danlangford/bmai/compare/bmair-v0.28.0...bmair-v0.29.0

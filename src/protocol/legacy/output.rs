@@ -43,11 +43,9 @@ pub(super) fn send_attack<W: Write>(
             write_indices(&game.players[0], &action.attackers, output)?;
             write_indices(&game.players[1], &action.targets, output)?;
             if action.turbo_option >= 0
-                && let Some(die) = game.players[0]
-                    .dice
-                    .iter()
-                    .find(|die| die.is_available() && die.has_property(property::TURBO))
+                && let Some(index) = crate::game::turbo_attacker(&game.players[0], action)
             {
+                let die = &game.players[0].dice[index];
                 if die.has_property(property::OPTION) {
                     writeln!(
                         output,
@@ -105,23 +103,21 @@ pub(super) fn protocol_attack(
             let turbo = if action.turbo_option < 0 {
                 None
             } else {
-                game.players[0]
-                    .dice
-                    .iter()
-                    .find(|die| die.is_available() && die.has_property(property::TURBO))
-                    .and_then(|die| {
-                        if die.has_property(property::OPTION) {
-                            Some(crate::protocol::TurboSelection::Option {
-                                die: die.original_index,
-                                value: die.sides[action.turbo_option as usize],
-                            })
-                        } else {
-                            die.swing_type[0].map(|swing| crate::protocol::TurboSelection::Swing {
-                                swing,
-                                value: action.turbo_option as u8,
-                            })
-                        }
-                    })
+                crate::game::turbo_attacker(&game.players[0], action).and_then(|index| {
+                    let die = &game.players[0].dice[index];
+                    if die.has_property(property::OPTION) {
+                        Some(crate::protocol::TurboSelection::Option {
+                            die: die.original_index,
+                            value: die.sides[action.turbo_option as usize],
+                        })
+                    } else {
+                        die.swing_type[0].map(|swing| crate::protocol::TurboSelection::Swing {
+                            die: die.original_index,
+                            swing,
+                            value: action.turbo_option as u8,
+                        })
+                    }
+                })
             };
             let fire = action
                 .fire

@@ -348,6 +348,20 @@ fn turbo_trip_is_offered_when_only_a_larger_size_reaches_the_target() {
 }
 
 #[test]
+fn twin_turbo_trip_reaches_with_both_halves_resized() {
+    let sizes = trip_turbo_choices("t(X,X)!-4:2", "M30:3");
+    assert!(
+        sizes.contains(&15) && sizes.contains(&20) && !sizes.contains(&14),
+        "{sizes:?}"
+    );
+}
+
+#[test]
+fn a_morphing_turbo_die_chooses_a_size_before_it_trips() {
+    assert_eq!(trip_turbo_choices("mtX!-4:1", "M20:3"), vec![20]);
+}
+
+#[test]
 fn option_turbo_trip_offers_only_the_side_that_reaches_the_target() {
     assert_eq!(trip_turbo_choices("t4/20!-20:1", "M12:3"), vec![0]);
 }

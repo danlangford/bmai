@@ -173,7 +173,7 @@ pub struct FireSelection {
 #[non_exhaustive]
 pub enum TurboSelection {
     Option { die: usize, value: u8 },
-    Swing { swing: char, value: u8 },
+    Swing { die: usize, swing: char, value: u8 },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]

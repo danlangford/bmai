@@ -109,8 +109,14 @@ Actions use a `type` discriminator:
 
 An attack may include `turbo`. Option Turbo is
 `{"kind":"option","die":0,"value":20}`; swing Turbo is
-`{"kind":"swing","swing":"X","value":12}`. Die numbers are original
-wire-protocol indices, even when internal dice storage is optimized.
+`{"kind":"swing","die":0,"swing":"X","value":12}`. ButtonWeavers lets each
+attacking Turbo die that rerolls and has not just morphed choose a size, and
+`setTurboSize` resizes only that die. BMAIR chooses for the first such die
+that has a size to choose, which `die` names; a client submits the current
+size of any other attacking Turbo die, since ButtonWeavers needs a size for
+each. Legacy output's `option DIE VALUE` and `swing X VALUE` lines describe
+the same die. Die numbers are original wire-protocol indices, even when
+internal dice storage is optimized.
 An assisted attack includes `"fire":[{"die":1,"value":3}]`, naming the
 final displayed value of each Fire die turned down for the attack. The field is
 omitted for attacks without Fire assistance.
@@ -175,7 +181,7 @@ The stable command forms are:
 | `fire_overshooting on\|off` | Permit optional Fire adjustments on Power attacks that are already legal for both sides of simulated continuations; defaults to `on`; ButtonWeavers players who have not turned on that preference should send `off`. |
 | `surrender on\|off` | Enable or disable surrender selection (default `off`). |
 | `getaction` | Select an action for player zero in the supplied phase. |
-| `playgame N` / `compare N` | Run N complete games from a preround state. Auxiliary dice are decided once, before the first round, as in an `aux` state: player 0 chooses first, and a decline by either player removes every Auxiliary die for the whole game. A game is cancelled when its 200th round ends, whatever that round's result, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player. |
+| `playgame N` / `compare N` | Run N complete games from a preround state. Auxiliary dice are decided once, before the first round, as in an `aux` state: player 0 chooses first, and a decline by either player removes every Auxiliary die for the whole game. A game is cancelled when its 200th round ends, whatever that round's result, and that round is not scored, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player, so 200 tied rounds print `game cancelled 0 - 0 - 199`. |
 | `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Auxiliary dice are decided as for `playgame`. Cancelled games are left out of the split and counted in the header, `PlayFairGames: N games, C cancelled`; with none cancelled the header is `PlayFairGames: N games`. |
 | `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
 | `quit` | Stop consuming the current script. |
