@@ -11,7 +11,7 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
-import { shardArguments } from "../../web/gauntlet.js";
+import { ShardProgress, shardArguments } from "../../web/gauntlet.js";
 import { runCommand } from "../../web/wasi.js";
 
 const root = new URL("../../", import.meta.url);
@@ -169,6 +169,9 @@ test("gauntlet shards merge to the single-run table", async () => {
   for (let part = 3; part >= 1; part -= 1) {
     const shard = await bmair(shardArguments(args, part, 3), field);
     assert.equal(shard.exitCode, 0, shard.stderr);
+    const progress = new ShardProgress();
+    progress.add(shard.stdout);
+    assert.equal(progress.played, progress.pairs, `shard ${part}/3`);
     parts += shard.stdout;
   }
   const merged = await bmair(["gauntlet", "--merge"], parts);

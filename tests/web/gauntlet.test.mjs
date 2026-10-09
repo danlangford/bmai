@@ -10,7 +10,18 @@ const recipe = "(4) (6) (8) (10) (X)";
 test("a gauntlet uses every core unless --threads says otherwise", () => {
   assert.equal(gauntletWorkers(["gauntlet", recipe], 8), 8);
   assert.equal(gauntletWorkers(["gauntlet", "--threads", "3", recipe, "-"], 8), 3);
+  assert.equal(gauntletWorkers(["gauntlet", "--threads", "+3", recipe], 8), 3);
   assert.equal(gauntletWorkers(["gauntlet", recipe], 0), 1);
+  assert.equal(gauntletWorkers(["gauntlet", recipe], undefined), 1);
+});
+
+test("the last --threads wins, as in the engine", () => {
+  assert.equal(gauntletWorkers(["gauntlet", "--threads", "2", "--threads", "5", recipe], 8), 5);
+});
+
+test("workers never outnumber cores", () => {
+  assert.equal(gauntletWorkers(["gauntlet", "--threads", "100", recipe], 8), 8);
+  assert.equal(gauntletWorkers(["gauntlet", "--threads", "4294967296", recipe], 8), 8);
 });
 
 test("anything that isn't a whole gauntlet runs as one engine", () => {
@@ -22,12 +33,16 @@ test("anything that isn't a whole gauntlet runs as one engine", () => {
     ["gauntlet", "--help"],
     ["gauntlet", "--merge"],
     ["gauntlet", "--shard", "1/2", recipe],
-    // The engine explains a bad count better than a guess would.
-    ["gauntlet", "--threads", "x", recipe],
-    ["gauntlet", "--threads", "0", recipe],
   ]) {
-    assert.equal(gauntletWorkers(args, 8), 0, args.join(" "));
+    assert.equal(gauntletWorkers(args, 8), 1, args.join(" "));
   }
+});
+
+test("a --threads value the engine refuses goes to one engine to explain", () => {
+  for (const value of ["x", "0", "00", "1e2", "0x10", " 2", "2.0", "-3", ""]) {
+    assert.equal(gauntletWorkers(["gauntlet", "--threads", value, recipe], 8), 1, value);
+  }
+  assert.equal(gauntletWorkers(["gauntlet", recipe, "--threads"], 8), 1);
 });
 
 test("each shard gets the run's arguments and its part", () => {
@@ -46,5 +61,7 @@ test("progress counts matches across chunks that split lines", () => {
   progress.add('{"type":"shard","format":1,"pairs":3,"field":["A"]}\n{"type":"pa');
   assert.deepEqual([progress.pairs, progress.played], [3, 0]);
   progress.add('ir","opponent":0}\n{"type":"pair","opponent":0}\n');
+  assert.deepEqual([progress.pairs, progress.played], [3, 2]);
+  progress.add("not json\n");
   assert.deepEqual([progress.pairs, progress.played], [3, 2]);
 });

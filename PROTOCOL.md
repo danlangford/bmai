@@ -219,6 +219,45 @@ conversation is executable at
 exact compatibility and differential evidence is maintained in
 [`PARITY.md`](PARITY.md).
 
+## Gauntlet shards
+
+`bmair gauntlet --shard K/N` writes one JSON object per line instead of a
+table, and `bmair gauntlet --merge` reads every part back. The first line of a
+part describes the run:
+
+```json
+{"type":"shard","format":1,"bmair":"0.28.0","button":"(4) (6) (8) (10) (X)","engine":"montecarlo","field":[{"name":"Avis","recipe":"(4) (4) (10) (12) (X)"}],"seeds":[1,250],"shard":[1,4],"pairs":63}
+```
+
+| Field | Meaning |
+|---|---|
+| `format` | Shard format version, currently `1`. |
+| `bmair` | Build version that played the part. Another build may play a seed differently. |
+| `button`, `engine` | The recipe under test and the engine spec for both seats. |
+| `field` | Opponents in table order, each with `name` and `recipe`. |
+| `seeds` | First and last seed of the whole gauntlet, inclusive. |
+| `shard` | This part and the number of parts, counting from 1. |
+| `pairs` | How many pair lines this part writes. |
+
+Every later line is one seed played against one opponent with the button in
+each seat, written as soon as it finishes, so pairs arrive in completion
+order:
+
+```json
+{"type":"pair","opponent":0,"seed":17,"wins":2,"score":1.0,"rounds":[6,2]}
+```
+
+`opponent` is a 0-based index into `field`. `wins` counts the button's wins of
+the two games, and `score` is its share of the pair, with a cancelled match
+counting as half. `rounds` is `[won, lost]` for the button.
+
+Pairs are dealt to parts in turn: the pair at position `p` of opponent `o`
+belongs to part `(o * seeds_per_opponent + p) % N + 1`. A merge requires
+headers that agree on everything but `shard` and `pairs`, every part exactly
+once, and every opponent and seed exactly once, then prints the table a single
+run would. Readers ignore unknown fields; a change that would make an older
+merge misread a line bumps `format`.
+
 ## Compatibility policy
 
 Released protocol identifiers are immutable contracts. Within `jsonl-v1`, new

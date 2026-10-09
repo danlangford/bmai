@@ -211,7 +211,8 @@ function showProgress() {
 }
 
 function startShards(args, count, stdin) {
-  run.shards = Array.from({ length: count }, (_, index) => {
+  run.shards = [];
+  for (let index = 0; index < count; index += 1) {
     const shard = {
       worker: new Worker(WORKER_URL, { type: "module" }),
       output: "",
@@ -221,16 +222,15 @@ function startShards(args, count, stdin) {
       exitCode: null,
     };
     shard.worker.onmessage = ({ data }) => handleShard(shard, data);
+    run.shards.push(shard);
     shard.worker.onerror = (event) => {
       event.preventDefault();
       if (run?.shards?.includes(shard)) {
-        endShards();
         finish("error", event.message || "a gauntlet worker did not start");
       }
     };
     shard.worker.postMessage({ id: index, args: shardArguments(args, index + 1, count), stdin });
-    return shard;
-  });
+  }
 }
 
 function handleShard(shard, message) {
@@ -244,7 +244,6 @@ function handleShard(shard, message) {
   } else if (message.type === "stderr") {
     shard.errors += shard.decoders.stderr.decode(message.bytes, { stream: true });
   } else if (message.type === "error") {
-    endShards();
     finish("error", message.message);
   } else if (message.type === "exit") {
     shard.exitCode = message.exitCode;
@@ -252,7 +251,6 @@ function handleShard(shard, message) {
     // Every shard fails the same way on bad input, so one copy of its error is enough.
     queueOutput(shard.errors + shard.decoders.stderr.decode(), "stderr");
     if (message.exitCode !== 0) {
-      endShards();
       finish("exit", message.exitCode);
     } else if (run.shards.every((each) => each.exitCode === 0)) {
       const parts = run.shards.map((each) => each.output).join("");
@@ -270,6 +268,9 @@ function endShards() {
 }
 
 function finish(outcome, detail) {
+  if (run.shards) {
+    endShards();
+  }
   for (const stream of ["stdout", "stderr"]) {
     queueOutput(run.decoders[stream].decode(), stream);
   }
@@ -315,12 +316,17 @@ function start() {
     decoders: { stdout: new TextDecoder(), stderr: new TextDecoder() },
     timer: setInterval(showProgress, 100),
   };
+  setStatus("Running…", "running");
   if (workers > 1) {
-    startShards(args, workers, input.value);
+    try {
+      startShards(args, workers, input.value);
+    } catch (error) {
+      finish("error", error.message);
+      return;
+    }
   } else {
     run.id = send(args, input.value);
   }
-  setStatus("Running…", "running");
   runButton.disabled = true;
   stopButton.disabled = false;
   copyButton.disabled = true;
@@ -330,9 +336,6 @@ function start() {
 function stop() {
   if (!run) {
     return;
-  }
-  if (run.shards) {
-    endShards();
   }
   worker.terminate();
   finish("stopped");

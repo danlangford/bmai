@@ -9,18 +9,24 @@ const NOT_A_RUN = new Set(["-h", "--help", "--field", "--shard", "--merge"]);
 
 /**
  * How many workers should share a gauntlet: its `--threads` value, as on the
- * command line, or else every core. Anything else runs as one engine (0).
+ * command line, or else every core. More workers than cores cost memory and
+ * gain nothing. Anything but a whole gauntlet runs as one engine.
  */
 export function gauntletWorkers(args, cores) {
+  const available = Math.max(1, cores || 1);
   if (args[0] !== "gauntlet" || args.some((arg) => NOT_A_RUN.has(arg))) {
-    return 0;
+    return 1;
   }
-  const threads = args.indexOf("--threads");
-  if (threads !== -1) {
-    const value = Number(args[threads + 1]);
-    return Number.isInteger(value) && value > 0 ? value : 0;
+  const threads = args.lastIndexOf("--threads");
+  if (threads === -1) {
+    return available;
   }
-  return Math.max(1, cores);
+  // Only what the engine's own parser accepts; it explains anything else.
+  const value = args[threads + 1] ?? "";
+  if (!/^\+?\d+$/.test(value) || Number(value) === 0) {
+    return 1;
+  }
+  return Math.min(Number(value), available);
 }
 
 export function shardArguments(args, part, count) {
@@ -37,10 +43,18 @@ export class ShardProgress {
     const lines = (this.#pending + text).split("\n");
     this.#pending = lines.pop();
     for (const line of lines) {
-      if (line.startsWith('{"type":"pair"')) {
+      let parsed;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        // The merge names any line it can't read; progress just skips it.
+        continue;
+      }
+      const { type, pairs } = parsed;
+      if (type === "pair") {
         this.played += 1;
-      } else if (line.startsWith('{"type":"shard"')) {
-        this.pairs = JSON.parse(line).pairs;
+      } else if (type === "shard") {
+        this.pairs = pairs;
       }
     }
   }

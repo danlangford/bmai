@@ -209,12 +209,15 @@ that they come from one gauntlet with no match missing or repeated, and prints
 the table a single run would:
 
 ```shell
-for part in 1 2 3 4; do
-  bmair gauntlet --shard "$part/4" "dk(1) k(V) k(V) k(V) dmMH(4)" > "part$part.jsonl" &
-done
-wait
-bmair gauntlet --merge part*.jsonl
+# On each of four machines, with K from 1 to 4:
+bmair gauntlet --shard K/4 "dk(1) k(V) k(V) k(V) dmMH(4)" > partK.jsonl
+# Then, with every part in one place:
+bmair gauntlet --merge part1.jsonl part2.jsonl part3.jsonl part4.jsonl
 ```
+
+Each part uses every core of its machine. Errors name the file and line, and a
+missing match names the part to run again. [`PROTOCOL.md`](PROTOCOL.md)
+describes the JSON lines.
 
 ### Skills
 

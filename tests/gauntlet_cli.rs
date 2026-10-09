@@ -119,6 +119,11 @@ fn merged_shards_print_the_single_run_table() {
                     .concat(),
                 );
                 assert!(output.status.success(), "{output:?}");
+                // The web page counts progress against this.
+                let text = String::from_utf8(output.stdout.clone()).unwrap();
+                let header: serde_json::Value =
+                    serde_json::from_str(text.lines().next().unwrap()).unwrap();
+                assert_eq!(header["pairs"], text.lines().count() - 1, "{shard}");
                 output.stdout
             })
             .collect::<Vec<_>>();
@@ -170,6 +175,13 @@ fn a_merge_reads_shard_files_and_names_what_is_missing() {
             .unwrap()
             .contains("missing shard 1 of 2")
     );
+    let help = gauntlet(&["--merge", "--help"]);
+    assert!(help.status.success());
+    assert!(
+        String::from_utf8(help.stdout)
+            .unwrap()
+            .contains("--shard K/N")
+    );
 }
 
 #[test]
@@ -217,6 +229,10 @@ fn bad_arguments_fail_with_a_reason_before_any_play() {
         ),
         (&["--games", "2", "--merge"], "--merge comes first"),
         (&["--merge", "no-such-shard.jsonl"], "no-such-shard.jsonl: "),
+        (
+            &["--merge", "--games"],
+            "--merge takes shard files, not --games",
+        ),
         (&[""], "the button: player 0 has no dice"),
     ] {
         let output = gauntlet(arguments);

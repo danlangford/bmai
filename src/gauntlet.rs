@@ -6,8 +6,11 @@
 //! reflects the buttons rather than the AI or the seat.
 
 use std::collections::BTreeMap;
+use std::convert::Infallible;
+use std::io::{self, Write};
 use std::ops::RangeInclusive;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock, PoisonError};
 
 use serde::{Deserialize, Serialize};
 
@@ -36,7 +39,7 @@ Konami: (6) (8) f(10) f(10) (X)
 Wolfman: (6) p(10) (12) z(16) (X)
 ";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Button {
     pub name: String,
     pub recipe: String,
@@ -68,6 +71,9 @@ pub fn parse_field(text: &str) -> Result<Vec<Button>, String> {
 
 #[derive(Debug)]
 pub struct Gauntlet {
+    button: String,
+    field: Vec<Button>,
+    engine_spec: String,
     engine: Box<dyn Engine>,
     opponents: Vec<Seats>,
 }
@@ -102,6 +108,9 @@ impl Gauntlet {
             })
             .collect::<Result<Vec<_>, String>>()?;
         Ok(Self {
+            button: recipe.to_owned(),
+            field: field.to_vec(),
+            engine_spec: contestant.spec().to_owned(),
             engine: contestant.engine,
             opponents,
         })
@@ -113,22 +122,58 @@ impl Gauntlet {
 
     pub fn play(&self, opponent: usize, seeds: RangeInclusive<u32>, threads: usize) -> Record {
         let seeds = seeds.collect::<Vec<_>>();
-        let pairs = self.play_seeds(opponent, &seeds, threads, &|_| {});
-        Record::new(&self.opponents[opponent].button_first.label, &pairs)
+        let Ok(pairs) = self.play_seeds::<Infallible>(opponent, &seeds, threads, &|_| Ok(()));
+        Record::new(&self.field[opponent].name, &pairs)
     }
 
-    /// Returns the pairs in `seeds` order; `report` sees each one as soon as
-    /// it finishes.
-    pub fn play_seeds(
+    /// Plays this shard's part of the gauntlet and writes it as JSON lines:
+    /// a header naming the run, then each pair as it finishes.
+    pub fn play_shard(
+        &self,
+        seeds: RangeInclusive<u32>,
+        shard: Shard,
+        threads: usize,
+        output: impl Write + Send,
+    ) -> io::Result<()> {
+        let header = ShardHeader {
+            format: SHARD_FORMAT,
+            bmair: BUILD_VERSION.to_owned(),
+            button: self.button.clone(),
+            engine: self.engine_spec.clone(),
+            field: self.field.clone(),
+            seeds: [*seeds.start(), *seeds.end()],
+            shard: [shard.part(), shard.count()],
+            pairs: shard.pairs(seeds.clone(), self.opponents()),
+        };
+        let output = Mutex::new(output);
+        let write = |line: &ShardLine| -> io::Result<()> {
+            let mut output = output.lock().unwrap_or_else(PoisonError::into_inner);
+            serde_json::to_writer(&mut *output, line)?;
+            writeln!(output)?;
+            output.flush()
+        };
+        write(&ShardLine::Shard(header))?;
+        for opponent in 0..self.opponents() {
+            let seeds = shard.seeds(seeds.clone(), opponent);
+            self.play_seeds(opponent, &seeds, threads, &|pair| {
+                write(&ShardLine::Pair(*pair))
+            })?;
+        }
+        Ok(())
+    }
+
+    /// Returns the pairs in `seeds` order. `report` sees each pair as soon as
+    /// it finishes; its first error stops the play and is returned.
+    pub fn play_seeds<E: Send + Sync>(
         &self,
         opponent: usize,
         seeds: &[u32],
         threads: usize,
-        report: &(dyn Fn(&Pair) + Sync),
-    ) -> Vec<Pair> {
+        report: &(dyn Fn(&Pair) -> Result<(), E> + Sync),
+    ) -> Result<Vec<Pair>, E> {
         let seats = &self.opponents[opponent];
         let next = AtomicUsize::new(0);
-        let mut pairs = vec![Pair::default(); seeds.len()];
+        let failure = OnceLock::new();
         let completed = drain_with_workers(threads, || {
             let engines: Engines = [self.engine.clone(), self.engine.clone()];
             let mut results = Vec::new();
@@ -138,15 +183,23 @@ impl Gauntlet {
                     break;
                 };
                 let pair = play_pair(seats, opponent, seed, &engines);
-                report(&pair);
+                if let Err(error) = report(&pair) {
+                    let _ = failure.set(error);
+                    next.store(seeds.len(), Ordering::Relaxed);
+                    break;
+                }
                 results.push((index, pair));
             }
             results
         });
+        if let Some(error) = failure.into_inner() {
+            return Err(error);
+        }
+        let mut pairs = vec![Pair::default(); seeds.len()];
         for (index, pair) in completed.into_iter().flatten() {
             pairs[index] = pair;
         }
-        pairs
+        Ok(pairs)
     }
 }
 
@@ -229,23 +282,46 @@ impl Shard {
         let per_opponent = seeds.clone().count();
         seeds
             .enumerate()
-            .filter(|(position, _)| (opponent * per_opponent + position) % self.count == self.index)
+            .filter(|&(position, _)| self.deals(opponent * per_opponent + position))
             .map(|(_, seed)| seed)
             .collect()
     }
+
+    /// Pairs this part plays across `opponents` opponents.
+    pub fn pairs(self, seeds: RangeInclusive<u32>, opponents: usize) -> usize {
+        let total = opponents * seeds.count();
+        (0..total).filter(|&pair| self.deals(pair)).count()
+    }
+
+    fn deals(self, pair: usize) -> bool {
+        pair % self.count == self.index
+    }
+
+    /// The part of a `count`-part split that plays pair number `pair`.
+    fn dealt(count: usize, pair: usize) -> Self {
+        Self {
+            index: pair % count,
+            count,
+        }
+    }
 }
+
+const BUILD_VERSION: &str = env!("BMAIR_BUILD_VERSION");
 
 /// Changes whenever a merge could misread an older shard's lines.
 pub const SHARD_FORMAT: u32 = 1;
 
-/// The first line of a shard's output: enough for a merge to check that every
-/// part comes from the same gauntlet and to print its table.
+/// The first line of a shard's output: everything that decides its results,
+/// so a merge can refuse parts of different gauntlets, and what the merge
+/// needs to print the table.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ShardHeader {
     pub format: u32,
+    /// Another bmair build may play the same seed differently.
+    pub bmair: String,
     pub button: String,
     pub engine: String,
-    pub field: Vec<String>,
+    pub field: Vec<Button>,
     /// The first and last seed of the whole gauntlet.
     pub seeds: [u32; 2],
     /// This part and the number of parts, counting from 1.
@@ -267,63 +343,84 @@ pub enum ShardLine {
 pub struct Merged {
     pub button: String,
     pub engine: String,
-    pub field: Vec<String>,
+    pub field: Vec<Button>,
     pub seeds: RangeInclusive<u32>,
     pub records: Vec<Record>,
 }
 
-/// Rebuilds a gauntlet from every part's `--shard` output, in any order.
-/// Records keep seed order so the totals and intervals match a single run.
-pub fn merge(text: &str) -> Result<Merged, String> {
-    let mut header: Option<ShardHeader> = None;
-    let mut parts = BTreeMap::new();
-    let mut pairs = BTreeMap::new();
-    for (index, line) in text.lines().enumerate() {
-        if line.trim().is_empty() {
-            continue;
-        }
-        let number = index + 1;
-        match serde_json::from_str::<ShardLine>(line)
-            .map_err(|error| format!("line {number}: {error}"))?
-        {
-            ShardLine::Shard(shard) => {
-                if shard.format != SHARD_FORMAT {
-                    return Err(format!(
-                        "line {number}: shard format {} is not {SHARD_FORMAT}; merge with the bmair that played it",
-                        shard.format
-                    ));
-                }
-                let [part, count] = shard.shard;
-                if let Some(first) = &header {
-                    let same_run = ShardHeader {
-                        shard: first.shard,
-                        pairs: first.pairs,
-                        ..shard.clone()
-                    };
-                    if &same_run != first {
-                        return Err(format!(
-                            "line {number}: shard {part}/{count} is from a different gauntlet"
-                        ));
-                    }
-                }
-                if parts.insert(part, number).is_some() {
-                    return Err(format!("line {number}: shard {part}/{count} appears twice"));
-                }
-                header.get_or_insert(shard);
+/// Rebuilds a gauntlet from every part's `--shard` output, in any order and
+/// split across any sources, each named for error messages. Records keep seed
+/// order so the totals and intervals match a single run.
+pub fn merge<'a>(sources: impl IntoIterator<Item = (&'a str, &'a str)>) -> Result<Merged, String> {
+    let mut headers = Vec::new();
+    let mut pair_lines = Vec::new();
+    for (source, text) in sources {
+        for (index, line) in text.lines().enumerate() {
+            if line.trim().is_empty() {
+                continue;
             }
-            ShardLine::Pair(pair) => {
-                if pairs.insert((pair.opponent, pair.seed), pair).is_some() {
-                    return Err(format!(
-                        "line {number}: opponent {} seed {} appears twice",
-                        pair.opponent + 1,
-                        pair.seed
-                    ));
-                }
+            let at = format!("{source}:{}", index + 1);
+            match serde_json::from_str::<ShardLine>(line) {
+                Ok(ShardLine::Shard(header)) => headers.push((at, header)),
+                Ok(ShardLine::Pair(pair)) => pair_lines.push((at, pair)),
+                Err(error) => return Err(format!("{at}: {}", without_position(&error))),
             }
         }
     }
-    let header = header.ok_or("no shard headers; merge the output of bmair gauntlet --shard")?;
-    let count = header.shard[1];
+    let Some((_, first)) = headers.first() else {
+        return Err("no shard headers; merge the output of bmair gauntlet --shard".into());
+    };
+    let first = first.clone();
+    let count = first.shard[1];
+    let seeds = first.seeds[0]..=first.seeds[1];
+    let mut parts = BTreeMap::new();
+    for (at, header) in &headers {
+        let [part, its_count] = header.shard;
+        let name = format!("shard {part}/{its_count}");
+        if header.format != SHARD_FORMAT {
+            return Err(format!(
+                "{at}: {name} has format {}, not {SHARD_FORMAT}; merge it with the bmair that played it",
+                header.format
+            ));
+        }
+        if header.bmair != first.bmair {
+            return Err(format!(
+                "{at}: {name} was played by bmair {}, not {}",
+                header.bmair, first.bmair
+            ));
+        }
+        if its_count != count {
+            return Err(format!(
+                "{at}: {name} is from a {its_count}-part split, not {count}"
+            ));
+        }
+        let differs = [
+            ("button", header.button != first.button),
+            ("engine", header.engine != first.engine),
+            ("opponents", header.field != first.field),
+            ("seeds", header.seeds != first.seeds),
+        ]
+        .into_iter()
+        .find(|(_, differs)| *differs);
+        if let Some((what, _)) = differs {
+            return Err(format!(
+                "{at}: {name} is from a different gauntlet; its {what} differ"
+            ));
+        }
+        if part == 0 || part > count {
+            return Err(format!("{at}: {name} is not one of {count} parts"));
+        }
+        let expected = Shard::dealt(count, part - 1).pairs(seeds.clone(), first.field.len());
+        if header.pairs != expected {
+            return Err(format!(
+                "{at}: {name} says it plays {} pairs, but its part has {expected}",
+                header.pairs
+            ));
+        }
+        if let Some(earlier) = parts.insert(part, at) {
+            return Err(format!("{at}: {name} appears twice (first at {earlier})"));
+        }
+    }
     let missing = (1..=count)
         .filter(|part| !parts.contains_key(part))
         .map(|part| part.to_string())
@@ -331,32 +428,68 @@ pub fn merge(text: &str) -> Result<Merged, String> {
     if !missing.is_empty() {
         return Err(format!("missing shard {} of {count}", missing.join(", ")));
     }
-    let seeds = header.seeds[0]..=header.seeds[1];
+
+    let mut pairs = BTreeMap::new();
+    for (at, pair) in pair_lines {
+        let Some(opponent) = first.field.get(pair.opponent) else {
+            return Err(format!(
+                "{at}: opponent index {} is past the field's {} buttons",
+                pair.opponent,
+                first.field.len()
+            ));
+        };
+        if !seeds.contains(&pair.seed) {
+            return Err(format!(
+                "{at}: seed {} is outside seeds {}-{}",
+                pair.seed,
+                seeds.start(),
+                seeds.end()
+            ));
+        }
+        if let Some((earlier, _)) = pairs.insert((pair.opponent, pair.seed), (at.clone(), pair)) {
+            return Err(format!(
+                "{at}: {} seed {} appears twice (first at {earlier})",
+                opponent.name, pair.seed
+            ));
+        }
+    }
+    let per_opponent = seeds.clone().count();
     let mut records = Vec::new();
-    for (opponent, name) in header.field.iter().enumerate() {
+    for (opponent, button) in first.field.iter().enumerate() {
         let played = seeds
             .clone()
-            .map(|seed| {
+            .enumerate()
+            .map(|(position, seed)| {
                 pairs
                     .remove(&(opponent, seed))
-                    .ok_or_else(|| format!("{name} seed {seed} is missing; was a shard cut short?"))
+                    .map(|(_, pair)| pair)
+                    .ok_or_else(|| {
+                        let shard = Shard::dealt(count, opponent * per_opponent + position);
+                        format!(
+                            "{} seed {seed} is missing; rerun shard {}/{count}",
+                            button.name,
+                            shard.part()
+                        )
+                    })
             })
             .collect::<Result<Vec<_>, _>>()?;
-        records.push(Record::new(name, &played));
-    }
-    if let Some(((opponent, seed), _)) = pairs.into_iter().next() {
-        return Err(format!(
-            "opponent {} seed {seed} is not part of this gauntlet",
-            opponent + 1
-        ));
+        records.push(Record::new(&button.name, &played));
     }
     Ok(Merged {
-        button: header.button,
-        engine: header.engine,
-        field: header.field,
+        button: first.button,
+        engine: first.engine,
+        field: first.field,
         seeds,
         records,
     })
+}
+
+/// serde places errors within the line; the caller already names the line.
+fn without_position(error: &serde_json::Error) -> String {
+    let message = error.to_string();
+    message
+        .rsplit_once(" at line ")
+        .map_or(message.clone(), |(text, _)| text.to_owned())
 }
 
 #[derive(Clone, Debug)]
@@ -619,40 +752,70 @@ mod tests {
         }
     }
 
-    fn shard_output(parts: &[usize], count: usize, pairs: &[(usize, u32)]) -> String {
-        let mut lines = parts
+    #[test]
+    fn shards_get_an_even_share_of_the_whole_field() {
+        // The web page's gauntlet example: 8 opponents, 5 seeds, 18 workers.
+        for (opponents, seeds, count) in [(8, 1..=5, 18), (8, 1..=250, 7), (3, 1..=4, 5)] {
+            let total = opponents * seeds.clone().count();
+            for part in 1..=count {
+                let shard = Shard::parse(&format!("{part}/{count}")).unwrap();
+                let pairs = (0..opponents)
+                    .map(|opponent| shard.seeds(seeds.clone(), opponent).len())
+                    .sum::<usize>();
+                assert!(
+                    pairs == total / count || pairs == total.div_ceil(count),
+                    "part {part}/{count} plays {pairs} of {total}"
+                );
+                assert_eq!(shard.pairs(seeds.clone(), opponents), pairs);
+            }
+        }
+    }
+
+    fn header(part: usize, count: usize) -> ShardHeader {
+        let field = vec![button("A", "(6) (X)"), button("B", "(8) (X)")];
+        let shard = Shard::parse(&format!("{part}/{count}")).unwrap();
+        ShardHeader {
+            format: SHARD_FORMAT,
+            bmair: BUILD_VERSION.into(),
+            button: "(4) (X)".into(),
+            engine: "quick".into(),
+            pairs: shard.pairs(3..=4, field.len()),
+            field,
+            seeds: [3, 4],
+            shard: [part, count],
+        }
+    }
+
+    fn pair(opponent: usize, seed: u32) -> Pair {
+        Pair {
+            opponent,
+            seed,
+            wins: 1,
+            // Distinct scores show the order a merge puts them in.
+            score: f64::from(seed) / 10.0,
+            rounds: [3, 3],
+        }
+    }
+
+    fn lines(headers: &[ShardHeader], pairs: &[(usize, u32)]) -> String {
+        let headers = headers.iter().cloned().map(ShardLine::Shard);
+        let pairs = pairs
             .iter()
-            .map(|&part| {
-                serde_json::to_string(&ShardLine::Shard(ShardHeader {
-                    format: SHARD_FORMAT,
-                    button: "(4) (X)".into(),
-                    engine: "quick".into(),
-                    field: vec!["A".into(), "B".into()],
-                    seeds: [3, 4],
-                    shard: [part, count],
-                    pairs: 0,
-                }))
-                .unwrap()
-            })
-            .collect::<Vec<_>>();
-        lines.extend(pairs.iter().map(|&(opponent, seed)| {
-            serde_json::to_string(&ShardLine::Pair(Pair {
-                opponent,
-                seed,
-                wins: 1,
-                score: 0.5,
-                rounds: [3, 3],
-            }))
-            .unwrap()
-        }));
-        lines.join("\n")
+            .map(|&(opponent, seed)| ShardLine::Pair(pair(opponent, seed)));
+        headers
+            .chain(pairs)
+            .map(|line| serde_json::to_string(&line).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n")
     }
 
     const EVERY_PAIR: [(usize, u32); 4] = [(1, 4), (0, 3), (1, 3), (0, 4)];
 
     #[test]
     fn a_merge_puts_pairs_back_in_seed_order() {
-        let merged = merge(&shard_output(&[2, 1], 2, &EVERY_PAIR)).unwrap();
+        let first = lines(&[header(2, 2)], &EVERY_PAIR[..2]);
+        let second = lines(&[header(1, 2)], &EVERY_PAIR[2..]);
+        let merged = merge([("b", first.as_str()), ("a", second.as_str())]).unwrap();
         assert_eq!(
             (merged.button.as_str(), merged.engine.as_str()),
             ("(4) (X)", "quick")
@@ -661,47 +824,96 @@ mod tests {
         let opponents = merged.records.iter().map(|record| record.opponent.as_str());
         assert_eq!(opponents.collect::<Vec<_>>(), ["A", "B"]);
         assert_eq!((merged.records[1].wins, merged.records[1].games), (2, 4));
+        assert_eq!(merged.records[1].pair_scores, [0.3, 0.4]);
     }
 
     #[test]
     fn a_merge_refuses_anything_but_one_whole_gauntlet() {
-        let mut different = shard_output(&[1], 2, &[]);
-        different.push('\n');
-        different.push_str(&shard_output(&[2], 2, &EVERY_PAIR).replace("quick", "random"));
-        let mut old_format = shard_output(&[1], 1, &EVERY_PAIR);
-        old_format = old_format.replace("\"format\":1", "\"format\":0");
+        let whole = |change: fn(&mut ShardHeader)| {
+            let mut second = header(2, 2);
+            change(&mut second);
+            lines(&[header(1, 2), second], &EVERY_PAIR)
+        };
         for (text, error) in [
             (String::new(), "no shard headers"),
-            ("{\"type\":\"pair\"}".into(), "line 1: missing field"),
             (
-                shard_output(&[1, 1], 2, &EVERY_PAIR),
-                "shard 1/2 appears twice",
+                "{\"type\":\"pair\"}".into(),
+                "x:1: missing field `opponent`",
             ),
             (
-                shard_output(&[1], 3, &EVERY_PAIR),
+                "{\"type\":\"pair\",".into(),
+                "x:1: EOF while parsing a value",
+            ),
+            (
+                whole(|header| header.format = 0),
+                "x:2: shard 2/2 has format 0, not 1",
+            ),
+            (
+                whole(|header| header.bmair = "0.1.0".into()),
+                "x:2: shard 2/2 was played by bmair 0.1.0",
+            ),
+            (
+                whole(|header| header.shard = [2, 3]),
+                "x:2: shard 2/3 is from a 3-part split, not 2",
+            ),
+            (
+                whole(|header| header.button = "(20)".into()),
+                "x:2: shard 2/2 is from a different gauntlet; its button differ",
+            ),
+            (
+                whole(|header| header.engine = "random".into()),
+                "its engine differ",
+            ),
+            (
+                whole(|header| header.field[1].recipe = "(20)".into()),
+                "its opponents differ",
+            ),
+            (whole(|header| header.seeds = [3, 5]), "its seeds differ"),
+            (
+                whole(|header| header.shard = [3, 2]),
+                "x:2: shard 3/2 is not one of 2 parts",
+            ),
+            (
+                whole(|header| header.pairs = 0),
+                "x:2: shard 2/2 says it plays 0 pairs, but its part has 2",
+            ),
+            (
+                lines(&[header(1, 2), header(1, 2)], &EVERY_PAIR),
+                "x:2: shard 1/2 appears twice (first at x:1)",
+            ),
+            (
+                lines(&[header(1, 3)], &EVERY_PAIR),
                 "missing shard 2, 3 of 3",
             ),
-            (different, "shard 2/2 is from a different gauntlet"),
-            (old_format, "shard format 0 is not 1"),
             (
-                shard_output(&[1], 1, &EVERY_PAIR[1..]),
-                "B seed 4 is missing",
+                lines(&[header(1, 2), header(2, 2)], &EVERY_PAIR[1..]),
+                "B seed 4 is missing; rerun shard 2/2",
             ),
             (
-                shard_output(&[1], 1, &[EVERY_PAIR.as_slice(), &[(0, 3)]].concat()),
-                "opponent 1 seed 3 appears twice",
+                lines(
+                    &[header(1, 1)],
+                    &[EVERY_PAIR.as_slice(), &[(0, 3)]].concat(),
+                ),
+                "x:6: A seed 3 appears twice (first at x:3)",
             ),
             (
-                shard_output(&[1], 1, &[EVERY_PAIR.as_slice(), &[(2, 3)]].concat()),
-                "opponent 3 seed 3 is not part of this gauntlet",
+                lines(
+                    &[header(1, 1)],
+                    &[EVERY_PAIR.as_slice(), &[(2, 3)]].concat(),
+                ),
+                "x:6: opponent index 2 is past the field's 2 buttons",
             ),
             (
-                shard_output(&[1], 1, &[EVERY_PAIR.as_slice(), &[(0, 9)]].concat()),
-                "opponent 1 seed 9 is not part of this gauntlet",
+                lines(
+                    &[header(1, 1)],
+                    &[EVERY_PAIR.as_slice(), &[(0, 9)]].concat(),
+                ),
+                "x:6: seed 9 is outside seeds 3-4",
             ),
         ] {
-            let actual = merge(&text).unwrap_err();
+            let actual = merge([("x", text.as_str())]).unwrap_err();
             assert!(actual.contains(error), "expected {error:?}, got {actual:?}");
+            assert!(!actual.contains(" at line "), "{actual}");
         }
     }
 
