@@ -10,8 +10,8 @@ thread_local! {
 
 /// No worker count changes a result, so where threads can't start the same
 /// work runs on one thread. Stable Rust gives a threaded WebAssembly build the
-/// same `cfg` as an unthreaded one, and either may run on a host without
-/// threads, so WebAssembly asks once at run time.
+/// same `cfg` as an unthreaded one, and a host may refuse to spawn, so
+/// WebAssembly asks once at run time.
 fn threads_available() -> bool {
     static AVAILABLE: OnceLock<bool> = OnceLock::new();
     !cfg!(target_family = "wasm")
@@ -79,8 +79,8 @@ where
 }
 
 /// Runs up to `count` copies of `work` at once and returns each copy's result.
-/// Builds without threads run a single copy, so each copy must keep taking
-/// work from a shared queue until none is left.
+/// Where threads can't start, a single copy runs, so each copy must keep
+/// taking work from a shared queue until none is left.
 pub(crate) fn drain_with_workers<R, F>(count: usize, work: F) -> Vec<R>
 where
     R: Send,

@@ -118,6 +118,19 @@ test("worker counts above one give the one-worker result", async () => {
 
 // The fixtures pin C++ defaults; the page runs BMAIR's, whose endgame solver
 // recurses deeper than anything else on WebAssembly's 1 MiB stack.
+test("search traces stay out of worker evaluations, as on native", async () => {
+  const fixture = await readFile(new URL("tests/fixtures/Value1_in.txt", root), "utf8");
+  const play = (workers) =>
+    bmair([], `mode native\nseed 3\nworkers ${workers}\nmax_sims 100\n${fixture}`, {
+      BMAIR_TRACE_RNG: "1",
+    });
+  const alone = await play(1);
+  const shared = await play(2);
+  assert.equal(shared.exitCode, 0);
+  assert.match(alone.stderr, /QAI_RNG/);
+  assert.doesNotMatch(shared.stderr, /QAI_RNG/);
+});
+
 test("BMAIR's own defaults run, endgame solver included", async () => {
   const fixture = await readFile(new URL("tests/fixtures/Insult_in.txt", root), "utf8");
   const fight = await bmair([], fixture);
@@ -134,13 +147,16 @@ test("BMAIR's own defaults run, endgame solver included", async () => {
 });
 
 test("a gauntlet reads its opponents from standard input", async () => {
-  const { exitCode, stdout } = await bmair(
-    ["gauntlet", "--games", "2", "--engine", "quick", "--threads", "4", "6 12 20 20 X", "-"],
-    "Avis: (4) (4) (10) (12) (X)\n",
-  );
-  assert.equal(exitCode, 0);
-  assert.match(stdout, /\nAvis +\d\/2 /);
-  assert.match(stdout, /\nOverall +\d\/2 /);
+  const play = (threads) =>
+    bmair(
+      ["gauntlet", "--games", "4", "--engine", "quick", "--threads", threads, "6 12 20 20 X", "-"],
+      "Avis: (4) (4) (10) (12) (X)\n",
+    );
+  const [alone, shared] = [await play("1"), await play("4")];
+  assert.equal(shared.exitCode, 0);
+  assert.match(shared.stdout, /\nAvis +\d\/4 /);
+  assert.match(shared.stdout, /\nOverall +\d\/4 /);
+  assert.equal(shared.stdout, alone.stdout);
 });
 
 test("JSON Lines answers every request in order", async () => {

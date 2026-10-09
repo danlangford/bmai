@@ -40,7 +40,7 @@ let nextRequestId = 0;
 const captures = new Map();
 let run = null;
 let latestSelection = 0;
-let pending = [];
+let queuedOutput = [];
 let flushScheduled = false;
 
 function showNotice(message) {
@@ -146,7 +146,7 @@ function queueOutput(text, stream) {
   if (!text) {
     return;
   }
-  pending.push({ text, stream });
+  queuedOutput.push({ text, stream });
   if (!flushScheduled) {
     flushScheduled = true;
     requestAnimationFrame(flushOutput);
@@ -156,7 +156,7 @@ function queueOutput(text, stream) {
 function flushOutput() {
   flushScheduled = false;
   const following = output.scrollHeight - output.scrollTop - output.clientHeight < 32;
-  for (const { text, stream } of pending) {
+  for (const { text, stream } of queuedOutput) {
     const last = output.lastChild;
     if (stream === "stdout") {
       if (last?.nodeType === Node.TEXT_NODE) {
@@ -173,7 +173,7 @@ function flushOutput() {
       output.append(span);
     }
   }
-  pending = [];
+  queuedOutput = [];
   if (following) {
     output.scrollTop = output.scrollHeight;
   }
@@ -223,7 +223,7 @@ function start() {
   }
   save();
   output.textContent = "";
-  pending = [];
+  queuedOutput = [];
   run = {
     id: send(args, input.value),
     started: performance.now(),
@@ -245,9 +245,9 @@ function stop() {
   finish("stopped");
   startWorker();
   // An example still loading behind the stopped run starts over on the new worker.
-  const pending = [...captures.values()];
+  const stranded = [...captures.values()];
   captures.clear();
-  for (const request of pending) {
+  for (const request of stranded) {
     request.text = "";
     request.decoder = new TextDecoder();
     captures.set(send(request.args, ""), request);
