@@ -70,8 +70,8 @@ fn an_opponents_file_replaces_the_default_field() {
 
 #[test]
 fn a_dash_reads_the_opponents_from_standard_input() {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
-        .args([
+    let output = bmair_with_input(
+        &[
             "gauntlet",
             "--games",
             "2",
@@ -79,23 +79,97 @@ fn a_dash_reads_the_opponents_from_standard_input() {
             "quick",
             "6 12 20 20 X",
             "-",
-        ])
+        ],
+        b"Avis: (4) (4) (10) (12) (X)\n",
+    );
+    assert!(output.status.success(), "{output:?}");
+    let stdout = String::from_utf8(output.stdout).unwrap();
+    assert!(stdout.contains("\nAvis "));
+    assert!(!stdout.contains("Lucky"));
+}
+
+fn bmair_with_input(arguments: &[&str], input: &[u8]) -> Output {
+    let mut child = Command::new(env!("CARGO_BIN_EXE_bmair"))
+        .args(arguments)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .unwrap();
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(b"Avis: (4) (4) (10) (12) (X)\n")
-        .unwrap();
-    let output = child.wait_with_output().unwrap();
-    assert!(output.status.success(), "{output:?}");
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("\nAvis "));
-    assert!(!stdout.contains("Lucky"));
+    child.stdin.take().unwrap().write_all(input).unwrap();
+    child.wait_with_output().unwrap()
+}
+
+#[test]
+fn merged_shards_print_the_single_run_table() {
+    let options = ["--games", "5", "--seed", "3", "--engine", "quick"];
+    let recipe = "dk(1) k(V) k(V) k(V) dmMH(4)";
+    let single = gauntlet(&[&options[..], &[recipe]].concat());
+    assert!(single.status.success(), "{single:?}");
+    for (count, threads) in [(1, "1"), (3, "2"), (8, "1")] {
+        let parts = (1..=count)
+            .rev()
+            .map(|part| {
+                let shard = format!("{part}/{count}");
+                let output = gauntlet(
+                    &[
+                        &options[..],
+                        &["--threads", threads, "--shard", &shard, recipe],
+                    ]
+                    .concat(),
+                );
+                assert!(output.status.success(), "{output:?}");
+                output.stdout
+            })
+            .collect::<Vec<_>>();
+        let merged = bmair_with_input(&["gauntlet", "--merge"], &parts.concat());
+        assert!(merged.status.success(), "{merged:?}");
+        assert_eq!(
+            String::from_utf8(merged.stdout).unwrap(),
+            String::from_utf8(single.stdout.clone()).unwrap(),
+            "{count} shards"
+        );
+    }
+}
+
+#[test]
+fn a_merge_reads_shard_files_and_names_what_is_missing() {
+    let directory = std::env::temp_dir();
+    let path = |part| directory.join(format!("bmair-shard-{}-{part}.jsonl", std::process::id()));
+    for part in 1..=2 {
+        let output = gauntlet(&[
+            "--games",
+            "2",
+            "--engine",
+            "quick",
+            "--shard",
+            &format!("{part}/2"),
+            "6 12 20 20 X",
+        ]);
+        assert!(output.status.success(), "{output:?}");
+        std::fs::write(path(part), output.stdout).unwrap();
+    }
+    let whole = gauntlet(&[
+        "--merge",
+        path(1).to_str().unwrap(),
+        path(2).to_str().unwrap(),
+    ]);
+    let partial = gauntlet(&["--merge", path(2).to_str().unwrap()]);
+    for part in 1..=2 {
+        std::fs::remove_file(path(part)).unwrap();
+    }
+    assert!(whole.status.success(), "{whole:?}");
+    assert!(
+        String::from_utf8(whole.stdout)
+            .unwrap()
+            .contains("\nOverall ")
+    );
+    assert!(!partial.status.success());
+    assert!(
+        String::from_utf8(partial.stderr)
+            .unwrap()
+            .contains("missing shard 1 of 2")
+    );
 }
 
 #[test]
@@ -137,6 +211,12 @@ fn bad_arguments_fail_with_a_reason_before_any_play() {
         ),
         (&["--games"], "--games needs a value"),
         (&["(4)", "no-such-opponents.txt"], "no-such-opponents.txt: "),
+        (
+            &["--shard", "3/2", "(4)"],
+            "--shard takes K/N with 1 <= K <= N, not 3/2",
+        ),
+        (&["--games", "2", "--merge"], "--merge comes first"),
+        (&["--merge", "no-such-shard.jsonl"], "no-such-shard.jsonl: "),
         (&[""], "the button: player 0 has no dice"),
     ] {
         let output = gauntlet(arguments);

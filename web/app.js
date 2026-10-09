@@ -2,6 +2,7 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 import { splitArguments } from "./arguments.js";
+import { ShardProgress, gauntletWorkers, shardArguments } from "./gauntlet.js";
 
 const EXAMPLES = [
   { label: "Fight: choose an attack", args: "", file: "examples/fight.txt" },
@@ -10,13 +11,14 @@ const EXAMPLES = [
   { label: "JSON Lines session", args: "--protocol jsonl-v1", file: "examples/session.jsonl" },
   {
     label: "Gauntlet: one button against a field you can edit",
-    args: 'gauntlet --games 2 "(4) (6) (8) (10) (X)" -',
+    args: 'gauntlet --games 10 "(4) (6) (8) (10) (X)" -',
     command: ["gauntlet", "--field"],
   },
   { label: "Capabilities", args: "--capabilities", input: "" },
 ];
 const CUSTOM = "custom";
 const STORAGE_KEY = "bmair-web";
+const WORKER_URL = new URL("worker.js", import.meta.url);
 const WRAP_KEY = "bmair-web-wrap";
 
 const element = (id) => document.getElementById(id);
@@ -26,6 +28,7 @@ const argsInput = element("args");
 const input = element("input");
 const output = element("output");
 const status = element("status");
+const progress = element("progress");
 const version = element("version");
 const runButton = element("run");
 const stopButton = element("stop");
@@ -79,7 +82,7 @@ function setWrap(wrap) {
 }
 
 function startWorker() {
-  worker = new Worker(new URL("worker.js", import.meta.url), { type: "module" });
+  worker = new Worker(WORKER_URL, { type: "module" });
   worker.onmessage = ({ data }) => {
     if (captures.has(data.id)) {
       handleCapture(data);
@@ -189,14 +192,93 @@ function elapsed() {
     : `${(milliseconds / 1000).toFixed(1)} s`;
 }
 
+function showProgress() {
+  const shards = run.shards;
+  if (!shards) {
+    setStatus(`Running… ${elapsed()}`, "running");
+    return;
+  }
+  const played = shards.reduce((total, shard) => total + shard.progress.played, 0);
+  const counted = shards.every((shard) => shard.progress.pairs !== null);
+  const pairs = shards.reduce((total, shard) => total + (shard.progress.pairs ?? 0), 0);
+  const games = counted ? `${2 * played} of ${2 * pairs}` : `${2 * played}`;
+  setStatus(`Running… ${elapsed()} · ${games} games on ${shards.length} workers`, "running");
+  if (counted && pairs > 0) {
+    progress.max = pairs;
+    progress.value = played;
+    progress.hidden = false;
+  }
+}
+
+function startShards(args, count, stdin) {
+  run.shards = Array.from({ length: count }, (_, index) => {
+    const shard = {
+      worker: new Worker(WORKER_URL, { type: "module" }),
+      output: "",
+      errors: "",
+      decoders: { stdout: new TextDecoder(), stderr: new TextDecoder() },
+      progress: new ShardProgress(),
+      exitCode: null,
+    };
+    shard.worker.onmessage = ({ data }) => handleShard(shard, data);
+    shard.worker.onerror = (event) => {
+      event.preventDefault();
+      if (run?.shards?.includes(shard)) {
+        endShards();
+        finish("error", event.message || "a gauntlet worker did not start");
+      }
+    };
+    shard.worker.postMessage({ id: index, args: shardArguments(args, index + 1, count), stdin });
+    return shard;
+  });
+}
+
+function handleShard(shard, message) {
+  if (!run?.shards?.includes(shard)) {
+    return;
+  }
+  if (message.type === "stdout") {
+    const text = shard.decoders.stdout.decode(message.bytes, { stream: true });
+    shard.output += text;
+    shard.progress.add(text);
+  } else if (message.type === "stderr") {
+    shard.errors += shard.decoders.stderr.decode(message.bytes, { stream: true });
+  } else if (message.type === "error") {
+    endShards();
+    finish("error", message.message);
+  } else if (message.type === "exit") {
+    shard.exitCode = message.exitCode;
+    shard.output += shard.decoders.stdout.decode();
+    // Every shard fails the same way on bad input, so one copy of its error is enough.
+    queueOutput(shard.errors + shard.decoders.stderr.decode(), "stderr");
+    if (message.exitCode !== 0) {
+      endShards();
+      finish("exit", message.exitCode);
+    } else if (run.shards.every((each) => each.exitCode === 0)) {
+      const parts = run.shards.map((each) => each.output).join("");
+      endShards();
+      run.id = send(["gauntlet", "--merge"], parts);
+    }
+  }
+}
+
+function endShards() {
+  for (const shard of run.shards) {
+    shard.worker.terminate();
+  }
+  run.shards = null;
+}
+
 function finish(outcome, detail) {
   for (const stream of ["stdout", "stderr"]) {
     queueOutput(run.decoders[stream].decode(), stream);
   }
   clearInterval(run.timer);
+  progress.hidden = true;
   const time = elapsed();
+  const workers = run.workers > 1 ? ` on ${run.workers} workers` : "";
   if (outcome === "exit" && detail === 0) {
-    setStatus(`Finished in ${time}`, "done");
+    setStatus(`Finished in ${time}${workers}`, "done");
   } else if (outcome === "exit") {
     setStatus(`Exited with status ${detail} after ${time}`, "failed");
   } else if (outcome === "stopped") {
@@ -224,12 +306,20 @@ function start() {
   save();
   output.textContent = "";
   queuedOutput = [];
+  const workers = gauntletWorkers(args, navigator.hardwareConcurrency ?? 1);
   run = {
-    id: send(args, input.value),
+    id: null,
+    shards: null,
+    workers,
     started: performance.now(),
     decoders: { stdout: new TextDecoder(), stderr: new TextDecoder() },
-    timer: setInterval(() => setStatus(`Running… ${elapsed()}`, "running"), 100),
+    timer: setInterval(showProgress, 100),
   };
+  if (workers > 1) {
+    startShards(args, workers, input.value);
+  } else {
+    run.id = send(args, input.value);
+  }
   setStatus("Running…", "running");
   runButton.disabled = true;
   stopButton.disabled = false;
@@ -240,6 +330,9 @@ function start() {
 function stop() {
   if (!run) {
     return;
+  }
+  if (run.shards) {
+    endShards();
   }
   worker.terminate();
   finish("stopped");

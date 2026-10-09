@@ -54,6 +54,7 @@ SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.no
       <section class="pane" aria-labelledby="output-heading">
         <div class="pane-header">
           <h2 id="output-heading">Output</h2>
+          <progress id="progress" hidden></progress>
           <span class="status" id="status" role="status"></span>
           <button type="button" id="wrap" aria-pressed="false">Wrap</button>
           <button type="button" id="copy" disabled>Copy</button>
@@ -65,8 +66,9 @@ SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.no
 
     <p class="hint">
       <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Enter</kbd> runs. Each run starts a fresh
-      engine. The browser gives the engine one thread, so <code>workers</code> and
-      <code>--threads</code> settings above 1 give the same results, only slower.
+      engine. A gauntlet plays on every core, one engine per worker, and
+      <code>--threads</code> sets how many. Everything else gets one thread, so
+      <code>workers</code> above 1 gives the same results, only slower.
     </p>
   </main>
 

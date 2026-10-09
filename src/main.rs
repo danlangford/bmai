@@ -6,23 +6,30 @@ use std::env;
 use std::fs;
 use std::io::{self, Write};
 
-use bmair::gauntlet::{self, Gauntlet, Record, Table};
+use bmair::gauntlet::{self, Gauntlet, Record, Shard, ShardHeader, ShardLine, Table};
 use bmair::strength::Contestant;
 use bmair::{Capabilities, Parser, run_jsonl};
 
 const GAUNTLET_USAGE: &str = "\
 usage: bmair gauntlet [options] \"RECIPE\" [OPPONENTS]
+       bmair gauntlet --merge [SHARD_FILES]
 
 Plays RECIPE against each opponent and reports how often it wins. Write the
 recipe in ButtonWeavers or BMAIR notation, inside quotes. OPPONENTS is a file
 of `Name: recipe` lines, or - to read them from standard input; without it,
 the default field is played.
 
+To split a long gauntlet across processes or machines, run each part with the
+same options plus --shard K/N, then pass every part's output to --merge, from
+files or standard input. The table matches a single run.
+
 options:
   --games N      matches per opponent, half from each seat (default 500)
   --engine SPEC  the AI for both seats (default \"montecarlo\")
   --seed N       the first seed (default 1)
   --threads N    matches to play at once (default: every core)
+  --shard K/N    play part K of N and print its matches as JSON lines
+  --merge        print the table for every part's --shard output
   --field        print the default field and exit
 ";
 
@@ -95,10 +102,14 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    if arguments.first().map(String::as_str) == Some("--merge") {
+        return merge_gauntlet(&arguments[1..]);
+    }
     let mut games = gauntlet::DEFAULT_GAMES;
     let mut engine = gauntlet::DEFAULT_ENGINE.to_owned();
     let mut first_seed = 1u32;
     let mut threads = std::thread::available_parallelism().map_or(1, usize::from);
+    let mut shard = None;
     let mut positional = Vec::new();
     let mut arguments = arguments.iter();
     while let Some(argument) = arguments.next() {
@@ -120,6 +131,10 @@ fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> 
             "--engine" => engine.clone_from(value()?),
             "--seed" => first_seed = positive(argument, value()?)?,
             "--threads" => threads = positive(argument, value()?)?,
+            "--shard" => shard = Some(Shard::parse(value()?)?),
+            "--merge" => {
+                return Err("--merge comes first: bmair gauntlet --merge [SHARD_FILES]".into());
+            }
             flag if flag.starts_with('-') && flag != "-" => {
                 return Err(format!("unknown option {flag}\n\n{GAUNTLET_USAGE}").into());
             }
@@ -128,14 +143,7 @@ fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> 
     }
     let (recipe, field) = match positional[..] {
         [recipe] => (recipe, gauntlet::DEFAULT_FIELD.to_owned()),
-        [recipe, path] => {
-            let field = if path == "-" {
-                io::read_to_string(io::stdin())
-            } else {
-                fs::read_to_string(path)
-            };
-            (recipe, field.map_err(|error| format!("{path}: {error}"))?)
-        }
+        [recipe, path] => (recipe, read_input(path)?),
         [] => return Err(GAUNTLET_USAGE.into()),
         _ => {
             return Err(
@@ -148,31 +156,108 @@ fn run_gauntlet(arguments: &[String]) -> Result<(), Box<dyn std::error::Error>> 
         .ok()
         .and_then(|offset| first_seed.checked_add(offset))
         .ok_or("--seed plus --games runs past the last seed")?;
+    let seeds = first_seed..=last_seed;
     let field = gauntlet::parse_field(&field)?;
+    let names = field
+        .iter()
+        .map(|button| button.name.clone())
+        .collect::<Vec<_>>();
     let engine = Contestant::parse(&engine)?;
     let spec = engine.spec().to_owned();
     let gauntlet = Gauntlet::new(recipe, &field, engine)?;
-    let table = Table::new(&field);
 
+    if let Some(shard) = shard {
+        let header = ShardHeader {
+            format: gauntlet::SHARD_FORMAT,
+            button: recipe.to_owned(),
+            engine: spec,
+            field: names,
+            seeds: [first_seed, last_seed],
+            shard: [shard.part(), shard.count()],
+            pairs: (0..gauntlet.opponents())
+                .map(|opponent| shard.seeds(seeds.clone(), opponent).len())
+                .sum(),
+        };
+        println!("{}", serde_json::to_string(&ShardLine::Shard(header))?);
+        for opponent in 0..gauntlet.opponents() {
+            let seeds = shard.seeds(seeds.clone(), opponent);
+            gauntlet.play_seeds(opponent, &seeds, threads, &|pair| {
+                let line = serde_json::to_string(&ShardLine::Pair(*pair))
+                    .expect("a pair always serializes");
+                println!("{line}");
+            });
+        }
+        return Ok(());
+    }
+
+    let table = Table::new(names.iter().map(String::as_str));
     let mut output = io::stdout().lock();
-    writeln!(output, "Button: {recipe}")?;
-    writeln!(output, "Engine: {spec}")?;
-    writeln!(
-        output,
-        "{} games per opponent: seeds {first_seed}-{last_seed}, each played from both seats",
-        2 * pairs
-    )?;
-    writeln!(output)?;
-    writeln!(output, "{}", table.header())?;
+    write_gauntlet_heading(&mut output, recipe, &spec, &seeds, &table)?;
     let mut records = Vec::new();
     for opponent in 0..gauntlet.opponents() {
-        let record = gauntlet.play(opponent, first_seed..=last_seed, threads);
+        let record = gauntlet.play(opponent, seeds.clone(), threads);
         writeln!(output, "{}", table.row(&record))?;
         output.flush()?;
         records.push(record);
     }
     writeln!(output, "{}", table.row(&Record::total(&records)))?;
     Ok(())
+}
+
+fn merge_gauntlet(paths: &[String]) -> Result<(), Box<dyn std::error::Error>> {
+    let text = if paths.is_empty() {
+        read_input("-")?
+    } else {
+        paths
+            .iter()
+            .map(|path| read_input(path))
+            .collect::<Result<Vec<_>, _>>()?
+            .join("\n")
+    };
+    let merged = gauntlet::merge(&text)?;
+    let table = Table::new(merged.field.iter().map(String::as_str));
+    let mut output = io::stdout().lock();
+    write_gauntlet_heading(
+        &mut output,
+        &merged.button,
+        &merged.engine,
+        &merged.seeds,
+        &table,
+    )?;
+    for record in &merged.records {
+        writeln!(output, "{}", table.row(record))?;
+    }
+    writeln!(output, "{}", table.row(&Record::total(&merged.records)))?;
+    Ok(())
+}
+
+fn write_gauntlet_heading(
+    output: &mut impl Write,
+    recipe: &str,
+    engine: &str,
+    seeds: &std::ops::RangeInclusive<u32>,
+    table: &Table,
+) -> io::Result<()> {
+    writeln!(output, "Button: {recipe}")?;
+    writeln!(output, "Engine: {engine}")?;
+    writeln!(
+        output,
+        "{} games per opponent: seeds {}-{}, each played from both seats",
+        2 * seeds.clone().count(),
+        seeds.start(),
+        seeds.end()
+    )?;
+    writeln!(output)?;
+    writeln!(output, "{}", table.header())
+}
+
+fn read_input(path: &str) -> Result<String, String> {
+    if path == "-" {
+        io::read_to_string(io::stdin())
+    } else {
+        fs::read_to_string(path)
+    }
+    .map_err(|error| format!("{path}: {error}"))
 }
 
 fn positive<T: std::str::FromStr + Default + PartialEq>(

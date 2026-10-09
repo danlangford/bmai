@@ -25,7 +25,7 @@ trap 'rm -rf "$site"' EXIT
 assets="$site/assets"
 mkdir -p "$assets/examples"
 
-for file in style.css app.js arguments.js worker.js wasi.js; do
+for file in style.css app.js arguments.js gauntlet.js worker.js wasi.js; do
     cp "$root/web/$file" "$assets/$file"
 done
 cp "$wasm" "$assets/bmair.wasm"

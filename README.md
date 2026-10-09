@@ -202,6 +202,20 @@ native search on one worker, and matches run in parallel across every core.
 `--games`, `--seed`, and `--threads` set the rest, and `--help` lists them. The same seeds give the same results at any thread count. At 500 matches
 the 95% interval is about four points either way.
 
+A long gauntlet can be split across processes or machines. Run each part with
+the same options plus `--shard K/N`; each part prints its matches as JSON
+lines. `--merge` then reads every part, from files or standard input, checks
+that they come from one gauntlet with no match missing or repeated, and prints
+the table a single run would:
+
+```shell
+for part in 1 2 3 4; do
+  bmair gauntlet --shard "$part/4" "dk(1) k(V) k(V) k(V) dmMH(4)" > "part$part.jsonl" &
+done
+wait
+bmair gauntlet --merge part*.jsonl
+```
+
 ### Skills
 
 BMAIR implements the C++ engine's skills plus these ButtonWeavers skills that
@@ -245,6 +259,12 @@ nothing the visitor types leaves the browser. The page takes command-line
 arguments and standard input, so anything in this README works there,
 including the JSON Lines protocol and `bmair gauntlet`. The browser can't open
 files, so pass a gauntlet's opponents as `-` and paste them as input.
+
+The engine gets one thread in a browser, so the page splits a gauntlet into
+shards instead: one engine per Web Worker, `--threads` of them or one per core,
+then `--merge` for the table. Separate engines scale like native threads and
+need no special hosting. Everything else runs as one engine, where `workers`
+above 1 gives the same results, only slower.
 
 To build and try the site locally, then serve it at `http://localhost:8000/`:
 

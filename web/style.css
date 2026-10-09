@@ -240,6 +240,12 @@ button:disabled {
   font-size: 0.8rem;
 }
 
+progress {
+  width: 72px;
+  height: 6px;
+  accent-color: var(--accent);
+}
+
 .status {
   white-space: nowrap;
   font-size: 0.8rem;

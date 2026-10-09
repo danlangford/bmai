@@ -84,13 +84,21 @@ clear benefit. Each could return if that changes.
   `bmair-VERSION-webassembly-wasm32-wasip1-release.wasm`, for WASI runtimes
   such as Wasmtime. It is the same file the web site runs.
 - `bmair gauntlet "RECIPE" -` reads the opponents from standard input.
+- `bmair gauntlet --shard K/N` plays one part of a gauntlet and prints its
+  matches as JSON lines, and `bmair gauntlet --merge` prints the table for
+  every part, identical to a single run. Long gauntlets can now be split
+  across processes or machines.
+- The web site plays a gauntlet on every core, one engine per Web Worker, and
+  shows how many games are done. 80 games against the default field take
+  under 9 seconds on 18 cores, ten times faster than one engine.
 
 ### Changed
 
 - Where threads can't start, as in the WebAssembly release, `workers` above 1
   and gauntlet `--threads` run their work in turn instead of crashing. Results
-  match native builds; only the speed differs. CI runs every golden fixture through the browser's
-  WebAssembly host and compares output and RNG fingerprints with native.
+  match native builds; only the speed differs. CI runs every golden fixture
+  through the browser's WebAssembly host and compares output and RNG
+  fingerprints with native.
 
 ## [0.27.0] - 2026-10-08
 

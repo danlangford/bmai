@@ -11,6 +11,7 @@
 import assert from "node:assert/strict";
 import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
+import { shardArguments } from "../../web/gauntlet.js";
 import { runCommand } from "../../web/wasi.js";
 
 const root = new URL("../../", import.meta.url);
@@ -157,6 +158,22 @@ test("a gauntlet reads its opponents from standard input", async () => {
   assert.match(shared.stdout, /\nAvis +\d\/4 /);
   assert.match(shared.stdout, /\nOverall +\d\/4 /);
   assert.equal(shared.stdout, alone.stdout);
+});
+
+test("gauntlet shards merge to the single-run table", async () => {
+  const field = "Avis: (4) (4) (10) (12) (X)\nHammer: (6) (12) (20) (20) (X)\n";
+  const args = ["gauntlet", "--games", "6", "--engine", "quick", "6 12 20 20 X", "-"];
+  const single = await bmair(args, field);
+  assert.equal(single.exitCode, 0, single.stderr);
+  let parts = "";
+  for (let part = 3; part >= 1; part -= 1) {
+    const shard = await bmair(shardArguments(args, part, 3), field);
+    assert.equal(shard.exitCode, 0, shard.stderr);
+    parts += shard.stdout;
+  }
+  const merged = await bmair(["gauntlet", "--merge"], parts);
+  assert.equal(merged.exitCode, 0, merged.stderr);
+  assert.equal(merged.stdout, single.stdout);
 });
 
 test("JSON Lines answers every request in order", async () => {
