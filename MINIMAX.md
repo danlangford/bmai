@@ -154,7 +154,10 @@ than the last (Brier score) before it reaches the harness.
 ## Exact endgame solver
 
 When few dice remain, solve the rest of the round exactly over the
-generator's moves, both players at their best, with the canonical key above.
+generator's moves, both players at their best. The shipped solver keys a
+position by every field of both players in game order (`state_key`), not by
+the canonical key above: at four dice few positions transpose, so the
+canonical key waits for the `minimax` engine's larger searches.
 A prototype for plain dice found 2v2 at hundreds of states, 3v3 at thousands
 to tens of thousands, and 4v4 at about 780,000, so step 1 starts at four or
 six dice in total. Each decision has a node budget and an outcome cap, which
@@ -184,7 +187,8 @@ a tie and look like success.
 
 Each step states its acceptance criteria before its runs.
 
-1. **Endgame solver**, a `montecarlo` setting, `endgame N`, off by default.
+1. **Endgame solver**, a `montecarlo` setting, `endgame N`, on at four dice
+   since 0.24.0.
    Accepted when:
    - outcome enumeration sums to exactly one and matches closed forms
      (article 9's Trip odds) and sampled play;

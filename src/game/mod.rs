@@ -14,6 +14,7 @@ mod types;
 
 pub(crate) use action::FireAdjustment;
 pub use action::{DieIndexSet, Move};
+pub(crate) use attack::turbo_attacker;
 pub use die::Die;
 pub(crate) use mechanics::{
     RoundSelections, apply_attack, apply_attack_for_players, apply_before_roll_effects,

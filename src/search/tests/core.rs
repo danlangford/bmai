@@ -31,18 +31,6 @@ fn unique_rejects_equal_values_on_lower_swing_types() {
 }
 
 #[test]
-fn turbo_swing_changes_all_matching_dice_before_the_reroll() {
-    scenario()
-        .attackers(["kX!-10:10", "3:3", "kX-10:7"])
-        .attacks(Skill)
-        .using([0, 1])
-        .defender("13:13")
-        .turbo(20)
-        .expect_attacker_die(2, "kX-20:7")
-        .run();
-}
-
-#[test]
 fn pr82_trip_target_before_roll_effect_triggers_once() {
     for (target, expected) in [("H6:6", "H8:8"), ("h20:20", "h16:16")] {
         scenario()

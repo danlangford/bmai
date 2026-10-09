@@ -218,6 +218,7 @@ fn every_typed_action_shape_has_a_stable_discriminator() {
             attackers: vec![0, 2],
             targets: vec![1],
             turbo: Some(TurboSelection::Swing {
+                die: 2,
                 swing: 'X',
                 value: 12,
             }),
@@ -257,6 +258,7 @@ fn every_typed_action_shape_has_a_stable_discriminator() {
     );
     assert_eq!(actions[2]["die"], 1);
     assert_eq!(actions[3]["turbo"]["kind"], "swing");
+    assert_eq!(actions[3]["turbo"]["die"], 2);
 }
 
 #[test]

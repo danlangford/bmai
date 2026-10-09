@@ -225,7 +225,7 @@ fn trip_can_capture(attacker: &Die, target: &Die) -> bool {
 }
 
 fn turbo_sizes(die: &Die, accuracy: f32) -> Vec<(i16, Die)> {
-    if !die.has_property(property::TURBO) {
+    if !chooses_turbo_size(die) {
         return vec![(-1, *die)];
     }
     if die.has_property(property::OPTION) {
@@ -249,23 +249,25 @@ fn turbo_sizes(die: &Die, accuracy: f32) -> Vec<(i16, Die)> {
         if sizes.iter().any(|(chosen, _)| *chosen == i16::from(sides)) {
             continue;
         }
-        let mut resized = *die;
-        resized.sides[0] = sides;
-        sizes.push((i16::from(sides), resized));
+        sizes.push((i16::from(sides), resized_by_turbo(die, sides)));
     }
     sizes
 }
 
-/// Only sizes `expand_turbo_moves` can submit count, so every Trip keeps one.
-fn trip_reachable_at_some_turbo_size(
-    attacker: &Die,
-    target: &Die,
-    expandable_turbo: bool,
-    accuracy: f32,
-) -> bool {
-    if !expandable_turbo {
-        return trip_can_capture(attacker, target);
+/// ButtonWeavers' `setTurboSize` resizes this die alone, both halves of a
+/// Twin.
+pub(crate) fn resized_by_turbo(die: &Die, sides: u8) -> Die {
+    let mut resized = *die;
+    for side in 0..2 {
+        if die.swing_type[side].is_some() && die.swing_type[side] == die.swing_type[0] {
+            resized.sides[side] = sides;
+        }
     }
+    resized
+}
+
+/// Only sizes `expand_turbo_moves` can submit count, so every Trip keeps one.
+fn trip_reachable_at_some_turbo_size(attacker: &Die, target: &Die, accuracy: f32) -> bool {
     turbo_sizes(attacker, accuracy)
         .iter()
         .any(|(_, resized)| trip_can_capture(resized, target))
@@ -462,7 +464,6 @@ impl Game {
             !die.has_property(property::WARRIOR)
                 && die.has_property(property::STINGER | property::KONSTANT)
         });
-        let first_turbo = first_turbo_die(attacker).map(|(index, _)| index);
         let skill_attacks_allowed = attacker.specials & special::NO_SKILL_ATTACKS == 0
             && target.specials & special::SKILL_IMMUNE == 0;
         let player_has_fire = available.iter().any(|(_, die)| {
@@ -508,7 +509,6 @@ impl Game {
                                 Attack::Trip => trip_reachable_at_some_turbo_size(
                                     attacker_die,
                                     target_die,
-                                    first_turbo == Some(attacker_index),
                                     self.turbo_accuracy,
                                 ),
                                 _ => unreachable!(),
@@ -911,37 +911,45 @@ impl Game {
     }
 }
 
-fn first_turbo_die(player: &Player) -> Option<(usize, &Die)> {
-    player
-        .dice
-        .iter()
-        .enumerate()
-        .find(|(_, die)| die.is_available() && die.has_property(property::TURBO))
+/// ButtonWeavers asks only attacking Turbo dice that reroll; Konstant dice
+/// keep their value.
+fn chooses_turbo_size(die: &Die) -> bool {
+    die.has_property(property::TURBO) && !die.has_property(property::KONSTANT)
 }
 
-fn move_involves_die(action: &Move, die: usize) -> bool {
-    match action.attack {
-        Some(Attack::Power | Attack::Shadow | Attack::Trip)
-        | Some(Attack::Berserk | Attack::Speed | Attack::Rush) => {
-            action.attackers.first() == Some(die)
-        }
-        Some(Attack::Skill) => action.attackers.contains(die),
-        // The Boom die leaves play without rolling, so Turbo never applies.
-        Some(Attack::Boom) | None => false,
+/// The die an attack's Turbo selection resizes. ButtonWeavers lets every
+/// attacking Turbo die choose a size; offering one die's sizes keeps the
+/// candidates linear instead of a product of sizes, and the others keep
+/// theirs, which ButtonWeavers also accepts.
+pub(crate) fn turbo_attacker(player: &Player, action: &Move) -> Option<usize> {
+    // The Boom die leaves play without rolling.
+    if matches!(action.attack, Some(Attack::Boom) | None) {
+        return None;
     }
+    // A die that has just morphed is a new die and is not asked.
+    let morphs = super::mechanics::morphing_applies(action);
+    action.attackers.iter().find(|&index| {
+        let die = &player.dice[index];
+        chooses_turbo_size(die) && !(morphs && die.has_property(property::MORPHING))
+    })
 }
 
 fn expand_turbo_moves(game: &Game, moves: &mut Vec<Move>) {
     let player = &game.players[0];
-    let accuracy = game.turbo_accuracy;
-    let Some((turbo_index, turbo_die)) = first_turbo_die(player) else {
+    if !player
+        .dice
+        .iter()
+        .any(|die| die.is_available() && die.has_property(property::TURBO))
+    {
         return;
-    };
+    }
+    let accuracy = game.turbo_accuracy;
     let original_move_count = moves.len();
     for move_index in 0..original_move_count {
-        if !move_involves_die(&moves[move_index], turbo_index) {
+        let Some(turbo_index) = turbo_attacker(player, &moves[move_index]) else {
             continue;
-        }
+        };
+        let turbo_die = &player.dice[turbo_index];
         // Decay strips Turbo before the attack reroll, so sizes only matter for
         // Trip, which ButtonWeavers rolls at the chosen size before decaying.
         if moves[move_index].attack != Some(Attack::Trip)

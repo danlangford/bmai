@@ -1074,3 +1074,49 @@ fn cpp_fixture(input: &str) -> String {
         "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
     )
 }
+
+#[test]
+fn turbo_output_names_the_die_that_attacked() {
+    let mut parser = Parser::default();
+    parser
+        .parse_string(
+            "game\nfight\nplayer 0 2 0\nX!-10:10\n4/12!-4:4\nplayer 1 1 0\n4:4\n",
+            &mut Vec::new(),
+        )
+        .unwrap();
+    let game = &parser.game;
+    let index_of = |original| {
+        game.players[0]
+            .dice
+            .iter()
+            .position(|die| die.original_index == original)
+            .unwrap()
+    };
+    let attack = |original, turbo_option| {
+        let mut action = Move::new_attack(
+            Power,
+            DieIndexSet::from([index_of(original)]),
+            DieIndexSet::from([0]),
+            0.0,
+        );
+        action.turbo_option = turbo_option;
+        let mut legacy = Vec::new();
+        output::send_attack(game, &action, &mut legacy).unwrap();
+        let typed = serde_json::to_value(output::protocol_attack(game, &action).unwrap()).unwrap();
+        (String::from_utf8(legacy).unwrap(), typed["turbo"].clone())
+    };
+
+    let (legacy, typed) = attack(1, 1);
+    assert!(legacy.ends_with("option 1 12\n"), "{legacy}");
+    assert_eq!(
+        typed,
+        serde_json::json!({"kind": "option", "die": 1, "value": 12})
+    );
+
+    let (legacy, typed) = attack(0, 20);
+    assert!(legacy.ends_with("swing X 20\n"), "{legacy}");
+    assert_eq!(
+        typed,
+        serde_json::json!({"kind": "swing", "die": 0, "swing": "X", "value": 20})
+    );
+}

@@ -78,6 +78,14 @@ jobs:
       # On every pull request, so a slow-fixture change fails before merge.
       - name: Check slow golden fixtures
         run: cargo test --profile release --locked --test fixture_golden -- --ignored
+      # CI sets no trace variable, so only this step proves the integration
+      # tests ignore a developer's.
+      - name: Run integration tests with every trace setting exported
+        run: |
+          for name in $(git grep -h -o -E 'BMAIR_TRACE_[A-Z_]+' -- src | sort -u); do
+            export "$name=1"
+          done
+          cargo test --profile release --locked --test '*'
 
   build-and-test:
     name: ${{ matrix.platform }} ${{ matrix.arch }} / ${{ inputs.build_type || 'Release' }}
