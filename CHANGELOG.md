@@ -93,8 +93,8 @@ clear benefit. Each could return if that changes.
   halves, and Trip now judges its reach that way too. Every golden output is
   unchanged.
 - Every Turbo die with a size to choose can choose one when it attacks. Only
-  a button's first Turbo die was offered sizes, even a fixed one, so a later
-  Turbo die rerolled at its old size. When several Turbo dice make one Skill
+  a button's first Turbo die could take a size, even a fixed die with none to
+  choose, so a later Turbo die rerolled at its old size. When several Turbo dice make one Skill
   attack, the search sizes the first and the others keep theirs, which
   ButtonWeavers accepts.
 - Konstant Turbo dice and a Turbo die that has just morphed are no longer

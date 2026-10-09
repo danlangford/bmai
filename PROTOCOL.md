@@ -111,8 +111,8 @@ An attack may include `turbo`. Option Turbo is
 `{"kind":"option","die":0,"value":20}`; swing Turbo is
 `{"kind":"swing","die":0,"swing":"X","value":12}`. ButtonWeavers lets each
 attacking Turbo die that rerolls and has not just morphed choose a size, and
-`setTurboSize` resizes only that die. BMAIR chooses for the first such die,
-which `die` names; a client submits the current size of any other attacking
+`setTurboSize` resizes only that die. BMAIR chooses for the first such die
+that has a size to choose, which `die` names; a client submits the current size of any other attacking
 Turbo die, since ButtonWeavers needs a size for each. Legacy output's
 `option DIE VALUE` and `swing X VALUE` lines describe the same die. Die
 numbers are original wire-protocol indices, even when internal dice storage
