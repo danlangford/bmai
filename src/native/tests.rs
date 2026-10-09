@@ -148,16 +148,6 @@ fn workers_drain_a_shared_queue_whatever_their_count() {
     }
 }
 
-#[test]
-fn worker_identity_is_scoped_to_parallel_evaluation() {
-    assert!(!native_worker_active());
-    assert_eq!(
-        ordered_parallel_map(vec![1, 2], 2, |_| native_worker_active()),
-        [true, true]
-    );
-    assert!(!native_worker_active());
-}
-
 fn expensive_test_mapping(value: u64) -> u64 {
     for _ in 0..(17 - value % 17) {
         std::hint::spin_loop();

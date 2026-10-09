@@ -15,12 +15,6 @@ pub(crate) fn select_swing_action(
     if game.players[player].swing_set != SwingSet::Not {
         return (current_swing_move(&game.players[player]), 0.0);
     }
-    let traces = trace_settings();
-    let trace_list = level == 1 && traces.swing_list;
-    let trace_candidate = traces.swing_candidate;
-    let trace_sim = level == 2 && traces.swing_sim;
-    let trace_moves = level == 1 && traces.swing_moves;
-    let trace_best = traces.swing;
     let mut moves = generate_swing_moves(&game.players[player]);
     if moves.is_empty() {
         return (SwingMove::empty(), 0.0);
@@ -36,15 +30,6 @@ pub(crate) fn select_swing_action(
             selection_rng.as_mut().unwrap_or(rng),
         );
         moves.shrink_to_fit();
-    }
-    if trace_list {
-        for (index, action) in moves.iter().enumerate() {
-            eprintln!(
-                "SWING_LIST m{index} {:?} {:?}",
-                action.values(),
-                action.options()
-            );
-        }
     }
     let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
@@ -92,26 +77,12 @@ pub(crate) fn select_swing_action(
             )
         });
         for (index, candidate) in moves.iter().enumerate() {
-            if trace_candidate {
-                eprintln!(
-                    "SWING_CANDIDATE l{level} p{player} m{index} seed={} sims={} {:?}",
-                    rng.debug_seed(),
-                    sims_run + batch,
-                    candidate.values()
-                );
-            }
             if let Some(results) = &native_results {
                 scores[index] += results[index * batch..(index + 1) * batch]
                     .iter()
                     .sum::<f32>();
             } else {
-                for simulation_index in 0..batch {
-                    if trace_sim && index == 0 {
-                        eprintln!(
-                            "SWING_SIM l{level} m{index} s{simulation_index} seed={}",
-                            rng.debug_seed()
-                        );
-                    }
+                for _ in 0..batch {
                     restore_simulation(&mut simulation, game);
                     apply_swing_move(&mut simulation.players[player], candidate);
                     simulation.players[player].swing_set = SwingSet::Locked;
@@ -121,15 +92,6 @@ pub(crate) fn select_swing_action(
             if scores[index] > best_score {
                 best_score = scores[index];
                 best = *candidate;
-            }
-            if trace_moves {
-                eprintln!(
-                    "SWING_MOVE l{level} m{index} sims={} score={:.6} {:?} {:?}",
-                    sims_run + batch,
-                    scores[index],
-                    candidate.values(),
-                    candidate.options()
-                );
             }
         }
         sims_run += batch;
@@ -167,14 +129,6 @@ pub(crate) fn select_swing_action(
         if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
-    }
-    if trace_best {
-        eprintln!(
-            "SWING p{player} seed={} score={best_score} sims={sims_run} {:?} {:?}",
-            rng.debug_seed(),
-            best.values(),
-            best.options()
-        );
     }
     let probability = best_score / sims_run as f32;
     (best, probability)

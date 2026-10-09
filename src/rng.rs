@@ -118,10 +118,6 @@ impl Rng {
         self.algorithm = algorithm;
     }
 
-    pub(crate) fn debug_seed(&self) -> u32 {
-        self.seed
-    }
-
     pub fn reseed(&mut self, seed: u32) {
         // A zero seed is time-based in C++. Callers that need reproducibility
         // must resolve it at the I/O boundary before invoking this method.

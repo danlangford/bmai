@@ -8,7 +8,7 @@ pub(crate) use replay::NativeStratum;
 pub use replay::{
     NATIVE_STREAM_PARTITION_ID, NativeReplayKey, NativeSimulationKey, NativeStreamSeed,
 };
-pub(crate) use worker::{drain_with_workers, native_worker_active, ordered_parallel_map};
+pub(crate) use worker::{drain_with_workers, ordered_parallel_map};
 
 #[cfg(test)]
 use replay::mix64;

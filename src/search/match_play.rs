@@ -196,16 +196,6 @@ pub(super) fn play_round_with_policies(
             &mut DecisionContext::new(rng, native.as_deref_mut()),
         );
         let (next_phase, continues) = apply_chance_move(game, player, phase_player, &action, rng);
-        if trace_settings().chance {
-            eprintln!(
-                "CHANCE_APPLY player={player} previous={phase_player} next={next_phase} continues={continues} values={:?}",
-                game.players[player]
-                    .dice
-                    .iter()
-                    .map(Die::value_total)
-                    .collect::<Vec<_>>()
-            );
-        }
         phase_player = next_phase;
         if !continues {
             break;

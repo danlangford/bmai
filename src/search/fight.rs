@@ -59,7 +59,6 @@ pub(crate) fn select_native_bmai_action(
                 &policy,
                 1,
                 false,
-                false,
             )
         })
     };
@@ -114,7 +113,6 @@ pub(crate) fn evaluate_selected_native_bmai_move(
             settings,
             1,
             false,
-            false,
         )
     });
     SearchProbability {
@@ -142,18 +140,9 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     level: usize,
     previous_pass: bool,
 ) -> SearchResult {
-    let trace = trace_settings().bmai_attack;
-    let trace_evaluation = trace_settings().attack_eval;
     let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
         moves.push(pass_move());
-    }
-    if trace {
-        eprintln!(
-            "BMAI_BEGIN l{level} seed={} moves={} pass={previous_pass}",
-            rng.debug_seed(),
-            moves.len()
-        );
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -167,7 +156,6 @@ pub(super) fn select_bmai_action_at_level_with_stats(
             &policy,
             level,
             previous_pass,
-            trace_evaluation,
         )
     });
     let probability = evaluator.last_probability_win;
@@ -184,16 +172,6 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     } else {
         selected
     };
-    if trace {
-        eprintln!(
-            "BMAI_END l{level} seed={} probability={probability:.6} action={:?} attack={:?} {:?}->{:?}",
-            rng.debug_seed(),
-            selected.action,
-            selected.attack,
-            selected.attackers,
-            selected.targets
-        );
-    }
     SearchResult {
         best_move: selected,
         best_score: evaluator.last_best_score,
@@ -208,17 +186,7 @@ pub(super) fn evaluate_move(
     settings: &Bmai3,
     level: usize,
     previous_pass: bool,
-    trace: bool,
 ) -> f32 {
-    if trace {
-        eprintln!(
-            "ATTACK_EVAL l{level} seed={} {:?} {:?}->{:?}",
-            rng.debug_seed(),
-            candidate.attack,
-            candidate.attackers,
-            candidate.targets
-        );
-    }
     // Treating surrender as a pass would waste a rollout and shift later RNG.
     if candidate.action == Action::Surrender {
         return 0.0;
@@ -237,7 +205,7 @@ pub(super) fn evaluate_move(
     if !extra_turn {
         simulation.players.swap(0, 1);
     }
-    let result = if level >= settings.max_ply {
+    if level >= settings.max_ply {
         let probability =
             play_fight_qai(simulation, rng, candidate.action == Action::Pass, settings);
         if extra_turn {
@@ -258,18 +226,7 @@ pub(super) fn evaluate_move(
         } else {
             1.0 - next_probability
         }
-    };
-    if trace {
-        eprintln!(
-            "ATTACK_RESULT l{level} seed={} score={result} totals={:.1},{:.1} dice={},{}",
-            rng.debug_seed(),
-            simulation.players[0].score,
-            simulation.players[1].score,
-            available_dice_count(&simulation.players[0]),
-            available_dice_count(&simulation.players[1])
-        );
     }
-    result
 }
 
 pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, ai: &Bmai3) -> f32 {

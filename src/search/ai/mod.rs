@@ -3,7 +3,6 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 use crate::Move;
-use std::sync::OnceLock;
 
 const DEFAULT_SIMS: usize = 4000;
 const MIN_SIMS: usize = 200;
@@ -213,8 +212,6 @@ impl Bmai3 {
             return best;
         }
         let mut state = ThinkState::new(moves, sims);
-        static TRACE_AI: OnceLock<bool> = OnceLock::new();
-        let trace = *TRACE_AI.get_or_init(|| std::env::var_os("BMAIR_TRACE_AI").is_some());
 
         while state.sims_run < state.sims {
             let check_sims = self
@@ -250,12 +247,6 @@ impl Bmai3 {
                 if state.score[index] > state.best_score {
                     state.best_score = state.score[index];
                     state.best_move = state.movelist[index].clone();
-                }
-                if trace {
-                    eprintln!(
-                        "l{level} m{index} sims {check_sims} score {:.6} {:?}",
-                        state.score[index], state.movelist[index]
-                    );
                 }
             }
             state.sims_run += check_sims;

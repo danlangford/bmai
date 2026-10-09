@@ -1,12 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-use std::cell::Cell;
 use std::sync::OnceLock;
-
-thread_local! {
-    static NATIVE_WORKER_ACTIVE: Cell<bool> = const { Cell::new(false) };
-}
 
 /// No worker count changes a result, so where threads can't start the same
 /// work runs on one thread. Stable Rust gives a threaded WebAssembly build the
@@ -22,10 +17,6 @@ fn threads_available() -> bool {
         })
 }
 
-pub(crate) fn native_worker_active() -> bool {
-    NATIVE_WORKER_ACTIVE.get()
-}
-
 /// Results follow task position, never completion order, so output is
 /// deterministic.
 pub(crate) fn ordered_parallel_map<T, R, F>(tasks: Vec<T>, workers: usize, evaluate: F) -> Vec<R>
@@ -35,15 +26,8 @@ where
     F: Fn(T) -> R + Sync,
 {
     let worker_count = workers.max(1).min(tasks.len().max(1));
-    if worker_count == 1 {
+    if worker_count == 1 || !threads_available() {
         return tasks.into_iter().map(evaluate).collect();
-    }
-    if !threads_available() {
-        // Traces stay as quiet as they would be inside real workers.
-        let outer = NATIVE_WORKER_ACTIVE.replace(true);
-        let results = tasks.into_iter().map(evaluate).collect();
-        NATIVE_WORKER_ACTIVE.set(outer);
-        return results;
     }
 
     let mut assignments = (0..worker_count)
@@ -59,13 +43,10 @@ where
             .map(|assignment| {
                 let evaluate = &evaluate;
                 scope.spawn(move || {
-                    NATIVE_WORKER_ACTIVE.set(true);
-                    let completed = assignment
+                    assignment
                         .into_iter()
                         .map(|(index, task)| (index, evaluate(task)))
-                        .collect::<Vec<_>>();
-                    NATIVE_WORKER_ACTIVE.set(false);
-                    completed
+                        .collect::<Vec<_>>()
                 })
             })
             .collect::<Vec<_>>();

@@ -73,57 +73,6 @@ impl NativeReplaySequence<'_> {
 const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
 // Never a candidate position, so report draws cannot overlap search draws.
 const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
-use std::sync::OnceLock;
-
-pub(crate) struct TraceSettings {
-    swing_list: bool,
-    swing_candidate: bool,
-    swing_sim: bool,
-    swing_moves: bool,
-    swing: bool,
-    chance: bool,
-    focus: bool,
-    bmai_attack: bool,
-    attack_eval: bool,
-    pub(crate) qai: bool,
-    pub(crate) rng: bool,
-    pub(crate) qai_moves: bool,
-}
-
-pub(crate) fn trace_settings() -> &'static TraceSettings {
-    static QUIET: TraceSettings = TraceSettings {
-        swing_list: false,
-        swing_candidate: false,
-        swing_sim: false,
-        swing_moves: false,
-        swing: false,
-        chance: false,
-        focus: false,
-        bmai_attack: false,
-        attack_eval: false,
-        qai: false,
-        rng: false,
-        qai_moves: false,
-    };
-    if crate::native::native_worker_active() {
-        return &QUIET;
-    }
-    static SETTINGS: OnceLock<TraceSettings> = OnceLock::new();
-    SETTINGS.get_or_init(|| TraceSettings {
-        swing_list: std::env::var_os("BMAIR_TRACE_SWING_LIST").is_some(),
-        swing_candidate: std::env::var_os("BMAIR_TRACE_SWING_CANDIDATE").is_some(),
-        swing_sim: std::env::var_os("BMAIR_TRACE_SWING_SIM").is_some(),
-        swing_moves: std::env::var_os("BMAIR_TRACE_SWING_MOVES").is_some(),
-        swing: std::env::var_os("BMAIR_TRACE_SWING").is_some(),
-        chance: std::env::var_os("BMAIR_TRACE_CHANCE").is_some(),
-        focus: std::env::var_os("BMAIR_TRACE_FOCUS").is_some(),
-        bmai_attack: std::env::var_os("BMAIR_TRACE_BMAI_ATTACK").is_some(),
-        attack_eval: std::env::var_os("BMAIR_TRACE_ATTACK_EVAL").is_some(),
-        qai: std::env::var_os("BMAIR_TRACE_QAI").is_some(),
-        rng: std::env::var_os("BMAIR_TRACE_RNG").is_some(),
-        qai_moves: std::env::var_os("BMAIR_TRACE_QAI_MOVES").is_some(),
-    })
-}
 
 #[derive(Clone, Copy)]
 pub(crate) struct SwingMove {
