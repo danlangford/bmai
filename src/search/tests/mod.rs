@@ -30,7 +30,7 @@ fn native_fight_score_summary_is_stable() {
     };
 
     let available = std::thread::available_parallelism().map_or(1, usize::from);
-    let mut expected: Option<(Move, f32)> = None;
+    let mut expected: Option<(Move, f32, SearchDigest)> = None;
     for workers in [1, 2, available] {
         let native = NativeEvaluation {
             algorithm: LegacyParkMillerV1,
@@ -39,7 +39,7 @@ fn native_fight_score_summary_is_stable() {
         };
         let search = select_native_bmai_action(&parser.game, native, &settings);
         let probability = search.win_probability();
-        let result = (search.best_move, probability);
+        let result = (search.best_move, probability, search.digest);
         if let Some(expected) = &expected {
             assert_eq!(result.0.action, expected.0.action);
             assert_eq!(result.0.attack, expected.0.attack);
@@ -48,12 +48,14 @@ fn native_fight_score_summary_is_stable() {
             assert_eq!(result.0.score, expected.0.score);
             assert_eq!(result.0.turbo_option, expected.0.turbo_option);
             assert_eq!(result.1, expected.1);
+            assert_eq!(result.2, expected.2);
         } else {
             expected = Some(result);
         }
     }
 
-    let (action, probability) = expected.unwrap();
+    let (action, probability, digest) = expected.unwrap();
+    assert_ne!(digest, SearchDigest::default());
     assert_eq!(action.action, Attack);
     assert_eq!(action.attack, Some(Power));
     assert_eq!(action.attackers, vec![0]);
@@ -85,8 +87,14 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     };
     let swing = contexts.map(|context| {
         let mut rng = Rng::default();
-        let (action, score) = select_swing_action(&game, 0, &mut rng, &settings, 1, Some(context));
-        (action.values().to_vec(), action.options().to_vec(), score)
+        let (action, score, digest) =
+            select_swing_action(&game, 0, &mut rng, &settings, 1, Some(context));
+        (
+            action.values().to_vec(),
+            action.options().to_vec(),
+            score,
+            digest,
+        )
     });
     assert_eq!(swing[1], swing[0]);
     assert_eq!(swing[2], swing[0]);
@@ -100,9 +108,9 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     };
     let chance = contexts.map(|context| {
         let mut rng = Rng::default();
-        let (action, score) =
+        let (action, score, digest) =
             select_chance_action(&game, 0, &mut rng, &settings, 1, 1, Some(context));
-        (action.reroll, score)
+        (action.reroll, score, digest)
     });
     assert_eq!(chance[1], chance[0]);
     assert_eq!(chance[2], chance[0]);
@@ -116,9 +124,9 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     };
     let focus = contexts.map(|context| {
         let mut rng = Rng::default();
-        let (action, score) =
+        let (action, score, digest) =
             select_focus_action(&game, 0, &mut rng, &settings, 1, 1, Some(context));
-        (action.values, score)
+        (action.values, score, digest)
     });
     assert_eq!(focus[1], focus[0]);
     assert_eq!(focus[2], focus[0]);

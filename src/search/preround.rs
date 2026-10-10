@@ -11,13 +11,17 @@ pub(crate) fn select_swing_action(
     ai: &Bmai3,
     level: usize,
     native: Option<NativeEvaluation>,
-) -> (SwingMove, f32) {
+) -> (SwingMove, f32, SearchDigest) {
     if game.players[player].swing_set != SwingSet::Not {
-        return (current_swing_move(&game.players[player]), 0.0);
+        return (
+            current_swing_move(&game.players[player]),
+            0.0,
+            SearchDigest::default(),
+        );
     }
     let mut moves = generate_swing_moves(&game.players[player]);
     if moves.is_empty() {
-        return (SwingMove::empty(), 0.0);
+        return (SwingMove::empty(), 0.0, SearchDigest::default());
     }
     let max_moves = ai.max_branch / ai.min_sims;
     if moves.len() > max_moves {
@@ -38,6 +42,7 @@ pub(crate) fn select_swing_action(
     let mut best = moves[0];
     let mut sims_run = 0usize;
     let mut simulation = game.clone();
+    let mut digest = SearchDigest::default();
     while sims_run < sims {
         let batch = if ai.cull_moves {
             ai.sims_per_check.min(sims - sims_run)
@@ -76,6 +81,9 @@ pub(crate) fn select_swing_action(
                 },
             )
         });
+        if let Some(results) = &native_results {
+            digest.fold(results);
+        }
         for (index, candidate) in moves.iter().enumerate() {
             if let Some(results) = &native_results {
                 scores[index] += results[index * batch..(index + 1) * batch]
@@ -131,7 +139,7 @@ pub(crate) fn select_swing_action(
         }
     }
     let probability = best_score / sims_run as f32;
-    (best, probability)
+    (best, probability, digest)
 }
 
 pub(super) fn auxiliary_die(player: &crate::game::Player) -> Option<usize> {
@@ -226,6 +234,7 @@ pub(crate) fn select_native_bmai_auxiliary_action(
             die: None,
             score: 0.0,
             simulations: 0,
+            digest: SearchDigest::default(),
         };
     };
     let simulations = ai.compute_number_sims(2, 1);
@@ -247,10 +256,13 @@ pub(crate) fn select_native_bmai_auxiliary_action(
             evaluate_auxiliary_decision(game, candidate.is_some(), &mut simulation_rng)
         },
     );
+    let mut digest = SearchDigest::default();
+    digest.fold(&results);
     let mut best = AuxiliarySearchResult {
         die: None,
         score: -1.0,
         simulations,
+        digest,
     };
     for (candidate, scores) in candidates
         .into_iter()
@@ -269,7 +281,7 @@ pub(crate) fn select_native_bmai_reserve_action(
     game: &Game,
     native: NativeEvaluation,
     ai: &Bmai3,
-) -> Option<usize> {
+) -> (Option<usize>, SearchDigest) {
     let reserve_indices = game.players[0]
         .dice
         .iter()
@@ -303,6 +315,8 @@ pub(crate) fn select_native_bmai_reserve_action(
             play_simulated_round(&mut simulation, &mut simulation_rng, ai, fight_level, 0)
         },
     );
+    let mut digest = SearchDigest::default();
+    digest.fold(&results);
 
     let mut best_score = -1.0f32;
     let mut best = None;
@@ -313,7 +327,7 @@ pub(crate) fn select_native_bmai_reserve_action(
             best = candidate;
         }
     }
-    best
+    (best, digest)
 }
 
 pub(super) fn apply_use_reserve(die: &mut Die) {
@@ -396,7 +410,7 @@ pub(super) fn evaluate_swing_move(
         if game.players[player].swing_set == SwingSet::Ready {
             game.players[player].swing_set = SwingSet::Not;
         }
-        let (_, other_probability) = select_swing_action(game, other, rng, ai, level + 1, None);
+        let (_, other_probability, _) = select_swing_action(game, other, rng, ai, level + 1, None);
         return 1.0 - other_probability;
     }
 

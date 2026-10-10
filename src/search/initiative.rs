@@ -70,7 +70,7 @@ pub(crate) fn select_chance_action(
     level: usize,
     initiative: usize,
     native: Option<NativeEvaluation>,
-) -> (ChanceMove, f32) {
+) -> (ChanceMove, f32, SearchDigest) {
     let mut moves = generate_chance_moves(game, player);
     let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
@@ -78,6 +78,7 @@ pub(crate) fn select_chance_action(
     let mut best_score = -1.0f32;
     let mut best = moves[0].clone();
     let mut sims_run = 0usize;
+    let mut digest = SearchDigest::default();
     let mut simulation = game.clone();
     while sims_run < sims {
         let batch = if ai.cull_moves {
@@ -124,6 +125,9 @@ pub(crate) fn select_chance_action(
                 },
             )
         });
+        if let Some(results) = &native_results {
+            digest.fold(results);
+        }
         for (index, action) in moves.iter().enumerate() {
             if let Some(results) = &native_results {
                 scores[index] += results[index * batch..(index + 1) * batch]
@@ -184,7 +188,7 @@ pub(crate) fn select_chance_action(
             break;
         }
     }
-    (best, best_score / sims_run as f32)
+    (best, best_score / sims_run as f32, digest)
 }
 
 pub(super) fn evaluate_chance_simulation(
@@ -279,7 +283,7 @@ pub(crate) fn select_focus_action(
     level: usize,
     initiative: usize,
     native: Option<NativeEvaluation>,
-) -> (FocusMove, f32) {
+) -> (FocusMove, f32, SearchDigest) {
     let mut moves = generate_focus_moves(game, player);
     let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
@@ -287,6 +291,7 @@ pub(crate) fn select_focus_action(
     let mut best_score = -1.0f32;
     let mut best = moves[0].clone();
     let mut sims_run = 0usize;
+    let mut digest = SearchDigest::default();
     let mut simulation = game.clone();
     while sims_run < sims {
         let batch = if ai.cull_moves {
@@ -333,6 +338,9 @@ pub(crate) fn select_focus_action(
                 },
             )
         });
+        if let Some(results) = &native_results {
+            digest.fold(results);
+        }
         for (index, action) in moves.iter().enumerate() {
             if let Some(results) = &native_results {
                 scores[index] += results[index * batch..(index + 1) * batch]
@@ -393,7 +401,7 @@ pub(crate) fn select_focus_action(
             break;
         }
     }
-    (best, best_score / sims_run as f32)
+    (best, best_score / sims_run as f32, digest)
 }
 
 pub(super) fn evaluate_focus_simulation(
@@ -442,7 +450,7 @@ pub(super) fn evaluate_next_initiative_action(
     if matches!(stage, InitiativeStage::Chance) {
         let player = 1 - initiative;
         if has_available_property(&game.players[player], property::CHANCE) {
-            let (_, probability) =
+            let (_, probability, _) =
                 select_chance_action(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability
@@ -455,7 +463,7 @@ pub(super) fn evaluate_next_initiative_action(
     if matches!(stage, InitiativeStage::Focus) {
         let player = 1 - initiative;
         if has_available_property(&game.players[player], property::FOCUS) {
-            let (_, probability) =
+            let (_, probability, _) =
                 select_focus_action(game, player, rng, ai, level, initiative, None);
             return if player == pov {
                 probability

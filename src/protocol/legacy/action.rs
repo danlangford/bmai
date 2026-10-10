@@ -85,6 +85,7 @@ impl Parser {
                         settings,
                         self.report_sims,
                     );
+                    self.rng.trace_search(estimate.digest.0);
                     let win_probability = estimate.win_probability();
                     self.last_evaluation = Some(crate::protocol::ProbabilityEstimate {
                         player: 0,

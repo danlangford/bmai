@@ -34,3 +34,4 @@ P1 stats: initiative P1 games 2 wins 1 losses 1 percent 50.0%
 P1 stats: initiative P0 games 0 wins 0 losses 0 percent nan%
 --- stderr
 RNG_HASH 420 17739345392830739045
+SEARCH_HASH 104 3445933503325297595

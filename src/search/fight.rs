@@ -9,12 +9,14 @@ pub(crate) struct SearchResult {
     pub best_move: Move,
     pub best_score: f32,
     pub sims_run: usize,
+    pub digest: SearchDigest,
 }
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SearchProbability {
     pub score: f32,
     pub simulations: usize,
+    pub digest: SearchDigest,
 }
 
 impl SearchProbability {
@@ -40,27 +42,34 @@ pub(crate) fn select_native_bmai_action(
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
+    let mut digest = SearchDigest::default();
     let mut evaluate_batch = |requests: &[crate::search::ai::EvaluationRequest<'_>]| {
         let tasks = requests
             .iter()
             .map(|request| (request.candidate.clone(), request.coordinate))
             .collect();
-        crate::native::ordered_parallel_map(tasks, native.workers, |(candidate, coordinate)| {
-            let mut simulation = game.clone();
-            let mut simulation_rng = native.simulation_rng(
-                coordinate.candidate_index,
-                coordinate.batch_index,
-                coordinate.simulation_index,
-            );
-            evaluate_move(
-                &mut simulation,
-                &candidate,
-                &mut simulation_rng,
-                &policy,
-                1,
-                false,
-            )
-        })
+        let scores = crate::native::ordered_parallel_map(
+            tasks,
+            native.workers,
+            |(candidate, coordinate)| {
+                let mut simulation = game.clone();
+                let mut simulation_rng = native.simulation_rng(
+                    coordinate.candidate_index,
+                    coordinate.batch_index,
+                    coordinate.simulation_index,
+                );
+                evaluate_move(
+                    &mut simulation,
+                    &candidate,
+                    &mut simulation_rng,
+                    &policy,
+                    1,
+                    false,
+                )
+            },
+        );
+        digest.fold(&scores);
+        scores
     };
     let selected = evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch);
     let probability = evaluator.last_probability_win;
@@ -73,6 +82,7 @@ pub(crate) fn select_native_bmai_action(
         best_move: selected,
         best_score: evaluator.last_best_score,
         sims_run: evaluator.last_sims_run,
+        digest,
     }
 }
 
@@ -107,9 +117,12 @@ pub(crate) fn evaluate_selected_native_bmai_move(
             false,
         )
     });
+    let mut digest = SearchDigest::default();
+    digest.fold(&scores);
     SearchProbability {
         score: scores.iter().sum(),
         simulations,
+        digest,
     }
 }
 
@@ -160,6 +173,7 @@ pub(super) fn select_bmai_action_at_level_with_stats(
         best_move: selected,
         best_score: evaluator.last_best_score,
         sims_run: evaluator.last_sims_run,
+        digest: SearchDigest::default(),
     }
 }
 

@@ -92,11 +92,32 @@ pub(crate) struct ChanceMove {
     pub(crate) reroll: Vec<usize>,
 }
 
+/// Every simulation score of a top-level search, in task order, so the worker
+/// count cannot change it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct SearchDigest(pub(crate) u64);
+
+impl Default for SearchDigest {
+    fn default() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+}
+
+impl SearchDigest {
+    pub(crate) fn fold(&mut self, scores: &[f32]) {
+        for score in scores {
+            self.0 ^= u64::from(score.to_bits());
+            self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AuxiliarySearchResult {
     pub(crate) die: Option<usize>,
     pub(crate) score: f32,
     pub(crate) simulations: usize,
+    pub(crate) digest: SearchDigest,
 }
 
 impl AuxiliarySearchResult {

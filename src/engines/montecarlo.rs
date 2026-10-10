@@ -57,7 +57,10 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> SwingMove {
         let native = context.native();
-        select_swing_action(game, player, context.rng, &self.search, 1, Some(native)).0
+        let (choice, _, digest) =
+            select_swing_action(game, player, context.rng, &self.search, 1, Some(native));
+        context.rng.trace_search(digest.0);
+        choice
     }
 
     fn chance(
@@ -68,7 +71,7 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> ChanceMove {
         let native = context.native();
-        select_chance_action(
+        let (choice, _, digest) = select_chance_action(
             game,
             player,
             context.rng,
@@ -76,8 +79,9 @@ impl Engine for MonteCarlo {
             1,
             initiative,
             Some(native),
-        )
-        .0
+        );
+        context.rng.trace_search(digest.0);
+        choice
     }
 
     fn focus(
@@ -88,7 +92,7 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> FocusMove {
         let native = context.native();
-        select_focus_action(
+        let (choice, _, digest) = select_focus_action(
             game,
             player,
             context.rng,
@@ -96,8 +100,9 @@ impl Engine for MonteCarlo {
             1,
             initiative,
             Some(native),
-        )
-        .0
+        );
+        context.rng.trace_search(digest.0);
+        choice
     }
 
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
@@ -116,6 +121,7 @@ impl Engine for MonteCarlo {
             };
         }
         let result = select_native_bmai_action(game, context.native(), &self.search);
+        context.rng.trace_search(result.digest.0);
         Choice {
             search: Some(SearchSummary {
                 score: result.best_score,
@@ -127,7 +133,10 @@ impl Engine for MonteCarlo {
     }
 
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
-        select_native_bmai_reserve_action(game, context.native(), &self.search)
+        let (choice, digest) =
+            select_native_bmai_reserve_action(game, context.native(), &self.search);
+        context.rng.trace_search(digest.0);
+        choice
     }
 
     fn auxiliary(
@@ -136,6 +145,7 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> Choice<Option<usize>> {
         let result = select_native_bmai_auxiliary_action(game, context.native(), &self.search);
+        context.rng.trace_search(result.digest.0);
         Choice {
             choice: result.die,
             search: Some(SearchSummary {

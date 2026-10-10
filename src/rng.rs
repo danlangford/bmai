@@ -33,6 +33,8 @@ pub struct Rng {
     trace_hash: bool,
     trace_count: u64,
     trace_fingerprint: u64,
+    trace_searches: u64,
+    trace_search_fingerprint: u64,
     native_stratum: Option<crate::native::NativeStratum>,
     script: Option<Box<DrawScript>>,
 }
@@ -55,6 +57,8 @@ impl Default for Rng {
             trace_hash: false,
             trace_count: 0,
             trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            trace_searches: 0,
+            trace_search_fingerprint: 0xcbf2_9ce4_8422_2325,
             native_stratum: None,
             script: None,
         }
@@ -64,6 +68,18 @@ impl Default for Rng {
 impl Rng {
     pub(crate) fn trace_from_env(&mut self) {
         self.trace_hash = std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some();
+    }
+
+    /// Searches draw from streams this generator never sees, so their digests
+    /// get a fingerprint of their own.
+    pub(crate) fn trace_search(&mut self, digest: u64) {
+        if self.trace_hash {
+            self.trace_searches += 1;
+            self.trace_search_fingerprint ^= digest;
+            self.trace_search_fingerprint = self
+                .trace_search_fingerprint
+                .wrapping_mul(0x0000_0100_0000_01b3);
+        }
     }
 
     pub(crate) fn restarted(&self) -> Self {
@@ -199,6 +215,12 @@ impl Drop for Rng {
     fn drop(&mut self) {
         if self.trace_hash {
             eprintln!("RNG_HASH {} {}", self.trace_count, self.trace_fingerprint);
+            if self.trace_searches > 0 {
+                eprintln!(
+                    "SEARCH_HASH {} {}",
+                    self.trace_searches, self.trace_search_fingerprint
+                );
+            }
         }
     }
 }
@@ -241,10 +263,32 @@ mod tests {
         rng.trace_hash = true;
         rng.reseed(17);
         rng.rand();
+        rng.trace_search(7);
         let mut restarted = rng.restarted();
         assert!(restarted.trace_hash);
         assert_eq!(restarted.trace_count, 0);
+        assert_eq!(restarted.trace_searches, 0);
         assert_eq!(restarted.rand(), 1_150_470_880);
+    }
+
+    #[test]
+    fn search_digests_are_fingerprinted_only_while_tracing() {
+        let mut quiet = Rng::default();
+        quiet.trace_search(7);
+        assert_eq!(quiet.trace_searches, 0);
+
+        let fingerprint = |digests: &[u64]| {
+            let mut rng = Rng::default();
+            rng.trace_hash = true;
+            for digest in digests {
+                rng.trace_search(*digest);
+            }
+            let result = (rng.trace_searches, rng.trace_search_fingerprint);
+            rng.trace_hash = false;
+            result
+        };
+        assert_eq!(fingerprint(&[7, 9]).0, 2);
+        assert_ne!(fingerprint(&[7, 9]), fingerprint(&[9, 7]));
     }
 
     #[test]
