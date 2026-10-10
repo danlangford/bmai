@@ -1,0 +1,18 @@
+seed 17
+endgame 0
+max_sims 20
+min_sims 5
+maxbranch 100
+report_sims 20
+game
+fight
+player 0 3 0
+6:6
+4:2
+8:5
+player 1 3 0
+4:4
+3:3
+10:7
+getaction
+quit

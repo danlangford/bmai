@@ -67,6 +67,28 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.35.0] - 2026-10-09
+
+### Added
+
+- With `BMAIR_TRACE_RNG_HASH` set, a session or match that made a Monte Carlo
+  decision also prints `SEARCH_HASH DECISIONS FINGERPRINT` beside `RNG_HASH`.
+  Every top-level search (fight, swing, Chance, Focus, reserve, Auxiliary,
+  and the `report_sims` estimate) folds each simulation's score into it in
+  task order, so the worker count cannot change it. Native simulations draw
+  from streams the session generator never sees, so since 0.34.0 most golden
+  outputs printed `RNG_HASH 0` and missed a search change whenever the chosen
+  move survived it.
+
+### Changed
+
+- The golden outputs gain a `SEARCH_HASH` line for each fixture that runs a
+  Monte Carlo search; the others are answered by the endgame solver or QAI,
+  or stop at an error. New Auxiliary, two-dice Focus, and `report_sims`
+  fixtures cover the searches no fixture reached. A new test runs every fast
+  fixture at one and four workers, overriding any worker count it sets, and
+  requires identical output.
+
 ## [0.34.0] - 2026-10-09
 
 ### Removed
@@ -969,7 +991,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.35.0...HEAD
+[0.35.0]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...bmair-v0.35.0
 [0.34.0]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...bmair-v0.34.0
 [0.33.0]: https://github.com/danlangford/bmai/compare/bmair-v0.32.0...bmair-v0.33.0
 [0.32.0]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...bmair-v0.32.0

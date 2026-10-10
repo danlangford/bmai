@@ -92,11 +92,16 @@ pub(crate) struct ChanceMove {
     pub(crate) reroll: Vec<usize>,
 }
 
+/// Every simulation score of a top-level search, in task order, so the worker
+/// count cannot change it.
+pub(crate) type SearchDigest = crate::rng::Fingerprint;
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct AuxiliarySearchResult {
     pub(crate) die: Option<usize>,
     pub(crate) score: f32,
     pub(crate) simulations: usize,
+    pub(crate) digest: SearchDigest,
 }
 
 impl AuxiliarySearchResult {

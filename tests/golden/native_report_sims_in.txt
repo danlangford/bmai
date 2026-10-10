@@ -1,0 +1,21 @@
+exit 0
+--- stdout
+Seeding with 17
+Setting endgame to 0
+Setting max # simulations to 20
+Setting min # simulations to 5
+Setting max branch to 100
+Setting selected-move report simulations to 20
+p0 s0.0 Dice (0)6:6 (0)8:5 (0)4:2
+p1 s0.0 Dice (0)10:7 (0)4:4 (0)3:3
+l1 p0 Valid Moves 5 Sims 20
+l1 p0 best move (20.0 points, 100.0% win)
+l1 p0 selected move report (17.0/20, 85.0% win)
+stats 1/5-20/100/0.50
+action
+skill
+2 1
+2
+--- stderr
+RNG_HASH 0 14695981039346656037
+SEARCH_HASH 2 15087513664532099863
