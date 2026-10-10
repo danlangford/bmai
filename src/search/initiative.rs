@@ -126,7 +126,7 @@ pub(crate) fn select_chance_action(
             )
         });
         if let Some(results) = &native_results {
-            digest.fold(results);
+            digest.fold_scores(results);
         }
         for (index, action) in moves.iter().enumerate() {
             if let Some(results) = &native_results {
@@ -339,7 +339,7 @@ pub(crate) fn select_focus_action(
             )
         });
         if let Some(results) = &native_results {
-            digest.fold(results);
+            digest.fold_scores(results);
         }
         for (index, action) in moves.iter().enumerate() {
             if let Some(results) = &native_results {

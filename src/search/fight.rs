@@ -68,7 +68,7 @@ pub(crate) fn select_native_bmai_action(
                 )
             },
         );
-        digest.fold(&scores);
+        digest.fold_scores(&scores);
         scores
     };
     let selected = evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch);
@@ -118,7 +118,7 @@ pub(crate) fn evaluate_selected_native_bmai_move(
         )
     });
     let mut digest = SearchDigest::default();
-    digest.fold(&scores);
+    digest.fold_scores(&scores);
     SearchProbability {
         score: scores.iter().sum(),
         simulations,

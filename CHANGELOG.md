@@ -71,8 +71,8 @@ clear benefit. Each could return if that changes.
 
 ### Added
 
-- With `BMAIR_TRACE_RNG_HASH` set, a session or match that ran a Monte Carlo
-  search also prints `SEARCH_HASH COUNT FINGERPRINT` beside `RNG_HASH`.
+- With `BMAIR_TRACE_RNG_HASH` set, a session or match that made a Monte Carlo
+  decision also prints `SEARCH_HASH DECISIONS FINGERPRINT` beside `RNG_HASH`.
   Every top-level search (fight, swing, Chance, Focus, reserve, Auxiliary,
   and the `report_sims` estimate) folds each simulation's score into it in
   task order, so the worker count cannot change it. Native simulations draw
@@ -82,9 +82,11 @@ clear benefit. Each could return if that changes.
 
 ### Changed
 
-- The golden outputs gain a `SEARCH_HASH` line for each of the 18 fixtures
-  that runs a Monte Carlo search; the rest are answered by the endgame solver
-  or by QAI. A new test runs every fast fixture at one and four workers and
+- The golden outputs gain a `SEARCH_HASH` line for each fixture that runs a
+  Monte Carlo search; the others are answered by the endgame solver or QAI,
+  or stop at an error. New Auxiliary, two-dice Focus, and `report_sims`
+  fixtures cover the searches no fixture reached. A new test runs every fast
+  fixture at one and four workers, overriding any worker count it sets, and
   requires identical output.
 
 ## [0.34.0] - 2026-10-09

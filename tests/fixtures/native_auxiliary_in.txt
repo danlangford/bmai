@@ -1,0 +1,14 @@
+seed 17
+max_sims 20
+min_sims 5
+maxbranch 40
+game 1
+aux
+player 0 2 0
+4
++6
+player 1 2 0
+4
+4
+getaction
+quit

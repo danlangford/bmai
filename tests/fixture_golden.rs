@@ -3,9 +3,10 @@
 
 //! Change detectors, not a rules oracle: the focused tests check rules against
 //! ButtonWeavers. `RNG_HASH` fingerprints the session generator's draws and
-//! `SEARCH_HASH` every Monte Carlo simulation's score, so a search change shows
-//! even when the chosen move survives it. A fixture the endgame solver answers
-//! has no search to fingerprint. After an intentional change, regenerate with
+//! `SEARCH_HASH` every Monte Carlo simulation's score, so a change to any score
+//! shows even when the chosen move survives it. A fixture the endgame solver or
+//! QAI answers has no search to fingerprint. After an intentional change,
+//! regenerate with
 //! `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
 //! and review the diff.
 
@@ -127,7 +128,16 @@ fn run_fixture(fixture: &Path, prefix: &str) -> String {
         .stderr(Stdio::piped())
         .spawn()
         .expect("run bmair");
-    let input = prefix.to_owned() + &fs::read_to_string(fixture).expect("read fixture");
+    let fixture = fs::read_to_string(fixture).expect("read fixture");
+    // A fixture's own worker count would override the prefix's.
+    let input = if prefix.is_empty() {
+        fixture
+    } else {
+        fixture
+            .lines()
+            .filter(|line| !line.starts_with("workers "))
+            .fold(prefix.to_owned(), |input, line| input + line + "\n")
+    };
     child
         .stdin
         .take()

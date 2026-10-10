@@ -59,7 +59,7 @@ impl Engine for MonteCarlo {
         let native = context.native();
         let (choice, _, digest) =
             select_swing_action(game, player, context.rng, &self.search, 1, Some(native));
-        context.rng.trace_search(digest.0);
+        context.rng.trace_search(digest);
         choice
     }
 
@@ -80,7 +80,7 @@ impl Engine for MonteCarlo {
             initiative,
             Some(native),
         );
-        context.rng.trace_search(digest.0);
+        context.rng.trace_search(digest);
         choice
     }
 
@@ -101,7 +101,7 @@ impl Engine for MonteCarlo {
             initiative,
             Some(native),
         );
-        context.rng.trace_search(digest.0);
+        context.rng.trace_search(digest);
         choice
     }
 
@@ -121,7 +121,7 @@ impl Engine for MonteCarlo {
             };
         }
         let result = select_native_bmai_action(game, context.native(), &self.search);
-        context.rng.trace_search(result.digest.0);
+        context.rng.trace_search(result.digest);
         Choice {
             search: Some(SearchSummary {
                 score: result.best_score,
@@ -135,7 +135,7 @@ impl Engine for MonteCarlo {
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
         let (choice, digest) =
             select_native_bmai_reserve_action(game, context.native(), &self.search);
-        context.rng.trace_search(digest.0);
+        context.rng.trace_search(digest);
         choice
     }
 
@@ -145,7 +145,7 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> Choice<Option<usize>> {
         let result = select_native_bmai_auxiliary_action(game, context.native(), &self.search);
-        context.rng.trace_search(result.digest.0);
+        context.rng.trace_search(result.digest);
         Choice {
             choice: result.die,
             search: Some(SearchSummary {

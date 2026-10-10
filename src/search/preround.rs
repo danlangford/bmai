@@ -82,7 +82,7 @@ pub(crate) fn select_swing_action(
             )
         });
         if let Some(results) = &native_results {
-            digest.fold(results);
+            digest.fold_scores(results);
         }
         for (index, candidate) in moves.iter().enumerate() {
             if let Some(results) = &native_results {
@@ -257,7 +257,7 @@ pub(crate) fn select_native_bmai_auxiliary_action(
         },
     );
     let mut digest = SearchDigest::default();
-    digest.fold(&results);
+    digest.fold_scores(&results);
     let mut best = AuxiliarySearchResult {
         die: None,
         score: -1.0,
@@ -316,7 +316,7 @@ pub(crate) fn select_native_bmai_reserve_action(
         },
     );
     let mut digest = SearchDigest::default();
-    digest.fold(&results);
+    digest.fold_scores(&results);
 
     let mut best_score = -1.0f32;
     let mut best = None;
