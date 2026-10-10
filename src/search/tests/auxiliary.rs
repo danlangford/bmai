@@ -52,7 +52,7 @@ fn play_spied(input: &str, accepts: [bool; 2]) -> (MatchResult, QuickSpy) {
     });
     let mut rng = Rng::default();
     rng.reseed(17);
-    let result = play_match_with_policies(&game, &mut rng, &policies, None);
+    let result = play_match_with_policies(&game, &mut rng, &policies, &mut unsearched(&mut 0));
     (result, spy)
 }
 
@@ -264,7 +264,7 @@ fn swing_sizes_around_a_courtesy_die_carry_into_the_next_round() {
         let quick: Engines = [Box::new(Quick), Box::new(Quick)];
         let mut rng = Rng::default();
         rng.reseed(17);
-        let recipe = choose_auxiliary_dice(&template, &mut rng, &quick, None);
+        let recipe = choose_auxiliary_dice(&template, &mut rng, &quick, &mut unsearched(&mut 0));
         let mut game = recipe.clone();
         let selections = play_preround_with_policies(&mut game, &mut rng, &quick, None);
         let chosen = swing_sizes(&game.players[1]);
@@ -393,7 +393,7 @@ fn native_match_decides_auxiliary_dice_before_round_one_on_any_worker_count() {
             workers,
             decision_index: &mut decision_index,
         };
-        let result = play_match_with_policies(&game, &mut rng, &policies, Some(&mut native));
+        let result = play_match_with_policies(&game, &mut rng, &policies, &mut native);
         let keys = std::mem::take(&mut *keys.lock().unwrap());
         (result, keys, decision_index)
     };

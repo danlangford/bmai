@@ -77,12 +77,12 @@ impl Rng {
     pub(crate) fn from_native_stream(
         algorithm: RngAlgorithm,
         seed: crate::native::NativeStreamSeed,
-        stratum: Option<crate::native::NativeStratum>,
+        stratum: crate::native::NativeStratum,
     ) -> Self {
         Self {
             algorithm,
             seed: seed.legacy_park_miller_state(),
-            native_stratum: stratum,
+            native_stratum: Some(stratum),
             script: None,
             ..Self::default()
         }
@@ -116,10 +116,6 @@ impl Rng {
 
     pub fn set_algorithm(&mut self, algorithm: RngAlgorithm) {
         self.algorithm = algorithm;
-    }
-
-    pub(crate) fn debug_seed(&self) -> u32 {
-        self.seed
     }
 
     pub fn reseed(&mut self, seed: u32) {
@@ -296,11 +292,11 @@ mod tests {
                 let mut rng = Rng::from_native_stream(
                     RngAlgorithm::LegacyParkMillerV1,
                     seed,
-                    Some(crate::native::NativeStratum {
+                    crate::native::NativeStratum {
                         index,
                         offset,
                         radix: 1,
-                    }),
+                    },
                 );
                 counts[rng.rand_below(20) as usize] += 1;
             }
@@ -321,11 +317,11 @@ mod tests {
                     let mut rng = Rng::from_native_stream(
                         RngAlgorithm::LegacyParkMillerV1,
                         seed,
-                        Some(crate::native::NativeStratum {
+                        crate::native::NativeStratum {
                             index: index as u64,
                             offset,
                             radix: 1,
-                        }),
+                        },
                     );
                     let first = rng.rand_below(first_bound as u32) as usize;
                     let second = rng.rand_below(second_bound as u32) as usize;
@@ -348,13 +344,14 @@ mod tests {
         let mut stratified = Rng::from_native_stream(
             RngAlgorithm::LegacyParkMillerV1,
             seed,
-            Some(crate::native::NativeStratum {
+            crate::native::NativeStratum {
                 index: 999,
                 offset: 999,
                 radix: 1,
-            }),
+            },
         );
-        let mut ordinary = Rng::from_native_stream(RngAlgorithm::LegacyParkMillerV1, seed, None);
+        let mut ordinary = stratified.clone();
+        ordinary.native_stratum = None;
 
         assert_eq!(stratified.rand(), ordinary.rand());
         assert_eq!(stratified.rand_below(20), ordinary.rand_below(20));

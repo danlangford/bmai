@@ -22,27 +22,24 @@ path = [
     "tests/fixtures/Value2_in.txt",
     "tests/fixtures/bmai_in.txt",
     "tests/fixtures/bmsim_in.txt",
-    "tests/fixtures/bmsim_out.txt",
     "tests/fixtures/bug11_in.txt",
     "tests/fixtures/bug16_in.txt",
     "tests/fixtures/bug55_a_in.txt",
     "tests/fixtures/bug55_b_in.txt",
-    "tests/fixtures/sample-jellybean-vs-strik.txt",
     "tests/fixtures/sample-tanya-vs-tony.txt",
     "tests/fixtures/test_in.txt",
-    "tests/fixtures/test_out.txt",
 ]
 SPDX-License-Identifier = "MIT"
 SPDX-FileCopyrightText = "Copyright 2001-2026 Denis Papp"
 
 [[annotations]]
 path = [
+    "tests/fixtures/native_*",
     "tests/fixtures/parity_*",
     "tests/fixtures/per_player_ai_settings_in.txt",
     "tests/strength/*",
     "tests/fixtures/bug105372_in.txt",
     "tests/golden/*",
-    "tests/native-fixtures/*",
     "tests/jsonl-fixtures/*",
 ]
 SPDX-License-Identifier = "MIT"
@@ -54,9 +51,6 @@ path = [
     ".gitignore",
     "AGENTS.md",
     "BENCHMARKS.md",
-    "MODES.md",
-    "NATIVE_MODE.md",
-    "PARITY.md",
     "web/README.txt",
 ]
 SPDX-License-Identifier = "MIT"

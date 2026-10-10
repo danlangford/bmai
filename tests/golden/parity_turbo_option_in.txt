@@ -1,12 +1,5 @@
 exit 0
 --- stdout
-Setting execution mode to legacy
-Setting Fire overshooting off
-Setting endgame to 0
-Setting max ply to 1
-Setting max # simulations to 500
-Setting min # simulations to 10
-Setting max branch to 5000
 target wins set to 1
 p0 s0.0 Dice (1800)10:10
 p1 s0.0 Dice (0)8:8
@@ -15,7 +8,7 @@ Setting max # simulations to 2
 Setting min # simulations to 1
 Setting max branch to 20
 l1 p0 Valid Moves 2 Sims 2
-l1 p0 best move (2.0 points, 100.0% win)
+l1 p0 best move (1.0 points, 100.0% win)
 stats 1/1-2/20/0.50
 action
 power
@@ -23,4 +16,4 @@ power
 0
 option 0 10
 --- stderr
-RNG_HASH 4 2890013668449285418
+RNG_HASH 0 14695981039346656037

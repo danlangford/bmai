@@ -73,8 +73,6 @@ jobs:
       # Release builds stay uncached so published binaries build from scratch.
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
-      - name: Run expensive self-contained fixture tests
-        run: cargo test --profile release --locked --lib -- --ignored
       # On every pull request, so a slow-fixture change fails before merge.
       - name: Check slow golden fixtures
         run: cargo test --profile release --locked --test fixture_golden -- --ignored

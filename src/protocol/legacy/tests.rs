@@ -5,7 +5,7 @@
 use super::*;
 use crate::Attack::{Power, Skill};
 use crate::Phase::{Auxiliary, Chance, Focus};
-use crate::search::test_support::{LEGACY, parser_scenario, search_scenario};
+use crate::search::test_support::{parser_scenario, search_scenario};
 
 #[test]
 fn cpp_parser_multiline_fight_string() {
@@ -257,9 +257,7 @@ fn each_player_owns_its_engine_settings() {
         let mut output = Vec::new();
         Parser::default()
             .parse_string(
-                &format!(
-                    "seed 17\nmode legacy\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
-                ),
+                &format!("seed 17\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"),
                 &mut output,
             )
             .unwrap();
@@ -623,10 +621,7 @@ fn native_auxiliary_search_is_worker_count_independent() {
         .ply(1)
         .simulations(10, 40)
         .max_branch(80)
-        .modes([
-            crate::search::test_support::NATIVE,
-            crate::search::test_support::native(4),
-        ])
+        .workers([1, 4])
         .expect_auxiliary(None)
         .run();
 }
@@ -698,7 +693,7 @@ fn initiative_chance_and_focus_use_bmai_search() {
             .ply(1)
             .simulations(1, 10)
             .max_branch(20)
-            .modes([LEGACY])
+            .workers([1])
             .expect_pass()
             .run();
     }
@@ -766,7 +761,7 @@ fn value_fixtures_emit_reference_protocol_actions() {
 }
 
 #[test]
-fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
+fn deterministic_fight_fixtures_emit_their_protocol_actions() {
     parser_scenario(include_str!("../../../tests/fixtures/bug55_a_in.txt"))
         .expect_attack(Skill)
         .using([2, 0])
@@ -779,7 +774,7 @@ fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
         .run();
     parser_scenario(include_str!("../../../tests/fixtures/bug105372_in.txt"))
         .expect_attack(Skill)
-        .using([2, 1, 0])
+        .using([2, 0, 1])
         .targeting([0])
         .run();
     parser_scenario(include_str!(
@@ -793,43 +788,25 @@ fn deterministic_fight_fixtures_emit_reference_protocol_actions() {
 
 #[test]
 fn surrender_policy_fixtures_emit_reference_protocol_actions() {
-    parser_scenario(cpp_fixture(include_str!(
+    parser_scenario(fixture_settings(include_str!(
         "../../../tests/fixtures/SurrenderDefault-Pass-in.txt"
     )))
     .expect_surrender()
     .run();
-    parser_scenario(cpp_fixture(include_str!(
+    parser_scenario(fixture_settings(include_str!(
         "../../../tests/fixtures/SurrenderOff-Pass-in.txt"
     )))
     .expect_pass()
     .run();
-    parser_scenario(cpp_fixture(include_str!(
+    parser_scenario(fixture_settings(include_str!(
         "../../../tests/fixtures/SurrenderOn-Attack-in.txt"
     )))
     .expect_surrender()
     .run();
-    parser_scenario(cpp_fixture(include_str!(
+    parser_scenario(fixture_settings(include_str!(
         "../../../tests/fixtures/SurrenderOn-Pass-in.txt"
     )))
     .expect_surrender()
-    .run();
-}
-
-#[test]
-#[ignore = "full BMAI3 searches; run in the release parity suite"]
-fn deeper_reference_fixtures_emit_reference_protocol_actions() {
-    parser_scenario(cpp_fixture(include_str!(
-        "../../../tests/fixtures/bmai_in.txt"
-    )))
-    .expect_attack(Power)
-    .using([1])
-    .targeting([0])
-    .run();
-
-    parser_scenario(cpp_fixture(include_str!(
-        "../../../tests/fixtures/bug11_in.txt"
-    )))
-    .expect_swings([('T', 2), ('W', 4)])
     .run();
 }
 
@@ -843,28 +820,35 @@ fn obsolete_sims_command_is_rejected_like_reference_binary() {
 }
 
 #[test]
-fn rust_execution_and_rng_modes_are_independent_and_versioned() {
+fn mode_native_is_still_accepted_and_the_rng_is_versioned() {
     let mut parser = Parser::default();
-    assert_eq!(parser.execution_mode(), ExecutionMode::Native);
     assert_eq!(parser.rng_algorithm(), RngAlgorithm::LegacyParkMillerV1);
 
     let mut output = Vec::new();
     parser
         .parse_string(
-            "mode native\nrng park-miller\nseed 17\nmode parity\nrng legacy\nquit\n",
+            "mode native\nrng park-miller\nseed 17\nrng legacy\nquit\n",
             &mut output,
         )
         .unwrap();
-    assert_eq!(parser.execution_mode(), ExecutionMode::Legacy);
     assert_eq!(parser.rng_replay_id(), "bmai-park-miller-16807-v1");
     assert_eq!(
         String::from_utf8(output).unwrap(),
         "Setting execution mode to native\n\
              Setting RNG to legacy (bmai-park-miller-16807-v1)\n\
              Seeding with 17\n\
-             Setting execution mode to legacy\n\
              Setting RNG to legacy (bmai-park-miller-16807-v1)\n"
     );
+
+    for mode in ["legacy", "parity"] {
+        let error = Parser::default()
+            .parse_string(&format!("mode {mode}\n"), &mut Vec::new())
+            .unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            format!("execution mode {mode} was removed; BMAIR always searches natively")
+        );
+    }
 }
 
 #[test]
@@ -874,7 +858,7 @@ fn rust_execution_and_rng_modes_reject_unknown_values() {
         .unwrap_err();
     assert_eq!(
         engine.to_string(),
-        "invalid execution mode: experimental (expected legacy or native)"
+        "invalid execution mode: experimental (expected native)"
     );
 
     let rng = Parser::default()
@@ -914,7 +898,7 @@ fn fire_overshooting_is_explicit_default_on_session_state() {
 }
 
 #[test]
-fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
+fn native_worker_setting_validates_input_and_does_not_change_results() {
     let zero = Parser::default()
         .parse_string("workers 0\n", &mut Vec::new())
         .unwrap_err();
@@ -925,8 +909,7 @@ fn native_worker_setting_validates_input_and_does_not_change_legacy_search() {
         .unwrap_err();
     assert_eq!(malformed.to_string(), "invalid integer: many");
 
-    let fixture = include_str!("../../../tests/native-fixtures/fight.txt")
-        .replace("mode native", "mode legacy");
+    let fixture = include_str!("../../../tests/fixtures/native_fight_in.txt");
     let run = |workers: usize| {
         let input = fixture.replace("workers 3", &format!("workers {workers}"));
         let mut output = Vec::new();
@@ -956,7 +939,7 @@ fn native_worker_auto_uses_available_logical_parallelism() {
 
 #[test]
 fn native_replay_index_advances_only_for_native_bmai_searches() {
-    let fixture = include_str!("../../../tests/native-fixtures/fight.txt");
+    let fixture = include_str!("../../../tests/fixtures/native_fight_in.txt");
 
     let mut qai = Parser::default();
     qai.parse_string(
@@ -972,42 +955,6 @@ fn native_replay_index_advances_only_for_native_bmai_searches() {
 }
 
 #[test]
-fn native_wire_fixtures_are_deterministic() {
-    let cases = [
-        (
-            include_str!("../../../tests/native-fixtures/fight.txt"),
-            include_str!("../../../tests/native-fixtures/fight.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/reserve.txt"),
-            include_str!("../../../tests/native-fixtures/reserve.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/preround.txt"),
-            include_str!("../../../tests/native-fixtures/preround.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/chance.txt"),
-            include_str!("../../../tests/native-fixtures/chance.out.txt"),
-        ),
-        (
-            include_str!("../../../tests/native-fixtures/focus.txt"),
-            include_str!("../../../tests/native-fixtures/focus.out.txt"),
-        ),
-    ];
-
-    for (input, expected) in cases {
-        // Windows checkouts may use CRLF; the writer always emits `\n`.
-        let expected = expected.replace("\r\n", "\n");
-        for _ in 0..2 {
-            let mut output = Vec::new();
-            Parser::default().parse_string(input, &mut output).unwrap();
-            assert_eq!(String::from_utf8(output).unwrap(), expected);
-        }
-    }
-}
-
-#[test]
 fn native_phases_are_worker_count_independent() {
     let run = |input: &str, workers: usize| {
         let input = input.replace("workers 3", &format!("workers {workers}"));
@@ -1020,36 +967,16 @@ fn native_phases_are_worker_count_independent() {
     };
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     for input in [
-        include_str!("../../../tests/native-fixtures/reserve.txt"),
-        include_str!("../../../tests/native-fixtures/preround.txt"),
-        include_str!("../../../tests/native-fixtures/chance.txt"),
-        include_str!("../../../tests/native-fixtures/focus.txt"),
+        include_str!("../../../tests/fixtures/native_reserve_in.txt"),
+        include_str!("../../../tests/fixtures/native_preround_in.txt"),
+        include_str!("../../../tests/fixtures/native_chance_in.txt"),
+        include_str!("../../../tests/fixtures/native_focus_in.txt"),
     ] {
         let expected = run(input, 1);
         for workers in [2, available] {
             assert_eq!(run(input, workers), expected);
         }
     }
-}
-
-#[test]
-#[ignore = "full default BMAI3 simulation; run in the release parity suite"]
-fn simulation_fixture_emits_reference_match_result() {
-    let input = cpp_fixture(include_str!("../../../tests/fixtures/bmsim_in.txt"));
-    let mut output = Vec::new();
-    Parser::default().parse_string(&input, &mut output).unwrap();
-    let output = String::from_utf8(output).unwrap();
-    assert!(output.ends_with("matches over 12 - 8\n"), "{output}");
-}
-
-#[test]
-#[ignore = "full reserve BMAI3 search; run in the release parity suite"]
-fn reserve_fixture_emits_reference_protocol_action() {
-    parser_scenario(cpp_fixture(include_str!(
-        "../../../tests/fixtures/bug16_in.txt"
-    )))
-    .expect_reserve(Some(6))
-    .run();
 }
 
 #[test]
@@ -1063,15 +990,15 @@ fn a_request_without_settings_gets_the_measured_defaults() {
         )
         .unwrap();
     let output = String::from_utf8(output).unwrap();
-    assert_eq!(parser.execution_mode(), ExecutionMode::Native);
     assert!(parser.game.fire_overshooting);
     assert!(output.contains("stats 1/200-4000/16000/0.50"), "{output}");
 }
 
-/// C++ BMAI's defaults, which its fixtures assume and BMAIR no longer has.
-fn cpp_fixture(input: &str) -> String {
+/// The settings these fixtures were written for, which are not BMAIR's
+/// defaults.
+fn fixture_settings(input: &str) -> String {
     format!(
-        "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
+        "fire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n{input}"
     )
 }
 

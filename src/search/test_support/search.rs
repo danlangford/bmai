@@ -3,26 +3,6 @@
 
 use super::*;
 
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum SearchMode {
-    Legacy,
-    LegacyWithWorkers { workers: usize },
-    Native { workers: Option<usize> },
-}
-
-pub(crate) const LEGACY: SearchMode = SearchMode::Legacy;
-pub(crate) const NATIVE: SearchMode = SearchMode::Native { workers: None };
-
-pub(crate) const fn legacy_with_workers(workers: usize) -> SearchMode {
-    SearchMode::LegacyWithWorkers { workers }
-}
-
-pub(crate) const fn native(workers: usize) -> SearchMode {
-    SearchMode::Native {
-        workers: Some(workers),
-    }
-}
-
 #[derive(Default)]
 pub(crate) struct SearchScenario {
     phase: Option<Phase>,
@@ -37,7 +17,7 @@ pub(crate) struct SearchScenario {
     expected_player: Option<usize>,
     expected_win_percent: Option<RangeInclusive<f32>>,
     expected_action: ActionExpectation,
-    modes: Vec<SearchMode>,
+    worker_counts: Vec<usize>,
 }
 
 impl SearchScenario {
@@ -88,8 +68,9 @@ impl SearchScenario {
         self
     }
 
-    pub(crate) fn modes(mut self, modes: impl IntoIterator<Item = SearchMode>) -> Self {
-        self.modes = modes.into_iter().collect();
+    /// Runs the scenario once per count against the same expectations.
+    pub(crate) fn workers(mut self, counts: impl IntoIterator<Item = usize>) -> Self {
+        self.worker_counts = counts.into_iter().collect();
         self
     }
 
@@ -143,10 +124,13 @@ impl SearchScenario {
             self.expected_win_percent.is_some() || self.expected_action.action.is_some(),
             "search scenario has no expectation"
         );
-        assert!(!self.modes.is_empty(), "search scenario has no modes");
+        assert!(
+            !self.worker_counts.is_empty(),
+            "search scenario has no worker counts"
+        );
 
-        for mode in &self.modes {
-            let input = self.protocol_input(*mode);
+        for &workers in &self.worker_counts {
+            let input = self.protocol_input(workers);
             let mut parser = Parser::default();
             let mut output = Vec::new();
             parser
@@ -163,41 +147,29 @@ impl SearchScenario {
                 });
                 assert!(
                     expected.contains(&actual),
-                    "{mode:?} player {player} win percentage {actual} was outside {expected:?}\n{output}"
+                    "{workers} workers: player {player} win percentage {actual} was outside {expected:?}\n{output}"
                 );
             }
             if let Some(expected) = self.expected_action.protocol_action() {
                 assert_eq!(
                     parser.last_action(),
                     Some(&expected),
-                    "{mode:?} selected an unexpected action:\n{output}"
+                    "{workers} workers selected an unexpected action:\n{output}"
                 );
                 let expected_wire = legacy_action_suffix(&expected);
                 assert!(
                     output.ends_with(&expected_wire),
-                    "{mode:?} did not emit {expected_wire:?}:\n{output}"
+                    "{workers} workers did not emit {expected_wire:?}:\n{output}"
                 );
             }
         }
     }
 
-    fn protocol_input(&self, mode: SearchMode) -> String {
+    fn protocol_input(&self, workers: usize) -> String {
         let phase = self.phase.unwrap_or(Phase::Fight);
         let target_wins = self.target_wins.unwrap_or(3);
         // These scenarios test Monte Carlo, which the solver would preempt.
-        let mut input = String::from("endgame 0\n");
-        match mode {
-            SearchMode::Legacy => input.push_str("mode legacy\n"),
-            SearchMode::LegacyWithWorkers { workers } => {
-                input.push_str(&format!("mode legacy\nworkers {workers}\n"));
-            }
-            SearchMode::Native { workers } => {
-                input.push_str("mode native\n");
-                if let Some(workers) = workers {
-                    input.push_str(&format!("workers {workers}\n"));
-                }
-            }
-        }
+        let mut input = format!("endgame 0\nworkers {workers}\n");
         input.push_str(&format!("game {target_wins}\n{}\n", phase_name(phase)));
         for player in 0..2 {
             let (score, dice) = self.players[player]

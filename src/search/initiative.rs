@@ -54,8 +54,8 @@ pub(super) fn apply_chance_move(
         }
     }
     game.players[player].optimize_dice();
-    // C++ tests `initiative != 0`, so success means player 0 won, whoever rolled.
-    if check_initiative(game) == Some(0) {
+    // ButtonWeavers counts a reroll only when the roller alone then has initiative.
+    if check_initiative(game) == Some(player) {
         (player, true)
     } else {
         (previous_initiative, false)
@@ -107,9 +107,7 @@ pub(crate) fn select_chance_action(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = native_simulation_rng(
-                        context.algorithm,
-                        context.replay,
+                    let mut simulation_rng = context.simulation_rng(
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
@@ -185,13 +183,6 @@ pub(crate) fn select_chance_action(
         if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
-    }
-    if trace_settings().chance {
-        eprintln!(
-            "CHANCE_BEST l{level} seed={} score={best_score} sims={sims_run} {:?}",
-            rng.debug_seed(),
-            best.reroll
-        );
     }
     (best, best_score / sims_run as f32)
 }
@@ -289,16 +280,8 @@ pub(crate) fn select_focus_action(
     initiative: usize,
     native: Option<NativeEvaluation>,
 ) -> (FocusMove, f32) {
-    let trace = trace_settings().focus;
     let mut moves = generate_focus_moves(game, player);
     let sims = ai.compute_number_sims(moves.len(), level);
-    if trace {
-        eprintln!(
-            "FOCUS_BEGIN l{level} seed={} moves={} sims={sims}",
-            rng.debug_seed(),
-            moves.len()
-        );
-    }
     let mut scores = vec![0.0f32; moves.len()];
     let mut candidate_indices = native.map(|_| (0..moves.len()).collect::<Vec<_>>());
     let mut best_score = -1.0f32;
@@ -333,9 +316,7 @@ pub(crate) fn select_focus_action(
                 context.workers,
                 |(action, candidate_index, simulation_index)| {
                     let mut simulation = game.clone();
-                    let mut simulation_rng = native_simulation_rng(
-                        context.algorithm,
-                        context.replay,
+                    let mut simulation_rng = context.simulation_rng(
                         candidate_index,
                         batch_index,
                         sims_run + simulation_index,
@@ -370,15 +351,6 @@ pub(crate) fn select_focus_action(
                         level,
                     );
                 }
-            }
-            if trace {
-                eprintln!(
-                    "FOCUS_MOVE l{level} m{index} seed={} sims={} score={} {:?}",
-                    rng.debug_seed(),
-                    sims_run + batch,
-                    scores[index],
-                    action.values
-                );
             }
             if scores[index] > best_score {
                 best_score = scores[index];
@@ -420,13 +392,6 @@ pub(crate) fn select_focus_action(
         if moves.len() == 1 && !completes_native_probability_sample(native) {
             break;
         }
-    }
-    if trace {
-        eprintln!(
-            "FOCUS_BEST l{level} seed={} score={best_score} sims={sims_run} {:?}",
-            rng.debug_seed(),
-            best.values
-        );
     }
     (best, best_score / sims_run as f32)
 }

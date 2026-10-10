@@ -5,7 +5,7 @@
 //! so scenarios cannot drift from the real rules.
 
 use super::{apply_attack, record_round_selections, restore_dice_for_new_round};
-use crate::protocol::{FireSelection, OptionSelection, ProtocolAction, SwingSelection};
+use crate::protocol::{FireSelection, ProtocolAction};
 use crate::{Attack, Die, Game, Move, Parser, Phase, Rng, property};
 use std::ops::RangeInclusive;
 
@@ -45,11 +45,6 @@ enum ExpectedAction {
     Surrender,
     Auxiliary(Option<usize>),
     Attack(Attack),
-    Reserve(Option<usize>),
-    SetSwing {
-        swings: Vec<SwingSelection>,
-        options: Vec<OptionSelection>,
-    },
 }
 
 impl ActionExpectation {
@@ -83,11 +78,6 @@ impl ActionExpectation {
                 turbo: None,
                 fire: self.fire.clone(),
             }),
-            ExpectedAction::Reserve(die) => Some(ProtocolAction::Reserve { die: *die }),
-            ExpectedAction::SetSwing { swings, options } => Some(ProtocolAction::SetSwing {
-                swings: swings.clone(),
-                options: options.clone(),
-            }),
         }
     }
 }
@@ -104,7 +94,7 @@ use mechanics::{parse_game, resolve_original_indices};
 pub(crate) use parser::ParserScenario;
 use parser::legacy_action_suffix;
 pub(crate) use roll::RollScenario;
-pub(crate) use search::{LEGACY, NATIVE, SearchScenario, legacy_with_workers, native};
+pub(crate) use search::SearchScenario;
 
 #[cfg(test)]
 mod tests;

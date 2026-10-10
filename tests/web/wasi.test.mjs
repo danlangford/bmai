@@ -23,8 +23,6 @@ const module = await WebAssembly.compile(await readFile(wasmPath));
 
 // Keep in step with tests/fixture_golden.rs.
 const SLOW_FIXTURES = ["bmai_in.txt", "bmsim_in.txt", "bug11_in.txt", "bug16_in.txt"];
-const CPP_DEFAULTS =
-  "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
 const UNSTABLE_PREFIXES = [
   "BMAIR:",
   "Rust port Copyright",
@@ -80,7 +78,7 @@ test("every golden fixture matches native output", async (context) => {
     await context.test(name, async () => {
       const fixture = await readFile(new URL(`tests/fixtures/${name}`, root), "utf8");
       const expected = await readFile(new URL(`tests/golden/${name}`, root), "utf8");
-      const result = await bmair([], CPP_DEFAULTS + fixture, { BMAIR_TRACE_RNG_HASH: "1" });
+      const result = await bmair([], fixture, { BMAIR_TRACE_RNG_HASH: "1" });
       assert.equal(normalizeLikeGolden(result), expected);
     });
   }
@@ -108,7 +106,7 @@ test("the engine cannot open files", async () => {
 test("worker counts above one give the one-worker result", async () => {
   const fixture = await readFile(new URL("tests/fixtures/Value1_in.txt", root), "utf8");
   const play = async (workers) => {
-    const input = `mode native\nseed 3\nworkers ${workers}\nmax_sims 200\n${fixture}`;
+    const input = `seed 3\nworkers ${workers}\nmax_sims 200\n${fixture}`;
     const { exitCode, stdout } = await bmair([], input);
     assert.equal(exitCode, 0);
     assert.match(stdout, /Valid Moves 4 /);
@@ -117,21 +115,8 @@ test("worker counts above one give the one-worker result", async () => {
   assert.equal(await play(4), await play(1));
 });
 
-// The fixtures pin C++ defaults; the page runs BMAIR's, whose endgame solver
-// recurses deeper than anything else on WebAssembly's 1 MiB stack.
-test("search traces stay out of worker evaluations, as on native", async () => {
-  const fixture = await readFile(new URL("tests/fixtures/Value1_in.txt", root), "utf8");
-  const play = (workers) =>
-    bmair([], `mode native\nseed 3\nworkers ${workers}\nmax_sims 100\n${fixture}`, {
-      BMAIR_TRACE_RNG: "1",
-    });
-  const alone = await play(1);
-  const shared = await play(2);
-  assert.equal(shared.exitCode, 0);
-  assert.match(alone.stderr, /QAI_RNG/);
-  assert.doesNotMatch(shared.stderr, /QAI_RNG/);
-});
-
+// BMAIR's defaults include the endgame solver, which recurses deeper than
+// anything else on WebAssembly's 1 MiB stack.
 test("BMAIR's own defaults run, endgame solver included", async () => {
   const fixture = await readFile(new URL("tests/fixtures/Insult_in.txt", root), "utf8");
   const fight = await bmair([], fixture);

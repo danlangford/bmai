@@ -44,7 +44,8 @@ Candidate-list reuse was tested and rejected because it regressed `bug16_in`
 user CPU by about 18%. PGO improved its three training fixtures by roughly
 5–9% but was also rejected because the untrained `bug16_in` case regressed by
 about 1.4%. Exact all-fixture material output and RNG fingerprints passed after
-the retained changes; see `PARITY.md` for the gate evidence.
+the retained changes; that gate evidence lived in `PARITY.md`, which git
+history keeps.
 
 ## 0.1.0 release artifact comparison
 

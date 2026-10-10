@@ -45,6 +45,7 @@ impl BuildIdentity {
 #[derive(Debug, Serialize)]
 #[non_exhaustive]
 pub struct NativeCapabilities {
+    /// Only `native`; `jsonl-v1` keeps the field.
     pub execution_modes: &'static [&'static str],
     pub rng_algorithms: &'static [&'static str],
     pub minimum_workers: usize,
@@ -109,6 +110,7 @@ pub struct SessionMetadata {
     pub surrender_allowed: bool,
     pub turbo_accuracy: ProtocolFloat,
     pub fire_overshooting: bool,
+    /// Always `native`; `jsonl-v1` keeps the field.
     pub execution_mode: &'static str,
     pub rng: &'static str,
     pub native_root_seed: u64,
@@ -346,7 +348,7 @@ impl Capabilities {
             button_specials: crate::protocol::notation::BUTTON_SPECIALS,
             die_notation: DieNotationCapabilities::current(),
             native: NativeCapabilities {
-                execution_modes: &["legacy", "native"],
+                execution_modes: &["native"],
                 rng_algorithms: &["legacy", "park-miller"],
                 minimum_workers: 1,
                 automatic_workers: true,

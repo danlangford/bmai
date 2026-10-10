@@ -3,7 +3,7 @@
 
 use super::*;
 use crate::Attack::{Rush, Shadow};
-use test_support::{LEGACY, NATIVE, native, search_scenario};
+use test_support::search_scenario;
 
 fn rush_attacks(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
     attacks_by(attacker_dice, defender_dice)
@@ -224,7 +224,7 @@ fn speed_rush_die_offers_one_speed_attack_instead_of_a_duplicate_rush() {
     assert!(rush_attacks(&["#z6:6"], &["2:2", "4:4"]).is_empty());
     let game = native_fixture_game("game\nfight\nplayer 0 1 0\n#z6:6\nplayer 1 2 0\n2:2\n4:4\n");
     let speed = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter(|candidate| candidate.targets.len() == 2)
         .map(|candidate| candidate.attack)
@@ -496,7 +496,7 @@ fn rush_notation_inside_game_blocks_is_not_a_comment() {
 }
 
 #[test]
-fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
+fn search_reports_a_round_winning_rush() {
     search_scenario()
         .phase(Fight)
         .player(0, 3.0, ["#6:6"])
@@ -505,7 +505,7 @@ fn search_reports_a_round_winning_rush_in_legacy_and_native_modes() {
         .simulations(5, 50)
         .max_branch(100)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 100.0..=100.0)
         .expect_attack(Rush)
         .using([0])
@@ -518,7 +518,7 @@ fn shadow_rush_die_offers_both_attack_types() {
     let game =
         native_fixture_game("game\nfight\nplayer 0 1 0\n#s6:3\nplayer 1 3 0\n1:1\n2:2\n5:5\n");
     let attacks = game
-        .generate_valid_attacks_in_cpp_order()
+        .valid_attacks(usize::MAX)
         .into_iter()
         .filter_map(|candidate| candidate.attack)
         .collect::<Vec<_>>();

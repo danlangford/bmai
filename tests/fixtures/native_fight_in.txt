@@ -1,5 +1,4 @@
 endgame 0
-mode native
 rng legacy
 workers 3
 seed 17

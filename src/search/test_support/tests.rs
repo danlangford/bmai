@@ -6,7 +6,7 @@ use crate::Attack::{Berserk, Power, Shadow, Skill, Speed, Trip};
 use crate::Phase::Fight;
 
 #[test]
-fn forced_win_is_reported_as_certain_in_legacy_and_native_search() {
+fn forced_win_is_reported_as_certain() {
     search_scenario()
         .phase(Fight)
         .target_wins(3)
@@ -16,7 +16,7 @@ fn forced_win_is_reported_as_certain_in_legacy_and_native_search() {
         .simulations(5, 100)
         .max_branch(400)
         .surrender(false)
-        .modes([LEGACY, legacy_with_workers(4), NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 100.0..=100.0)
         .expect_attack(crate::Attack::Power)
         .using([1])
@@ -35,7 +35,7 @@ fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
         .simulations(5, 100)
         .max_branch(400)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 10.0..=10.0)
         .expect_attack(Power)
         .using([0])
@@ -44,7 +44,7 @@ fn poison_versus_queer_endgame_reports_the_exact_win_probability() {
 }
 
 #[test]
-fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
+fn ordinary_d10_endgame_reports_the_exact_win_probability() {
     search_scenario()
         .phase(Fight)
         .target_wins(3)
@@ -54,23 +54,7 @@ fn ordinary_d10_endgame_preserves_legacy_estimate_and_native_is_exact() {
         .simulations(5, 100)
         .max_branch(400)
         .surrender(false)
-        .modes([LEGACY])
-        .expect_player_win_percent(0, 47.0..=47.0)
-        .expect_attack(Power)
-        .using([0])
-        .targeting([0])
-        .run();
-
-    search_scenario()
-        .phase(Fight)
-        .target_wins(3)
-        .player(0, 29.0, ["10:9"])
-        .player(1, 27.0, ["6:6", "X-6:6"])
-        .ply(2)
-        .simulations(5, 100)
-        .max_branch(400)
-        .surrender(false)
-        .modes([NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 40.0..=40.0)
         .expect_attack(Power)
         .using([0])
@@ -89,7 +73,7 @@ fn twin_d6_endgame_uses_the_full_two_die_distribution() {
         .simulations(5, 36)
         .max_branch(400)
         .surrender(false)
-        .modes([NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 29.2..=29.2)
         .expect_attack(Power)
         .using([1])
@@ -105,7 +89,7 @@ fn twin_d6_endgame_uses_the_full_two_die_distribution() {
         .simulations(5, 100)
         .max_branch(400)
         .surrender(false)
-        .modes([NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 28.0..=31.0)
         .expect_attack(Power)
         .using([1])
@@ -137,20 +121,20 @@ fn poison_versus_queer_endgame_wins_only_on_rerolls_five_and_six() {
         assert_eq!([game.players[0].score, game.players[1].score], [22.0, 37.0]);
 
         game.players.swap(0, 1);
-        let queer_capture =
-            game.generate_valid_attacks_in_cpp_order()
-                .into_iter()
-                .find(|candidate| {
-                    candidate.attack == Some(Shadow)
-                        && candidate
-                            .attackers
-                            .iter()
-                            .any(|index| game.players[0].dice[index].original_index == 0)
-                        && candidate
-                            .targets
-                            .iter()
-                            .any(|index| game.players[1].dice[index].original_index == 0)
-                });
+        let queer_capture = game
+            .valid_attacks(usize::MAX)
+            .into_iter()
+            .find(|candidate| {
+                candidate.attack == Some(Shadow)
+                    && candidate
+                        .attackers
+                        .iter()
+                        .any(|index| game.players[0].dice[index].original_index == 0)
+                    && candidate
+                        .targets
+                        .iter()
+                        .any(|index| game.players[1].dice[index].original_index == 0)
+            });
 
         if matches!(poison_roll, 5 | 6) {
             apply_attack(&mut game, &queer_capture.unwrap(), &mut rng);
@@ -293,7 +277,7 @@ fn fire_search_reports_the_required_turndown_in_legacy_and_json_actions() {
         .simulations(1, 4)
         .max_branch(100)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_attack(Power)
         .using([0])
         .targeting([0])
@@ -312,7 +296,7 @@ fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
         .max_branch(1_000)
         .surrender(false)
         .fire_overshooting(false)
-        .modes([NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 25.0..=40.0)
         .expect_attack(Power)
         .using([0])
@@ -328,7 +312,7 @@ fn optional_fire_overshooting_protects_a_fire_die_when_enabled() {
         .max_branch(1_000)
         .surrender(false)
         .fire_overshooting(true)
-        .modes([NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 100.0..=100.0)
         .expect_attack(Power)
         .using([0])

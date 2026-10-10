@@ -5,7 +5,6 @@ use super::*;
 
 const EXAMPLE_KEY: NativeSimulationKey = NativeSimulationKey {
     replay: NativeReplayKey {
-        stream_version: NativeStreamVersion::V1,
         root_seed: 0x0123_4567_89ab_cdef,
         decision_index: 42,
     },
@@ -16,38 +15,12 @@ const EXAMPLE_KEY: NativeSimulationKey = NativeSimulationKey {
 
 #[test]
 fn stream_partition_identifier_is_versioned() {
-    assert_eq!(
-        NativeStreamVersion::V1.partition_id(),
-        "bmair-native-stream-v1"
-    );
-    assert_eq!(
-        NativeStreamVersion::CURRENT.partition_id(),
-        "bmair-native-stream-v2"
-    );
-    assert!(!NativeStreamVersion::V1.completes_probability_sample());
-    assert!(NativeStreamVersion::CURRENT.completes_probability_sample());
+    assert_eq!(NATIVE_STREAM_PARTITION_ID, "bmair-native-stream-v2");
 }
 
 #[test]
 fn stream_seed_has_a_stable_known_answer() {
-    assert_eq!(
-        EXAMPLE_KEY.derive_stream_seed(),
-        NativeStreamSeed {
-            state: 13_647_275_757_561_345_854,
-            stream: 4_338_030_216_732_356_548,
-        }
-    );
-}
-
-#[test]
-fn current_stream_seed_has_a_stable_known_answer() {
-    let key = NativeSimulationKey {
-        replay: NativeReplayKey {
-            stream_version: NativeStreamVersion::CURRENT,
-            ..EXAMPLE_KEY.replay
-        },
-        ..EXAMPLE_KEY
-    };
+    let key = EXAMPLE_KEY;
     assert_eq!(
         key.derive_stream_seed(),
         NativeStreamSeed {
@@ -57,11 +30,11 @@ fn current_stream_seed_has_a_stable_known_answer() {
     );
     assert_eq!(
         key.stratum(),
-        Some(NativeStratum {
+        NativeStratum {
             index: 999,
             offset: 13_862_872_699_400_720_889,
             radix: 1,
-        })
+        }
     );
 }
 
@@ -103,27 +76,19 @@ fn every_task_coordinate_partitions_the_stream() {
 }
 
 #[test]
-fn v2_strata_advance_by_simulation_but_keep_a_candidate_offset() {
-    let key = NativeSimulationKey {
-        replay: NativeReplayKey {
-            stream_version: NativeStreamVersion::V2,
-            ..EXAMPLE_KEY.replay
-        },
-        ..EXAMPLE_KEY
-    };
-    let baseline = key.stratum().unwrap();
+fn strata_advance_by_simulation_but_keep_a_candidate_offset() {
+    let key = EXAMPLE_KEY;
+    let baseline = key.stratum();
     let next_simulation = NativeSimulationKey {
         simulation_index: key.simulation_index + 1,
         ..key
     }
-    .stratum()
-    .unwrap();
+    .stratum();
     let next_batch = NativeSimulationKey {
         batch_index: key.batch_index + 1,
         ..key
     }
-    .stratum()
-    .unwrap();
+    .stratum();
 
     assert_eq!(next_simulation.index, baseline.index + 1);
     assert_eq!(next_simulation.offset, baseline.offset);
@@ -131,23 +96,12 @@ fn v2_strata_advance_by_simulation_but_keep_a_candidate_offset() {
     assert_eq!(next_batch.index, baseline.index);
     assert_eq!(next_batch.offset, baseline.offset);
     assert_eq!(next_batch.radix, 1);
-    assert!(
-        NativeSimulationKey {
-            replay: NativeReplayKey {
-                stream_version: NativeStreamVersion::V1,
-                ..key.replay
-            },
-            ..key
-        }
-        .stratum()
-        .is_none()
-    );
 }
 
 #[test]
 fn legacy_state_uses_both_words_and_is_in_range() {
     let seed = EXAMPLE_KEY.derive_stream_seed();
-    assert_eq!(seed.legacy_park_miller_state(), 2_042_917_870);
+    assert_eq!(seed.legacy_park_miller_state(), 1_223_034_465);
     assert!((1..2_147_483_647).contains(&seed.legacy_park_miller_state()));
     assert_ne!(
         seed.legacy_park_miller_state(),
@@ -192,16 +146,6 @@ fn workers_drain_a_shared_queue_whatever_their_count() {
         taken.sort_unstable();
         assert_eq!(taken, (0..100).collect::<Vec<_>>());
     }
-}
-
-#[test]
-fn worker_identity_is_scoped_to_parallel_evaluation() {
-    assert!(!native_worker_active());
-    assert_eq!(
-        ordered_parallel_map(vec![1, 2], 2, |_| native_worker_active()),
-        [true, true]
-    );
-    assert!(!native_worker_active());
 }
 
 fn expensive_test_mapping(value: u64) -> u64 {

@@ -8,10 +8,10 @@ use std::io::{BufRead, Write};
 use crate::engines::{DecisionContext, Engine, MonteCarlo, Setting};
 use crate::game::{Action, Die, DieIndexSet, Game, Move, Phase, SwingSet, property};
 use crate::search::{
-    Engines, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move,
-    offer_courtesy_auxiliary, play_fair_games, play_games_with_policies,
+    Engines, NativeEvaluation, NativeReplaySequence, SwingMove, evaluate_selected_native_bmai_move,
+    offer_courtesy_auxiliary, play_fair_games, play_games,
 };
-use crate::{Bmai3, ExecutionMode, Rng, RngAlgorithm};
+use crate::{Bmai3, Rng, RngAlgorithm};
 
 #[derive(Debug, Clone)]
 pub struct ParseError(String);
@@ -35,7 +35,6 @@ enum PlayerEngine {
 pub struct Parser {
     pub game: Game,
     report_sims: usize,
-    execution_mode: ExecutionMode,
     native_root_seed: u64,
     native_decision_index: u64,
     native_workers: usize,
@@ -54,7 +53,6 @@ impl Default for Parser {
         Self {
             game: Game::default(),
             report_sims: 0,
-            execution_mode: ExecutionMode::default(),
             native_root_seed: 78_904_497,
             native_decision_index: 0,
             native_workers: input::available_workers(),
@@ -83,10 +81,6 @@ impl Parser {
         };
     }
 
-    pub const fn execution_mode(&self) -> ExecutionMode {
-        self.execution_mode
-    }
-
     pub const fn rng_algorithm(&self) -> RngAlgorithm {
         self.rng.algorithm()
     }
@@ -102,7 +96,7 @@ impl Parser {
             surrender_allowed: self.game.surrender_allowed,
             turbo_accuracy: crate::protocol::ProtocolFloat::from_f32(self.game.turbo_accuracy),
             fire_overshooting: self.game.fire_overshooting,
-            execution_mode: self.execution_mode.as_str(),
+            execution_mode: "native",
             rng: self.rng.replay_id(),
             native_root_seed: self.native_root_seed,
             native_decision_index: self.native_decision_index,

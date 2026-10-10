@@ -14,7 +14,7 @@ use test_support::{initiative_scenario, roll, scenario};
 
 #[test]
 fn native_fight_score_summary_is_stable() {
-    let input = include_str!("../../../tests/native-fixtures/fight.txt");
+    let input = include_str!("../../../tests/fixtures/native_fight_in.txt");
     let setup = input.split_once("getaction").unwrap().0;
     let mut parser = crate::Parser::default();
     parser.parse_string(setup, &mut Vec::new()).unwrap();
@@ -25,7 +25,6 @@ fn native_fight_score_summary_is_stable() {
         ..Default::default()
     };
     let replay = crate::native::NativeReplayKey {
-        stream_version: crate::native::NativeStreamVersion::V1,
         root_seed: 17,
         decision_index: 0,
     };
@@ -33,13 +32,14 @@ fn native_fight_score_summary_is_stable() {
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     let mut expected: Option<(Move, f32)> = None;
     for workers in [1, 2, available] {
-        let result = select_bmai_action_at_level_native(
-            &parser.game,
-            LegacyParkMillerV1,
+        let native = NativeEvaluation {
+            algorithm: LegacyParkMillerV1,
             replay,
             workers,
-            &settings,
-        );
+        };
+        let search = select_native_bmai_action(&parser.game, native, &settings);
+        let probability = search.win_probability();
+        let result = (search.best_move, probability);
         if let Some(expected) = &expected {
             assert_eq!(result.0.action, expected.0.action);
             assert_eq!(result.0.attack, expected.0.attack);
@@ -64,7 +64,6 @@ fn native_fight_score_summary_is_stable() {
 #[test]
 fn native_initiative_phase_scores_are_worker_count_independent() {
     let replay = crate::native::NativeReplayKey {
-        stream_version: crate::native::NativeStreamVersion::V1,
         root_seed: 17,
         decision_index: 0,
     };
@@ -75,7 +74,9 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
         workers,
     });
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/preround.txt"));
+    let game = native_fixture_game(include_str!(
+        "../../../tests/fixtures/native_preround_in.txt"
+    ));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 1,
@@ -90,7 +91,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(swing[1], swing[0]);
     assert_eq!(swing[2], swing[0]);
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/chance.txt"));
+    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_chance_in.txt"));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 2,
@@ -106,7 +107,7 @@ fn native_initiative_phase_scores_are_worker_count_independent() {
     assert_eq!(chance[1], chance[0]);
     assert_eq!(chance[2], chance[0]);
 
-    let game = native_fixture_game(include_str!("../../../tests/native-fixtures/focus.txt"));
+    let game = native_fixture_game(include_str!("../../../tests/fixtures/native_focus_in.txt"));
     let settings = Bmai3 {
         min_sims: 1,
         max_sims: 2,
@@ -148,7 +149,7 @@ fn complete_native_match_uses_reserve_after_a_round_loss() {
             workers,
             decision_index: &mut decision_index,
         };
-        let result = play_match_with_policies(&game, &mut rng, &policies, Some(&mut native));
+        let result = play_match_with_policies(&game, &mut rng, &policies, &mut native);
         (result, decision_index)
     };
 
@@ -175,7 +176,7 @@ fn a_cancelled_match_plays_its_200th_round() {
     let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
     let policies: Engines = [quick(), quick()];
     let mut rng = Rng::default();
-    let result = play_match_with_policies(&game, &mut rng, &policies, None);
+    let result = play_match_with_policies(&game, &mut rng, &policies, &mut unsearched(&mut 0));
     assert_eq!((result.winner, result.ties), (None, 199));
 
     // Only the generator's position shows that round 200 was played.
@@ -196,19 +197,32 @@ fn a_cancelled_match_plays_its_200th_round() {
 
 #[test]
 fn play_games_writes_each_game_to_its_output() {
-    let ai = Bmai3 {
-        min_sims: 1,
-        max_sims: 1,
-        max_branch: 10,
-        ..Default::default()
-    };
+    let quick = || -> Box<dyn crate::engines::Engine> { Box::new(crate::engines::Quick) };
     let mut output = Vec::new();
-    let wins = play_games(&null_mirror(), 2, &mut Rng::default(), &ai, &mut output).unwrap();
+    let wins = play_games(
+        &null_mirror(),
+        2,
+        &mut Rng::default(),
+        &[quick(), quick()],
+        &mut unsearched(&mut 0),
+        &mut output,
+    )
+    .unwrap();
     assert_eq!(wins, [0, 0]);
     assert_eq!(
         String::from_utf8(output).unwrap(),
         "game cancelled 0 - 0 - 199\n".repeat(2)
     );
+}
+
+/// For engines that never search, so no replay key is ever drawn from it.
+fn unsearched(decision_index: &mut u64) -> NativeReplaySequence<'_> {
+    NativeReplaySequence {
+        algorithm: LegacyParkMillerV1,
+        root_seed: 0,
+        workers: 1,
+        decision_index,
+    }
 }
 
 /// Null dice score nothing, so every round ties.
@@ -225,7 +239,7 @@ fn attacks_by(attacker_dice: &[&str], defender_dice: &[&str]) -> Vec<Move> {
             input.push('\n');
         }
     }
-    native_fixture_game(&input).generate_valid_attacks_in_cpp_order()
+    native_fixture_game(&input).valid_attacks(usize::MAX)
 }
 
 fn native_fixture_game(input: &str) -> Game {
@@ -236,15 +250,11 @@ fn native_fixture_game(input: &str) -> Game {
 }
 
 fn apply_generated_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
-    assert!(
-        game.generate_valid_attacks_in_cpp_order()
-            .iter()
-            .any(|candidate| {
-                candidate.attack == action.attack
-                    && candidate.attackers == action.attackers
-                    && candidate.targets == action.targets
-            })
-    );
+    assert!(game.valid_attacks(usize::MAX).iter().any(|candidate| {
+        candidate.attack == action.attack
+            && candidate.attackers == action.attackers
+            && candidate.targets == action.targets
+    }));
     apply_attack(game, action, rng)
 }
 

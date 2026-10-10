@@ -5,8 +5,8 @@ SPDX-License-Identifier: MIT
 SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 -->
 
-BMAIR exposes two versioned process protocols. `legacy-v1` is the permanent
-C++-compatible text protocol. `jsonl-v1` is the machine-to-machine contract for
+BMAIR exposes two versioned process protocols. `legacy-v1` is the line-based
+text protocol inherited from C++ BMAI. `jsonl-v1` is the machine-to-machine contract for
 long-lived clients such as Python services. JSONL is additive: it executes the
 same parser and search paths and returns both a typed action and the exact
 legacy response.
@@ -86,10 +86,9 @@ success result contains:
   exact endgame answer.
 
 Replay metadata describes the top-level decision. Candidate/batch/simulation
-coordinates are deterministically derived inside the versioned partition.
-Legacy searches deliberately return null because reproducing an arbitrary
-legacy continuation requires the preceding RNG stream, not merely its seed.
-Finite settings are JSON numbers. Legacy accepts non-finite Turbo accuracy
+coordinates are deterministically derived inside the versioned partition; see
+[`SEARCH.md`](SEARCH.md). `session.execution_mode` is always `native`.
+Finite settings are JSON numbers. The text protocol accepts non-finite Turbo accuracy
 values, so those exceptional values serialize as `"nan"`, `"infinity"`, or
 `"-infinity"` instead of becoming invalid or misleading JSON.
 
@@ -140,7 +139,7 @@ waiting for input, executes each single-line command as it arrives, and
 executes a `game` after receiving its phase and both complete player/die
 blocks. Output is flushed after every complete top-level command. `quit`
 terminates immediately without waiting for EOF. This preserves the original
-C++ subprocess contract used by clients that write and flush a request, keep
+engine's subprocess contract used by clients that write and flush a request, keep
 stdin open, and then read the response. File arguments remain batch inputs.
 After trimming whitespace, a whole top-level line beginning with `#` is ignored.
 Inline comments and comments within a `game` phase/player/die block are invalid.
@@ -164,10 +163,10 @@ The stable command forms are:
 |---|---|
 | `game [TARGET_WINS]` | Begin a two-player state; the following line is a phase, followed by two `player ID DICE SCORE` blocks and one die per line. |
 | `ai PLAYER NAME` | Select the player's engine: `random`, `maximize`, `quick`, or `montecarlo`. |
-| `mode legacy\|parity\|native` | Select C++-compatible or native execution (default `native`). |
+| `mode native` | Accepted for older clients and does nothing. `mode legacy` and `mode parity` are errors: the C++-compatible search was removed. |
 | `rng legacy\|park-miller` | Select the versioned BMAI Park-Miller stream. |
-| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process (default `auto`); legacy results are unaffected. |
-| `seed N` | Seed legacy RNG state and the native root; zero resolves from wall-clock time. |
+| `workers N` / `workers auto` | Configure at least one native worker, or use the logical CPU parallelism available to the process (default `auto`); results do not depend on it. |
+| `seed N` | Seed the session generator and the native root; zero resolves from wall-clock time. |
 | `ply [PLAYER] N` | Set global or per-player Monte Carlo depth, at least 1 (default 1); see below. |
 | `max_sims [PLAYER] N` | Set global or per-player maximum simulations (default 4000). |
 | `min_sims [PLAYER] N` | Set global or per-player minimum simulations (default 200). |
@@ -183,7 +182,7 @@ The stable command forms are:
 | `getaction` | Select an action for player zero in the supplied phase. |
 | `playgame N` / `compare N` | Run N complete games from a preround state. Auxiliary dice are decided once, before the first round, as in an `aux` state: player 0 chooses first, and a decline by either player removes every Auxiliary die for the whole game. A game is cancelled when its 200th round ends, whatever that round's result, and that round is not scored, as on ButtonWeavers; it prints `game cancelled` instead of `game over` and counts for neither player, so 200 tied rounds print `game cancelled 0 - 0 - 199`. |
 | `playfair N` | Play N games between the players' engines and report wins split by who won initiative. Auxiliary dice are decided as for `playgame`. Cancelled games are left out of the split and counted in the header, `PlayFairGames: N games, C cancelled`; with none cancelled the header is `PlayFairGames: N games`. |
-| `debug CATEGORY 0\|1` / `debugply N` | Configure legacy diagnostics. |
+| `debug CATEGORY 0\|1` / `debugply N` | Configure text-protocol diagnostics. |
 | `quit` | Stop consuming the current script. |
 
 Unqualified settings change the global Monte Carlo settings, which the `stats`
@@ -212,22 +211,19 @@ Legacy parser errors terminate the process with a nonzero exit status. JSONL
 converts those same errors into recoverable `execution_error` responses and
 rolls back the request.
 
-`report_sims` is a Rust-native extension rather than part of the frozen C++
-contract. A nonzero value produces a report only for `mode native` BMAI or
-BMAI3 fight search; QAI and legacy fight requests reject it, while other phases
-retain the setting without producing an evaluation. The reporting samples use
+A nonzero `report_sims` produces a report only for Monte Carlo fight search;
+other engines' fight requests reject it, while other phases retain the setting
+without producing an evaluation. The reporting samples use
 the same versioned native mechanics and rollout policy as root candidate
 evaluation, but a reserved stream keeps them independent from move selection.
 The selected action and next decision replay key are therefore identical with
 reporting on or off.
 
 Game-state syntax and multiline action examples live in
-[`tests/fixtures/`](tests/fixtures/); deterministic native examples live in
-[`tests/native-fixtures/`](tests/native-fixtures/). A complete persistent JSONL
-conversation is executable at
-[`tests/jsonl-fixtures/session.jsonl`](tests/jsonl-fixtures/session.jsonl). The
-exact compatibility and differential evidence is maintained in
-[`PARITY.md`](PARITY.md).
+[`tests/fixtures/`](tests/fixtures/), each with its recorded output in
+[`tests/golden/`](tests/golden/). A complete persistent JSONL conversation is
+executable at
+[`tests/jsonl-fixtures/session.jsonl`](tests/jsonl-fixtures/session.jsonl).
 
 ## Gauntlet shards
 
@@ -279,11 +275,12 @@ required fields will not change. Clients must ignore unknown object fields and
 use capability discovery before relying on optional behavior. Removing or
 retyping existing behavior requires a new protocol identifier.
 
-`mode legacy` keeps the upstream C++ compatibility contract described in
-`PARITY.md`. Since 0.23.0 it is no longer the default: a client sending C++
-input must also send `mode legacy`, `ply 1`, `max_sims 500`, `min_sims 10`,
-and `maxbranch 5000`. Native execution may intentionally evolve, but its
-algorithms and replay partitions are explicitly versioned.
+Search may intentionally evolve, but its replay partitions are explicitly
+versioned. BMAIR no longer reproduces C++ BMAI's search: removing `mode legacy`
+is the one deliberate exception to the policy above, marked breaking in the
+CHANGELOG. A client sending input written for C++ BMAI should also send the
+settings it assumed: `ply 1`, `max_sims 500`, `min_sims 10`, `maxbranch 5000`,
+`surrender on`, `endgame 0`, and `fire_overshooting off`.
 
 The process protocol is the cross-language compatibility boundary. The public
 Rust types follow Cargo semantic versioning and may gain fields or

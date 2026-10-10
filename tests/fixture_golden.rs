@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
-//! The RNG fingerprint catches search changes even when the chosen move
-//! survives them. After an intentional change, regenerate with
+//! Change detectors, not a rules oracle: the focused tests check rules against
+//! ButtonWeavers. The fingerprint covers only the session generator's draws.
+//! Native simulations draw from derived streams, so a search change shows only
+//! if it moves a reported score or a chosen action, and many fixtures report no
+//! score. After an intentional change, regenerate with
 //! `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
 //! and review the diff.
 
@@ -96,10 +99,6 @@ fn check_fixtures(include: impl Fn(&str) -> bool) {
     );
 }
 
-/// The fixtures are C++ BMAI inputs, so they rely on the defaults BMAI had;
-/// pinning them here keeps the files runnable against C++.
-const CPP_DEFAULTS: &str = "mode legacy\nfire_overshooting off\nsurrender on\nendgame 0\nply 1\nmax_sims 500\nmin_sims 10\nmaxbranch 5000\n";
-
 fn run_fixture(fixture: &Path) -> String {
     let mut child = common::bmair()
         .env("BMAIR_TRACE_RNG_HASH", "1")
@@ -108,10 +107,7 @@ fn run_fixture(fixture: &Path) -> String {
         .stderr(Stdio::piped())
         .spawn()
         .expect("run bmair");
-    let input = format!(
-        "{CPP_DEFAULTS}{}",
-        fs::read_to_string(fixture).expect("read fixture")
-    );
+    let input = fs::read_to_string(fixture).expect("read fixture");
     child
         .stdin
         .take()

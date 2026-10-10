@@ -85,27 +85,27 @@ fn typed_actions_share_the_exact_legacy_execution_path() {
     let cases = [
         (
             "fight",
-            include_str!("../../../tests/native-fixtures/fight.txt"),
+            include_str!("../../../tests/fixtures/native_fight_in.txt"),
             "attack",
         ),
         (
             "preround",
-            include_str!("../../../tests/native-fixtures/preround.txt"),
+            include_str!("../../../tests/fixtures/native_preround_in.txt"),
             "set_swing",
         ),
         (
             "reserve",
-            include_str!("../../../tests/native-fixtures/reserve.txt"),
+            include_str!("../../../tests/fixtures/native_reserve_in.txt"),
             "reserve",
         ),
         (
             "chance",
-            include_str!("../../../tests/native-fixtures/chance.txt"),
+            include_str!("../../../tests/fixtures/native_chance_in.txt"),
             "chance",
         ),
         (
             "focus",
-            include_str!("../../../tests/native-fixtures/focus.txt"),
+            include_str!("../../../tests/fixtures/native_focus_in.txt"),
             "pass",
         ),
     ];
@@ -144,7 +144,7 @@ fn native_search_reports_the_exact_decision_replay_key() {
             "protocol": "jsonl-v1",
             "id": "replay",
             "method": "session.execute",
-            "params": { "script": include_str!("../../../tests/native-fixtures/fight.txt") }
+            "params": { "script": include_str!("../../../tests/fixtures/native_fight_in.txt") }
         }),
     );
     assert_eq!(value["ok"], true);
@@ -158,24 +158,6 @@ fn native_search_reports_the_exact_decision_replay_key() {
 }
 
 #[test]
-fn legacy_execution_does_not_claim_a_native_replay_key() {
-    let script = include_str!("../../../tests/native-fixtures/fight.txt")
-        .replace("mode native", "mode legacy");
-    let value = response(
-        &mut BmairSession::default(),
-        json!({
-            "protocol": "jsonl-v1",
-            "id": "legacy",
-            "method": "session.execute",
-            "params": { "script": script }
-        }),
-    );
-    assert_eq!(value["ok"], true);
-    assert!(value["result"]["replay"].is_null());
-    assert_eq!(value["result"]["session"]["native_decision_index"], 0);
-}
-
-#[test]
 fn reset_restores_defaults_after_multiple_stateful_requests() {
     let mut session = BmairSession::default();
     let changed = response(
@@ -184,7 +166,7 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
             "protocol": "jsonl-v1",
             "id": 1,
             "method": "session.execute",
-            "params": { "script": "mode native\nworkers 4\nseed 17\nply 2\n" }
+            "params": { "script": "workers 4\nseed 17\nply 2\n" }
         }),
     );
     assert_eq!(changed["result"]["session"]["execution_mode"], "native");
@@ -215,7 +197,6 @@ fn reset_restores_defaults_after_multiple_stateful_requests() {
             "method": "session.reset"
         }),
     );
-    assert_eq!(reset["result"]["session"]["execution_mode"], "native");
     assert_eq!(
         reset["result"]["session"]["workers"],
         std::thread::available_parallelism().map_or(1, usize::from)
@@ -329,7 +310,7 @@ fn surrender_and_turbo_are_captured_from_the_legacy_action() {
     ];
     for (script, action_type, turbo_kind) in cases {
         // C++ fixtures, which assume C++ BMAI's defaults.
-        let script = format!("mode legacy\nsurrender on\nendgame 0\n{script}");
+        let script = format!("surrender on\nendgame 0\n{script}");
         let result = BmairSession::default().execute(&script).unwrap();
         let action = serde_json::to_value(result.action).unwrap();
         assert_eq!(action["type"], action_type);
@@ -344,11 +325,11 @@ fn surrender_and_turbo_are_captured_from_the_legacy_action() {
 fn native_typed_actions_and_replay_keys_are_worker_count_independent() {
     let available = std::thread::available_parallelism().map_or(1, usize::from);
     for fixture in [
-        include_str!("../../../tests/native-fixtures/fight.txt"),
-        include_str!("../../../tests/native-fixtures/preround.txt"),
-        include_str!("../../../tests/native-fixtures/reserve.txt"),
-        include_str!("../../../tests/native-fixtures/chance.txt"),
-        include_str!("../../../tests/native-fixtures/focus.txt"),
+        include_str!("../../../tests/fixtures/native_fight_in.txt"),
+        include_str!("../../../tests/fixtures/native_preround_in.txt"),
+        include_str!("../../../tests/fixtures/native_reserve_in.txt"),
+        include_str!("../../../tests/fixtures/native_chance_in.txt"),
+        include_str!("../../../tests/fixtures/native_focus_in.txt"),
     ] {
         let run = |workers: usize| {
             let script = fixture.replace("workers 3", &format!("workers {workers}"));

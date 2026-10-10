@@ -73,7 +73,7 @@ impl InitiativeScenario {
         self
     }
 
-    /// The player Chance hands the initiative to, which C++ keys to seat 0.
+    /// The player who holds the initiative after the Chance reroll.
     pub(crate) fn expect_next_initiative(mut self, player: usize) -> Self {
         self.expected_next_initiative = Some(player);
         self

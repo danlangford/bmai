@@ -1,34 +1,27 @@
 exit 0
 --- stdout
-Setting execution mode to legacy
-Setting Fire overshooting off
-Setting endgame to 0
-Setting max ply to 1
-Setting max # simulations to 500
-Setting min # simulations to 10
-Setting max branch to 5000
 p0 s0.0 Dice (0)6 (0)8 (10)20 (10)20 (0)0
 p1 s0.0 Dice (0)4 (0)20 (1000)4 (1000)6 (1000)6
+game over 2 - 3 - 0
+game over 2 - 3 - 0
+game over 3 - 1 - 0
+game over 3 - 0 - 0
+game over 3 - 2 - 0
+game over 3 - 2 - 0
 game over 0 - 3 - 0
 game over 3 - 1 - 0
-game over 3 - 2 - 0
 game over 3 - 1 - 0
+game over 3 - 2 - 0
+game over 1 - 3 - 0
 game over 3 - 0 - 0
-game over 2 - 3 - 0
-game over 2 - 3 - 0
+game over 1 - 3 - 0
+game over 3 - 2 - 0
+game over 3 - 2 - 0
+game over 3 - 2 - 0
+game over 1 - 3 - 0
 game over 3 - 1 - 0
 game over 1 - 3 - 0
-game over 2 - 3 - 0
-game over 1 - 3 - 0
-game over 3 - 1 - 0
 game over 3 - 2 - 0
-game over 3 - 0 - 0
-game over 3 - 1 - 0
-game over 3 - 2 - 0
-game over 2 - 3 - 0
-game over 2 - 3 - 0
-game over 3 - 1 - 0
-game over 3 - 1 - 0
-matches over 12 - 8
+matches over 13 - 7
 --- stderr
-RNG_HASH 101757944 11316507963078616572
+RNG_HASH 1712 17722384617168328785

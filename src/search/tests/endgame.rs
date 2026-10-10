@@ -15,7 +15,7 @@ fn fight(player0: &str, player1: &str) -> Game {
 
 fn only_attack(game: &Game, attack: crate::Attack) -> Move {
     let mut moves = game
-        .generate_valid_attacks_in_cpp_order_for_search(500)
+        .valid_attacks(500)
         .into_iter()
         .filter(|candidate| candidate.attack == Some(attack));
     let found = moves.next().expect("the attack is legal");

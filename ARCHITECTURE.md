@@ -18,16 +18,15 @@ src/
 │   └── test_support/     Test-only scenario builders
 ├── native/               Deterministic replay streams and ordered worker runtime
 ├── protocol/             External contracts and their adapters
-│   ├── legacy/           C++-compatible line protocol
+│   ├── legacy/           Line protocol inherited from C++ BMAI
 │   ├── jsonl/            Typed persistent-process protocol
 │   └── types/            Shared protocol response types
 ├── lib.rs                Stable public façade
 ├── main.rs               Executable composition root
-├── mode.rs               Execution-mode selection
 └── rng.rs                Reproducible random-number generation
 ```
 
-Unit tests sit beside the module they protect. End-to-end protocol and parity
+Unit tests sit beside the module they protect. End-to-end protocol and golden
 tests live under `tests/`, while reusable scenario builders remain behind
 `cfg(test)` in `search/test_support/`.
 
@@ -60,8 +59,8 @@ main → protocol → search → game
 
 - Add or change a die skill in `game/`, then cover the rule with the mechanics
   scenario DSL.
-- Change candidate evaluation or a decision phase in `search/`, then prove
-  deterministic legacy/native behavior at the relevant boundary.
+- Change candidate evaluation or a decision phase in `search/`, then show it
+  stays deterministic and worker-count independent at the relevant boundary.
 - Add a wire command or response in `protocol/`; keep parsing and formatting
   out of game and search modules.
 - Add cross-process behavior in `tests/`, not in unit-test helpers.
@@ -70,10 +69,9 @@ New dependencies must point in the direction above. If a lower layer needs a
 higher-layer type, move the shared concept down to the layer that owns it
 instead of adding a circular dependency.
 
-## Compatibility constraint
+## Rules and search references
 
-Names follow Rust conventions; `PARITY.md` maps each C++ name to its Rust
-name (for example `GetValueTotal` to `value_total`). Structural cleanup must
-not alter action ordering, RNG consumption, simulation counts, state
-restoration, or protocol output. `PARITY.md` defines the evidence required for
-such changes.
+[`RULES.md`](RULES.md) maps each ButtonWeavers rule to the code and tests
+behind it, and [`SEARCH.md`](SEARCH.md) explains how search stays
+deterministic. A change that moves the golden outputs regenerates them, and
+the diff belongs in review.

@@ -67,6 +67,54 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.34.0] - 2026-10-09
+
+### Removed
+
+- **Breaking:** legacy execution mode, the C++ BMAI compatibility contract.
+  BMAIR always searches natively, as it has by default since 0.23.0.
+  `mode native` is still accepted and does nothing, so older clients keep
+  working; `mode legacy` and `mode parity` are errors. JSONL keeps
+  `session.execution_mode`, now always `native`, and `native.execution_modes`
+  lists only `native`.
+- **Breaking:** in the library, `ExecutionMode`, `Parser::execution_mode`,
+  `play_games` (which played legacy-mode matches),
+  `Game::generate_valid_attacks_in_cpp_order`, `native::NativeStreamVersion`,
+  and `native::NATIVE_STREAM_PARTITION_V1_ID`; `NativeReplayKey` no longer
+  carries a stream version, and `Game::generate_valid_attacks` is now
+  `valid_attacks_by_score`.
+- Fourteen search traces: thirteen the port added to compare step by step
+  against C++ BMAI (`BMAIR_TRACE_AI`, `_ATTACK_EVAL`, `_BMAI_ATTACK`,
+  `_CHANCE`, `_FOCUS`, `_QAI`, `_QAI_MOVES`, `_RNG`, `_SWING`,
+  `_SWING_CANDIDATE`, `_SWING_LIST`, `_SWING_MOVES`, `_SWING_SIM`) and
+  `BMAIR_TRACE_RESERVE`, which only legacy search printed.
+  `BMAIR_TRACE_RNG_HASH` and `BMAIR_TRACE_ENDGAME` remain.
+- Native stream version 1, which only tests still built. Replay metadata
+  still reports `bmair-native-stream-v2` and its derivation is unchanged; as
+  always, a replay also needs its BMAIR version, since candidate order moved.
+- PARITY.md, MODES.md, and NATIVE_MODE.md.
+
+### Changed
+
+- The strength harness plays its matches natively, as `bmair gauntlet` does.
+- Code that only kept C++ BMAI's exact candidate order is gone: sorted dice
+  keep ties in their order, a swing list trimmed to its extreme moves keeps
+  theirs, and swing Turbo no longer repeats sizes above accuracy 1. A search
+  can choose differently where candidates tie; no rule changes.
+- The golden fixtures run at BMAIR's own defaults instead of C++ BMAI's, and
+  the native wire examples join them as `native_*_in.txt`.
+- RULES.md maps each ButtonWeavers rule to its code and tests, with BMAIR's
+  deliberate differences and known gaps, and SEARCH.md explains how search
+  stays deterministic and what a replay records. AGENTS.md drops the C++
+  parity contract.
+
+### Fixed
+
+- A Chance reroll succeeds only when the rerolling player then holds
+  initiative alone, as on ButtonWeavers. BMAIR kept C++ BMAI's check of
+  seat 0, so in full matches and simulated Chance chains a seat-1 reroll
+  that lost initiative took it, and one that won it did not.
+
 ## [0.33.0] - 2026-10-09
 
 ### Changed
@@ -921,7 +969,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...HEAD
+[0.34.0]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...bmair-v0.34.0
 [0.33.0]: https://github.com/danlangford/bmai/compare/bmair-v0.32.0...bmair-v0.33.0
 [0.32.0]: https://github.com/danlangford/bmai/compare/bmair-v0.31.0...bmair-v0.32.0
 [0.31.0]: https://github.com/danlangford/bmai/compare/bmair-v0.30.0...bmair-v0.31.0

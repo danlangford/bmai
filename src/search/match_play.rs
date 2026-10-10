@@ -5,7 +5,7 @@
 use std::io::{self, Write};
 
 use super::*;
-use crate::engines::{DecisionContext, Engine, MonteCarlo};
+use crate::engines::{DecisionContext, Engine};
 
 pub(crate) type Engines = [Box<dyn Engine>; 2];
 
@@ -14,28 +14,17 @@ pub(crate) type Engines = [Box<dyn Engine>; 2];
 const MAX_ROUNDS: usize = 200;
 
 /// A game cancelled at the round limit counts for neither player.
-pub fn play_games<W: Write>(
-    template: &Game,
-    games: usize,
-    rng: &mut Rng,
-    ai: &Bmai3,
-    output: &mut W,
-) -> io::Result<[usize; 2]> {
-    let engine = || -> Box<dyn Engine> { Box::new(MonteCarlo::new(ai.clone())) };
-    play_games_with_policies(template, games, rng, &[engine(), engine()], None, output)
-}
-
-pub(crate) fn play_games_with_policies<W: Write>(
+pub(crate) fn play_games<W: Write>(
     template: &Game,
     games: usize,
     rng: &mut Rng,
     policies: &Engines,
-    mut native: Option<&mut NativeReplaySequence<'_>>,
+    native: &mut NativeReplaySequence<'_>,
     output: &mut W,
 ) -> io::Result<[usize; 2]> {
     let mut matches = [0, 0];
     for _ in 0..games {
-        let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
+        let result = play_match_with_policies(template, rng, policies, native);
         let outcome = match result.winner {
             Some(winner) => {
                 matches[winner] += 1;
@@ -66,9 +55,9 @@ pub(crate) fn play_match_with_policies(
     template: &Game,
     rng: &mut Rng,
     policies: &Engines,
-    mut native: Option<&mut NativeReplaySequence<'_>>,
+    native: &mut NativeReplaySequence<'_>,
 ) -> MatchResult {
-    let recipe = choose_auxiliary_dice(template, rng, policies, native.as_deref_mut());
+    let recipe = choose_auxiliary_dice(template, rng, policies, native);
     let mut game = recipe.clone();
     let mut wins = [0u8, 0u8];
     let mut ties = 0usize;
@@ -77,7 +66,7 @@ pub(crate) fn play_match_with_policies(
     let mut cancelled = false;
     while wins[0] < template.target_wins && wins[1] < template.target_wins {
         let round_number = usize::from(wins[0]) + usize::from(wins[1]) + ties + 1;
-        let round = play_round_with_policies(&mut game, rng, policies, native.as_deref_mut());
+        let round = play_round_with_policies(&mut game, rng, policies, Some(native));
         if round_number >= MAX_ROUNDS {
             cancelled = true;
             break;
@@ -100,10 +89,8 @@ pub(crate) fn play_match_with_policies(
             if loser == 1 {
                 oriented.players.swap(0, 1);
             }
-            let selected = policies[loser].reserve(
-                &oriented,
-                &mut DecisionContext::new(rng, native.as_deref_mut()),
-            );
+            let selected =
+                policies[loser].reserve(&oriented, &mut DecisionContext::new(rng, Some(native)));
             if let Some(index) = selected {
                 apply_use_reserve(&mut game.players[loser].dice[index]);
                 reserves_used += 1;
@@ -125,7 +112,7 @@ pub(super) fn choose_auxiliary_dice(
     template: &Game,
     rng: &mut Rng,
     policies: &Engines,
-    mut native: Option<&mut NativeReplaySequence<'_>>,
+    native: &mut NativeReplaySequence<'_>,
 ) -> Game {
     let mut recipe = template.clone();
     offer_courtesy_auxiliary(&mut recipe);
@@ -143,10 +130,7 @@ pub(super) fn choose_auxiliary_dice(
             oriented.players.swap(0, 1);
         }
         policies[player]
-            .auxiliary(
-                &oriented,
-                &mut DecisionContext::new(rng, native.as_deref_mut()),
-            )
+            .auxiliary(&oriented, &mut DecisionContext::new(rng, Some(native)))
             .choice
             .is_some()
     });
@@ -159,11 +143,11 @@ pub(crate) fn play_fair_games(
     games: usize,
     rng: &mut Rng,
     policies: &Engines,
-    mut native: Option<&mut NativeReplaySequence<'_>>,
+    native: &mut NativeReplaySequence<'_>,
 ) -> [[usize; 2]; 2] {
     let mut wins = [[0usize; 2]; 2];
     for _ in 0..games {
-        let result = play_match_with_policies(template, rng, policies, native.as_deref_mut());
+        let result = play_match_with_policies(template, rng, policies, native);
         if let Some(winner) = result.winner {
             wins[result.initiative_winner][winner] += 1;
         }
@@ -212,16 +196,6 @@ pub(super) fn play_round_with_policies(
             &mut DecisionContext::new(rng, native.as_deref_mut()),
         );
         let (next_phase, continues) = apply_chance_move(game, player, phase_player, &action, rng);
-        if trace_settings().chance {
-            eprintln!(
-                "CHANCE_APPLY player={player} previous={phase_player} next={next_phase} continues={continues} values={:?}",
-                game.players[player]
-                    .dice
-                    .iter()
-                    .map(Die::value_total)
-                    .collect::<Vec<_>>()
-            );
-        }
         phase_player = next_phase;
         if !continues {
             break;

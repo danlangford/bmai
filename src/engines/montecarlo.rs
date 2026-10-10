@@ -5,9 +5,8 @@ use super::{Choice, DecisionContext, Engine, SearchSummary, Setting};
 use crate::Bmai3;
 use crate::game::{Game, Move};
 use crate::search::{
-    ChanceMove, FocusMove, SwingMove, select_bmai_action_with_stats, select_bmai_auxiliary_action,
-    select_bmai_reserve_action, select_chance_action, select_focus_action,
-    select_native_bmai_action_with_stats, select_native_bmai_auxiliary_action,
+    ChanceMove, FocusMove, SwingMove, select_chance_action, select_focus_action,
+    select_native_bmai_action, select_native_bmai_auxiliary_action,
     select_native_bmai_reserve_action, select_swing_action,
 };
 
@@ -58,7 +57,7 @@ impl Engine for MonteCarlo {
         context: &mut DecisionContext<'_, '_>,
     ) -> SwingMove {
         let native = context.native();
-        select_swing_action(game, player, context.rng, &self.search, 1, native).0
+        select_swing_action(game, player, context.rng, &self.search, 1, Some(native)).0
     }
 
     fn chance(
@@ -76,7 +75,7 @@ impl Engine for MonteCarlo {
             &self.search,
             1,
             initiative,
-            native,
+            Some(native),
         )
         .0
     }
@@ -96,7 +95,7 @@ impl Engine for MonteCarlo {
             &self.search,
             1,
             initiative,
-            native,
+            Some(native),
         )
         .0
     }
@@ -104,16 +103,7 @@ impl Engine for MonteCarlo {
     fn attack(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Choice<Move> {
         if let Some((choice, probability)) = solve_endgame(game, &self.search) {
             if std::env::var_os("BMAIR_TRACE_ENDGAME").is_some() {
-                let sampled = match context.native() {
-                    Some(native) => select_native_bmai_action_with_stats(
-                        game,
-                        native.algorithm,
-                        native.replay,
-                        native.workers,
-                        &self.search,
-                    ),
-                    None => select_bmai_action_with_stats(game, context.rng, &self.search),
-                };
+                let sampled = select_native_bmai_action(game, context.native(), &self.search);
                 trace_endgame(game, &self.search, &sampled.best_move, probability);
             }
             return Choice {
@@ -125,16 +115,7 @@ impl Engine for MonteCarlo {
                 choice,
             };
         }
-        let result = match context.native() {
-            Some(native) => select_native_bmai_action_with_stats(
-                game,
-                native.algorithm,
-                native.replay,
-                native.workers,
-                &self.search,
-            ),
-            None => select_bmai_action_with_stats(game, context.rng, &self.search),
-        };
+        let result = select_native_bmai_action(game, context.native(), &self.search);
         Choice {
             search: Some(SearchSummary {
                 score: result.best_score,
@@ -146,16 +127,7 @@ impl Engine for MonteCarlo {
     }
 
     fn reserve(&self, game: &Game, context: &mut DecisionContext<'_, '_>) -> Option<usize> {
-        match context.native() {
-            Some(native) => select_native_bmai_reserve_action(
-                game,
-                native.algorithm,
-                native.replay,
-                native.workers,
-                &self.search,
-            ),
-            None => select_bmai_reserve_action(game, context.rng, &self.search),
-        }
+        select_native_bmai_reserve_action(game, context.native(), &self.search)
     }
 
     fn auxiliary(
@@ -163,16 +135,7 @@ impl Engine for MonteCarlo {
         game: &Game,
         context: &mut DecisionContext<'_, '_>,
     ) -> Choice<Option<usize>> {
-        let result = match context.native() {
-            Some(native) => select_native_bmai_auxiliary_action(
-                game,
-                native.algorithm,
-                native.replay,
-                native.workers,
-                &self.search,
-            ),
-            None => select_bmai_auxiliary_action(game, context.rng, &self.search),
-        };
+        let result = select_native_bmai_auxiliary_action(game, context.native(), &self.search);
         Choice {
             choice: result.die,
             search: Some(SearchSummary {

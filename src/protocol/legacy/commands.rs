@@ -19,17 +19,22 @@ impl Parser {
                 continue;
             }
             if let Some(value) = line.strip_prefix("mode ") {
-                self.execution_mode = ExecutionMode::parse(value).ok_or_else(|| {
-                    ParseError(format!(
-                        "invalid execution mode: {value} (expected legacy or native)"
-                    ))
-                })?;
-                writeln!(
-                    output,
-                    "Setting execution mode to {}",
-                    self.execution_mode.as_str()
-                )
-                .map_err(io_error)?;
+                match value {
+                    // Older clients still send it.
+                    "native" => {
+                        writeln!(output, "Setting execution mode to native").map_err(io_error)?;
+                    }
+                    "legacy" | "parity" => {
+                        return Err(ParseError(format!(
+                            "execution mode {value} was removed; BMAIR always searches natively"
+                        )));
+                    }
+                    _ => {
+                        return Err(ParseError(format!(
+                            "invalid execution mode: {value} (expected native)"
+                        )));
+                    }
+                }
             } else if let Some(value) = line.strip_prefix("rng ") {
                 let algorithm = RngAlgorithm::parse(value).ok_or_else(|| {
                     ParseError(format!(
@@ -202,7 +207,7 @@ impl Parser {
                 let games = parse_usize(line.trim_start_matches(command))?;
                 let wins = self
                     .play_matches(|game, rng, policies, native| {
-                        play_games_with_policies(game, games, rng, policies, native, output)
+                        play_games(game, games, rng, policies, native, output)
                     })
                     .map_err(io_error)?;
                 writeln!(output, "matches over {} - {}", wins[0], wins[1]).map_err(io_error)?;
@@ -217,7 +222,7 @@ impl Parser {
                     play_fair_games(game, games, rng, policies, native)
                 });
                 let cancelled = games - wins.iter().flatten().sum::<usize>();
-                // C++ has no round limit, so its header never needs the count.
+                // Clients that never see a cancellation keep the header they parse.
                 if cancelled == 0 {
                     writeln!(output, "PlayFairGames: {games} games")
                 } else {
@@ -373,22 +378,16 @@ impl Parser {
 
     fn play_matches<T>(
         &mut self,
-        play: impl FnOnce(&Game, &mut Rng, &Engines, Option<&mut NativeReplaySequence<'_>>) -> T,
+        play: impl FnOnce(&Game, &mut Rng, &Engines, &mut NativeReplaySequence<'_>) -> T,
     ) -> T {
         let policies = self.policies();
-        let native_mode = self.execution_mode == ExecutionMode::Native;
         let mut sequence = NativeReplaySequence {
             algorithm: self.rng.algorithm(),
             root_seed: self.native_root_seed,
             workers: self.native_workers,
             decision_index: &mut self.native_decision_index,
         };
-        play(
-            &self.game,
-            &mut self.rng,
-            &policies,
-            native_mode.then_some(&mut sequence),
-        )
+        play(&self.game, &mut self.rng, &policies, &mut sequence)
     }
 
     pub(super) fn parse_game<W: Write>(

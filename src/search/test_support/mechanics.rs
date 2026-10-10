@@ -237,7 +237,7 @@ impl Scenario {
         );
         let mut move_to_apply = match self.attack {
             Some(attack) => Move::new_attack(attack, attackers, targets, 0.0),
-            None => super::super::fight::pass_move(),
+            None => Move::pass(),
         };
         if let Some(selection) = self.turbo_option {
             move_to_apply.turbo_option = selection;
@@ -266,16 +266,13 @@ impl Scenario {
             move_to_apply.fire.amounts[index] = (u16::from(*new_value) - old_value) as u8;
         }
         let allowed = self.passes
-            || game
-                .generate_valid_attacks_in_cpp_order()
-                .iter()
-                .any(|candidate| {
-                    candidate.attack == move_to_apply.attack
-                        && candidate.attackers == move_to_apply.attackers
-                        && candidate.targets == move_to_apply.targets
-                        && candidate.turbo_option == move_to_apply.turbo_option
-                        && candidate.fire == move_to_apply.fire
-                });
+            || game.valid_attacks(usize::MAX).iter().any(|candidate| {
+                candidate.attack == move_to_apply.attack
+                    && candidate.attackers == move_to_apply.attackers
+                    && candidate.targets == move_to_apply.targets
+                    && candidate.turbo_option == move_to_apply.turbo_option
+                    && candidate.fire == move_to_apply.fire
+            });
 
         if let Some(expected) = self.expected_allowed {
             assert_eq!(allowed, expected, "unexpected attack legality");

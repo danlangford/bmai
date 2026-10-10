@@ -29,54 +29,14 @@ impl SearchResult {
     }
 }
 
-pub(crate) fn select_bmai_action_with_stats(
+pub(crate) fn select_native_bmai_action(
     game: &Game,
-    rng: &mut Rng,
+    native: NativeEvaluation,
     settings: &Bmai3,
 ) -> SearchResult {
-    select_bmai_action_at_level_with_stats(game, rng, settings, 1, false)
-}
-
-pub(crate) fn select_native_bmai_action_with_stats(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> SearchResult {
-    select_bmai_action_at_level_native_with_stats(game, rng_algorithm, replay, workers, settings)
-}
-
-#[cfg(test)]
-pub(super) fn select_bmai_action_at_level_native(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> (Move, f32) {
-    let result = select_bmai_action_at_level_native_with_stats(
-        game,
-        rng_algorithm,
-        replay,
-        workers,
-        settings,
-    );
-    let probability = result.win_probability();
-    (result.best_move, probability)
-}
-
-pub(super) fn select_bmai_action_at_level_native_with_stats(
-    game: &Game,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
-    settings: &Bmai3,
-) -> SearchResult {
-    let mut moves =
-        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
+    let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(pass_move());
+        moves.push(Move::pass());
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -85,11 +45,9 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
             .iter()
             .map(|request| (request.candidate.clone(), request.coordinate))
             .collect();
-        crate::native::ordered_parallel_map(tasks, workers, |(candidate, coordinate)| {
+        crate::native::ordered_parallel_map(tasks, native.workers, |(candidate, coordinate)| {
             let mut simulation = game.clone();
-            let mut simulation_rng = native_simulation_rng(
-                rng_algorithm,
-                replay,
+            let mut simulation_rng = native.simulation_rng(
                 coordinate.candidate_index,
                 coordinate.batch_index,
                 coordinate.simulation_index,
@@ -101,26 +59,13 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
                 &policy,
                 1,
                 false,
-                false,
             )
         })
     };
-    let selected = if replay.stream_version.completes_probability_sample() {
-        evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch)
-    } else {
-        evaluator.evaluate_moves_batched(moves, 1, &mut evaluate_batch)
-    };
+    let selected = evaluator.evaluate_moves_batched_to_completion(moves, 1, &mut evaluate_batch);
     let probability = evaluator.last_probability_win;
     let selected = if probability == 0.0 && game.surrender_allowed {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
+        Move::surrender()
     } else {
         selected
     };
@@ -134,9 +79,7 @@ pub(super) fn select_bmai_action_at_level_native_with_stats(
 pub(crate) fn evaluate_selected_native_bmai_move(
     game: &Game,
     selected: &Move,
-    rng_algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    workers: usize,
+    native: NativeEvaluation,
     settings: &Bmai3,
     simulations: usize,
 ) -> SearchProbability {
@@ -148,11 +91,9 @@ pub(crate) fn evaluate_selected_native_bmai_move(
             simulation_index,
         })
         .collect();
-    let scores = crate::native::ordered_parallel_map(tasks, workers, |coordinate| {
+    let scores = crate::native::ordered_parallel_map(tasks, native.workers, |coordinate| {
         let mut simulation = game.clone();
-        let mut simulation_rng = native_simulation_rng(
-            rng_algorithm,
-            replay,
+        let mut simulation_rng = native.simulation_rng(
             coordinate.candidate_index,
             coordinate.batch_index,
             coordinate.simulation_index,
@@ -164,33 +105,12 @@ pub(crate) fn evaluate_selected_native_bmai_move(
             settings,
             1,
             false,
-            false,
         )
     });
     SearchProbability {
         score: scores.iter().sum(),
         simulations,
     }
-}
-
-pub(super) fn native_simulation_rng(
-    algorithm: crate::RngAlgorithm,
-    replay: crate::native::NativeReplayKey,
-    candidate_index: impl TryInto<u64>,
-    batch_index: usize,
-    simulation_index: usize,
-) -> Rng {
-    let candidate_index = candidate_index
-        .try_into()
-        .ok()
-        .expect("candidate index must fit in the replay format");
-    let key = crate::native::NativeSimulationKey {
-        replay,
-        candidate_index,
-        batch_index: batch_index as u64,
-        simulation_index: simulation_index as u64,
-    };
-    Rng::from_native_stream(algorithm, key.derive_stream_seed(), key.stratum())
 }
 
 pub(super) fn select_bmai_action_at_level(
@@ -212,19 +132,9 @@ pub(super) fn select_bmai_action_at_level_with_stats(
     level: usize,
     previous_pass: bool,
 ) -> SearchResult {
-    let trace = trace_settings().bmai_attack;
-    let trace_evaluation = trace_settings().attack_eval;
-    let mut moves =
-        game.generate_valid_attacks_in_cpp_order_for_search(settings.fire_candidate_limit());
+    let mut moves = game.valid_attacks(settings.fire_candidate_limit());
     if moves.is_empty() {
-        moves.push(pass_move());
-    }
-    if trace {
-        eprintln!(
-            "BMAI_BEGIN l{level} seed={} moves={} pass={previous_pass}",
-            rng.debug_seed(),
-            moves.len()
-        );
+        moves.push(Move::pass());
     }
     let mut evaluator = settings.clone();
     let policy = settings.clone();
@@ -238,33 +148,14 @@ pub(super) fn select_bmai_action_at_level_with_stats(
             &policy,
             level,
             previous_pass,
-            trace_evaluation,
         )
     });
     let probability = evaluator.last_probability_win;
     let selected = if probability == 0.0 && game.surrender_allowed {
-        Move {
-            action: Action::Surrender,
-            attack: None,
-            attackers: Vec::new().into(),
-            targets: Vec::new().into(),
-            score: 0.0,
-            turbo_option: -1,
-            fire: crate::game::FireAdjustment::default(),
-        }
+        Move::surrender()
     } else {
         selected
     };
-    if trace {
-        eprintln!(
-            "BMAI_END l{level} seed={} probability={probability:.6} action={:?} attack={:?} {:?}->{:?}",
-            rng.debug_seed(),
-            selected.action,
-            selected.attack,
-            selected.attackers,
-            selected.targets
-        );
-    }
     SearchResult {
         best_move: selected,
         best_score: evaluator.last_best_score,
@@ -279,17 +170,7 @@ pub(super) fn evaluate_move(
     settings: &Bmai3,
     level: usize,
     previous_pass: bool,
-    trace: bool,
 ) -> f32 {
-    if trace {
-        eprintln!(
-            "ATTACK_EVAL l{level} seed={} {:?} {:?}->{:?}",
-            rng.debug_seed(),
-            candidate.attack,
-            candidate.attackers,
-            candidate.targets
-        );
-    }
     // Treating surrender as a pass would waste a rollout and shift later RNG.
     if candidate.action == Action::Surrender {
         return 0.0;
@@ -308,7 +189,7 @@ pub(super) fn evaluate_move(
     if !extra_turn {
         simulation.players.swap(0, 1);
     }
-    let result = if level >= settings.max_ply {
+    if level >= settings.max_ply {
         let probability =
             play_fight_qai(simulation, rng, candidate.action == Action::Pass, settings);
         if extra_turn {
@@ -329,18 +210,7 @@ pub(super) fn evaluate_move(
         } else {
             1.0 - next_probability
         }
-    };
-    if trace {
-        eprintln!(
-            "ATTACK_RESULT l{level} seed={} score={result} totals={:.1},{:.1} dice={},{}",
-            rng.debug_seed(),
-            simulation.players[0].score,
-            simulation.players[1].score,
-            available_dice_count(&simulation.players[0]),
-            available_dice_count(&simulation.players[1])
-        );
     }
-    result
 }
 
 pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, ai: &Bmai3) -> f32 {
@@ -373,18 +243,6 @@ pub(super) fn play_fight_qai(game: &mut Game, rng: &mut Rng, mut passed: bool, a
     }
 }
 
-pub(crate) fn pass_move() -> Move {
-    Move {
-        action: Action::Pass,
-        attack: None,
-        attackers: Vec::new().into(),
-        targets: Vec::new().into(),
-        score: 0.0,
-        turbo_option: -1,
-        fire: crate::game::FireAdjustment::default(),
-    }
-}
-
 pub(super) fn fight_over(game: &Game) -> bool {
     game.players
         .iter()
@@ -400,9 +258,9 @@ pub(super) fn win_probability(game: &Game) -> f32 {
 }
 
 pub(crate) fn moves_including_pass(game: &Game, fire_limit: usize) -> Vec<Move> {
-    let mut moves = game.generate_valid_attacks_in_cpp_order_for_search(fire_limit);
+    let mut moves = game.valid_attacks(fire_limit);
     if moves.is_empty() {
-        moves.push(pass_move());
+        moves.push(Move::pass());
     }
     moves
 }

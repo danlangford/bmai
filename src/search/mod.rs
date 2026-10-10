@@ -23,8 +23,29 @@ pub(crate) struct NativeEvaluation {
     pub(crate) workers: usize,
 }
 
+impl NativeEvaluation {
+    pub(crate) fn simulation_rng(
+        self,
+        candidate_index: impl TryInto<u64>,
+        batch_index: usize,
+        simulation_index: usize,
+    ) -> Rng {
+        let candidate_index = candidate_index
+            .try_into()
+            .ok()
+            .expect("candidate index must fit in the replay format");
+        let key = crate::native::NativeSimulationKey {
+            replay: self.replay,
+            candidate_index,
+            batch_index: batch_index as u64,
+            simulation_index: simulation_index as u64,
+        };
+        Rng::from_native_stream(self.algorithm, key.derive_stream_seed(), key.stratum())
+    }
+}
+
 fn completes_native_probability_sample(native: Option<NativeEvaluation>) -> bool {
-    native.is_some_and(|context| context.replay.stream_version.completes_probability_sample())
+    native.is_some()
 }
 
 pub(crate) struct NativeReplaySequence<'a> {
@@ -37,7 +58,6 @@ pub(crate) struct NativeReplaySequence<'a> {
 impl NativeReplaySequence<'_> {
     pub(crate) fn next(&mut self) -> NativeEvaluation {
         let replay = crate::native::NativeReplayKey {
-            stream_version: crate::native::NativeStreamVersion::CURRENT,
             root_seed: self.root_seed,
             decision_index: *self.decision_index,
         };
@@ -53,60 +73,6 @@ impl NativeReplaySequence<'_> {
 const NATIVE_ENUMERATION_STREAM: u64 = u64::MAX;
 // Never a candidate position, so report draws cannot overlap search draws.
 const NATIVE_REPORTING_STREAM: usize = 0xffff_fffe;
-use std::sync::OnceLock;
-
-pub(crate) struct TraceSettings {
-    swing_list: bool,
-    swing_candidate: bool,
-    swing_sim: bool,
-    swing_moves: bool,
-    swing: bool,
-    reserve: bool,
-    chance: bool,
-    focus: bool,
-    bmai_attack: bool,
-    attack_eval: bool,
-    pub(crate) qai: bool,
-    pub(crate) rng: bool,
-    pub(crate) qai_moves: bool,
-}
-
-pub(crate) fn trace_settings() -> &'static TraceSettings {
-    static QUIET: TraceSettings = TraceSettings {
-        swing_list: false,
-        swing_candidate: false,
-        swing_sim: false,
-        swing_moves: false,
-        swing: false,
-        reserve: false,
-        chance: false,
-        focus: false,
-        bmai_attack: false,
-        attack_eval: false,
-        qai: false,
-        rng: false,
-        qai_moves: false,
-    };
-    if crate::native::native_worker_active() {
-        return &QUIET;
-    }
-    static SETTINGS: OnceLock<TraceSettings> = OnceLock::new();
-    SETTINGS.get_or_init(|| TraceSettings {
-        swing_list: std::env::var_os("BMAIR_TRACE_SWING_LIST").is_some(),
-        swing_candidate: std::env::var_os("BMAIR_TRACE_SWING_CANDIDATE").is_some(),
-        swing_sim: std::env::var_os("BMAIR_TRACE_SWING_SIM").is_some(),
-        swing_moves: std::env::var_os("BMAIR_TRACE_SWING_MOVES").is_some(),
-        swing: std::env::var_os("BMAIR_TRACE_SWING").is_some(),
-        reserve: std::env::var_os("BMAIR_TRACE_RESERVE").is_some(),
-        chance: std::env::var_os("BMAIR_TRACE_CHANCE").is_some(),
-        focus: std::env::var_os("BMAIR_TRACE_FOCUS").is_some(),
-        bmai_attack: std::env::var_os("BMAIR_TRACE_BMAI_ATTACK").is_some(),
-        attack_eval: std::env::var_os("BMAIR_TRACE_ATTACK_EVAL").is_some(),
-        qai: std::env::var_os("BMAIR_TRACE_QAI").is_some(),
-        rng: std::env::var_os("BMAIR_TRACE_RNG").is_some(),
-        qai_moves: std::env::var_os("BMAIR_TRACE_QAI_MOVES").is_some(),
-    })
-}
 
 #[derive(Clone, Copy)]
 pub(crate) struct SwingMove {
@@ -192,18 +158,16 @@ use match_play::*;
 use preround::*;
 
 pub(crate) use fight::{
-    ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, pass_move,
-    restore_simulation, select_bmai_action_with_stats, select_native_bmai_action_with_stats,
+    ScratchGame, evaluate_selected_native_bmai_move, moves_including_pass, restore_simulation,
+    select_native_bmai_action,
 };
 pub(crate) use initiative::{select_chance_action, select_focus_action};
-pub use match_play::play_games;
 pub(crate) use match_play::{
-    Engines, play_fair_games, play_games_with_policies, play_match_with_policies,
+    Engines, MatchResult, play_fair_games, play_games, play_match_with_policies,
 };
 pub(crate) use preround::{
     acceptable_auxiliary_die, first_swing_move, offer_courtesy_auxiliary,
-    select_bmai_auxiliary_action, select_bmai_reserve_action, select_native_bmai_auxiliary_action,
-    select_native_bmai_reserve_action, select_swing_action,
+    select_native_bmai_auxiliary_action, select_native_bmai_reserve_action, select_swing_action,
 };
 
 #[cfg(test)]

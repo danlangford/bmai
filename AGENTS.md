@@ -1,51 +1,31 @@
-# Rust port parity contract
+# Working on BMAIR
 
-The C++ port is complete. New and corrected skills follow the ButtonWeavers
-engine and skills page, even where C++ differs; a correct skill matters more
-than C++ parity. Regressions are caught by the golden outputs in
-`tests/golden/`, which an intentional rules change may update. The contract
-below records how the port itself was proven.
+BMAIR plays Button Men by ButtonWeavers' rules: the engine in
+[danlangford/buttonmen](https://github.com/danlangford/buttonmen)
+(`src/engine/`, with button recipes in `deploy/database/data.button.sql`) and
+its skills page. When BMAIR and ButtonWeavers disagree, BMAIR changes; a
+correct skill matters more than matching BMAIR's past output. The C++ BMAI
+that BMAIR was ported from is history, not a reference.
 
-Comments are the exception. Write one only when a reader needs a reason the
-code cannot give; keep it short and explain why the code is there, never what
-it does or how it works.
+Write a comment only when a reader needs a reason the code cannot give; keep
+it short and explain why the code is there, never what it does or how it
+works.
 
-The `rust` branch is a behavioral port of the C++ implementation on `main`.
-Do not call the port complete merely because the shipped fixtures select the
-same final actions.
+A rule change needs a focused test that names the ButtonWeavers behavior it
+pins, and a row in `RULES.md` citing it. Check real buttons in
+`data.button.sql` to judge whether an edge case matters; one no button reaches
+goes under Known gaps in `RULES.md` rather than into the code.
 
-Full parity requires all of the following:
+The golden outputs in `tests/golden/` are change detectors, not a rules
+oracle. An intentional change may regenerate them
+(`BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`),
+and the diff belongs in review.
 
-1. Every `tests/fixtures/*in*.txt` input produces materially identical C++ and
-   Rust output after removing only timestamps, elapsed-time fields, throughput,
-   and other timing-only diagnostics.
-2. Every meaningful upstream C++ test has an explicitly mapped Rust test. The
-   Rust test must assert the same behavior and run by default whenever its cost
-   is practical. Any deliberate exclusion must be named and justified.
-3. Every externally reachable C++ parser command and public game/AI behavior is
-   either implemented compatibly in Rust or listed as an explicit, approved
-   exclusion. Do not silently omit commands or replace algorithms with direct
-   policies.
-4. The source-level feature matrix in `PARITY.md` maps C++ mechanics and search
-   paths to Rust code and evidence. Untested code-path inspection is required;
-   fixture coverage alone is insufficient.
-5. Mechanics absent from the shipped fixtures have focused Rust tests and,
-   where observable through the protocol, seeded C++/Rust differential cases.
-6. Search parity includes candidate enumeration/order, simulation counts,
-   culling, scores, state transitions, and RNG consumption—not only final
-   actions.
-7. Structural parity uses Rust-native equivalents of meaningful C++ design:
-   align state ownership and boundedness, reuse simulation storage, enumerate
-   candidates directly in C++ order, preserve cached-state update points, and
-   retain corresponding search control flow. Do not require unsafe Rust,
-   C++ syntax, ABI compatibility, unions, raw pointers, or literal `memcpy`
-   where safe idiomatic Rust expresses the same lifecycle efficiently.
-8. A behaviorally equivalent reconstruction is not enough when it adds a
-   materially different hot-path algorithm (for example generate/sort/filter/
-   regenerate instead of direct ordered enumeration). Such differences must be
-   ported or explicitly justified in `PARITY.md`.
+Search must stay deterministic for a complete replay key and must not depend
+on the worker count. Top-level decisions draw native replay keys; inner levels
+draw from their simulation's own generator. Scenario tests run at more than
+one worker count.
 
-Keep `PARITY.md` current as work is completed. A checked item must cite concrete
-evidence. Use Rust naming, and keep C++ control-flow correspondence where practical;
-optimization must not weaken parity evidence. Local commits are allowed. Never
-push unless the user explicitly asks.
+Use Rust naming and idioms. Keep `RULES.md` and `CHANGELOG.md` current as work
+is completed. Local commits are allowed. Never push unless the user explicitly
+asks.

@@ -7,7 +7,7 @@
 
 use super::*;
 use crate::Attack::Shadow;
-use test_support::{LEGACY, NATIVE, native, search_scenario};
+use test_support::search_scenario;
 
 #[test]
 fn radioactive_attacker_decays_into_two_halves_that_sum_to_its_size() {
@@ -401,7 +401,7 @@ fn decay_is_skipped_rather_than_overflowing_the_dice_pool() {
 }
 
 #[test]
-fn search_reports_a_radioactive_attack_in_legacy_and_native_modes() {
+fn search_reports_a_radioactive_attack() {
     search_scenario()
         .phase(Fight)
         .player(0, 4.0, ["%8:8"])
@@ -410,7 +410,7 @@ fn search_reports_a_radioactive_attack_in_legacy_and_native_modes() {
         .simulations(5, 20)
         .max_branch(100)
         .surrender(false)
-        .modes([LEGACY, NATIVE, native(4)])
+        .workers([1, 4])
         .expect_player_win_percent(0, 100.0..=100.0)
         .expect_attack(Power)
         .using([0])
