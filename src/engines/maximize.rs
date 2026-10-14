@@ -75,11 +75,14 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let mut best = moves[0].clone();
     let mut best_score = f32::NEG_INFINITY;
     let mut simulation = ScratchGame::new(game);
-    for candidate in moves {
+    for (index, candidate) in moves.into_iter().enumerate() {
         if candidate.action != Action::Attack {
             return candidate;
         }
-        restore_simulation(&mut simulation, game);
+        // ScratchGame::new has just copied the game.
+        if index > 0 {
+            restore_simulation(&mut simulation, game);
+        }
         apply_attack_unsorted(&mut simulation, &candidate, rng);
         let score = simulation.players[0].score - simulation.players[1].score;
         if score > best_score {

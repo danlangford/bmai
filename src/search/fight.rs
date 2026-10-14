@@ -333,6 +333,23 @@ impl Drop for ScratchGame {
     }
 }
 
+/// Policies and searches see the mover as player 0. Swapping the players in
+/// place, and back, spares a copy of the game for every move.
+pub(super) fn with_mover_first<R>(
+    game: &mut Game,
+    mover: usize,
+    decide: impl FnOnce(&Game) -> R,
+) -> R {
+    if mover == 1 {
+        game.players.swap(0, 1);
+    }
+    let decision = decide(game);
+    if mover == 1 {
+        game.players.swap(0, 1);
+    }
+    decision
+}
+
 /// Field by field, so the scratch players keep their dice allocations. The
 /// destructuring makes a new field a compile error here.
 pub(crate) fn restore_simulation(simulation: &mut Game, source: &Game) {
