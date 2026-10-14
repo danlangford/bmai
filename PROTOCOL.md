@@ -104,7 +104,8 @@ Actions use a `type` discriminator:
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
 - `{"type":"chance","dice":[2]}`; `dice` holds the one Chance die rerolled,
-  as ButtonWeavers allows one per action
+  as ButtonWeavers allows one per action, and stays an array for `jsonl-v1`
+  compatibility
 - `{"type":"focus","dice":[{"die":0,"value":4}]}`
 
 An attack may include `turbo`. Option Turbo is

@@ -82,7 +82,11 @@ clear benefit. Each could return if that changes.
 
 - The JSONL `chance` action's `dice` array holds exactly one die.
 - New golden fixtures cover a Chance decision with two Chance dice and a
-  `playgame` between two buttons that each have two.
+  `playgame` between two buttons that each have two; a focused test covers a
+  chain of rerolls.
+- RULES.md lists two initiative differences found in review: ButtonWeavers
+  lets a player answer a successful Focus with a Chance reroll, and ends the
+  phase after a failed reroll where BMAIR still offers Focus.
 
 ## [0.35.0] - 2026-10-09
 

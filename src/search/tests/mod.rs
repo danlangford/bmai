@@ -285,7 +285,10 @@ struct QuickSpy {
     attacks: Arc<Mutex<Vec<Game>>>,
     reserves: Arc<Mutex<Vec<Game>>>,
     auxiliaries: Arc<Mutex<Vec<Game>>>,
+    /// Each reroll as (player, initiative holder, original die index).
+    chance_rerolls: Arc<Mutex<Vec<(usize, usize, usize)>>>,
     declines_auxiliary: bool,
+    rerolls_chance: bool,
 }
 
 impl Engine for QuickSpy {
@@ -313,7 +316,21 @@ impl Engine for QuickSpy {
         initiative: usize,
         context: &mut DecisionContext<'_, '_>,
     ) -> ChanceMove {
-        Quick.chance(game, player, initiative, context)
+        if !self.rerolls_chance {
+            return Quick.chance(game, player, initiative, context);
+        }
+        let dice = &game.players[player].dice;
+        let index = dice
+            .iter()
+            .position(|die| die.is_available() && die.has_property(property::CHANCE))
+            .expect("asked to react without a Chance die");
+        self.chance_rerolls
+            .lock()
+            .unwrap()
+            .push((player, initiative, dice[index].original_index));
+        ChanceMove {
+            reroll: Some(index),
+        }
     }
 
     fn focus(

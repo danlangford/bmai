@@ -103,12 +103,13 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
         .run();
 }
 
+/// Search keeps the first of tied moves, so a tie declines the reroll.
 #[test]
-fn chance_offers_one_die_per_reroll() {
+fn chance_offers_declining_first_then_one_die_per_reroll() {
     let game = native_fixture_game(
         "game 3\nchance\nplayer 0 3 0\nc10:9\nc12:11\n20:20\nplayer 1 2 0\n10:5\n12:12\n",
     );
-    let rerolled = crate::search::initiative::generate_chance_moves(&game, 0)
+    let mut rerolled = crate::search::initiative::generate_chance_moves(&game, 0)
         .into_iter()
         .map(|action| {
             action
@@ -116,11 +117,39 @@ fn chance_offers_one_die_per_reroll() {
                 .map(|index| game.players[0].dice[index].original_index)
         })
         .collect::<Vec<_>>();
-    assert_eq!(rerolled.len(), 3, "{rerolled:?}");
-    assert_eq!(rerolled[0], None);
+    rerolled[1..].sort_unstable();
+    assert_eq!(rerolled, [None, Some(0), Some(1)]);
+}
+
+/// ButtonWeavers returns to initiative after a successful reroll and re-enables
+/// the new loser's Chance dice, so both players may keep rerolling.
+#[test]
+fn chance_rerolls_alternate_while_each_one_succeeds() {
+    let recipe =
+        native_fixture_game("game\npreround\nplayer 0 2 0\nc6\n20\nplayer 1 2 0\nc6\n20\n");
+    let spy = QuickSpy {
+        rerolls_chance: true,
+        ..Default::default()
+    };
+    let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
+    let mut rng = Rng::default();
+    let mut longest = Vec::new();
+    for _ in 0..50 {
+        spy.chance_rerolls.lock().unwrap().clear();
+        let mut game = recipe.clone();
+        play_round_with_policies(&mut game, &mut rng, &policies, None);
+        let rerolls = spy.chance_rerolls.lock().unwrap().clone();
+        for pair in rerolls.windows(2) {
+            assert_eq!(pair[1].0, 1 - pair[0].0, "{rerolls:?}");
+            assert_eq!(pair[1].1, pair[0].0, "{rerolls:?}");
+        }
+        if rerolls.len() > longest.len() {
+            longest = rerolls;
+        }
+    }
     assert!(
-        rerolled.contains(&Some(0)) && rerolled.contains(&Some(1)),
-        "{rerolled:?}"
+        longest.len() >= 3,
+        "the first roller never rerolled its Chance die again: {longest:?}"
     );
 }
 

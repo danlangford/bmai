@@ -724,6 +724,32 @@ fn typed_initiative_actions_use_original_die_indices() {
         protocol_chance(&parser.game, &crate::search::ChanceMove { reroll: Some(1) }),
         crate::protocol::ProtocolAction::Chance { dice: vec![1] }
     );
+
+    let mut parser = Parser::default();
+    parser
+        .parse_string(
+            "game 3\nchance\nplayer 0 2 0\nc8:8\n10:10\nplayer 1 1 0\n6:6\n",
+            &mut Vec::new(),
+        )
+        .unwrap();
+    let stored = parser.game.players[0]
+        .dice
+        .iter()
+        .position(|die| die.original_index == 0)
+        .unwrap();
+    assert_ne!(
+        stored, 0,
+        "the Chance die should be stored away from wire index 0"
+    );
+    assert_eq!(
+        protocol_chance(
+            &parser.game,
+            &crate::search::ChanceMove {
+                reroll: Some(stored)
+            }
+        ),
+        crate::protocol::ProtocolAction::Chance { dice: vec![0] }
+    );
 }
 
 #[test]
