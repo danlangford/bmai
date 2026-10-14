@@ -304,7 +304,7 @@ pub(super) fn play_preround(game: &mut Game, rng: &mut Rng, ai: &Bmai3, level: u
             game.players[player].swing_set = SwingSet::Locked;
             continue;
         }
-        let (selected, _) = select_swing_action(game, player, rng, ai, player_level, None);
+        let (selected, _, _) = select_swing_action(game, player, rng, ai, player_level, None);
         apply_swing_move(&mut game.players[player], &selected);
         game.players[player].swing_set = SwingSet::Locked;
         if level > 1 {

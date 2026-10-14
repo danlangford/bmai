@@ -2,10 +2,11 @@
 // SPDX-FileCopyrightText: Copyright 2026 Dan Langford <721364+danlangford@users.noreply.github.com>
 
 //! Change detectors, not a rules oracle: the focused tests check rules against
-//! ButtonWeavers. The fingerprint covers only the session generator's draws.
-//! Native simulations draw from derived streams, so a search change shows only
-//! if it moves a reported score or a chosen action, and many fixtures report no
-//! score. After an intentional change, regenerate with
+//! ButtonWeavers. `RNG_HASH` fingerprints the session generator's draws and
+//! `SEARCH_HASH` every Monte Carlo simulation's score, so a change to any score
+//! shows even when the chosen move survives it. A fixture the endgame solver or
+//! QAI answers has no search to fingerprint. After an intentional change,
+//! regenerate with
 //! `BMAIR_UPDATE_GOLDEN=1 cargo test --release --test fixture_golden -- --include-ignored`
 //! and review the diff.
 
@@ -33,6 +34,26 @@ fn fast_fixtures_match_their_golden_output() {
 #[ignore = "long searches; CI runs them with --ignored"]
 fn slow_fixtures_match_their_golden_output() {
     check_fixtures(|name| SLOW_FIXTURES.contains(&name));
+}
+
+#[test]
+fn fast_fixtures_do_not_depend_on_the_worker_count() {
+    let without_worker_setting = |output: String| {
+        output
+            .lines()
+            .filter(|line| !line.starts_with("Setting native workers to"))
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    for fixture in input_fixtures() {
+        let name = file_name(&fixture);
+        if SLOW_FIXTURES.contains(&name) {
+            continue;
+        }
+        let one = without_worker_setting(run_fixture(&fixture, "workers 1\n"));
+        let four = without_worker_setting(run_fixture(&fixture, "workers 4\n"));
+        assert_eq!(one, four, "{name}");
+    }
 }
 
 #[test]
@@ -75,7 +96,7 @@ fn check_fixtures(include: impl Fn(&str) -> bool) {
         if !include(name) {
             continue;
         }
-        let actual = run_fixture(&fixture);
+        let actual = run_fixture(&fixture, "");
         let golden = golden_path(name);
         if update {
             fs::write(&golden, &actual).expect("write golden output");
@@ -99,7 +120,7 @@ fn check_fixtures(include: impl Fn(&str) -> bool) {
     );
 }
 
-fn run_fixture(fixture: &Path) -> String {
+fn run_fixture(fixture: &Path, prefix: &str) -> String {
     let mut child = common::bmair()
         .env("BMAIR_TRACE_RNG_HASH", "1")
         .stdin(Stdio::piped())
@@ -107,7 +128,16 @@ fn run_fixture(fixture: &Path) -> String {
         .stderr(Stdio::piped())
         .spawn()
         .expect("run bmair");
-    let input = fs::read_to_string(fixture).expect("read fixture");
+    let fixture = fs::read_to_string(fixture).expect("read fixture");
+    // A fixture's own worker count would override the prefix's.
+    let input = if prefix.is_empty() {
+        fixture
+    } else {
+        fixture
+            .lines()
+            .filter(|line| !line.starts_with("workers "))
+            .fold(prefix.to_owned(), |input, line| input + line + "\n")
+    };
     child
         .stdin
         .take()

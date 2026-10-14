@@ -32,9 +32,38 @@ pub struct Rng {
     seed: u32,
     trace_hash: bool,
     trace_count: u64,
-    trace_fingerprint: u64,
+    trace_fingerprint: Fingerprint,
+    trace_searches: u64,
+    trace_search_fingerprint: Fingerprint,
     native_stratum: Option<crate::native::NativeStratum>,
     script: Option<Box<DrawScript>>,
+}
+
+/// FNV-1a, so every platform and build computes the same fingerprint.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct Fingerprint(u64);
+
+impl Default for Fingerprint {
+    fn default() -> Self {
+        Self(0xcbf2_9ce4_8422_2325)
+    }
+}
+
+impl Fingerprint {
+    pub(crate) fn fold(&mut self, value: u64) {
+        self.0 ^= value;
+        self.0 = self.0.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+
+    pub(crate) fn fold_scores(&mut self, scores: &[f32]) {
+        for score in scores {
+            self.fold(u64::from(score.to_bits()));
+        }
+    }
+
+    pub(crate) const fn value(self) -> u64 {
+        self.0
+    }
 }
 
 /// Replays chosen faces for each draw and records each draw's range, so a
@@ -54,7 +83,9 @@ impl Default for Rng {
             seed: 78_904_497,
             trace_hash: false,
             trace_count: 0,
-            trace_fingerprint: 0xcbf2_9ce4_8422_2325,
+            trace_fingerprint: Fingerprint::default(),
+            trace_searches: 0,
+            trace_search_fingerprint: Fingerprint::default(),
             native_stratum: None,
             script: None,
         }
@@ -64,6 +95,15 @@ impl Default for Rng {
 impl Rng {
     pub(crate) fn trace_from_env(&mut self) {
         self.trace_hash = std::env::var_os("BMAIR_TRACE_RNG_HASH").is_some();
+    }
+
+    /// Searches draw from streams this generator never sees, so their digests
+    /// get a fingerprint of their own.
+    pub(crate) fn trace_search(&mut self, digest: Fingerprint) {
+        if self.trace_hash {
+            self.trace_searches += 1;
+            self.trace_search_fingerprint.fold(digest.value());
+        }
     }
 
     pub(crate) fn restarted(&self) -> Self {
@@ -150,8 +190,7 @@ impl Rng {
         self.seed = hi as u32;
         if self.trace_hash {
             self.trace_count += 1;
-            self.trace_fingerprint ^= u64::from(self.seed);
-            self.trace_fingerprint = self.trace_fingerprint.wrapping_mul(0x0000_0100_0000_01b3);
+            self.trace_fingerprint.fold(u64::from(self.seed));
         }
         self.seed
     }
@@ -198,7 +237,18 @@ impl Rng {
 impl Drop for Rng {
     fn drop(&mut self) {
         if self.trace_hash {
-            eprintln!("RNG_HASH {} {}", self.trace_count, self.trace_fingerprint);
+            eprintln!(
+                "RNG_HASH {} {}",
+                self.trace_count,
+                self.trace_fingerprint.value()
+            );
+            if self.trace_searches > 0 {
+                eprintln!(
+                    "SEARCH_HASH {} {}",
+                    self.trace_searches,
+                    self.trace_search_fingerprint.value()
+                );
+            }
         }
     }
 }
@@ -241,10 +291,37 @@ mod tests {
         rng.trace_hash = true;
         rng.reseed(17);
         rng.rand();
+        rng.trace_search(Fingerprint::default());
         let mut restarted = rng.restarted();
         assert!(restarted.trace_hash);
         assert_eq!(restarted.trace_count, 0);
+        assert_eq!(restarted.trace_searches, 0);
         assert_eq!(restarted.rand(), 1_150_470_880);
+    }
+
+    #[test]
+    fn search_digests_are_fingerprinted_only_while_tracing() {
+        let mut quiet = Rng::default();
+        quiet.trace_search(Fingerprint::default());
+        assert_eq!(quiet.trace_searches, 0);
+
+        let digest = |score: f32| {
+            let mut digest = Fingerprint::default();
+            digest.fold_scores(&[score]);
+            digest
+        };
+        let fingerprint = |scores: &[f32]| {
+            let mut rng = Rng::default();
+            rng.trace_hash = true;
+            for score in scores {
+                rng.trace_search(digest(*score));
+            }
+            let result = (rng.trace_searches, rng.trace_search_fingerprint);
+            rng.trace_hash = false;
+            result
+        };
+        assert_eq!(fingerprint(&[0.5, 1.0]).0, 2);
+        assert_ne!(fingerprint(&[0.5, 1.0]), fingerprint(&[1.0, 0.5]));
     }
 
     #[test]

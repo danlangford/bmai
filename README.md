@@ -75,7 +75,8 @@ root and the Rust sources follow the standard Cargo layout under `src/`.
 runtime boundaries and where new behavior belongs.
 
 Protocol samples under `tests/fixtures/` have golden outputs in
-`tests/golden/`, recording each fixture's output and RNG fingerprint.
+`tests/golden/`, recording each fixture's output and fingerprints of its
+generator draws and Monte Carlo searches.
 
 Pull requests validate the release declaration independently from Rust format,
 lint, extended-test, and platform-build checks, so one failure does not hide
@@ -280,7 +281,7 @@ python3 -m http.server 8000 --directory target/web/site
 The page lives in [`web/`](web/). `web/wasi.js` is a small WASI host that
 covers only the calls `bmair.wasm` makes and gives it no file access. Its
 tests run every golden fixture through that host and compare the output and
-RNG fingerprints with native:
+fingerprints with native:
 
 ```shell
 BMAIR_WASM=target/wasm32-wasip1/release/bmair.wasm node --test tests/web/*.test.mjs
