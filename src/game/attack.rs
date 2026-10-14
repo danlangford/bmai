@@ -453,7 +453,7 @@ fn fire_plans_for_skill(
 }
 
 impl Game {
-    fn attack_candidates(&self, fire_limit: usize) -> Vec<Move> {
+    fn attack_candidates(&self, fire_limit: usize, moves: &mut Vec<Move>) {
         let attacker = &self.players[0];
         let target = &self.players[1];
         let available = AvailableDiceList::new(attacker);
@@ -472,7 +472,7 @@ impl Game {
         let targets_have_rush = targets
             .iter()
             .any(|(_, die)| die.has_property(property::RUSH));
-        let mut moves = Vec::with_capacity(32);
+        moves.clear();
         // Reserve the bounded Fire budget for required attacks before optional overshoots.
         let mut optional_fire_moves = Vec::new();
         let mut optional_fire_remaining = fire_limit;
@@ -815,7 +815,6 @@ impl Game {
         }
         optional_fire_moves.truncate(fire_remaining);
         moves.extend(optional_fire_moves);
-        moves
     }
 
     /// Best-scoring first, which the score-driven policies rely on.
@@ -824,7 +823,8 @@ impl Game {
     }
 
     fn valid_attacks_by_score_within(&self, fire_limit: usize) -> Vec<Move> {
-        let mut moves = self.attack_candidates(fire_limit);
+        let mut moves = Vec::with_capacity(32);
+        self.attack_candidates(fire_limit, &mut moves);
         moves.sort_by(|a, b| {
             b.score
                 .total_cmp(&a.score)
@@ -837,9 +837,16 @@ impl Game {
     /// In generation order, which search keeps so a candidate's index, and
     /// so its replay stream, stays put.
     pub(crate) fn valid_attacks(&self, fire_limit: usize) -> Vec<Move> {
-        let mut moves = self.attack_candidates(fire_limit);
-        expand_turbo_moves(self, &mut moves);
+        let mut moves = Vec::with_capacity(32);
+        self.valid_attacks_into(fire_limit, &mut moves);
         moves
+    }
+
+    /// `valid_attacks` into a list playouts keep, since they list attacks
+    /// at every move.
+    pub(crate) fn valid_attacks_into(&self, fire_limit: usize, moves: &mut Vec<Move>) {
+        self.attack_candidates(fire_limit, moves);
+        expand_turbo_moves(self, moves);
     }
 
     pub fn attack_action(&self) -> Move {

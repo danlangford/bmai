@@ -49,14 +49,20 @@ impl Engine for Quick {
     }
 }
 
+thread_local! {
+    static CANDIDATES: std::cell::Cell<Vec<Move>> = const { std::cell::Cell::new(Vec::new()) };
+}
+
 /// Scores each attack by one greedy look ahead. Monte Carlo playouts call
 /// this directly, since they make far more moves than any search decides.
 pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
-    let mut best: Option<(f32, Move)> = None;
+    let mut candidates = CANDIDATES.take();
+    game.valid_attacks_into(fire_limit, &mut candidates);
+    let mut best: Option<(f32, usize)> = None;
     let mut simulation = ScratchGame::new(game);
-    for candidate in game.valid_attacks(fire_limit) {
+    for (index, candidate) in candidates.iter().enumerate() {
         restore_simulation(&mut simulation, game);
-        apply_attack(&mut simulation, &candidate, rng);
+        apply_attack(&mut simulation, candidate, rng);
         let mut score = simulation.players[0].score - simulation.players[1].score;
         for attacker in candidate.attackers.iter() {
             let die = &game.players[0].dice[attacker];
@@ -70,12 +76,11 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
             }
         }
         score += rng.rand_below(5) as f32;
-        if best
-            .as_ref()
-            .is_none_or(|(best_score, _)| score > *best_score)
-        {
-            best = Some((score, candidate));
+        if best.is_none_or(|(best_score, _)| score > best_score) {
+            best = Some((score, index));
         }
     }
-    best.map_or_else(Move::pass, |(_, action)| action)
+    let action = best.map_or_else(Move::pass, |(_, index)| candidates[index].clone());
+    CANDIDATES.set(candidates);
+    action
 }
