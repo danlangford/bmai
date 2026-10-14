@@ -98,9 +98,59 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
     initiative_scenario()
         .player(["ck100:7"])
         .opponent(["20:20"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_player_dice(["ck100:7"])
         .run();
+}
+
+/// Search keeps the first of tied moves, so a tie declines the reroll.
+#[test]
+fn chance_offers_declining_first_then_one_die_per_reroll() {
+    let game = native_fixture_game(
+        "game 3\nchance\nplayer 0 3 0\nc10:9\nc12:11\n20:20\nplayer 1 2 0\n10:5\n12:12\n",
+    );
+    let mut rerolled = crate::search::initiative::generate_chance_moves(&game, 0)
+        .into_iter()
+        .map(|action| {
+            action
+                .reroll
+                .map(|index| game.players[0].dice[index].original_index)
+        })
+        .collect::<Vec<_>>();
+    rerolled[1..].sort_unstable();
+    assert_eq!(rerolled, [None, Some(0), Some(1)]);
+}
+
+/// ButtonWeavers returns to initiative after a successful reroll and asks the
+/// new loser to react again, so rerolls alternate until one fails or a player
+/// declines.
+#[test]
+fn chance_rerolls_alternate_while_each_one_succeeds() {
+    let recipe =
+        native_fixture_game("game\npreround\nplayer 0 2 0\nc6\n20\nplayer 1 2 0\nc6\n20\n");
+    let spy = QuickSpy {
+        rerolls_chance: true,
+        ..Default::default()
+    };
+    let policies: Engines = [Box::new(spy.clone()), Box::new(spy.clone())];
+    let mut rng = Rng::default();
+    let mut longest = Vec::new();
+    for _ in 0..50 {
+        let mut game = recipe.clone();
+        play_round_with_policies(&mut game, &mut rng, &policies, None);
+        let rerolls = std::mem::take(&mut *spy.chance_rerolls.lock().unwrap());
+        for pair in rerolls.windows(2) {
+            assert_eq!(pair[1].player, 1 - pair[0].player, "{rerolls:?}");
+            assert_eq!(pair[1].initiative, pair[0].player, "{rerolls:?}");
+        }
+        if rerolls.len() > longest.len() {
+            longest = rerolls;
+        }
+    }
+    assert!(
+        longest.len() >= 3,
+        "the first roller never rerolled its Chance die again: {longest:?}"
+    );
 }
 
 #[test]
@@ -109,7 +159,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:6"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(0))
         .expect_chance_success(false)
         .expect_next_initiative(0)
@@ -118,7 +168,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:4"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(1))
         .expect_chance_success(true)
         .expect_next_initiative(1)
@@ -126,7 +176,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
     initiative_scenario()
         .player(["ck20:4"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(0))
         .expect_chance_success(true)
         .expect_next_initiative(0)
@@ -136,7 +186,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:5"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(None)
         .expect_chance_success(false)
         .expect_next_initiative(0)

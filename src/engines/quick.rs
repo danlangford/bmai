@@ -28,7 +28,7 @@ impl Engine for Quick {
     }
 
     fn chance(&self, _: &Game, _: usize, _: usize, _: &mut DecisionContext<'_, '_>) -> ChanceMove {
-        ChanceMove { reroll: Vec::new() }
+        ChanceMove { reroll: None }
     }
 
     fn focus(&self, _: &Game, _: usize, _: usize, _: &mut DecisionContext<'_, '_>) -> FocusMove {

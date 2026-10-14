@@ -51,6 +51,8 @@ resulting position, and BMAIR applies the rules when it simulates.
 | Rush two-target attacks by or against Rush dice | `Attack::Rush` in `Game::valid_attacks` | the Rush section below |
 | Initiative, Focus values, and dizzy dice | `check_initiative` and `search::initiative` | the Konstant Chance and parser initiative tests |
 | A Chance reroll gains the initiative only when the roller then holds it alone (`react_to_initiative_chance`) | `apply_chance_move` | `a_chance_reroll_succeeds_only_when_the_roller_wins_initiative` |
+| Each Chance action rerolls one Chance die (`BMInterfaceGame::react_to_initiative` refuses any other count: "Only one chance die can be rerolled") | `ChanceMove::reroll`, `generate_chance_moves` | `chance_offers_declining_first_then_one_die_per_reroll`, `typed_initiative_actions_use_original_die_indices`, `native_chance_two_dice_in.txt`, `native_playgame_chance_in.txt` |
+| A successful Chance reroll returns to initiative, so the new loser may reroll one of theirs, and rerolls alternate until one fails or a player declines (`react_to_initiative_chance`, `do_next_step_react_to_initiative`) | the Chance loops in `play_round_with_policies` and `search::initiative` | `chance_rerolls_alternate_while_each_one_succeeds` covers full rounds; the `search::initiative` copies have no chain test yet |
 | Simultaneous preround choices across swing and option dice, and Unique swing | `search::preround` | the locked swing and option regressions and the Unique tests |
 | Auxiliary dice: mutual accept or decline, the courtesy copy, and one decision per full match written into the recipe | `offer_courtesy_auxiliary`, `apply_auxiliary_decision`, `choose_auxiliary_dice` | `search::tests::auxiliary`, `auxiliary_phase_appends_the_courtesy_copy_after_the_receivers_dice`, `a_declined_auxiliary_die_stays_out_of_every_round` |
 | Reserve dice after a round loss | the reserve step of `play_match_with_policies` | `complete_native_match_uses_reserve_after_a_round_loss`, `the_round_loser_picks_a_reserve_die_from_freshly_dealt_dice`, `no_reserve_die_is_offered_after_the_round_that_ends_the_match` |
@@ -267,13 +269,13 @@ would accept.
 
 These predate the move to ButtonWeavers and are queued to fix.
 
-- **One Chance die per action.** ButtonWeavers rerolls a single Chance die
-  each time (`react_to_initiative_chance` takes one `rerolledDieIdx`); BMAIR
-  offers every subset. FuzzFace, John Kovalic, Pikathulhu, and Ulthar each
-  have two Chance dice.
 - **Initiative ties.** ButtonWeavers breaks a tie at random
   (`do_next_step_determine_initiative`); BMAIR gives it to seat 0, in
   simulations and full matches alike.
+- **Chance after Focus.** A successful Focus returns ButtonWeavers to
+  `DETERMINE_INITIATIVE` (`react_to_initiative_focus`), so the new loser may
+  answer with a Chance reroll. BMAIR never returns to Chance after Focus. Any
+  Focus button against any Chance button reaches it.
 
 ## Known gaps
 
@@ -295,6 +297,11 @@ No current ButtonWeavers button reaches these; each waits for one that does.
 - **Courtesy Option dice.** An accepted Auxiliary Option die never reopens its
   owner's swing choice, because a `Die` cannot tell a chosen option from an
   unchosen one.
+- **Focus after a failed Chance reroll.** Any reaction clears the reacting
+  player's `waitingOnAction` (`BMGame::react_to_initiative`), so a failed
+  reroll ends the initiative phase; BMAIR's Focus step still asks that player.
+  Only inundator, `{c,d}(12) {f,z}(12) …`, has both skills, and ButtonWeavers
+  cannot load it: `BMSkill::expand_skill_string` refuses Plasma's braces.
 - **Chance and Giant.** ButtonWeavers' Chance check ignores button specials,
   so Giant's no-initiative rule does not apply there; BMAIR applies it. Giant
   has no Chance dice.

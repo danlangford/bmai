@@ -12,26 +12,17 @@ pub(super) fn has_available_property(player: &crate::game::Player, property: u64
 }
 
 pub(super) fn generate_chance_moves(game: &Game, player: usize) -> Vec<ChanceMove> {
-    let dice = game.players[player]
+    let rerolls = game.players[player]
         .dice
         .iter()
         .enumerate()
-        .filter_map(|(index, die)| {
-            (die.is_available() && die.has_property(property::CHANCE)).then_some(index)
-        })
-        .collect::<Vec<_>>();
-    let mut moves = Vec::with_capacity(1usize << dice.len());
-    moves.push(ChanceMove { reroll: Vec::new() });
-    for mask in 1usize..(1usize << dice.len()) {
-        moves.push(ChanceMove {
-            reroll: dice
-                .iter()
-                .enumerate()
-                .filter_map(|(bit, index)| (mask & (1 << bit) != 0).then_some(*index))
-                .collect(),
+        .filter(|(_, die)| die.is_available() && die.has_property(property::CHANCE))
+        .map(|(index, _)| ChanceMove {
+            reroll: Some(index),
         });
-    }
-    moves
+    std::iter::once(ChanceMove { reroll: None })
+        .chain(rerolls)
+        .collect()
 }
 
 pub(super) fn apply_chance_move(
@@ -41,17 +32,15 @@ pub(super) fn apply_chance_move(
     action: &ChanceMove,
     rng: &mut Rng,
 ) -> (usize, bool) {
-    if action.reroll.is_empty() {
+    let Some(index) = action.reroll else {
         return (previous_initiative, false);
+    };
+    if !game.players[player].dice[index].has_property(property::KONSTANT) {
+        game.players[player].dice[index].not_set = true;
     }
-    for index in &action.reroll {
-        if !game.players[player].dice[*index].has_property(property::KONSTANT) {
-            game.players[player].dice[*index].not_set = true;
-        }
-        apply_before_roll_effects(game, player, *index);
-        if game.players[player].dice[*index].not_set {
-            roll_scheduled_die(game, player, *index, rng);
-        }
+    apply_before_roll_effects(game, player, index);
+    if game.players[player].dice[index].not_set {
+        roll_scheduled_die(game, player, index, rng);
     }
     game.players[player].optimize_dice();
     // ButtonWeavers counts a reroll only when the roller alone then has initiative.

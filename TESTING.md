@@ -62,7 +62,7 @@ Chance and Focus have their own scenario:
 initiative_scenario()
     .player(["cX?-13:1", "1:1"])
     .opponent(["20:20"])
-    .chance_rerolls([0])
+    .chance_reroll(0)
     .expect_player_dice(["cX?-12:1", "1:1"])
     .run();
 

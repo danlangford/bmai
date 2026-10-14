@@ -11,7 +11,7 @@ fn konstant_chance_dice_keep_their_size_and_value() {
         initiative_scenario()
             .player([die])
             .opponent(["20:20"])
-            .chance_rerolls([0])
+            .chance_reroll(0)
             .seed(1)
             .expect_player_dice([die])
             .run();
@@ -24,7 +24,7 @@ fn pr82_chance_rerolls_resize_mighty_and_weak_dice_once() {
         initiative_scenario()
             .player([die])
             .opponent(["20:20"])
-            .chance_rerolls([0])
+            .chance_reroll(0)
             .seed(1)
             .expect_player_dice([expected])
             .run();

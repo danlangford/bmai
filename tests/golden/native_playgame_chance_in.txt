@@ -1,0 +1,15 @@
+exit 0
+--- stdout
+Seeding with 17
+Setting max # simulations to 5
+Setting min # simulations to 1
+Setting max branch to 10
+target wins set to 2
+p0 s0.0 Dice (0)4 (0)8 (0)10 (200000)10 (200000)12
+p1 s0.0 Dice (0)6 (200000)6 (0)10 (0)12 (200000)20
+game over 2 - 1 - 0
+game over 2 - 1 - 0
+matches over 2 - 0
+--- stderr
+RNG_HASH 116 8775774870241559503
+SEARCH_HASH 42 6539807817687460045

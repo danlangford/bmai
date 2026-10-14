@@ -238,7 +238,7 @@ fn every_typed_action_shape_has_a_stable_discriminator() {
             options: vec![OptionSelection { die: 1, value: 20 }],
         })
         .unwrap(),
-        serde_json::to_value(ProtocolAction::Chance { dice: vec![0, 2] }).unwrap(),
+        serde_json::to_value(ProtocolAction::Chance { dice: vec![2] }).unwrap(),
         serde_json::to_value(ProtocolAction::Focus {
             dice: vec![FocusSelection { die: 0, value: 4 }],
         })

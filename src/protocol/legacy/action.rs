@@ -139,18 +139,14 @@ impl Parser {
                 self.last_action = Some(protocol_chance(&self.game, &action));
                 self.send_stats(output)?;
                 writeln!(output, "action").map_err(io_error)?;
-                if action.reroll.is_empty() {
-                    writeln!(output, "pass").map_err(io_error)
-                } else {
-                    for index in action.reroll {
-                        writeln!(
-                            output,
-                            "chance {}",
-                            self.game.players[0].dice[index].original_index
-                        )
-                        .map_err(io_error)?;
-                    }
-                    Ok(())
+                match action.reroll {
+                    None => writeln!(output, "pass").map_err(io_error),
+                    Some(index) => writeln!(
+                        output,
+                        "chance {}",
+                        self.game.players[0].dice[index].original_index
+                    )
+                    .map_err(io_error),
                 }
             }
             Phase::Focus => {
