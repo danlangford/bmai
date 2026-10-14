@@ -103,7 +103,8 @@ Actions use a `type` discriminator:
   `attack_type` is one of the advertised `attack_types`, including `rush` and `boom`
 - `{"type":"reserve","die":2}`; `die` is null when reserve is declined
 - `{"type":"set_swing","swings":[{"swing":"X","value":12}],"options":[{"die":1,"value":20}]}`
-- `{"type":"chance","dice":[0,2]}`
+- `{"type":"chance","dice":[2]}`; `dice` holds the one Chance die rerolled,
+  as ButtonWeavers allows one per action
 - `{"type":"focus","dice":[{"die":0,"value":4}]}`
 
 An attack may include `turbo`. Option Turbo is

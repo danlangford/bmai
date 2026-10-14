@@ -67,6 +67,23 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.36.0] - 2026-10-13
+
+### Fixed
+
+- A Chance action rerolls one Chance die, as ButtonWeavers'
+  `react_to_initiative_chance` allows. Monte Carlo used to consider rerolling
+  any set of its Chance dice at once, so buttons with two, such as FuzzFace,
+  John Kovalic, Pikathulhu, and Ulthar, could answer `chance 1` and `chance 0`
+  in one action. A chain still continues while each reroll gains the
+  initiative, and a later reroll may pick the same die again.
+
+### Changed
+
+- The JSONL `chance` action's `dice` array holds exactly one die.
+- New golden fixtures cover a Chance decision with two Chance dice and a
+  `playgame` between two buttons that each have two.
+
 ## [0.35.0] - 2026-10-09
 
 ### Added
@@ -991,7 +1008,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.35.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.36.0...HEAD
+[0.36.0]: https://github.com/danlangford/bmai/compare/bmair-v0.35.0...bmair-v0.36.0
 [0.35.0]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...bmair-v0.35.0
 [0.34.0]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...bmair-v0.34.0
 [0.33.0]: https://github.com/danlangford/bmai/compare/bmair-v0.32.0...bmair-v0.33.0

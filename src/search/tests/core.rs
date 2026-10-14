@@ -98,9 +98,30 @@ fn copied_cpp_konstant_chance_die_keeps_its_value() {
     initiative_scenario()
         .player(["ck100:7"])
         .opponent(["20:20"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_player_dice(["ck100:7"])
         .run();
+}
+
+#[test]
+fn chance_offers_one_die_per_reroll() {
+    let game = native_fixture_game(
+        "game 3\nchance\nplayer 0 3 0\nc10:9\nc12:11\n20:20\nplayer 1 2 0\n10:5\n12:12\n",
+    );
+    let rerolled = crate::search::initiative::generate_chance_moves(&game, 0)
+        .into_iter()
+        .map(|action| {
+            action
+                .reroll
+                .map(|index| game.players[0].dice[index].original_index)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(rerolled.len(), 3, "{rerolled:?}");
+    assert_eq!(rerolled[0], None);
+    assert!(
+        rerolled.contains(&Some(0)) && rerolled.contains(&Some(1)),
+        "{rerolled:?}"
+    );
 }
 
 #[test]
@@ -109,7 +130,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:6"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(0))
         .expect_chance_success(false)
         .expect_next_initiative(0)
@@ -118,7 +139,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:4"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(1))
         .expect_chance_success(true)
         .expect_next_initiative(1)
@@ -126,7 +147,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
     initiative_scenario()
         .player(["ck20:4"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(Some(0))
         .expect_chance_success(true)
         .expect_next_initiative(0)
@@ -136,7 +157,7 @@ fn a_chance_reroll_succeeds_only_when_the_roller_wins_initiative() {
         .seated_as(1)
         .player(["ck20:5"])
         .opponent(["20:5"])
-        .chance_rerolls([0])
+        .chance_reroll(0)
         .expect_initiative(None)
         .expect_chance_success(false)
         .expect_next_initiative(0)

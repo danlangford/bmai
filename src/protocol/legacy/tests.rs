@@ -721,7 +721,7 @@ fn typed_initiative_actions_use_original_die_indices() {
         }
     );
     assert_eq!(
-        protocol_chance(&parser.game, &crate::search::ChanceMove { reroll: vec![1] }),
+        protocol_chance(&parser.game, &crate::search::ChanceMove { reroll: Some(1) }),
         crate::protocol::ProtocolAction::Chance { dice: vec![1] }
     );
 }

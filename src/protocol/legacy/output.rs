@@ -176,16 +176,11 @@ pub(super) fn protocol_chance(
     game: &Game,
     action: &crate::search::ChanceMove,
 ) -> crate::protocol::ProtocolAction {
-    if action.reroll.is_empty() {
-        crate::protocol::ProtocolAction::Pass
-    } else {
-        crate::protocol::ProtocolAction::Chance {
-            dice: action
-                .reroll
-                .iter()
-                .map(|index| game.players[0].dice[*index].original_index)
-                .collect(),
-        }
+    match action.reroll {
+        None => crate::protocol::ProtocolAction::Pass,
+        Some(index) => crate::protocol::ProtocolAction::Chance {
+            dice: vec![game.players[0].dice[index].original_index],
+        },
     }
 }
 

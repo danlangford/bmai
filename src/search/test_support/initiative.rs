@@ -10,7 +10,7 @@ pub(crate) struct InitiativeScenario {
     player_dice: Vec<String>,
     opponent_dice: Vec<String>,
     player_index: usize,
-    chance_rerolls: Option<Vec<usize>>,
+    chance_reroll: Option<usize>,
     focus_values: Option<Vec<(usize, u8)>>,
     seed: Option<u32>,
     expected_player_dice: Option<Vec<String>>,
@@ -37,8 +37,8 @@ impl InitiativeScenario {
         self
     }
 
-    pub(crate) fn chance_rerolls(mut self, dice: impl IntoIterator<Item = usize>) -> Self {
-        self.chance_rerolls = Some(dice.into_iter().collect());
+    pub(crate) fn chance_reroll(mut self, die: usize) -> Self {
+        self.chance_reroll = Some(die);
         self
     }
 
@@ -87,14 +87,14 @@ impl InitiativeScenario {
     #[track_caller]
     pub(crate) fn run(self) {
         assert!(
-            self.chance_rerolls.is_some() != self.focus_values.is_some(),
-            "initiative scenario needs exactly one of chance_rerolls() or focuses()"
+            self.chance_reroll.is_some() != self.focus_values.is_some(),
+            "initiative scenario needs exactly one of chance_reroll() or focuses()"
         );
         assert!(
-            self.chance_rerolls.is_some()
+            self.chance_reroll.is_some()
                 || self.expected_chance_success.is_none()
                     && self.expected_next_initiative.is_none(),
-            "Chance expectations need chance_rerolls()"
+            "Chance expectations need chance_reroll()"
         );
         assert!(self.player_index < 2, "seated_as() takes seat 0 or 1");
         let player = self.player_index;
@@ -107,12 +107,12 @@ impl InitiativeScenario {
             rng.reseed(seed);
         }
 
-        if let Some(reroll) = self.chance_rerolls {
+        if let Some(die) = self.chance_reroll {
             let (initiative, success) = apply_chance_move(
                 &mut game,
                 player,
                 opponent,
-                &ChanceMove { reroll },
+                &ChanceMove { reroll: Some(die) },
                 &mut rng,
             );
             if let Some(expected) = self.expected_chance_success {

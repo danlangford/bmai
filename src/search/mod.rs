@@ -87,9 +87,10 @@ pub(crate) struct FocusMove {
     pub(crate) values: Vec<(usize, u8)>,
 }
 
+/// ButtonWeavers rerolls one Chance die per action.
 #[derive(Clone, Debug)]
 pub(crate) struct ChanceMove {
-    pub(crate) reroll: Vec<usize>,
+    pub(crate) reroll: Option<usize>,
 }
 
 /// Every simulation score of a top-level search, in task order, so the worker

@@ -110,7 +110,7 @@ fn a_chance_reroll_keeps_the_score_equal_to_the_dice() {
         let mut after = game.clone();
         let mut rng = Rng::default();
         rng.reseed(seed);
-        apply_chance_move(&mut after, 0, 1, &ChanceMove { reroll: vec![0] }, &mut rng);
+        apply_chance_move(&mut after, 0, 1, &ChanceMove { reroll: Some(0) }, &mut rng);
         assert_score_follows_dice(&game, &after, &format!("seed {seed}"));
     }
 }
