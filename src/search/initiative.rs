@@ -461,11 +461,9 @@ pub(super) fn evaluate_next_initiative_action(
             };
         }
     }
-    let mut oriented = game.clone();
-    if initiative == 1 {
-        oriented.players.swap(0, 1);
-    }
-    let (_, probability) = select_bmai_action_at_level(&oriented, rng, ai, level, false);
+    let (_, probability) = with_mover_first(game, initiative, |game| {
+        select_bmai_action_at_level(game, rng, ai, level, false)
+    });
     if initiative == pov {
         probability
     } else {
@@ -485,7 +483,6 @@ pub(super) fn play_simulated_round(
     let mut phase = initiative_winner(game);
     let mut passed = false;
     let mut use_qai = level > ai.max_ply;
-    let mut oriented = game.clone();
     loop {
         let player = 1 - phase;
         if !has_available_property(&game.players[player], property::CHANCE) || use_qai {
@@ -524,14 +521,12 @@ pub(super) fn play_simulated_round(
         if fight_over(game) {
             break;
         }
-        restore_simulation(&mut oriented, game);
-        if phase == 1 {
-            oriented.players.swap(0, 1);
-        }
         let action = if use_qai {
-            select_rollout_action(&oriented, rng, ai)
+            with_mover_first(game, phase, |game| select_rollout_action(game, rng, ai))
         } else {
-            let action = select_bmai_action_at_level(&oriented, rng, ai, level, passed).0;
+            let action = with_mover_first(game, phase, |game| {
+                select_bmai_action_at_level(game, rng, ai, level, passed).0
+            });
             if level >= ai.max_ply {
                 use_qai = true;
             } else {
@@ -585,16 +580,11 @@ pub(super) fn play_fight_qai_from_phase(
     mut passed: bool,
     ai: &Bmai3,
 ) -> f32 {
-    let mut oriented = game.clone();
     for _ in 0..256 {
         if game.players.iter().any(|p| available_dice_count(p) == 0) {
             break;
         }
-        restore_simulation(&mut oriented, game);
-        if phase == 1 {
-            oriented.players.swap(0, 1);
-        }
-        let action = select_rollout_action(&oriented, rng, ai);
+        let action = with_mover_first(game, phase, |game| select_rollout_action(game, rng, ai));
         if action.action != Action::Attack {
             if passed {
                 break;

@@ -19,21 +19,9 @@ pub(crate) fn select_swing_action(
             SearchDigest::default(),
         );
     }
-    let mut moves = generate_swing_moves(&game.players[player]);
+    let mut moves = swing_candidates(&game.players[player], ai, native, rng);
     if moves.is_empty() {
         return (SwingMove::empty(), 0.0, SearchDigest::default());
-    }
-    let max_moves = ai.max_branch / ai.min_sims;
-    if moves.len() > max_moves {
-        let mut selection_rng =
-            native.map(|context| context.simulation_rng(NATIVE_ENUMERATION_STREAM, 0, 0));
-        randomly_select_swing_moves(
-            &mut moves,
-            &game.players[player],
-            max_moves,
-            selection_rng.as_mut().unwrap_or(rng),
-        );
-        moves.shrink_to_fit();
     }
     let sims = ai.compute_number_sims(moves.len(), level);
     let mut scores = vec![0.0f32; moves.len()];
@@ -337,44 +325,211 @@ pub(super) fn apply_use_reserve(die: &mut Die) {
     die.not_set = true;
 }
 
-pub(super) fn randomly_select_swing_moves(
-    moves: &mut Vec<SwingMove>,
+pub(super) fn swing_candidates(
     player: &crate::game::Player,
-    max: usize,
+    ai: &Bmai3,
+    native: Option<NativeEvaluation>,
     rng: &mut Rng,
-) {
-    let swing_types = player
-        .dice
-        .iter()
-        .filter(|die| !die.in_reserve)
-        .flat_map(|die| die.swing_type.iter().flatten().copied())
-        .collect::<std::collections::BTreeSet<_>>();
-    let extreme_settings = |action: &SwingMove| {
-        action
-            .values()
+) -> Vec<SwingMove> {
+    SWING_CACHE.with_borrow_mut(|SwingCache { spaces, positions }| {
+        let space = swing_space(spaces, player);
+        if space.settings.is_empty() {
+            return Vec::new();
+        }
+        let max_moves = ai.max_branch / ai.min_sims;
+        positions.clear();
+        positions.extend(0..space.settings.len() as u32);
+        if positions.len() > max_moves {
+            let mut selection_rng =
+                native.map(|context| context.simulation_rng(NATIVE_ENUMERATION_STREAM, 0, 0));
+            space.thin(positions, max_moves, selection_rng.as_mut().unwrap_or(rng));
+        }
+        positions
             .iter()
-            .filter(|(swing, value)| {
-                let (minimum, maximum) = swing_range(*swing);
-                *value == minimum || *value == maximum
-            })
-            .count()
-    };
-    let swing_dice = swing_types.len();
-    let extreme_moves = moves
-        .iter()
-        .filter(|action| extreme_settings(action) == swing_dice)
-        .count();
+            .map(|position| space.decode(space.settings[*position as usize]))
+            .collect()
+    })
+}
 
-    if extreme_moves >= max {
-        moves.retain(|action| extreme_settings(action) == swing_dice);
-        return;
+const SWING_CACHE_CAPACITY: usize = 8;
+
+thread_local! {
+    static SWING_CACHE: std::cell::RefCell<SwingCache> = const {
+        std::cell::RefCell::new(SwingCache {
+            spaces: Vec::new(),
+            positions: Vec::new(),
+        })
+    };
+}
+
+/// Simulated prerounds ask for the same player's settings over and over, and
+/// four swing dice already make tens of thousands of them.
+struct SwingCache {
+    spaces: Vec<SwingSpace>,
+    positions: Vec<u32>,
+}
+
+fn swing_space<'a>(
+    spaces: &'a mut Vec<SwingSpace>,
+    player: &crate::game::Player,
+) -> &'a SwingSpace {
+    let key = SwingKey::new(player);
+    match spaces.iter().position(|space| space.key == key) {
+        Some(index) => spaces[index..].rotate_left(1),
+        None => {
+            if spaces.len() == SWING_CACHE_CAPACITY {
+                spaces.remove(0);
+            }
+            spaces.push(SwingSpace::new(player, key));
+        }
+    }
+    spaces.last().expect("the space was just placed last")
+}
+
+/// Every field the setting rules read. The destructuring makes a new field a
+/// compile error here.
+#[derive(PartialEq, Eq)]
+struct SwingKey {
+    specials: u8,
+    dice: Vec<SwingDieKey>,
+}
+
+#[derive(PartialEq, Eq)]
+struct SwingDieKey {
+    properties: u64,
+    sides: [u8; 2],
+    swing_type: [Option<char>; 2],
+    in_reserve: bool,
+}
+
+impl SwingKey {
+    fn new(player: &crate::game::Player) -> Self {
+        let crate::game::Player {
+            id: _,
+            score: _,
+            dice,
+            swing_set: _,
+            radioactive_products: _,
+            rage_replacements: _,
+            specials,
+        } = player;
+        Self {
+            specials: *specials,
+            dice: dice
+                .iter()
+                .map(|die| {
+                    let Die {
+                        properties,
+                        sides,
+                        swing_type,
+                        value: _,
+                        captured: _,
+                        not_set: _,
+                        dizzy: _,
+                        original_index: _,
+                        in_reserve,
+                    } = *die;
+                    SwingDieKey {
+                        properties,
+                        sides,
+                        swing_type,
+                        in_reserve,
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
+/// A player's allowed settings as indices into the product of its swing
+/// actions, the last action varying fastest, since a full `SwingMove` list
+/// can run to a million entries.
+struct SwingSpace {
+    key: SwingKey,
+    actions: Vec<SwingAction>,
+    strides: Vec<u32>,
+    settings: Vec<u32>,
+    extremes: Vec<u8>,
+    all_extreme_count: usize,
+    swing_types: usize,
+}
+
+impl SwingSpace {
+    fn new(player: &crate::game::Player, key: SwingKey) -> Self {
+        let actions = swing_actions(player);
+        let mut strides = vec![1u32; actions.len()];
+        for index in (1..actions.len()).rev() {
+            strides[index - 1] = strides[index]
+                .checked_mul(actions[index].values.len() as u32)
+                .expect("swing settings fit in u32");
+        }
+        let product = actions.first().map_or(1, |action| {
+            strides[0]
+                .checked_mul(action.values.len() as u32)
+                .expect("swing settings fit in u32")
+        });
+        let swing_types = actions
+            .iter()
+            .filter(|action| action.swing.is_some())
+            .count();
+        let mut space = Self {
+            key,
+            actions,
+            strides,
+            settings: Vec::new(),
+            extremes: Vec::new(),
+            all_extreme_count: 0,
+            swing_types,
+        };
+        for setting in 0..product {
+            let candidate = space.decode(setting);
+            if !swing_move_allowed(player, &candidate) {
+                continue;
+            }
+            let extremes = candidate
+                .values()
+                .iter()
+                .filter(|(swing, value)| {
+                    let (minimum, maximum) = swing_range(*swing);
+                    *value == minimum || *value == maximum
+                })
+                .count();
+            space.settings.push(setting);
+            space.extremes.push(extremes as u8);
+            if extremes == swing_types {
+                space.all_extreme_count += 1;
+            }
+        }
+        space
     }
 
-    while moves.len() > max {
-        let index = rng.rand_below(moves.len() as u32) as usize;
-        let percentage_extreme = extreme_settings(&moves[index]) as f32 / swing_dice as f32;
-        if rng.rand_f32() >= percentage_extreme {
-            moves.swap_remove(index);
+    fn decode(&self, mut setting: u32) -> SwingMove {
+        let mut candidate = SwingMove::empty();
+        for (action, stride) in self.actions.iter().zip(&self.strides) {
+            push_swing_choice(
+                &mut candidate,
+                action,
+                action.values[(setting / stride) as usize],
+            );
+            setting %= stride;
+        }
+        candidate
+    }
+
+    fn thin(&self, positions: &mut Vec<u32>, max: usize, rng: &mut Rng) {
+        if self.all_extreme_count >= max {
+            positions.retain(|position| {
+                usize::from(self.extremes[*position as usize]) == self.swing_types
+            });
+            return;
+        }
+        while positions.len() > max {
+            let index = rng.rand_below(positions.len() as u32) as usize;
+            let percentage_extreme =
+                f32::from(self.extremes[positions[index] as usize]) / self.swing_types as f32;
+            if rng.rand_f32() >= percentage_extreme {
+                positions.swap_remove(index);
+            }
         }
     }
 }
@@ -461,13 +616,13 @@ pub(super) fn current_swing_move(player: &crate::game::Player) -> SwingMove {
     action
 }
 
-struct SwingAction {
+pub(super) struct SwingAction {
     swing: Option<char>,
     die: usize,
-    values: Vec<u8>,
+    pub(super) values: Vec<u8>,
 }
 
-fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
+pub(super) fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
     let mut actions = Vec::new();
     let mut swings = player
         .dice
@@ -497,7 +652,7 @@ fn swing_actions(player: &crate::game::Player) -> Vec<SwingAction> {
     actions
 }
 
-fn swing_move_allowed(player: &crate::game::Player, candidate: &SwingMove) -> bool {
+pub(super) fn swing_move_allowed(player: &crate::game::Player, candidate: &SwingMove) -> bool {
     let unique_sizes = player.specials & special::UNIQUE_SIZES != 0;
     if unique_sizes || player.specials & special::UNIQUE_SWING != 0 {
         // Option dice count at the side this candidate chooses.
@@ -554,7 +709,7 @@ fn swing_move_allowed(player: &crate::game::Player, candidate: &SwingMove) -> bo
         })
 }
 
-fn push_swing_choice(candidate: &mut SwingMove, action: &SwingAction, value: u8) {
+pub(super) fn push_swing_choice(candidate: &mut SwingMove, action: &SwingAction, value: u8) {
     if let Some(swing) = action.swing {
         candidate.push_value((swing, value));
     } else {
@@ -562,21 +717,14 @@ fn push_swing_choice(candidate: &mut SwingMove, action: &SwingAction, value: u8)
     }
 }
 
+#[cfg(test)]
 pub(crate) fn generate_swing_moves(player: &crate::game::Player) -> Vec<SwingMove> {
-    let mut moves = vec![SwingMove::empty()];
-    for action in swing_actions(player) {
-        let mut next = Vec::new();
-        for base in &moves {
-            for value in &action.values {
-                let mut m = *base;
-                push_swing_choice(&mut m, &action, *value);
-                next.push(m);
-            }
-        }
-        moves = next;
-    }
-    moves.retain(|candidate| swing_move_allowed(player, candidate));
-    moves
+    let space = SwingSpace::new(player, SwingKey::new(player));
+    space
+        .settings
+        .iter()
+        .map(|setting| space.decode(*setting))
+        .collect()
 }
 
 /// `generate_swing_moves(player).first()` without building every setting,

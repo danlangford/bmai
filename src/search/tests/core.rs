@@ -413,6 +413,23 @@ fn the_next_round_deals_swing_dice_at_the_sizes_chosen_before_the_fight() {
     );
 }
 
+type SwingSetting = (Vec<(char, u8)>, Vec<(usize, bool)>);
+
+fn swing_settings(moves: &[SwingMove]) -> Vec<SwingSetting> {
+    moves
+        .iter()
+        .map(|action| (action.values().to_vec(), action.options().to_vec()))
+        .collect()
+}
+
+fn swing_branch_limit(max_moves: usize) -> Bmai3 {
+    Bmai3 {
+        max_branch: max_moves,
+        min_sims: 1,
+        ..Default::default()
+    }
+}
+
 #[test]
 fn a_swing_list_with_enough_extreme_moves_keeps_only_those_in_order() {
     let game = native_fixture_game("game 3\npreround\nplayer 0 3 0\nX\nY\nZ\nplayer 1 1 0\n6\n");
@@ -424,15 +441,145 @@ fn a_swing_list_with_enough_extreme_moves_keeps_only_those_in_order() {
             *value == minimum || *value == maximum
         })
     };
-    let mut moves = generated.clone();
-    super::preround::randomly_select_swing_moves(&mut moves, player, 8, &mut Rng::default());
-    let settings = |moves: &[SwingMove]| {
-        moves
-            .iter()
-            .map(|action| (action.values().to_vec(), action.options().to_vec()))
-            .collect::<Vec<_>>()
-    };
+    let moves = swing_candidates(player, &swing_branch_limit(8), None, &mut Rng::default());
     let expected = generated.into_iter().filter(extreme).collect::<Vec<_>>();
     assert_eq!(expected.len(), 8);
-    assert_eq!(settings(&moves), settings(&expected));
+    assert_eq!(swing_settings(&moves), swing_settings(&expected));
+}
+
+fn swing_player(dice: &str, special: &str) -> Player {
+    let count = dice.lines().count();
+    native_fixture_game(&format!(
+        "game\npreround\nplayer 0 {count} 0\n{dice}\nplayer 1 1 0\n6\n{special}"
+    ))
+    .players[0]
+        .clone()
+}
+
+#[test]
+fn the_swing_cache_tells_apart_players_that_differ_in_one_field() {
+    let mut pairs = Vec::new();
+    let original = swing_player("4\nX\nX\nY", "special 0 unique_swing\n");
+    let mut twin = original.clone();
+    twin.specials = 0;
+    pairs.push(("specials", original, twin));
+    let original = swing_player("X\nY\nZ", "");
+    let mut twin = original.clone();
+    twin.dice[2].swing_type[0] = Some('W');
+    pairs.push(("swing type", original, twin));
+    let original = swing_player("rX\n4/8\nY", "");
+    let mut twin = original.clone();
+    twin.dice[0].in_reserve = false;
+    pairs.push(("reserve", original, twin));
+    let original = swing_player("uX\nuY\nZ", "");
+    let mut twin = original.clone();
+    twin.dice[1].properties &= !property::UNIQUE;
+    pairs.push(("properties", original, twin));
+    // Unique sizes compares an option die at its current side.
+    let original = swing_player("4/6\nX\nY", "special 0 unique_sizes\n");
+    let mut twin = original.clone();
+    twin.dice[0].sides.swap(0, 1);
+    pairs.push(("sides", original, twin));
+
+    let everything = swing_branch_limit(usize::MAX);
+    for (field, original, twin) in pairs {
+        let fresh = |player: &Player| swing_settings(&generate_swing_moves(player));
+        assert_ne!(fresh(&original), fresh(&twin), "{field}");
+        for player in [&original, &twin] {
+            let cached = swing_candidates(player, &everything, None, &mut Rng::default());
+            assert_eq!(swing_settings(&cached), fresh(player), "{field}");
+        }
+    }
+}
+
+/// The direct enumeration the index cache must reproduce, draw for draw.
+fn listed_swing_candidates(player: &Player, max: usize, rng: &mut Rng) -> Vec<SwingMove> {
+    let mut moves = vec![SwingMove::empty()];
+    for action in super::preround::swing_actions(player) {
+        moves = moves
+            .iter()
+            .flat_map(|base| {
+                action.values.iter().map(|value| {
+                    let mut candidate = *base;
+                    super::preround::push_swing_choice(&mut candidate, &action, *value);
+                    candidate
+                })
+            })
+            .collect();
+    }
+    moves.retain(|candidate| super::preround::swing_move_allowed(player, candidate));
+    if moves.len() <= max {
+        return moves;
+    }
+    let swing_dice = player
+        .dice
+        .iter()
+        .filter(|die| !die.in_reserve)
+        .flat_map(|die| die.swing_type.iter().flatten().copied())
+        .collect::<std::collections::BTreeSet<_>>()
+        .len();
+    let extreme_settings = |action: &SwingMove| {
+        action
+            .values()
+            .iter()
+            .filter(|(swing, value)| {
+                let (minimum, maximum) = swing_range(*swing);
+                *value == minimum || *value == maximum
+            })
+            .count()
+    };
+    let extreme_moves = moves
+        .iter()
+        .filter(|action| extreme_settings(action) == swing_dice)
+        .count();
+    if extreme_moves >= max {
+        moves.retain(|action| extreme_settings(action) == swing_dice);
+        return moves;
+    }
+    while moves.len() > max {
+        let index = rng.rand_below(moves.len() as u32) as usize;
+        let percentage_extreme = extreme_settings(&moves[index]) as f32 / swing_dice as f32;
+        if rng.rand_f32() >= percentage_extreme {
+            moves.swap_remove(index);
+        }
+    }
+    moves
+}
+
+#[test]
+fn cached_swing_candidates_match_building_every_setting() {
+    let players = [
+        ("X\nY\nZ", ""),
+        ("qT\nqW\nqX\nqZ\nrnR", ""),
+        ("rX\n4/8\nY\n6/12\n(V,V)", ""),
+        ("uX\nuY\nZ", ""),
+        ("4\nX\nX\nY", "special 0 unique_swing\n"),
+        ("4\n6\nX\nY\nZ", "special 0 unique_sizes\n"),
+        ("4/6\nX\nY", "special 0 unique_sizes\n"),
+        ("4/6\n6/8\n8/10\n10/12\n2/4\n1/2\n3/5", ""),
+        ("8\n10", ""),
+    ]
+    .map(|(dice, special)| swing_player(dice, special));
+    // More players than the cache holds, then back again, so some lookups
+    // hit and some rebuild an evicted space.
+    let order = (0..players.len()).chain((0..players.len()).rev());
+    for (pass, index) in order.enumerate() {
+        let player = &players[index];
+        for max in [1, 8, 80, 100_000] {
+            for seed in [1, 7, 12_345] {
+                let mut listed_rng = Rng::default();
+                listed_rng.reseed(seed);
+                let mut cached_rng = listed_rng.clone();
+                let expected = listed_swing_candidates(player, max, &mut listed_rng);
+                let actual =
+                    swing_candidates(player, &swing_branch_limit(max), None, &mut cached_rng);
+                assert_eq!(
+                    swing_settings(&actual),
+                    swing_settings(&expected),
+                    "pass {pass} player {index} max {max} seed {seed}"
+                );
+                assert_eq!(cached_rng.rand(), listed_rng.rand());
+            }
+        }
+    }
 }

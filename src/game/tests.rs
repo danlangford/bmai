@@ -751,3 +751,51 @@ fn cpp_speed_generation_and_property_score_combinations() {
     scored.properties |= property::NULL;
     assert_eq!((scored.score(true), scored.score(false)), (0.0, 0.0));
 }
+
+#[test]
+fn an_unsorted_attack_differs_from_a_sorted_one_only_in_dice_order() {
+    let positions = [
+        // Captures, including one of a Rage die, whose replacement joins its side.
+        "player 0 3 0\n4:4\n12:9\n20:2\nplayer 1 3 0\nG6:4\n10:9\n8:2\n",
+        // Trips, which can fail.
+        "player 0 2 0\nt8:3\nt4:1\nplayer 1 2 0\n20:15\n12:2\n",
+        // Boom, which rerolls the target and the attacker's Ornery dice.
+        "player 0 2 0\nb6:3\no10:5\nplayer 1 2 0\n4:2\n8:6\n",
+    ];
+    for position in positions {
+        let mut parser = crate::Parser::default();
+        parser
+            .parse_string(&format!("game\nfight\n{position}"), &mut Vec::new())
+            .unwrap();
+        let game = parser.game;
+        let actions = game.valid_attacks(usize::MAX);
+        assert!(!actions.is_empty(), "{position}");
+        for action in &actions {
+            for seed in 1..20 {
+                let mut sorted = game.clone();
+                let mut sorted_rng = crate::rng::Rng::default();
+                sorted_rng.reseed(seed);
+                let mut unsorted = game.clone();
+                let mut unsorted_rng = sorted_rng.clone();
+
+                let sorted_turn = apply_attack(&mut sorted, action, &mut sorted_rng);
+                let unsorted_turn = apply_attack_unsorted(&mut unsorted, action, &mut unsorted_rng);
+
+                assert_eq!(unsorted_turn, sorted_turn, "{position} {action:?}");
+                assert_eq!(
+                    unsorted_rng.rand(),
+                    sorted_rng.rand(),
+                    "{position} {action:?}"
+                );
+                for player in sorted.players.iter_mut().chain(&mut unsorted.players) {
+                    player.optimize_dice();
+                }
+                assert_eq!(
+                    format!("{:?}", unsorted.players),
+                    format!("{:?}", sorted.players),
+                    "{position} {action:?} {seed}"
+                );
+            }
+        }
+    }
+}

@@ -67,6 +67,26 @@ clear benefit. Each could return if that changes.
   swing sizes, and Chance and Focus for initiative in simulated rounds. None
   beat the C++ QAI in confirmation runs; STRENGTH.md has the numbers.
 
+## [0.37.0] - 2026-10-14
+
+### Changed
+
+- Monte Carlo search does the same work with about 12% fewer instructions on
+  `bmsim_in.txt` and 22% fewer on `bug16_in.txt`, taking 17% and 40% less
+  user time. Peak memory on `bug16_in.txt` at one worker falls from about
+  3–4 GB to 27 MB. Every golden output, `RNG_HASH` and `SEARCH_HASH`
+  included, is unchanged; BENCHMARKS.md has the measurements.
+  - A simulated preround takes swing settings from a per-thread cache that
+    keeps each player state's settings as indices. It used to build every
+    setting again, about a million of them per call in `bug16_in.txt`.
+  - Simulated rounds and match play put the mover first by swapping the
+    players in place instead of copying the game for every move. Quick and
+    Maximize no longer copy the game twice before their first candidate.
+  - Quick lists attacks into one list per thread instead of a new one per
+    move.
+  - Quick and Maximize skip re-sorting the dice after each candidate attack,
+    since they read only the scores.
+
 ## [0.36.0] - 2026-10-13
 
 ### Fixed
@@ -1012,7 +1032,8 @@ clear benefit. Each could return if that changes.
 - Applied parity-preserving storage, simulation-reuse, enumeration, restoration,
   and compiler/linker optimizations.
 
-[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.36.0...HEAD
+[Unreleased]: https://github.com/danlangford/bmai/compare/bmair-v0.37.0...HEAD
+[0.37.0]: https://github.com/danlangford/bmai/compare/bmair-v0.36.0...bmair-v0.37.0
 [0.36.0]: https://github.com/danlangford/bmai/compare/bmair-v0.35.0...bmair-v0.36.0
 [0.35.0]: https://github.com/danlangford/bmai/compare/bmair-v0.34.0...bmair-v0.35.0
 [0.34.0]: https://github.com/danlangford/bmai/compare/bmair-v0.33.0...bmair-v0.34.0

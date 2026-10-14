@@ -85,12 +85,9 @@ pub(crate) fn play_match_with_policies(
             && wins[1] < template.target_wins
             && game.players[loser].dice.iter().any(|die| die.in_reserve)
         {
-            let mut oriented = game.clone();
-            if loser == 1 {
-                oriented.players.swap(0, 1);
-            }
-            let selected =
-                policies[loser].reserve(&oriented, &mut DecisionContext::new(rng, Some(native)));
+            let selected = with_mover_first(&mut game, loser, |game| {
+                policies[loser].reserve(game, &mut DecisionContext::new(rng, Some(native)))
+            });
             if let Some(index) = selected {
                 apply_use_reserve(&mut game.players[loser].dice[index]);
                 reserves_used += 1;
@@ -125,14 +122,12 @@ pub(super) fn choose_auxiliary_dice(
     }
     // A decline ends the choice for both players on ButtonWeavers.
     let accepted = (0..2).all(|player| {
-        let mut oriented = recipe.clone();
-        if player == 1 {
-            oriented.players.swap(0, 1);
-        }
-        policies[player]
-            .auxiliary(&oriented, &mut DecisionContext::new(rng, Some(native)))
-            .choice
-            .is_some()
+        with_mover_first(&mut recipe, player, |game| {
+            policies[player]
+                .auxiliary(game, &mut DecisionContext::new(rng, Some(native)))
+                .choice
+                .is_some()
+        })
     });
     apply_auxiliary_decision(&mut recipe, accepted);
     recipe
@@ -223,16 +218,11 @@ pub(super) fn play_round_with_policies(
         if fight_over(game) {
             break;
         }
-        let mut oriented = game.clone();
-        if phase_player == 1 {
-            oriented.players.swap(0, 1);
-        }
-        let action = policies[phase_player]
-            .attack(
-                &oriented,
-                &mut DecisionContext::new(rng, native.as_deref_mut()),
-            )
-            .choice;
+        let action = with_mover_first(game, phase_player, |game| {
+            policies[phase_player]
+                .attack(game, &mut DecisionContext::new(rng, native.as_deref_mut()))
+                .choice
+        });
         if action.action == Action::Surrender {
             game.players[phase_player].score = -1000.0;
             break;
