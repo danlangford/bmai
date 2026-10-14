@@ -73,7 +73,8 @@ clear benefit. Each could return if that changes.
 
 - Monte Carlo search does the same work with about 12% fewer instructions on
   `bmsim_in.txt` and 22% fewer on `bug16_in.txt`, taking 17% and 40% less
-  user time. Peak memory on `bug16_in.txt` falls from about 3–4 GB to 27 MB.
+  user time. Peak memory on `bug16_in.txt` at one worker falls from about
+  3–4 GB to 27 MB.
   Every golden output, `RNG_HASH` and `SEARCH_HASH` included, is unchanged;
   BENCHMARKS.md has the measurements.
   - A simulated preround takes swing settings from a per-thread cache that
