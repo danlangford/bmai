@@ -386,7 +386,8 @@ fn swing_space<'a>(
     spaces.last().expect("the space was just placed last")
 }
 
-/// Leaves out only the fields a roll changes, which no setting depends on.
+/// Every field the setting rules read. The destructuring makes a new field a
+/// compile error here.
 #[derive(PartialEq, Eq)]
 struct SwingKey {
     specials: u8,
@@ -403,16 +404,37 @@ struct SwingDieKey {
 
 impl SwingKey {
     fn new(player: &crate::game::Player) -> Self {
+        let crate::game::Player {
+            id: _,
+            score: _,
+            dice,
+            swing_set: _,
+            radioactive_products: _,
+            rage_replacements: _,
+            specials,
+        } = player;
         Self {
-            specials: player.specials,
-            dice: player
-                .dice
+            specials: *specials,
+            dice: dice
                 .iter()
-                .map(|die| SwingDieKey {
-                    properties: die.properties,
-                    sides: die.sides,
-                    swing_type: die.swing_type,
-                    in_reserve: die.in_reserve,
+                .map(|die| {
+                    let Die {
+                        properties,
+                        sides,
+                        swing_type,
+                        value: _,
+                        captured: _,
+                        not_set: _,
+                        dizzy: _,
+                        original_index: _,
+                        in_reserve,
+                    } = *die;
+                    SwingDieKey {
+                        properties,
+                        sides,
+                        swing_type,
+                        in_reserve,
+                    }
                 })
                 .collect(),
         }
@@ -428,8 +450,8 @@ struct SwingSpace {
     strides: Vec<u32>,
     settings: Vec<u32>,
     extremes: Vec<u8>,
-    all_extreme: usize,
-    swing_dice: usize,
+    all_extreme_count: usize,
+    swing_types: usize,
 }
 
 impl SwingSpace {
@@ -446,7 +468,7 @@ impl SwingSpace {
                 .checked_mul(action.values.len() as u32)
                 .expect("swing settings fit in u32")
         });
-        let swing_dice = actions
+        let swing_types = actions
             .iter()
             .filter(|action| action.swing.is_some())
             .count();
@@ -456,8 +478,8 @@ impl SwingSpace {
             strides,
             settings: Vec::new(),
             extremes: Vec::new(),
-            all_extreme: 0,
-            swing_dice,
+            all_extreme_count: 0,
+            swing_types,
         };
         for setting in 0..product {
             let candidate = space.decode(setting);
@@ -474,8 +496,8 @@ impl SwingSpace {
                 .count();
             space.settings.push(setting);
             space.extremes.push(extremes as u8);
-            if extremes == swing_dice {
-                space.all_extreme += 1;
+            if extremes == swing_types {
+                space.all_extreme_count += 1;
             }
         }
         space
@@ -495,16 +517,16 @@ impl SwingSpace {
     }
 
     fn thin(&self, positions: &mut Vec<u32>, max: usize, rng: &mut Rng) {
-        if self.all_extreme >= max {
+        if self.all_extreme_count >= max {
             positions.retain(|position| {
-                usize::from(self.extremes[*position as usize]) == self.swing_dice
+                usize::from(self.extremes[*position as usize]) == self.swing_types
             });
             return;
         }
         while positions.len() > max {
             let index = rng.rand_below(positions.len() as u32) as usize;
             let percentage_extreme =
-                f32::from(self.extremes[positions[index] as usize]) / self.swing_dice as f32;
+                f32::from(self.extremes[positions[index] as usize]) / self.swing_types as f32;
             if rng.rand_f32() >= percentage_extreme {
                 positions.swap_remove(index);
             }

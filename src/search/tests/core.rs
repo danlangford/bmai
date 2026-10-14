@@ -447,8 +447,52 @@ fn a_swing_list_with_enough_extreme_moves_keeps_only_those_in_order() {
     assert_eq!(swing_settings(&moves), swing_settings(&expected));
 }
 
-/// Builds every setting as a `SwingMove` before thinning, as the search did
-/// before it cached settings as indices.
+fn swing_player(dice: &str, special: &str) -> Player {
+    let count = dice.lines().count();
+    native_fixture_game(&format!(
+        "game\npreround\nplayer 0 {count} 0\n{dice}\nplayer 1 1 0\n6\n{special}"
+    ))
+    .players[0]
+        .clone()
+}
+
+#[test]
+fn the_swing_cache_tells_apart_players_that_differ_in_one_field() {
+    let mut pairs = Vec::new();
+    let original = swing_player("4\nX\nX\nY", "special 0 unique_swing\n");
+    let mut twin = original.clone();
+    twin.specials = 0;
+    pairs.push(("specials", original, twin));
+    let original = swing_player("X\nY\nZ", "");
+    let mut twin = original.clone();
+    twin.dice[2].swing_type[0] = Some('W');
+    pairs.push(("swing type", original, twin));
+    let original = swing_player("rX\n4/8\nY", "");
+    let mut twin = original.clone();
+    twin.dice[0].in_reserve = false;
+    pairs.push(("reserve", original, twin));
+    let original = swing_player("uX\nuY\nZ", "");
+    let mut twin = original.clone();
+    twin.dice[1].properties &= !property::UNIQUE;
+    pairs.push(("properties", original, twin));
+    // Unique sizes compares an option die at its current side.
+    let original = swing_player("4/6\nX\nY", "special 0 unique_sizes\n");
+    let mut twin = original.clone();
+    twin.dice[0].sides.swap(0, 1);
+    pairs.push(("sides", original, twin));
+
+    let everything = swing_branch_limit(usize::MAX);
+    for (field, original, twin) in pairs {
+        let fresh = |player: &Player| swing_settings(&generate_swing_moves(player));
+        assert_ne!(fresh(&original), fresh(&twin), "{field}");
+        for player in [&original, &twin] {
+            let cached = swing_candidates(player, &everything, None, &mut Rng::default());
+            assert_eq!(swing_settings(&cached), fresh(player), "{field}");
+        }
+    }
+}
+
+/// The direct enumeration the index cache must reproduce, draw for draw.
 fn listed_swing_candidates(player: &Player, max: usize, rng: &mut Rng) -> Vec<SwingMove> {
     let mut moves = vec![SwingMove::empty()];
     for action in super::preround::swing_actions(player) {
@@ -504,7 +548,7 @@ fn listed_swing_candidates(player: &Player, max: usize, rng: &mut Rng) -> Vec<Sw
 
 #[test]
 fn cached_swing_candidates_match_building_every_setting() {
-    let mut players = [
+    let players = [
         ("X\nY\nZ", ""),
         ("qT\nqW\nqX\nqZ\nrnR", ""),
         ("rX\n4/8\nY\n6/12\n(V,V)", ""),
@@ -515,19 +559,7 @@ fn cached_swing_candidates_match_building_every_setting() {
         ("4/6\n6/8\n8/10\n10/12\n2/4\n1/2\n3/5", ""),
         ("8\n10", ""),
     ]
-    .map(|(dice, special)| {
-        let count = dice.lines().count();
-        native_fixture_game(&format!(
-            "game\npreround\nplayer 0 {count} 0\n{dice}\nplayer 1 1 0\n6\n{special}"
-        ))
-        .players[0]
-            .clone()
-    })
-    .to_vec();
-    // Unique sizes compares an option die at its current side.
-    let mut swapped = players[6].clone();
-    swapped.dice[0].sides.swap(0, 1);
-    players.push(swapped);
+    .map(|(dice, special)| swing_player(dice, special));
     // More players than the cache holds, then back again, so some lookups
     // hit and some rebuild an evicted space.
     let order = (0..players.len()).chain((0..players.len()).rev());

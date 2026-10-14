@@ -202,7 +202,8 @@ which load hardly changes. Each fixture ran with `workers 1` as its first
 line, twice per binary, and the tables give the mean. Every run printed the
 golden `RNG_HASH` and `SEARCH_HASH`.
 
-Each change alone on 0.35.0, in billions of instructions:
+Each change alone on 0.35.0, where the work began before 0.36.0's Chance
+change merged, in billions of instructions:
 
 | Change | `bmsim_in.txt` | `bug16_in.txt` |
 |---|---:|---:|
@@ -230,9 +231,11 @@ All four on 0.36.0, the release they build on:
 | `bug16_in.txt` instructions | 901.3G | 699.8G | −22.4% |
 | `bug16_in.txt` cycles | 247.6G | 135.5G | −45.3% |
 | `bug16_in.txt` user time | 51.91s | 30.91s | −40.5% |
+| `bug16_in.txt` peak resident memory | 2.98–3.86GB | 26.6MB | |
 
 Cycles fell further than instructions on `bug16_in.txt` because most of what
-the swing cache removed was memory traffic.
+the swing cache removed was memory traffic: the setting lists it no longer
+builds were also the run's peak memory. `bmsim_in.txt` stayed near 5MB.
 
 Tried and dropped: a per-thread pool of scratch games, so that nested
 searches and each native simulation reuse one instead of cloning the game.
