@@ -192,3 +192,52 @@ of the time:
 | 1 | 3.05s | 2.45s |
 | 6 | 1.96s | 0.73s |
 | 18 | 3.24s | 0.45s |
+
+## 0.37.0 search speedups
+
+Measured on 2026-10-14 on an 18-core Apple M5 Pro (macOS 26.6) with Rust
+1.97.1 and the release profile. Other work kept the load average near 3, so
+the figures are instructions retired, as `/usr/bin/time -l` reports them,
+which load hardly changes. Each fixture ran with `workers 1` as its first
+line, twice per binary, and the tables give the mean. Every run printed the
+golden `RNG_HASH` and `SEARCH_HASH`.
+
+Each change alone on 0.35.0, in billions of instructions:
+
+| Change | `bmsim_in.txt` | `bug16_in.txt` |
+|---|---:|---:|
+| 0.35.0 | 323.1 | 904.1 |
+| Swing settings cached as indices | 322.5 (−0.2%) | 786.1 (−13.1%) |
+| Mover put first in place | 317.0 (−1.9%) | 898.7 (−0.6%) |
+| Quick's attack list reused | 310.7 (−3.8%) | 880.0 (−2.7%) |
+| No re-sort in score-only look aheads | 301.2 (−6.8%) | 855.1 (−5.4%) |
+| All four | 283.2 (−12.3%) | 703.1 (−22.2%) |
+
+Without the swing cache, `bug16_in.txt` counts vary by up to 1.2% between
+runs of one binary: each simulated preround built a list of about a million
+settings at a quarter kilobyte each, and a run faulted in 3.8 million pages.
+With the cache, repeat runs agree within 0.1%. The second change's
+`bug16_in.txt` figure is inside that noise; added last to the other three,
+it saved 1.2% there and 2.2% on `bmsim_in.txt`.
+
+All four on 0.36.0, the release they build on:
+
+| | 0.36.0 | 0.37.0 | Change |
+|---|---:|---:|---:|
+| `bmsim_in.txt` instructions | 322.7G | 282.8G | −12.4% |
+| `bmsim_in.txt` cycles | 54.4G | 45.1G | −17.0% |
+| `bmsim_in.txt` user time | 12.45s | 10.37s | −16.7% |
+| `bug16_in.txt` instructions | 901.3G | 699.8G | −22.4% |
+| `bug16_in.txt` cycles | 247.6G | 135.5G | −45.3% |
+| `bug16_in.txt` user time | 51.91s | 30.91s | −40.5% |
+
+Cycles fell further than instructions on `bug16_in.txt` because most of what
+the swing cache removed was memory traffic.
+
+Tried and dropped: a per-thread pool of scratch games, so that nested
+searches and each native simulation reuse one instead of cloning the game.
+Every version lost somewhere. Holding the games inline cost `bug16_in.txt`
+1.4% more instructions, because Quick takes a scratch game at every playout
+move and fetching one got slower; boxing them cut that to 0.2%. Keeping
+Quick's single slot in front of a boxed pool saved 1.6% of `bmsim_in.txt`
+instructions but took 11% more cycles, for a reason the counts do not show.
