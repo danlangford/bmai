@@ -3,7 +3,7 @@
 
 use super::{Choice, DecisionContext, Engine, Quick};
 use crate::Rng;
-use crate::game::{Action, apply_attack};
+use crate::game::{Action, apply_attack_unsorted};
 use crate::game::{Game, Move};
 use crate::search::{
     ChanceMove, FocusMove, ScratchGame, SwingMove, moves_including_pass, restore_simulation,
@@ -80,7 +80,7 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
             return candidate;
         }
         restore_simulation(&mut simulation, game);
-        apply_attack(&mut simulation, &candidate, rng);
+        apply_attack_unsorted(&mut simulation, &candidate, rng);
         let score = simulation.players[0].score - simulation.players[1].score;
         if score > best_score {
             best_score = score;

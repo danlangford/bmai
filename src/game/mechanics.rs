@@ -9,6 +9,13 @@ pub(crate) fn apply_attack(game: &mut Game, action: &Move, rng: &mut Rng) -> boo
     apply_attack_for_players(game, action, 0, 1, rng)
 }
 
+/// Leaves the dice out of order, so only the scores may be read afterwards.
+/// A look ahead that ranks attacks by score need not sort, and playouts
+/// would otherwise sort for every candidate.
+pub(crate) fn apply_attack_unsorted(game: &mut Game, action: &Move, rng: &mut Rng) -> bool {
+    resolve_and_check(game, action, 0, 1, rng, false)
+}
+
 pub(crate) fn apply_attack_for_players(
     game: &mut Game,
     action: &Move,
@@ -16,8 +23,27 @@ pub(crate) fn apply_attack_for_players(
     target_player: usize,
     rng: &mut Rng,
 ) -> bool {
+    resolve_and_check(game, action, attacker_player, target_player, rng, true)
+}
+
+fn resolve_and_check(
+    game: &mut Game,
+    action: &Move,
+    attacker_player: usize,
+    target_player: usize,
+    rng: &mut Rng,
+    sort_dice: bool,
+) -> bool {
     let skills = skills_on_board(game);
-    let extra_turn = resolve_attack(game, action, attacker_player, target_player, rng, skills);
+    let extra_turn = resolve_attack(
+        game,
+        action,
+        attacker_player,
+        target_player,
+        rng,
+        skills,
+        sort_dice,
+    );
     debug_assert_eq!(
         skills_on_board(game) & !skills,
         0,
@@ -44,9 +70,10 @@ fn resolve_attack(
     target_player: usize,
     rng: &mut Rng,
     skills: u64,
+    sort_dice: bool,
 ) -> bool {
     if action.attack == Some(Attack::Boom) {
-        return apply_boom_attack(game, action, attacker_player, target_player, rng);
+        return apply_boom_attack(game, action, attacker_player, target_player, rng, sort_dice);
     }
     apply_fire_adjustments(game, action, attacker_player);
     let present = |skill: u64| skills & skill != 0;
@@ -227,8 +254,10 @@ fn resolve_attack(
             }
         }
         if trip_failed {
-            optimize_dice(&mut game.players[attacker_player]);
-            optimize_dice(&mut game.players[target_player]);
+            if sort_dice {
+                optimize_dice(&mut game.players[attacker_player]);
+                optimize_dice(&mut game.players[target_player]);
+            }
             return attacking_jolt || time_and_space_extra_turn;
         }
     }
@@ -253,9 +282,11 @@ fn resolve_attack(
             created_rage_replacement = true;
         }
     }
-    optimize_dice(&mut game.players[attacker_player]);
-    if created_rage_replacement {
-        optimize_dice(&mut game.players[target_player]);
+    if sort_dice {
+        optimize_dice(&mut game.players[attacker_player]);
+        if created_rage_replacement {
+            optimize_dice(&mut game.players[target_player]);
+        }
     }
     attacking_jolt || captured_jolt || time_and_space_extra_turn || morph_extra_turn
 }
@@ -268,6 +299,7 @@ fn apply_boom_attack(
     attacker_player: usize,
     target_player: usize,
     rng: &mut Rng,
+    sort_dice: bool,
 ) -> bool {
     let attacker = action.attackers.first().expect("Boom attacker");
     let target = action.targets.first().expect("Boom target");
@@ -291,8 +323,10 @@ fn apply_boom_attack(
         apply_before_roll_effects(game, attacker_player, index);
         apply_attacker_nature_roll(game, attacker_player, index, rng);
     }
-    optimize_dice(&mut game.players[attacker_player]);
-    optimize_dice(&mut game.players[target_player]);
+    if sort_dice {
+        optimize_dice(&mut game.players[attacker_player]);
+        optimize_dice(&mut game.players[target_player]);
+    }
     extra_turn
 }
 

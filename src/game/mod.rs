@@ -17,10 +17,10 @@ pub use action::{DieIndexSet, Move};
 pub(crate) use attack::turbo_attacker;
 pub use die::Die;
 pub(crate) use mechanics::{
-    RoundSelections, apply_attack, apply_attack_for_players, apply_before_roll_effects,
-    available_dice_count, check_initiative, initiative_winner, optimize_dice,
-    record_round_selections, recover_dizzy_dice, restore_dice_for_new_round, roll_die,
-    roll_round_dice, roll_scheduled_die, swing_range,
+    RoundSelections, apply_attack, apply_attack_for_players, apply_attack_unsorted,
+    apply_before_roll_effects, available_dice_count, check_initiative, initiative_winner,
+    optimize_dice, record_round_selections, recover_dizzy_dice, restore_dice_for_new_round,
+    roll_die, roll_round_dice, roll_scheduled_die, swing_range,
 };
 #[cfg(test)]
 pub(crate) use mechanics::{apply_attack_player_effects, split_radioactive_attacker};

@@ -4,7 +4,7 @@
 
 use super::{Choice, DecisionContext, Engine};
 use crate::Rng;
-use crate::game::{Game, Move, apply_attack, property};
+use crate::game::{Game, Move, apply_attack_unsorted, property};
 use crate::search::{
     ChanceMove, FocusMove, ScratchGame, SwingMove, acceptable_auxiliary_die, first_swing_move,
     restore_simulation,
@@ -62,7 +62,7 @@ pub(crate) fn attack(game: &Game, rng: &mut Rng, fire_limit: usize) -> Move {
     let mut simulation = ScratchGame::new(game);
     for (index, candidate) in candidates.iter().enumerate() {
         restore_simulation(&mut simulation, game);
-        apply_attack(&mut simulation, candidate, rng);
+        apply_attack_unsorted(&mut simulation, candidate, rng);
         let mut score = simulation.players[0].score - simulation.players[1].score;
         for attacker in candidate.attackers.iter() {
             let die = &game.players[0].dice[attacker];
