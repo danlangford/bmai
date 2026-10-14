@@ -121,8 +121,9 @@ fn chance_offers_declining_first_then_one_die_per_reroll() {
     assert_eq!(rerolled, [None, Some(0), Some(1)]);
 }
 
-/// ButtonWeavers returns to initiative after a successful reroll and re-enables
-/// the new loser's Chance dice, so both players may keep rerolling.
+/// ButtonWeavers returns to initiative after a successful reroll and asks the
+/// new loser to react again, so rerolls alternate until one fails or a player
+/// declines.
 #[test]
 fn chance_rerolls_alternate_while_each_one_succeeds() {
     let recipe =
@@ -135,13 +136,12 @@ fn chance_rerolls_alternate_while_each_one_succeeds() {
     let mut rng = Rng::default();
     let mut longest = Vec::new();
     for _ in 0..50 {
-        spy.chance_rerolls.lock().unwrap().clear();
         let mut game = recipe.clone();
         play_round_with_policies(&mut game, &mut rng, &policies, None);
-        let rerolls = spy.chance_rerolls.lock().unwrap().clone();
+        let rerolls = std::mem::take(&mut *spy.chance_rerolls.lock().unwrap());
         for pair in rerolls.windows(2) {
-            assert_eq!(pair[1].0, 1 - pair[0].0, "{rerolls:?}");
-            assert_eq!(pair[1].1, pair[0].0, "{rerolls:?}");
+            assert_eq!(pair[1].player, 1 - pair[0].player, "{rerolls:?}");
+            assert_eq!(pair[1].initiative, pair[0].player, "{rerolls:?}");
         }
         if rerolls.len() > longest.len() {
             longest = rerolls;

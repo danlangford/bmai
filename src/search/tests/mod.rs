@@ -280,13 +280,18 @@ fn swing_die(swing: char, properties: u64, original_index: usize) -> Die {
     }
 }
 
+#[derive(Debug)]
+struct ChanceReroll {
+    player: usize,
+    initiative: usize,
+}
+
 #[derive(Clone, Debug, Default)]
 struct QuickSpy {
     attacks: Arc<Mutex<Vec<Game>>>,
     reserves: Arc<Mutex<Vec<Game>>>,
     auxiliaries: Arc<Mutex<Vec<Game>>>,
-    /// Each reroll as (player, initiative holder, original die index).
-    chance_rerolls: Arc<Mutex<Vec<(usize, usize, usize)>>>,
+    chance_rerolls: Arc<Mutex<Vec<ChanceReroll>>>,
     declines_auxiliary: bool,
     rerolls_chance: bool,
 }
@@ -319,15 +324,15 @@ impl Engine for QuickSpy {
         if !self.rerolls_chance {
             return Quick.chance(game, player, initiative, context);
         }
-        let dice = &game.players[player].dice;
-        let index = dice
+        let index = game.players[player]
+            .dice
             .iter()
             .position(|die| die.is_available() && die.has_property(property::CHANCE))
             .expect("asked to react without a Chance die");
         self.chance_rerolls
             .lock()
             .unwrap()
-            .push((player, initiative, dice[index].original_index));
+            .push(ChanceReroll { player, initiative });
         ChanceMove {
             reroll: Some(index),
         }
